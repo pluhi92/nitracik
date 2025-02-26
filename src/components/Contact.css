@@ -1,0 +1,184 @@
+.contact {
+  text-align: center;
+  padding: 60px 20px;
+  background-color: #f8f9fa; /* Light background for contrast */
+}
+
+.contact h2 {
+  font-size: 2.5rem;
+  color: #2c3e50; /* Darker, more professional color */
+  margin-bottom: 30px;
+  font-weight: 600;
+  letter-spacing: -0.5px; /* Slight letter spacing for elegance */
+}
+
+.contact-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start; /* Align items to the top for better readability */
+  margin-bottom: 60px;
+  max-width: 1000px; /* Slightly wider for a modern look */
+  margin-left: auto;
+  margin-right: auto;
+  gap: 20px; /* Use gap for consistent spacing */
+}
+
+.contact-item {
+  flex: 1;
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Subtle shadow for depth */
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.contact-item:hover {
+  transform: translateY(-5px); /* Lift effect on hover */
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.contact-item h3 {
+  font-size: 1.5rem;
+  color: #007bff;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.contact-item p {
+  font-size: 1.1rem;
+  color: #555;
+  line-height: 1.6; /* Better line height for readability */
+}
+
+.contact-form {
+  max-width: 700px; /* Slightly wider form */
+  margin: 0 auto 60px;
+  padding: 40px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* Deeper shadow for emphasis */
+}
+
+.contact-form .form-group {
+  margin-bottom: 25px;
+  text-align: left;
+}
+
+.contact-form label {
+  font-size: 1rem;
+  color: #2c3e50;
+  font-weight: 500;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.contact-form input,
+.contact-form textarea {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.contact-form input:focus,
+.contact-form textarea:focus {
+  border-color: #007bff;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1); /* Focus effect */
+}
+
+.contact-form textarea {
+  resize: vertical; /* Allow vertical resizing */
+  min-height: 150px;
+}
+
+.contact-form .submit-button {
+  padding: 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.contact-form .submit-button:hover {
+  background-color: #0056b3;
+  transform: scale(1.02); /* Slight scale effect on hover */
+}
+
+.contact-form .submit-button:active {
+  transform: scale(0.98); /* Press effect */
+}
+
+.map-container {
+  margin-top: 40px;
+  width: 100%;
+  max-width: 1000px; /* Wider map container */
+  height: 450px; /* Slightly taller map */
+  margin: 40px auto 0;
+  border-radius: 12px;
+  overflow: hidden; /* Ensure rounded corners for iframe */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* Consistent shadow */
+}
+
+.map-container iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .contact-info {
+    flex-direction: column; /* Stack items vertically on smaller screens */
+    align-items: center;
+    gap: 30px;
+  }
+
+  .contact-item {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .contact-form {
+    padding: 30px;
+  }
+
+  .map-container {
+    height: 300px; /* Smaller map on mobile */
+  }
+}
+
+@media (max-width: 480px) {
+  .contact h2 {
+    font-size: 2rem;
+  }
+
+  .contact-item h3 {
+    font-size: 1.3rem;
+  }
+
+  .contact-item p {
+    font-size: 1rem;
+  }
+
+  .contact-form {
+    padding: 20px;
+  }
+  /* Add this to Contact.css */
+.form-message {
+  margin-top: 15px;
+  font-size: 1rem;
+  color: #28a745; /* Green for success */
+  text-align: center;
+}
+
+.form-message.error {
+  color: #dc3545; /* Red for error */
+}
+}

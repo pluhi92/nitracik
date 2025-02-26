@@ -1,0 +1,44 @@
+/* UserProfile.css */
+.danger-zone {
+    border: 2px solid #dc3545;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 30px;
+  }
+  
+  .danger-zone h5 {
+    color: #dc3545;
+    margin-bottom: 15px;
+  }
+  
+  .danger-zone p {
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+  }
+  
+  .btn-danger {
+    width: 100%;
+    max-width: 200px;
+  }
+  .booked-sessions {
+    margin-top: 2rem;
+  }
+  
+  .booked-sessions h3 {
+    margin-bottom: 1rem;
+  }
+  
+  .list-group-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .btn-danger.btn-sm {
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+  }
+  .react-tooltip {
+    z-index: 9999 !important; /* Ensure tooltip appears above other elements */
+    pointer-events: auto !important; /* Allow interaction with the tooltip */
+  }

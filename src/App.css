@@ -1,0 +1,95 @@
+/* App.css */
+:root {
+  --primary-color: #4D3D38;
+  --secondary-color: #F4A58E;
+  --highlight-color: #F6D56F;
+  --hover-color: #E68A75;
+  --text-color: #4D3D38;
+  --background-color: #FDF7F2;
+  --footer-bg: #4D3D38;
+  --transition-speed: 0.3s;
+}
+
+/* Enhanced Logo Styling */
+.logo-image {
+  height: 80px; /* Increased logo size */
+  width: auto;
+  transition: transform var(--transition-speed) ease;
+}
+
+.logo-image:hover {
+  transform: scale(1.05);
+}
+
+/* Enhanced Navigation Links */
+.nav-link-custom {
+  font-size: 1.3rem !important; /* Larger text */
+  font-weight: 600 !important;
+  color: var(--text-color) !important;
+  padding: 0.75rem 1.5rem !important;
+  transition: all var(--transition-speed) ease !important;
+  position: relative;
+}
+
+.nav-link-custom:hover {
+  color: var(--secondary-color) !important;
+  transform: translateY(-2px);
+}
+
+.nav-link-custom::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: 8px;
+  left: 0;
+  background-color: var(--secondary-color);
+  transition: width var(--transition-speed) ease;
+}
+
+.nav-link-custom:hover::after {
+  width: 100%;
+}
+
+/* Mobile Optimization */
+@media (max-width: 992px) {
+  .logo-image {
+    height: 65px; /* Slightly smaller for tablet */
+  }
+  
+  .navbar {
+    padding: 0.5rem 1rem;
+  }
+
+  .nav-link-custom {
+    font-size: 1.25rem !important;
+    padding: 1rem 0 !important;
+    text-align: center;
+  }
+
+  .navbar-nav {
+    background-color: rgba(255, 255, 255, 0.95);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .logo-image {
+    height: 55px; /* Optimized for mobile */
+  }
+
+  .nav-link-custom {
+    font-size: 1.1rem !important;
+  }
+
+  .navbar-toggler {
+    padding: 0.75rem;
+  }
+
+  .navbar-toggler-icon {
+    width: 1.5em;
+    height: 1.5em;
+  }
+}
