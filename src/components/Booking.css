@@ -7,6 +7,12 @@
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   font-family: 'Arial', sans-serif;
+  transition: margin 0.3s ease; /* Smooth transition for margin adjustment */
+}
+
+/* Adjust margin when menu expands */
+.menu-expanded .booking-container {
+  margin-top: 80px; /* Increase top margin to accommodate expanded menu */
 }
 
 /* Admin Panel Styles */
@@ -236,6 +242,7 @@
     margin-bottom: 25px;
   }
 }
+
 .alert-danger {
   color: red;
   background-color: #ffebee;
@@ -244,6 +251,7 @@
   border-radius: 5px;
   margin-top: 10px;
 }
+
 .react-tooltip {
   background-color: #333;
   color: #fff;
