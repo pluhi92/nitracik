@@ -34,7 +34,7 @@ const Login = ({ onLoginSuccess }) => {
     try {
       // Send login request to the backend
       const response = await axios.post(
-        'http://localhost:5000/api/login',
+        'http://192.168.68.63:5000/api/login',
         { email, password },
         { withCredentials: true }
       );

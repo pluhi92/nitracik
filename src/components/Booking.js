@@ -9,7 +9,7 @@ import { IMaskInput } from 'react-imask';
 import { Tooltip } from 'react-tooltip';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000', // Directly point to backend
+  baseURL: 'http://192.168.68.63:5000', // Directly point to backend
   withCredentials: true,
 });
 
