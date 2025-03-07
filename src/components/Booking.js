@@ -7,9 +7,10 @@ import Login from './Login';
 import { useNavigate } from 'react-router-dom';
 import { IMaskInput } from 'react-imask';
 import { Tooltip } from 'react-tooltip';
+import { loadStripe } from '@stripe/stripe-js';
 
 const api = axios.create({
-  baseURL: 'http://192.168.68.63:5000', // Directly point to backend
+  baseURL: 'http://localhost:5000', // Directly point to backend
   withCredentials: true,
 });
 
@@ -35,6 +36,7 @@ const Booking = () => {
   const [maxParticipants, setMaxParticipants] = useState(10);
   const [isSessionFull, setIsSessionFull] = useState(false);
   const [warningMessage, setWarningMessage] = useState('');
+  const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
 
 
   const pricing = {
@@ -43,14 +45,15 @@ const Booking = () => {
     3: 39,
   };
 
-  console.log('Admin email from env:', process.env.REACT_APP_ADMIN_EMAIL);
-  console.log('API URL:', process.env.REACT_APP_API_URL);
+  // console.log('Admin email from env:', process.env.REACT_APP_ADMIN_EMAIL);
+  // console.log('API URL:', process.env.REACT_APP_API_URL);
 
   // Fetch training dates from the backend
   useEffect(() => {
     const fetchTrainingDates = async () => {
       try {
         const response = await api.get('/api/training-dates');
+        console.log('Fetched Training Dates:', response.data);
         const dates = response.data.reduce((acc, training) => {
           const date = new Date(training.training_date).toLocaleDateString('en-CA');
           const time = new Date(training.training_date).toLocaleTimeString('en-US', {
@@ -171,7 +174,7 @@ const Booking = () => {
       return acc;
     }, {});
   };
-  
+
   useEffect(() => {
     const checkSessionAvailability = async () => {
       try {
@@ -187,7 +190,7 @@ const Booking = () => {
         console.error('Error checking session availability:', error);
       }
     };
-  
+
     if (trainingType && selectedDate && selectedTime) {
       checkSessionAvailability();
     } else {
@@ -199,9 +202,10 @@ const Booking = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
+  
     try {
-      const response = await api.post('/api/book-training', {
+      // Create payment session
+      const paymentSession = await api.post('/api/create-payment-session', {
         userId: userData.id,
         trainingType,
         selectedDate,
@@ -212,67 +216,77 @@ const Booking = () => {
         photoConsent,
         mobile,
         note,
+        accompanyingPerson
       });
-
-      if (response.data.error) {
-        setWarningMessage('Error processing booking. Please try again.');
-      } else {
-        navigate('/thank-you'); // Redirect to thank-you page
-      }
+  
+      // Redirect to Stripe payment page
+      const stripe = await stripePromise;
+      const { error } = await stripe.redirectToCheckout({
+        sessionId: paymentSession.data.sessionId
+      });
+  
+      if (error) throw error;
+  
     } catch (error) {
-      console.error('Booking error:', error.response?.data || error.message);
-      setWarningMessage('Error processing booking. Please try again.');
-    } finally {
+      console.error('Payment error:', error);
+      setWarningMessage('Error initiating payment. Please try again.');
       setLoading(false);
     }
   };
 
   // Highlight available dates on the calendar
-  const tileClassName = ({ date, view }) => {
-    if (!trainingType || view !== 'month') return null;
+const tileClassName = ({ date, view }) => {
+  if (!trainingType || view !== 'month') return null;
 
-    const formattedDate = date.toLocaleDateString('en-CA'); // Format as YYYY-MM-DD
+  const formattedDate = date.toLocaleDateString('en-CA'); // YYYY-MM-DD
 
-    if (trainingDates[trainingType]?.[formattedDate]) {
-      return 'available-date'; // Apply custom class for available dates
-    }
+  // console.log('Checking date:', formattedDate, 'Available:', trainingDates[trainingType]?.[formattedDate]);
 
+  if (trainingDates[trainingType]?.[formattedDate]) {
+    return 'available-date'; // Apply custom class for available dates
+  }
+
+  return null;
+};
+
+// Handle date selection
+const handleDateChange = (date) => {
+  const formattedDate = date.toLocaleDateString('en-CA'); // YYYY-MM-DD
+  setSelectedDate(formattedDate);
+  setSelectedTime('');
+};
+
+// Render available time slots for the selected date
+const renderTimeSlots = () => {
+  if (!selectedDate || !trainingType) return null;
+
+  const timeSlots = trainingDates[trainingType][selectedDate];
+  if (!timeSlots) {
+    console.log('No time slots for:', selectedDate);
     return null;
-  };
+  }
 
-  // Handle date selection
-  const handleDateChange = (date) => {
-    const formattedDate = date.toLocaleDateString('en-CA'); // Format as YYYY-MM-DD
-    setSelectedDate(formattedDate);
-    setSelectedTime('');
-  };
+  console.log('Time Slots:', timeSlots);
 
-  // Render available time slots for the selected date
-  const renderTimeSlots = () => {
-    if (!selectedDate || !trainingType) return null;
-
-    const timeSlots = trainingDates[trainingType][selectedDate];
-    if (!timeSlots) return null;
-
-    return (
-      <div className="mb-3">
-        <label htmlFor="timeSlots">Select Time:</label>
-        <select
-          id="timeSlots"
-          value={selectedTime}
-          onChange={(e) => setSelectedTime(e.target.value)}
-          className="form-select"
-        >
-          <option value="">-- Choose a Time Slot --</option>
-          {timeSlots.map((time) => (
-            <option key={time} value={time}>
-              {time}
-            </option>
-          ))}
-        </select>
-      </div>
-    );
-  };
+  return (
+    <div className="mb-3">
+      <label htmlFor="timeSlots">Select Time:</label>
+      <select
+        id="timeSlots"
+        value={selectedTime}
+        onChange={(e) => setSelectedTime(e.target.value)}
+        className="form-select"
+      >
+        <option value="">-- Choose a Time Slot --</option>
+        {timeSlots.map((time) => (
+          <option key={time} value={time}>
+            {time}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+};
 
   // If the user is not logged in, show the login form
   if (!isLoggedIn) {
@@ -453,7 +467,9 @@ const Booking = () => {
             onChange={handleDateChange}
             value={selectedDate ? new Date(selectedDate) : null}
             tileClassName={tileClassName}
-            tileDisabled={({ date }) => {
+            tileDisabled={({ date, view }) => {
+              if (view !== 'month') return false; // Only disable dates in the month view
+            
               const formattedDate = date.toLocaleDateString('en-CA'); // Format as YYYY-MM-DD
               return !trainingDates[trainingType]?.[formattedDate]; // Disable unavailable dates
             }}
@@ -538,27 +554,27 @@ const Booking = () => {
             </a>
           </span>
         </div>
-        <h4>Total Price: €{pricing[childrenCount] + (accompanyingPerson ? 3 : 0)}</h4> 
+        <h4>Total Price: €{pricing[childrenCount] + (accompanyingPerson ? 3 : 0)}</h4>
         <button
-        type="submit"
-        className="btn btn-success w-100"
-        disabled={!consent || loading || isSessionFull}
-        data-tooltip-id="booking-tooltip"
-        data-tooltip-content={
-          isSessionFull
-            ? 'This session is full. Please choose another date or time.'
-            : !consent
-            ? 'You must agree to the rules to book a training.'
-            : ''
-        }
-      >
+          type="submit"
+          className="btn btn-success w-100"
+          disabled={!consent || loading || isSessionFull}
+          data-tooltip-id="booking-tooltip"
+          data-tooltip-content={
+            isSessionFull
+              ? 'This session is full. Please choose another date or time.'
+              : !consent
+                ? 'You must agree to the rules to complete the payment.'
+                : ''
+          }
+        >
           {loading ? (
             <>
               <span className="spinner-border spinner-border-sm" aria-hidden="true"></span>
-              <span className="ms-2">Booking...</span>
+              <span className="ms-2">Redirecting to Payment...</span>
             </>
           ) : (
-            'Book Training'
+            'Book Training with Payment Obligation'
           )}
         </button>
         <Tooltip id="booking-tooltip" />

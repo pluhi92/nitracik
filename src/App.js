@@ -18,6 +18,8 @@ import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import UserProfile from './components/UserProfile';
 import AccountDeleted from './components/AccountDeleted';
+import PaymentSuccess from './components/PaymentSuccess';
+import PaymentCancelled from './components/PaymentCancelled';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
@@ -185,6 +187,8 @@ const AppContent = () => {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/account-deleted" element={<AccountDeleted />} />
+            <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/payment-cancelled" element={<PaymentCancelled />} />
           </Routes>
         </main>
         <Footer />

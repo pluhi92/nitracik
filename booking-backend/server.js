@@ -15,14 +15,22 @@ const { Pool } = require('pg');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const { v4: uuidv4 } = require('uuid'); // For generating verification tokens
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 // Initialize the Express app
 const app = express();
 
 // Middleware
-app.use(express.json());
+app.use((req, res, next) => {
+  if (req.originalUrl === '/stripe-webhook') {
+    next(); // Skip express.json() for the webhook route
+  } else {
+    express.json()(req, res, next); // Use express.json() for all other routes
+  }
+});
+
 app.use(cors({
-  origin: 'http://192.168.68.63:3000',
+  origin: 'http://localhost:3000',
   credentials: true,
   // allowedHeaders: ['Content-Type', 'Authorization'],
   methods: ['GET', 'POST', 'PUT', 'DELETE']
@@ -117,10 +125,26 @@ app.get('/api/training-dates', async (req, res) => {
   }
 });
 
-// Booking Endpoint
-app.post('/api/book-training', isAuthenticated, async (req, res) => {
+// Price calculation function
+function calculatePrice(childrenCount, accompanyingPerson) {
+  const pricing = {
+    1: 15, // Price for 1 child
+    2: 28, // Price for 2 children
+    3: 39, // Price for 3 children
+  };
+
+  // Ensure childrenCount is valid
+  if (!pricing[childrenCount]) {
+    throw new Error('Invalid number of children');
+  }
+
+  // Add €3 if accompanying person is included
+  return pricing[childrenCount] + (accompanyingPerson ? 3 : 0);
+}
+
+app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
   try {
-    const { 
+    const {
       userId,
       trainingType,
       selectedDate,
@@ -133,59 +157,161 @@ app.post('/api/book-training', isAuthenticated, async (req, res) => {
       note
     } = req.body;
 
-    // Convert 12-hour time to 24-hour format
-    const [time, modifier] = selectedTime.split(' ');
-    let [hours, minutes] = time.split(':');
-    if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
-    if (modifier === 'AM' && hours === '12') hours = '00';
-
-    const trainingDateTime = new Date(`${selectedDate}T${hours}:${minutes}`);
-
-    // Fetch the training session
-    const trainingResult = await pool.query(
-      `SELECT * FROM training_availability
-       WHERE training_type = $1 AND training_date = $2`,
-      [trainingType, trainingDateTime]
-    );
-
-    if (trainingResult.rows.length === 0) {
-      return res.status(400).json({ error: 'Training not available' });
+    // Validate required fields
+    if (!userId || !trainingType || !selectedDate || !selectedTime || !childrenCount || !totalPrice) {
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const training = trainingResult.rows[0];
-
-    // Check current bookings for this training session
-    const bookingsResult = await pool.query(
-      `SELECT COUNT(*) AS booked_count
-       FROM bookings
-       WHERE training_id = $1`,
-      [training.id]
-    );
-
-    const bookedCount = parseInt(bookingsResult.rows[0].booked_count, 10);
-    const maxParticipants = training.max_participants;
-
-    if (bookedCount >= maxParticipants) {
-      return res.status(400).json({ error: 'This training session is full. Please choose another date or time.' });
+    // Validate price on backend
+    const expectedPrice = calculatePrice(childrenCount, req.body.accompanyingPerson);
+    if (totalPrice !== expectedPrice) {
+      return res.status(400).json({ error: 'Price validation failed' });
     }
 
-    // Insert booking
-    await pool.query(
-      `INSERT INTO bookings (user_id, training_id, booked_at)
-       VALUES ($1, $2, NOW())`,
-      [userId, training.id]
+    // Create a Stripe payment session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          product_data: { name: `${trainingType} Training Session` },
+          unit_amount: totalPrice * 100, // Amount in cents
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: `${process.env.CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.CLIENT_URL}/payment-canceled`,
+      metadata: {
+        userId,
+        trainingType,
+        selectedDate,
+        selectedTime,
+        childrenCount,
+        childrenAge,
+        totalPrice,
+        photoConsent,
+        mobile,
+        note
+      }
+    });
+    console.log('Stripe Session Created:', session.id);
+
+    res.json({ sessionId: session.id });
+  } catch (error) {
+    console.error('Payment session error:', error);
+    res.status(500).json({ error: 'Failed to create payment session' });
+  }
+});
+
+
+app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
     );
+    console.log('Webhook Event Received:', event.type); // Log the event type
+  } catch (err) {
+    console.error('Webhook Signature Verification Failed:', err.message);
+    console.error('Request Body:', req.body.toString()); // Log the raw request body
+    console.error('Stripe Signature:', sig); // Log the signature
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
 
-    // Fetch user details for email
-    const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
-    const user = userResult.rows[0];
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    console.log('Session Metadata:', session.metadata); // Log metadata
 
-    // Admin email
-    const adminMailOptions = {
-      from: process.env.EMAIL_USER,
-      to: process.env.ADMIN_EMAIL,
-      subject: 'New Booking Request',
-      text: `
+    try {
+      const {
+        userId,
+        trainingType,
+        selectedDate,
+        selectedTime,
+        childrenCount,
+        childrenAge,
+        totalPrice,
+        photoConsent,
+        mobile,
+        note
+      } = session.metadata;
+
+      // Ensure all metadata fields are present
+      if (!userId || !trainingType || !selectedDate || !selectedTime || !childrenCount || !totalPrice) {
+        throw new Error('Missing required metadata fields');
+      }
+
+      // Convert time format
+      const [time, modifier] = selectedTime.split(' ');
+      let [hours, minutes] = time.split(':');
+      if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
+      if (modifier === 'AM' && hours === '12') hours = '00';
+
+      // Construct the date in UTC
+      const trainingDateTimeUTC = new Date(`${selectedDate}T${hours}:${minutes}`);
+
+      // Convert to local time (e.g., Europe/Berlin)
+      const trainingDateTimeLocal = new Date(trainingDateTimeUTC.toLocaleString('en-US', { timeZone: 'Europe/Budapest' }));
+
+      // Log the local time in ISO format
+      console.log('Training DateTime (Local):', trainingDateTimeLocal.toISOString());
+
+      // Format the date for the query (YYYY-MM-DD HH:MM:SS)
+      const trainingDateTimeFormatted = trainingDateTimeLocal.toISOString().replace('T', ' ').replace(/\.\d+Z$/, '');
+
+      console.log('Training DateTime (Formatted):', trainingDateTimeFormatted);
+
+      // Find training session
+      const trainingResult = await pool.query(
+        `SELECT * FROM training_availability
+         WHERE training_type = $1 AND training_date = $2`,
+        [trainingType, trainingDateTimeLocal]
+      );
+      console.log('Training Result:', trainingResult.rows); // Log the training result
+
+      if (trainingResult.rows.length === 0) {
+        throw new Error('Training session no longer available');
+      }
+
+      const training = trainingResult.rows[0];
+
+      // Check current bookings for this training session
+      const bookingsResult = await pool.query(
+        `SELECT COUNT(*) AS booked_count
+         FROM bookings
+         WHERE training_id = $1`,
+        [training.id]
+      );
+      console.log('Bookings Result:', bookingsResult.rows); // Log the bookings result
+
+      const bookedCount = parseInt(bookingsResult.rows[0].booked_count, 10);
+      if (bookedCount >= training.max_participants) {
+        throw new Error('Session is full');
+      }
+
+      // Insert booking into the database
+      const insertResult = await pool.query(
+        `INSERT INTO bookings (user_id, training_id, booked_at)
+         VALUES ($1, $2, NOW()) RETURNING *`,
+        [userId, training.id]
+      );
+      console.log('Booking Insert Result:', insertResult.rows[0]); // Log the inserted booking
+
+      // Fetch user details for email
+      const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+      const user = userResult.rows[0];
+
+      // Admin email
+      const adminMailOptions = {
+        from: process.env.EMAIL_USER,
+        to: process.env.ADMIN_EMAIL,
+        subject: 'New Booking Request',
+        text: `
         User: ${user.first_name} ${user.last_name}
         Email: ${user.email}
         Address: ${user.address}
@@ -199,14 +325,14 @@ app.post('/api/book-training', isAuthenticated, async (req, res) => {
         Notes: ${note || 'No additional notes'}
         Price: €${totalPrice}
       `.trim()
-    };
+      };
 
-    // User email
-    const userMailOptions = {
-      from: process.env.EMAIL_USER,
-      to: user.email,
-      subject: 'Booking Confirmation',
-      text: `
+      // User email
+      const userMailOptions = {
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: 'Booking Confirmation',
+        text: `
         Hello ${user.first_name},
         Your ${trainingType} training on ${selectedDate} at ${selectedTime} has been confirmed!
         Details:
@@ -217,20 +343,26 @@ app.post('/api/book-training', isAuthenticated, async (req, res) => {
         Thank you!
         Nitracik Team
       `.trim()
-    };
+      };
 
-    // Send emails
-    await Promise.all([
-      transporter.sendMail(adminMailOptions),
-      transporter.sendMail(userMailOptions)
-    ]);
+      // Send emails
+      try {
+        await Promise.all([
+          transporter.sendMail(adminMailOptions),
+          transporter.sendMail(userMailOptions)
+        ]);
+        console.log('Emails sent successfully');
+      } catch (emailError) {
+        console.error('Email sending error:', emailError);
+      }
 
-    res.status(201).json({ message: 'Training booked successfully. Emails sent!' });
-
-  } catch (error) {
-    console.error('Booking error:', error);
-    res.status(500).json({ error: 'Failed to process booking' });
+      console.log('Booking created successfully');
+    } catch (error) {
+      console.error('Webhook processing error:', error);
+    }
   }
+
+  res.json({ received: true });
 });
 
 
@@ -610,6 +742,7 @@ setInterval(async () => {
     console.error('❌ Cleanup error:', error);
   }
 }, 24 * 60 * 60 * 1000);
+
 
 app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
   try {
