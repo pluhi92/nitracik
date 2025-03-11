@@ -202,7 +202,7 @@ const Booking = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-  
+
     try {
       // Create payment session
       const paymentSession = await api.post('/api/create-payment-session', {
@@ -218,15 +218,15 @@ const Booking = () => {
         note,
         accompanyingPerson
       });
-  
+
       // Redirect to Stripe payment page
       const stripe = await stripePromise;
       const { error } = await stripe.redirectToCheckout({
         sessionId: paymentSession.data.sessionId
       });
-  
+
       if (error) throw error;
-  
+
     } catch (error) {
       console.error('Payment error:', error);
       setWarningMessage('Error initiating payment. Please try again.');
@@ -235,58 +235,58 @@ const Booking = () => {
   };
 
   // Highlight available dates on the calendar
-const tileClassName = ({ date, view }) => {
-  if (!trainingType || view !== 'month') return null;
+  const tileClassName = ({ date, view }) => {
+    if (!trainingType || view !== 'month') return null;
 
-  const formattedDate = date.toLocaleDateString('en-CA'); // YYYY-MM-DD
+    const formattedDate = date.toLocaleDateString('en-CA'); // YYYY-MM-DD
 
-  // console.log('Checking date:', formattedDate, 'Available:', trainingDates[trainingType]?.[formattedDate]);
+    // console.log('Checking date:', formattedDate, 'Available:', trainingDates[trainingType]?.[formattedDate]);
 
-  if (trainingDates[trainingType]?.[formattedDate]) {
-    return 'available-date'; // Apply custom class for available dates
-  }
+    if (trainingDates[trainingType]?.[formattedDate]) {
+      return 'available-date'; // Apply custom class for available dates
+    }
 
-  return null;
-};
-
-// Handle date selection
-const handleDateChange = (date) => {
-  const formattedDate = date.toLocaleDateString('en-CA'); // YYYY-MM-DD
-  setSelectedDate(formattedDate);
-  setSelectedTime('');
-};
-
-// Render available time slots for the selected date
-const renderTimeSlots = () => {
-  if (!selectedDate || !trainingType) return null;
-
-  const timeSlots = trainingDates[trainingType][selectedDate];
-  if (!timeSlots) {
-    console.log('No time slots for:', selectedDate);
     return null;
-  }
+  };
 
-  console.log('Time Slots:', timeSlots);
+  // Handle date selection
+  const handleDateChange = (date) => {
+    const formattedDate = date.toLocaleDateString('en-CA'); // YYYY-MM-DD
+    setSelectedDate(formattedDate);
+    setSelectedTime('');
+  };
 
-  return (
-    <div className="mb-3">
-      <label htmlFor="timeSlots">Select Time:</label>
-      <select
-        id="timeSlots"
-        value={selectedTime}
-        onChange={(e) => setSelectedTime(e.target.value)}
-        className="form-select"
-      >
-        <option value="">-- Choose a Time Slot --</option>
-        {timeSlots.map((time) => (
-          <option key={time} value={time}>
-            {time}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-};
+  // Render available time slots for the selected date
+  const renderTimeSlots = () => {
+    if (!selectedDate || !trainingType) return null;
+
+    const timeSlots = trainingDates[trainingType][selectedDate];
+    if (!timeSlots) {
+      console.log('No time slots for:', selectedDate);
+      return null;
+    }
+
+    console.log('Time Slots:', timeSlots);
+
+    return (
+      <div className="mb-3">
+        <label htmlFor="timeSlots">Select Time:</label>
+        <select
+          id="timeSlots"
+          value={selectedTime}
+          onChange={(e) => setSelectedTime(e.target.value)}
+          className="form-select"
+        >
+          <option value="">-- Choose a Time Slot --</option>
+          {timeSlots.map((time) => (
+            <option key={time} value={time}>
+              {time}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  };
 
   // If the user is not logged in, show the login form
   if (!isLoggedIn) {
@@ -374,6 +374,7 @@ const renderTimeSlots = () => {
 
       {isAdmin && <div className="alert alert-success mb-3">ADMIN MODE ACTIVE - You should see admin controls below</div>}
       <form onSubmit={handleSubmit} className="mt-4">
+        {/* Training Type */}
         <div className="mb-3">
           <label className="form-label">Select Training Type</label>
           <select
@@ -390,6 +391,8 @@ const renderTimeSlots = () => {
             <option value="MIDI">MIDI</option>
           </select>
         </div>
+
+        {/* User Name */}
         <div className="mb-3">
           <label className="form-label">Your Name</label>
           <input
@@ -399,6 +402,8 @@ const renderTimeSlots = () => {
             readOnly
           />
         </div>
+
+        {/* User Email */}
         <div className="mb-3">
           <label className="form-label">Your Email</label>
           <input
@@ -408,6 +413,8 @@ const renderTimeSlots = () => {
             readOnly
           />
         </div>
+
+        {/* Mobile Number */}
         <div className="mb-3">
           <label className="form-label">Your Mobile Number</label>
           <IMaskInput
@@ -421,6 +428,8 @@ const renderTimeSlots = () => {
             placeholder="+421 xxx xxx xxx"
           />
         </div>
+
+        {/* Address */}
         <div className="mb-3">
           <label className="form-label">Address</label>
           <input
@@ -430,6 +439,37 @@ const renderTimeSlots = () => {
             readOnly
           />
         </div>
+
+        {/* Select Available Date */}
+        <div className="mb-3">
+          <label className="form-label">Select Available Date <span className="text-danger">*</span></label>
+          <Calendar
+            onChange={handleDateChange}
+            value={selectedDate ? new Date(selectedDate) : null}
+            tileClassName={tileClassName}
+            tileDisabled={({ date, view }) => {
+              if (view !== 'month') return false; // Only disable dates in the month view
+              const formattedDate = date.toLocaleDateString('en-CA'); // Format as YYYY-MM-DD
+              return !trainingDates[trainingType]?.[formattedDate]; // Disable unavailable dates
+            }}
+            minDate={new Date()} // Disable past dates
+            className="custom-calendar" // Add a custom class for styling
+          />
+        </div>
+
+        
+        {/* Time Slots */}
+        {renderTimeSlots()}
+
+           {/* Session Full Warning */}
+           {isSessionFull && (
+          <div className="alert alert-warning">
+            This training session is full. Please choose another date or time.
+          </div>
+        )}
+
+
+        {/* Number of Children */}
         <div className="mb-3">
           <label className="form-label">Number of Children <span className="text-danger">*</span></label>
           <select
@@ -443,6 +483,8 @@ const renderTimeSlots = () => {
             <option value="3">3 Children (€39)</option>
           </select>
         </div>
+
+        {/* Age of Children */}
         <div className="mb-3">
           <label className="form-label">Age of Children <span className="text-danger">*</span></label>
           <input
@@ -453,6 +495,8 @@ const renderTimeSlots = () => {
             required
           />
         </div>
+
+        {/* Additional Notes */}
         <div className="mb-3">
           <label className="form-label">Additional Notes</label>
           <textarea
@@ -461,23 +505,8 @@ const renderTimeSlots = () => {
             onChange={(e) => setNote(e.target.value)}
           />
         </div>
-        <div className="mb-3">
-          <label className="form-label">Select Available Date <span className="text-danger">*</span></label>
-          <Calendar
-            onChange={handleDateChange}
-            value={selectedDate ? new Date(selectedDate) : null}
-            tileClassName={tileClassName}
-            tileDisabled={({ date, view }) => {
-              if (view !== 'month') return false; // Only disable dates in the month view
-            
-              const formattedDate = date.toLocaleDateString('en-CA'); // Format as YYYY-MM-DD
-              return !trainingDates[trainingType]?.[formattedDate]; // Disable unavailable dates
-            }}
-            minDate={new Date()} // Disable past dates
-            className="custom-calendar" // Add a custom class for styling
-          />
-        </div>
-        {renderTimeSlots()}
+
+        {/* Accompanying Person */}
         <div className="mb-3">
           <input
             type="checkbox"
@@ -489,16 +518,15 @@ const renderTimeSlots = () => {
             Participation of Accompanying Person (€3)
           </label>
         </div>
-        {isSessionFull && (
-          <div className="alert alert-warning">
-            This training session is full. Please choose another date or time.
-          </div>
-        )}
+
+        {/* Warning Message */}
         {warningMessage && (
           <div className="alert alert-danger mt-3">
             {warningMessage}
           </div>
         )}
+
+        {/* Photo Consent */}
         <div className="mb-3">
           <label className="form-label">Photo Publication Consent <span className="text-danger">*</span></label>
           <div>
@@ -532,6 +560,8 @@ const renderTimeSlots = () => {
             </div>
           </div>
         </div>
+
+        {/* Consent Checkbox */}
         <div className="mb-3">
           <input
             type="checkbox"
@@ -554,7 +584,11 @@ const renderTimeSlots = () => {
             </a>
           </span>
         </div>
+
+        {/* Total Price */}
         <h4>Total Price: €{pricing[childrenCount] + (accompanyingPerson ? 3 : 0)}</h4>
+
+        {/* Submit Button */}
         <button
           type="submit"
           className="btn btn-success w-100"
