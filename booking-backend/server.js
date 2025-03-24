@@ -110,6 +110,48 @@ app.post('/api/set-training', isAdmin, async (req, res) => {
   }
 });
 
+app.get('/api/admin/bookings', isAdmin, async (req, res) => {
+  try {
+    // Main query for session overview
+    const sessionsResult = await pool.query(`
+      SELECT 
+        ta.training_date,
+        ta.training_type,
+        ta.max_participants,
+        COUNT(b.id) AS participants_count,
+        (ta.max_participants - COUNT(b.id)) AS available_spots
+      FROM training_availability ta
+      LEFT JOIN bookings b ON ta.id = b.training_id
+      WHERE ta.training_date >= NOW()
+      GROUP BY ta.id
+      ORDER BY ta.training_date DESC, ta.training_type;
+    `);
+
+    // Query for participant details with names
+    const participantsResult = await pool.query(`
+      SELECT 
+        ta.training_date,
+        ta.training_type,
+        u.first_name,
+        u.last_name,
+        u.email
+      FROM bookings b
+      JOIN users u ON b.user_id = u.id
+      JOIN training_availability ta ON b.training_id = ta.id
+      WHERE ta.training_date >= NOW()
+      ORDER BY ta.training_date DESC;
+    `);
+
+    res.json({
+      sessions: sessionsResult.rows,
+      participants: participantsResult.rows
+    });
+  } catch (error) {
+    console.error('Error fetching admin bookings:', error);
+    res.status(500).json({ error: 'Failed to fetch bookings' });
+  }
+});
+
 app.get('/api/training-dates', async (req, res) => {
   try {
     const result = await pool.query(
