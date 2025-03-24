@@ -58,34 +58,49 @@ const UserProfile = () => {
 
   // Process sessions data for admin view
   const processSessions = (data) => {
-    if (!data || !data.sessions) return [];
-    
+    if (!Array.isArray(data)) {
+      console.error('Expected array but received:', data);
+      return [];
+    }
+  
     const grouped = {};
     
-    data.sessions.forEach(session => {
+    data.forEach(session => {
       const key = `${session.training_date}-${session.training_type}`;
-      grouped[key] = {
-        ...session,
-        participants: data.participants
-          .filter(p => 
-            p.training_date === session.training_date &&
-            p.training_type === session.training_type
-          )
-      };
+      
+      if (!grouped[key]) {
+        grouped[key] = {
+          training_id: session.training_id,
+          training_date: session.training_date,
+          training_type: session.training_type,
+          max_participants: session.max_participants,
+          total_children: session.total_children || 0,
+          available_spots: session.available_spots || session.max_participants,
+          participants: []
+        };
+      }
+      
+      if (session.user_id) {
+        grouped[key].participants.push({
+          first_name: session.first_name,
+          last_name: session.last_name,
+          email: session.email,
+          children: session.number_of_children || 1
+        });
+      }
     });
-
+  
     return Object.values(grouped);
   };
 
   // Render session tables for admin
   const renderSessionTable = (type) => {
-    const processedSessions = processSessions(bookedSessions);
-    const filtered = processedSessions
+    const filtered = processSessions(bookedSessions)
       .filter(session => session.training_type === type)
       .sort((a, b) => new Date(b.training_date) - new Date(a.training_date));
-
+  
     if (filtered.length === 0) return null;
-
+  
     return (
       <div className="mb-5">
         <h4>{type} Sessions</h4>
@@ -95,7 +110,7 @@ const UserProfile = () => {
               <th>Date</th>
               <th>Type</th>
               <th>Available Spots</th>
-              <th>Participants</th>
+              <th>Participants (Children)</th>
             </tr>
           </thead>
           <tbody>
@@ -105,15 +120,23 @@ const UserProfile = () => {
                 <td>{session.training_type}</td>
                 <td>{session.available_spots}</td>
                 <td>
-                  <ul className="list-unstyled">
+                  <div className="participants-container">
                     {session.participants.map((participant, index) => (
-                      <li key={index}>
-                        {participant.first_name} {participant.last_name}
-                        <br />
-                        <small className="text-muted">{participant.email}</small>
-                      </li>
+                      <div key={index} className="participant-badge">
+                        <div className="participant-info">
+                          <span className="participant-name">
+                            {participant.first_name} {participant.last_name}
+                          </span>
+                          <span className="participant-email">
+                            {participant.email}
+                          </span>
+                        </div>
+                        <div className="children-count">
+                          {participant.children} child{participant.children !== 1 ? 'ren' : ''}
+                        </div>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </td>
               </tr>
             ))}

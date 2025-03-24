@@ -34,9 +34,14 @@ const Booking = () => {
   const [newTrainingDate, setNewTrainingDate] = useState('');
   const [newTrainingType, setNewTrainingType] = useState('MIDI');
   const [maxParticipants, setMaxParticipants] = useState(10);
-  const [isSessionFull, setIsSessionFull] = useState(false);
+
   const [warningMessage, setWarningMessage] = useState('');
   const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
+  const [availability, setAvailability] = useState({
+    isAvailable: true,
+    remainingSpots: 0,
+    requestedChildren: 0
+  });
 
 
   const pricing = {
@@ -176,27 +181,39 @@ const Booking = () => {
   };
 
   useEffect(() => {
-    const checkSessionAvailability = async () => {
-      try {
-        const response = await api.get('/api/check-availability', {
-          params: {
-            trainingType,
-            selectedDate,
-            selectedTime,
-          },
+    const checkAvailability = async () => {
+      if (trainingType && selectedDate && selectedTime && childrenCount) {
+        try {
+          const response = await api.get('/api/check-availability', {
+            params: {
+              trainingType,
+              selectedDate,
+              selectedTime,
+              childrenCount  // Now includes childrenCount in the check
+            }
+          });
+
+          setAvailability({
+            isAvailable: response.data.available,
+            remainingSpots: response.data.remainingSpots,
+            requestedChildren: childrenCount
+          });
+
+        } catch (error) {
+          console.error('Error checking availability:', error);
+        }
+      } else {
+        // Reset availability when selections are incomplete
+        setAvailability({
+          isAvailable: true,
+          remainingSpots: 0,
+          requestedChildren: 0
         });
-        setIsSessionFull(response.data.isFull);
-      } catch (error) {
-        console.error('Error checking session availability:', error);
       }
     };
 
-    if (trainingType && selectedDate && selectedTime) {
-      checkSessionAvailability();
-    } else {
-      setIsSessionFull(false);
-    }
-  }, [trainingType, selectedDate, selectedTime]);
+    checkAvailability();
+  }, [trainingType, selectedDate, selectedTime, childrenCount]); // Added childrenCount to dependencies
 
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -457,14 +474,21 @@ const Booking = () => {
           />
         </div>
 
-        
+
         {/* Time Slots */}
         {renderTimeSlots()}
 
-           {/* Session Full Warning */}
-           {isSessionFull && (
-          <div className="alert alert-warning">
-            This training session is full. Please choose another date or time.
+        {/* Session Full Warning */}
+        {!availability.isAvailable && (
+          <div className="alert alert-danger mt-3">
+            {availability.remainingSpots === 0 ? (
+              <>All places are already occupied for this session. Please choose another date or time.</>
+            ) : (
+              <>
+                Not enough available spots!<br />
+                You requested {availability.requestedChildren} children, but only {availability.remainingSpots} spot{availability.remainingSpots !== 1 && 's'} remain.
+              </>
+            )}
           </div>
         )}
 
@@ -592,11 +616,13 @@ const Booking = () => {
         <button
           type="submit"
           className="btn btn-success w-100"
-          disabled={!consent || loading || isSessionFull}
+          disabled={!consent || loading || !availability.isAvailable}
           data-tooltip-id="booking-tooltip"
           data-tooltip-content={
-            isSessionFull
-              ? 'This session is full. Please choose another date or time.'
+            !availability.isAvailable
+              ? availability.remainingSpots === 0
+                ? 'All places are already occupied for this session'
+                : `Only ${availability.remainingSpots} spot${availability.remainingSpots !== 1 ? 's' : ''} available (needed ${availability.requestedChildren})`
               : !consent
                 ? 'You must agree to the rules to complete the payment.'
                 : ''
