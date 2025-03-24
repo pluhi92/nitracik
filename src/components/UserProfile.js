@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Modal, Button, Form } from 'react-bootstrap';
-import { Tooltip } from 'react-tooltip'; // Updated import
+import { Modal, Button, Form, Table } from 'react-bootstrap';
+import { Tooltip } from 'react-tooltip';
 import './UserProfile.css';
 
 const UserProfile = () => {
@@ -10,37 +10,128 @@ const UserProfile = () => {
   const [error, setError] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [password, setPassword] = useState('');
-  const [bookedSessions, setBookedSessions] = useState([]);
+  const [bookedSessions, setBookedSessions] = useState({ sessions: [], participants: [] });
   const navigate = useNavigate();
   const userId = localStorage.getItem('userId');
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  // Fetch booked sessions
+  // Admin check
   useEffect(() => {
-    const fetchBookedSessions = async () => {
+    const checkAdmin = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/bookings/user/${userId}`, {
+        const response = await axios.get(`http://localhost:5000/api/users/${userId}`, {
           withCredentials: true,
         });
-        setBookedSessions(response.data);
+        setIsAdmin(response.data.email === process.env.REACT_APP_ADMIN_EMAIL);
       } catch (error) {
-        console.error('Error fetching booked sessions:', error);
+        console.error('Admin check failed:', error);
+      }
+    };
+    if (userId) checkAdmin();
+  }, [userId]);
+
+  // Fetch bookings data
+  useEffect(() => {
+    const fetchBookings = async () => {
+      try {
+        const endpoint = isAdmin 
+          ? '/api/admin/bookings'
+          : `/api/bookings/user/${userId}`;
+
+        const response = await axios.get(`http://localhost:5000${endpoint}`, {
+          withCredentials: true,
+        });
+        
+        // Ensure proper data structure
+        if (isAdmin) {
+          setBookedSessions(response.data);
+        } else {
+          setBookedSessions({ sessions: response.data, participants: [] });
+        }
+      } catch (error) {
+        console.error('Error fetching sessions:', error);
       }
     };
 
-    if (userId) {
-      fetchBookedSessions();
-    }
-  }, [userId]);
+    if (userId) fetchBookings();
+  }, [userId, isAdmin]);
 
-  // Check if a session can be canceled
+  // Process sessions data for admin view
+  const processSessions = (data) => {
+    if (!data || !data.sessions) return [];
+    
+    const grouped = {};
+    
+    data.sessions.forEach(session => {
+      const key = `${session.training_date}-${session.training_type}`;
+      grouped[key] = {
+        ...session,
+        participants: data.participants
+          .filter(p => 
+            p.training_date === session.training_date &&
+            p.training_type === session.training_type
+          )
+      };
+    });
+
+    return Object.values(grouped);
+  };
+
+  // Render session tables for admin
+  const renderSessionTable = (type) => {
+    const processedSessions = processSessions(bookedSessions);
+    const filtered = processedSessions
+      .filter(session => session.training_type === type)
+      .sort((a, b) => new Date(b.training_date) - new Date(a.training_date));
+
+    if (filtered.length === 0) return null;
+
+    return (
+      <div className="mb-5">
+        <h4>{type} Sessions</h4>
+        <Table striped bordered hover responsive>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Available Spots</th>
+              <th>Participants</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((session) => (
+              <tr key={`${session.training_date}-${session.training_type}`}>
+                <td>{new Date(session.training_date).toLocaleString()}</td>
+                <td>{session.training_type}</td>
+                <td>{session.available_spots}</td>
+                <td>
+                  <ul className="list-unstyled">
+                    {session.participants.map((participant, index) => (
+                      <li key={index}>
+                        {participant.first_name} {participant.last_name}
+                        <br />
+                        <small className="text-muted">{participant.email}</small>
+                      </li>
+                    ))}
+                  </ul>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </div>
+    );
+  };
+
+  // Check if session can be canceled (for regular users)
   const canCancelSession = (trainingDate) => {
     const now = new Date();
     const sessionTime = new Date(trainingDate);
-    const hoursBeforeSession = (sessionTime - now) / (1000 * 60 * 60); // Difference in hours
-    return hoursBeforeSession > 10; // Allow cancellation if more than 10 hours remain
+    const hoursBeforeSession = (sessionTime - now) / (1000 * 60 * 60);
+    return hoursBeforeSession > 10;
   };
 
-  // Handle session cancellation
+  // Handle session cancellation (for regular users)
   const handleCancelSession = async (bookingId, trainingDate) => {
     if (!canCancelSession(trainingDate)) {
       alert('Cancellation is only allowed up to 10 hours before the session.');
@@ -56,11 +147,11 @@ const UserProfile = () => {
         withCredentials: true,
       });
 
-      // Refresh the list of booked sessions
+      // Refresh bookings
       const response = await axios.get(`http://localhost:5000/api/bookings/user/${userId}`, {
         withCredentials: true,
       });
-      setBookedSessions(response.data);
+      setBookedSessions({ sessions: response.data, participants: [] });
 
       alert('Session canceled successfully.');
     } catch (error) {
@@ -69,9 +160,9 @@ const UserProfile = () => {
     }
   };
 
-  // Handle account deletion
+  // Account deletion handlers
   const handleDeleteAccount = async () => {
-    setShowPasswordModal(true); // Show password confirmation modal
+    setShowPasswordModal(true);
   };
 
   const confirmDeleteAccount = async () => {
@@ -82,7 +173,6 @@ const UserProfile = () => {
 
     setIsDeleting(true);
     try {
-      // Verify password
       const verifyResponse = await axios.post(
         'http://localhost:5000/api/verify-password',
         { password },
@@ -90,15 +180,13 @@ const UserProfile = () => {
       );
 
       if (verifyResponse.data.success) {
-        // Delete account
         await axios.delete(`http://localhost:5000/api/users/${userId}`, {
           withCredentials: true,
         });
 
-        // Clear local storage and redirect
         localStorage.removeItem('userId');
         localStorage.removeItem('isLoggedIn');
-        navigate('/account-deleted'); // Redirect to confirmation page
+        navigate('/account-deleted');
       } else {
         setError('Incorrect password');
       }
@@ -106,7 +194,7 @@ const UserProfile = () => {
       setError(err.response?.data?.error || 'Failed to delete account');
     } finally {
       setIsDeleting(false);
-      setShowPasswordModal(false); // Close modal
+      setShowPasswordModal(false);
     }
   };
 
@@ -114,39 +202,45 @@ const UserProfile = () => {
     <div className="container mt-5">
       <h2>Account Settings</h2>
 
-      {/* Booked Sessions */}
-      <div className="booked-sessions mt-5">
-        <h3>Your Booked Sessions</h3>
-        {bookedSessions.length === 0 ? (
-          <p>You have no booked sessions.</p>
-        ) : (
-          <ul className="list-group">
-            {bookedSessions.map((session) => (
-              <li key={session.booking_id} className="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                  <strong>{session.training_type}</strong> - {new Date(session.training_date).toLocaleString()}
-                </div>
-                <div
-                  data-tooltip-id="cancel-tooltip"
-                  data-tooltip-content={!canCancelSession(session.training_date) ? 'Cancellation is no longer possible because there are less than 10 hours left until the training.' : ''}
-                >
-                  <button
-                    className="btn btn-danger btn-sm"
-                    onClick={() => handleCancelSession(session.booking_id, session.training_date)}
-                    disabled={!canCancelSession(session.training_date)}
+      {isAdmin ? (
+        // Admin view
+        <div className="admin-sessions">
+          {renderSessionTable('MIDI')}
+          {renderSessionTable('MINI')}
+        </div>
+      ) : (
+        // Regular user view
+        <div className="booked-sessions mt-5">
+          <h3>Your Booked Sessions</h3>
+          {bookedSessions.sessions.length === 0 ? (
+            <p>You have no booked sessions.</p>
+          ) : (
+            <ul className="list-group">
+              {bookedSessions.sessions.map((session) => (
+                <li key={session.booking_id} className="list-group-item d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong>{session.training_type}</strong> - {new Date(session.training_date).toLocaleString()}
+                  </div>
+                  <div
+                    data-tooltip-id="cancel-tooltip"
+                    data-tooltip-content={!canCancelSession(session.training_date) ? 
+                      'Cancellation is no longer possible because there are less than 10 hours left until the training.' : ''}
                   >
-                    Cancel Session
-                  </button>
-                </div>
-              </li>
-            ))}
-
-          </ul>
-        )}
-      </div>
-
-      {/* Tooltip component */}
-      <Tooltip id="cancel-tooltip" place="top" effect="solid" />
+                    <button
+                      className="btn btn-danger btn-sm"
+                      onClick={() => handleCancelSession(session.booking_id, session.training_date)}
+                      disabled={!canCancelSession(session.training_date)}
+                    >
+                      Cancel Session
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Tooltip id="cancel-tooltip" place="top" effect="solid" />
+        </div>
+      )}
 
       {/* Danger Zone */}
       <div className="danger-zone mt-5">
@@ -164,7 +258,7 @@ const UserProfile = () => {
         {error && <div className="alert alert-danger mt-3">{error}</div>}
       </div>
 
-      {/* Password Confirmation Modal */}
+      {/* Password Modal */}
       <Modal show={showPasswordModal} onHide={() => setShowPasswordModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>Confirm Deletion</Modal.Title>
