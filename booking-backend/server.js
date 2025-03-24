@@ -112,40 +112,27 @@ app.post('/api/set-training', isAdmin, async (req, res) => {
 
 app.get('/api/admin/bookings', isAdmin, async (req, res) => {
   try {
-    // Main query for session overview
-    const sessionsResult = await pool.query(`
+    const result = await pool.query(`
       SELECT 
+        ta.id AS training_id,
         ta.training_date,
         ta.training_type,
         ta.max_participants,
-        COUNT(b.id) AS participants_count,
-        (ta.max_participants - COUNT(b.id)) AS available_spots
-      FROM training_availability ta
-      LEFT JOIN bookings b ON ta.id = b.training_id
-      WHERE ta.training_date >= NOW()
-      GROUP BY ta.id
-      ORDER BY ta.training_date DESC, ta.training_type;
-    `);
-
-    // Query for participant details with names
-    const participantsResult = await pool.query(`
-      SELECT 
-        ta.training_date,
-        ta.training_type,
+        u.id AS user_id,
         u.first_name,
         u.last_name,
-        u.email
-      FROM bookings b
-      JOIN users u ON b.user_id = u.id
-      JOIN training_availability ta ON b.training_id = ta.id
+        u.email,
+        b.number_of_children,
+        SUM(b.number_of_children) OVER (PARTITION BY ta.id) AS total_children,
+        (ta.max_participants - SUM(b.number_of_children) OVER (PARTITION BY ta.id)) AS available_spots
+      FROM training_availability ta
+      LEFT JOIN bookings b ON ta.id = b.training_id
+      LEFT JOIN users u ON b.user_id = u.id
       WHERE ta.training_date >= NOW()
-      ORDER BY ta.training_date DESC;
+      ORDER BY ta.training_date DESC, ta.training_type;
     `);
-
-    res.json({
-      sessions: sessionsResult.rows,
-      participants: participantsResult.rows
-    });
+    
+    res.json(result.rows);
   } catch (error) {
     console.error('Error fetching admin bookings:', error);
     res.status(500).json({ error: 'Failed to fetch bookings' });
@@ -338,9 +325,9 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
 
       // Insert booking into the database
       const insertResult = await pool.query(
-        `INSERT INTO bookings (user_id, training_id, booked_at)
-         VALUES ($1, $2, NOW()) RETURNING *`,
-        [userId, training.id]
+        `INSERT INTO bookings (user_id, training_id, number_of_children, booked_at)
+         VALUES ($1, $2, $3, NOW()) RETURNING *`,
+        [userId, training.id, childrenCount] // Add childrenCount from request body
       );
       console.log('Booking Insert Result:', insertResult.rows[0]); // Log the inserted booking
 
@@ -682,37 +669,49 @@ app.get('/api/users/:id', async (req, res) => {
 
 app.get('/api/check-availability', async (req, res) => {
   try {
-    const { trainingType, selectedDate, selectedTime } = req.query;
-
+    const { trainingType, selectedDate, selectedTime, childrenCount } = req.query;
+    
+    // Convert time to proper datetime format
     const [time, modifier] = selectedTime.split(' ');
     let [hours, minutes] = time.split(':');
     if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
     if (modifier === 'AM' && hours === '12') hours = '00';
-
     const trainingDateTime = new Date(`${selectedDate}T${hours}:${minutes}`);
 
+    // Get the training session
     const trainingResult = await pool.query(
-      `SELECT * FROM training_availability
+      `SELECT id, max_participants FROM training_availability
        WHERE training_type = $1 AND training_date = $2`,
       [trainingType, trainingDateTime]
     );
 
     if (trainingResult.rows.length === 0) {
-      return res.json({ isFull: true }); // No session found
+      return res.json({ available: false, reason: 'Session not found' });
     }
 
     const training = trainingResult.rows[0];
+
+    // Get current bookings count (sum of children)
     const bookingsResult = await pool.query(
-      `SELECT COUNT(*) AS booked_count
-       FROM bookings
-       WHERE training_id = $1`,
+      `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children
+       FROM bookings WHERE training_id = $1`,
       [training.id]
     );
 
-    const bookedCount = parseInt(bookingsResult.rows[0].booked_count, 10);
-    const isFull = bookedCount >= training.max_participants;
+    const bookedChildren = parseInt(bookingsResult.rows[0].booked_children, 10);
+    const requestedChildren = parseInt(childrenCount, 10);
+    const remainingSpots = training.max_participants - bookedChildren;
 
-    res.json({ isFull });
+    const canBook = remainingSpots >= requestedChildren;
+
+    res.json({
+      available: canBook,
+      remainingSpots,
+      maxParticipants: training.max_participants,
+      bookedChildren,
+      requestedChildren
+    });
+
   } catch (error) {
     console.error('Error checking availability:', error);
     res.status(500).json({ error: 'Failed to check availability' });
