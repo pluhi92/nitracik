@@ -1,0 +1,55 @@
+{
+    "booking": {
+      "title": "Book Your Training",
+      "logout": "Logout",
+      "trainingType": {
+        "label": "Select Training Type",
+        "placeholder": "Choose...",
+        "mini": "MINI",
+        "midi": "MIDI"
+      },
+      "name": "Your Name",
+      "email": "Your Email",
+      "mobile": "Your Mobile Number",
+      "address": "Address",
+      "selectDate": "Select Available Date",
+      "selectTime": "Select Time",
+      "childrenCount": "Number of Children",
+      "childrenAge": "Age of Children",
+      "notes": "Additional Notes",
+      "accompanyingPerson": "Participation of Accompanying Person (€3)",
+      "photoConsent": "Photo Publication Consent",
+      "agree": "AGREE to publish photos of my children",
+      "disagree": "DISAGREE to publish photos of my children",
+      "consent": "I agree to the rules (Required)",
+      "terms": "General Terms and Conditions",
+      "totalPrice": "Total Price",
+      "bookButton": "Book Training with Payment Obligation",
+      "redirecting": "Redirecting to Payment...",
+      "availability": {
+        "available": "{count} spots available",
+        "unavailable": "Only {count} spots remain (needed {needed})",
+        "full": "All places are already occupied for this session"
+      }
+    },
+    "admin": {
+      "title": "Admin Controls",
+      "addSession": "Add Session",
+      "trainingType": "Training Type",
+      "dateTime": "Date & Time",
+      "maxParticipants": "Max Participants"
+    },
+    
+    "navbar": {
+      "about": "About Us",
+      "photos": "Photos",
+      "booking": "Booking",
+      "contact": "Contact",
+      "profile": "My Profile",
+      "logout": "Logout",
+      "login": "Login"
+    },
+    "footer": {
+      "copyright": "© 2025 Nitracik. All rights reserved."
+    }
+  }

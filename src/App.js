@@ -3,8 +3,9 @@ import { Link, BrowserRouter as Router, Route, Routes, useNavigate } from 'react
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser } from '@fortawesome/free-solid-svg-icons';
 import { FaSun, FaMoon } from 'react-icons/fa'; // Import theme toggle icons
+import { useTranslation } from './contexts/LanguageContext';
 import logo from './assets/logo.png';
-import loginIcon from './assets/login-icon.png';
+// import loginIcon from './assets/login-icon.png';
 import AboutUs from './components/AboutUs';
 import Booking from './components/Booking';
 import Photos from './components/Photos';
@@ -20,6 +21,8 @@ import UserProfile from './components/UserProfile';
 import AccountDeleted from './components/AccountDeleted';
 import PaymentSuccess from './components/PaymentSuccess';
 import PaymentCancelled from './components/PaymentCancelled';
+import { LanguageProvider } from './contexts/LanguageContext';
+import LanguageSwitcher from './components/LanguageSwitcher';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
@@ -66,6 +69,7 @@ const ThemeToggle = () => {
 
 // Navbar component
 const Navbar = () => {
+  const { t } = useTranslation();
   const [isMenuOpen, setIsMenuOpen] = useState(false); // Declare state for menu visibility
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
   const navigate = useNavigate();
@@ -85,59 +89,65 @@ const Navbar = () => {
   return (
     <nav className={`navbar navbar-expand-lg navbar-light shadow-sm py-3 ${theme === 'dark' ? 'navbar-dark bg-dark' : 'bg-white'}`}>
       <div className="container">
-        <Link className="navbar-brand" to="/">
-          <img src={logo} alt="Logo" className="logo-image" />
-        </Link>
-        <button
-          className="navbar-toggler border-0"
-          type="button"
-          onClick={toggleMenu} // Use custom toggle function
-          aria-label="Toggle navigation"
-        >
-          <span className="navbar-toggler-icon"></span>
-        </button>
+        <div className="navbar-header">
+          <Link className="navbar-brand" to="/">
+            <img src={logo} alt="Logo" className="logo-image" />
+          </Link>
+          <button
+            className="navbar-toggler"
+            onClick={toggleMenu}
+            aria-label="Toggle navigation"
+          >
+            {isMenuOpen ? (
+              <span>✕</span> /* Close icon */
+            ) : (
+              <span>☰</span> /* Hamburger icon */
+            )}
+          </button>
+        </div>
         <div className={`collapse navbar-collapse ${isMenuOpen ? 'show' : ''}`} id="navbarNav">
           <ul className="navbar-nav mx-auto mb-2 mb-lg-0">
             <li className="nav-item mx-lg-3">
               <Link className="nav-link nav-link-custom" to="/about">
-                About Us
+                {t?.navbar?.about || 'About Us'}
               </Link>
             </li>
             <li className="nav-item mx-lg-3">
               <Link className="nav-link nav-link-custom" to="/photos">
-                Photos
+                {t?.navbar?.photos || 'Photos'}
               </Link>
             </li>
             <li className="nav-item mx-lg-3">
               <Link className="nav-link nav-link-custom" to="/booking">
-                Booking
+                {t?.navbar?.booking || 'Booking'}
               </Link>
             </li>
             <li className="nav-item mx-lg-3">
               <Link className="nav-link nav-link-custom" to="/contact">
-                Contact
+                {t?.navbar?.contact || 'Contact'}
               </Link>
             </li>
             {isLoggedIn && (
               <li className="nav-item mx-lg-3">
                 <Link className="nav-link nav-link-custom" to="/profile">
                   <FontAwesomeIcon icon={faUser} className="me-2" />
-                  My Profile
+                  {t?.navbar?.profile || 'My Profile'}
                 </Link>
               </li>
             )}
           </ul>
-          <div className="d-flex align-items-center">
+          <div className="navbar-controls">
+            <LanguageSwitcher />
+            <ThemeToggle />
             {isLoggedIn ? (
-              <button className="btn btn-danger me-3" onClick={handleLogout}>
-                Logout
+              <button className="btn-logout" onClick={handleLogout}>
+                {t?.navbar?.logout || 'Logout'}
               </button>
             ) : (
-              <Link className="nav-link nav-link-custom me-3" to="/login">
-                <img src={loginIcon} alt="Login" style={{ width: '24px', height: '24px' }} />
+              <Link className="btn-login" to="/login">
+                {t?.navbar?.login || 'Login'}
               </Link>
             )}
-            <ThemeToggle />
           </div>
         </div>
       </div>
@@ -148,11 +158,14 @@ const Navbar = () => {
 // Footer component
 const Footer = () => {
   const { theme } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <footer className={`py-4 mt-auto ${theme === 'dark' ? 'bg-dark text-white' : 'bg-light text-dark'}`}>
       <div className="container text-center">
-        <p className="mb-0 fs-5">&copy; 2025 Nitracik. All rights reserved.</p>
+        <p className="mb-0 fs-5">
+          {t?.footer?.copyright || '© 2025 Nitracik. All rights reserved.'}
+        </p>
       </div>
     </footer>
   );
@@ -197,11 +210,13 @@ const AppContent = () => {
   );
 };
 
-// Wrap the app with ThemeProvider
+// Wrap the app with both ThemeProvider and LanguageProvider
 const App = () => (
-  <ThemeProvider>
-    <AppContent />
-  </ThemeProvider>
+  <LanguageProvider>
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  </LanguageProvider>
 );
 
 export default App;
