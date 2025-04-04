@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useTranslation } from '../contexts/LanguageContext';
 
 const Register = () => {
+  const { t } = useTranslation();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -22,23 +24,24 @@ const Register = () => {
   const navigate = useNavigate(); // Initialize useNavigate
 
   const validateField = (name, value) => {
+    const errorMessages = t.login.register.errors;
     switch (name) {
       case 'firstName':
-        if (!value) return 'First name is required.';
+        if (!value) return errorMessages.firstNameRequired;
         break;
       case 'lastName':
-        if (!value) return 'Last name is required.';
+        if (!value) return errorMessages.lastNameRequired;
         break;
       case 'email':
-        if (!value) return 'Email is required.';
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Invalid email address.';
+        if (!value) return errorMessages.emailRequired;
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return errorMessages.invalidEmail;
         break;
       case 'password':
-        if (!value) return 'Password is required.';
-        if (value.length < 6) return 'Password must be at least 6 characters long.';
+        if (!value) return errorMessages.passwordRequired;
+        if (value.length < 6) return errorMessages.passwordLength;
         break;
       case 'address':
-        if (!value) return 'Address is required.';
+        if (!value) return errorMessages.addressRequired;
         break;
       default:
         break;
@@ -61,7 +64,7 @@ const Register = () => {
     setErrors(newErrors);
   
     if (password !== repeatPassword) {
-      setRepeatPasswordError('Passwords do not match.');
+      setRepeatPasswordError(t.login.register.errors.passwordMatch);
       setLoading(false);
       return;
     } else {
@@ -84,33 +87,33 @@ const Register = () => {
       console.log('Registration successful:', response.data);
   
       // Show message instead of redirecting
-      setApiError('Registration successful. Please check your email to verify your account.');
+      setApiError(t.login.register.success);
       setTimeout(() => {
         navigate('/'); // Change '/' to your desired path
       }, 4000);
     } catch (error) {
       if (error.response?.status === 400) {
         setApiError(error.response.data.message);
-        setErrors((prev) => ({ ...prev, email: 'Email is already registered' }));
+        setErrors((prev) => ({ ...prev, email: t.login.register.errors.emailExists }));
       } else {
         console.error('Registration failed:', error.response?.data || error.message);
-        setApiError('Registration failed. Please try again.');
+        setApiError(t.login.register.errors.generic);
       }
     } finally {
       setLoading(false);
     }
   };
 
-   return (
+  return (
     <div className="container mt-5">
       <div className="row justify-content-center">
         <div className="col-md-6">
           <div className="card shadow-sm">
             <div className="card-body">
-              <h2 className="card-title text-center">Register</h2>
+              <h2 className="card-title text-center">{t.login.register.title}</h2>
               <form onSubmit={handleSubmit}>
                 <div className="mb-3">
-                  <label htmlFor="firstName" className="form-label">First Name</label>
+                  <label htmlFor="firstName" className="form-label">{t.login.register.firstName}</label>
                   <input
                     type="text"
                     className={`form-control ${errors.firstName ? 'is-invalid' : ''}`}
@@ -125,7 +128,7 @@ const Register = () => {
                   {errors.firstName && <div className="invalid-feedback">{errors.firstName}</div>}
                 </div>
                 <div className="mb-3">
-                  <label htmlFor="lastName" className="form-label">Last Name</label>
+                  <label htmlFor="lastName" className="form-label">{t.login.register.lastName}</label>
                   <input
                     type="text"
                     className={`form-control ${errors.lastName ? 'is-invalid' : ''}`}
@@ -140,7 +143,7 @@ const Register = () => {
                   {errors.lastName && <div className="invalid-feedback">{errors.lastName}</div>}
                 </div>
                 <div className="mb-3">
-                  <label htmlFor="email" className="form-label">Email</label>
+                  <label htmlFor="email" className="form-label">{t.login.register.email}</label>
                   <input
                     type="email"
                     className={`form-control ${errors.email || apiError ? 'is-invalid' : ''}`}
@@ -149,15 +152,14 @@ const Register = () => {
                     onChange={(e) => {
                       setEmail(e.target.value);
                       setErrors({ ...errors, email: validateField('email', e.target.value) });
-                      setApiError(''); // Clear error when user edits email
+                      setApiError('');
                     }}
                     required
                   />
-                  {errors.email && <div className="invalid-feedback">{errors.email}</div>} 
+                  {errors.email && <div className="invalid-feedback">{errors.email}</div>}
                 </div>
-                {/* Password Input */}
                 <div className="mb-3">
-                  <label htmlFor="password" className="form-label">Password</label>
+                  <label htmlFor="password" className="form-label">{t.login.register.password}</label>
                   <input
                     type="password"
                     className={`form-control ${errors.password ? 'is-invalid' : ''}`}
@@ -171,10 +173,8 @@ const Register = () => {
                   />
                   {errors.password && <div className="invalid-feedback">{errors.password}</div>}
                 </div>
-
-                {/* Repeated Password Input */}
                 <div className="mb-3">
-                  <label htmlFor="repeatPassword" className="form-label">Repeat Password</label>
+                  <label htmlFor="repeatPassword" className="form-label">{t.login.register.repeatPassword}</label>
                   <input
                     type="password"
                     className={`form-control ${repeatPasswordError ? 'is-invalid' : ''}`}
@@ -182,14 +182,14 @@ const Register = () => {
                     value={repeatPassword}
                     onChange={(e) => {
                       setRepeatPassword(e.target.value);
-                      setRepeatPasswordError(''); // Clear error when user edits the field
+                      setRepeatPasswordError('');
                     }}
                     required
                   />
                   {repeatPasswordError && <div className="invalid-feedback">{repeatPasswordError}</div>}
                 </div>
                 <div className="mb-3">
-                  <label htmlFor="address" className="form-label">Address</label>
+                  <label htmlFor="address" className="form-label">{t.login.register.address}</label>
                   <input
                     type="text"
                     className={`form-control ${errors.address ? 'is-invalid' : ''}`}
@@ -207,7 +207,7 @@ const Register = () => {
                   type="submit"
                   className="btn btn-primary w-100"
                   disabled={
-                    loading || // Disable while loading
+                    loading ||
                     !firstName ||
                     !lastName ||
                     !email ||
@@ -221,17 +221,16 @@ const Register = () => {
                   {loading ? (
                     <>
                       <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                      <span className="ms-2">Registering...</span>
+                      <span className="ms-2">{t.login.register.loading}</span>
                     </>
                   ) : (
-                    'Register'
+                    t.login.register.submit
                   )}
                 </button>
-                {/* Display API error in red */}
-                {apiError && <div className="text-danger mt-2 text-center">{apiError}</div>}
+                {apiError && <div className={`mt-2 text-center ${apiError.includes('success') ? 'text-success' : 'text-danger'}`}>{apiError}</div>}
               </form>
               <div className="mt-3 text-center">
-                <p>Already registered? <Link to="/login">Login here</Link></p>
+              <p>{t.login.register.loginPrompt} <Link to="/login">{t.login.register.loginLink}</Link></p>
               </div>
             </div>
           </div>
@@ -240,5 +239,6 @@ const Register = () => {
     </div>
   );
 };
+
 
 export default Register;

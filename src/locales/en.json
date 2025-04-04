@@ -1,55 +1,124 @@
 {
-    "booking": {
-      "title": "Book Your Training",
-      "logout": "Logout",
-      "trainingType": {
-        "label": "Select Training Type",
-        "placeholder": "Choose...",
-        "mini": "MINI",
-        "midi": "MIDI"
-      },
+  "booking": {
+    "title": "Book Your Training",
+    "logout": "Logout",
+    "trainingType": {
+      "label": "Select Training Type",
+      "placeholder": "Choose...",
+      "mini": "MINI",
+      "midi": "MIDI"
+    },
+    "name": "Your Name",
+    "email": "Your Email",
+    "mobile": "Your Mobile Number",
+    "address": "Address",
+    "selectDate": "Select Available Date",
+    "selectTime": "Select Time",
+    "childrenCount": "Number of Children",
+    "childrenAge": "Age of Children",
+    "notes": "Additional Notes",
+    "accompanyingPerson": "Participation of Accompanying Person (€3)",
+    "photoConsent": "Photo Publication Consent",
+    "agree": "AGREE to publish photos of my children",
+    "disagree": "DISAGREE to publish photos of my children",
+    "consent": "I agree to the rules (Required)",
+    "terms": "General Terms and Conditions",
+    "totalPrice": "Total Price",
+    "bookButton": "Book Training with Payment Obligation",
+    "redirecting": "Redirecting to Payment...",
+    "availability": {
+      "available": "{count} spots available",
+      "unavailable": "Only {count} spots remain (needed {needed})",
+      "full": "All places are already occupied for this session"
+    }
+  },
+  "admin": {
+    "title": "Admin Controls",
+    "addSession": "Add Session",
+    "trainingType": "Training Type",
+    "dateTime": "Date & Time",
+    "maxParticipants": "Max Participants"
+  },
+  "navbar": {
+    "about": "About Nitráčik",
+    "photos": "Gallery",
+    "booking": "Book your session",
+    "contact": "Contact",
+    "profile": "My Profile",
+    "logout": "Logout",
+    "login": "Login"
+  },
+  "footer": {
+    "copyright": "© 2025 Nitráčik. All rights reserved."
+  },
+  "about": {
+    "title": "About Us",
+    "description": "Welcome to Nitracik! We specialize in professional training sessions tailored to your needs. Join us to grow your skills and achieve your goals."
+  },
+  "contact": {
+    "title": "Contact Us",
+    "phone": "Phone",
+    "address": "Address",
+    "email": "Email",
+    "form": {
       "name": "Your Name",
+      "namePlaceholder": "Enter your name",
       "email": "Your Email",
-      "mobile": "Your Mobile Number",
+      "emailPlaceholder": "Enter your email",
+      "message": "Your Message",
+      "messagePlaceholder": "Write your message here",
+      "submit": "Send Message",
+      "sending": "Sending...",
+      "success": "Message sent successfully!",
+      "error": "Failed to send message."
+    }
+  },
+  "login": {
+    "title": "Login",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Login",
+    "loading": "Logging in...",
+    "registerPrompt": "Not registered?",
+    "createAccount": "Create an account",
+    "forgotPassword": "Forgot Password?",
+    "success": "You are successfully logged in!",
+    "errors": {
+      "required": "Please fill in all fields.",
+      "invalidEmail": "Please enter a valid email address.",
+      "invalidCredentials": "Invalid email or password.",
+      "failed": "Login failed. Please try again."
+    },
+    "alreadyLoggedIn": {
+      "title": "Welcome Back!",
+      "message": "You are already logged in.",
+      "logout": "Logout"
+    },
+    "register": {
+      "title": "Register",
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "email": "Email",
+      "password": "Password",
+      "repeatPassword": "Repeat Password",
       "address": "Address",
-      "selectDate": "Select Available Date",
-      "selectTime": "Select Time",
-      "childrenCount": "Number of Children",
-      "childrenAge": "Age of Children",
-      "notes": "Additional Notes",
-      "accompanyingPerson": "Participation of Accompanying Person (€3)",
-      "photoConsent": "Photo Publication Consent",
-      "agree": "AGREE to publish photos of my children",
-      "disagree": "DISAGREE to publish photos of my children",
-      "consent": "I agree to the rules (Required)",
-      "terms": "General Terms and Conditions",
-      "totalPrice": "Total Price",
-      "bookButton": "Book Training with Payment Obligation",
-      "redirecting": "Redirecting to Payment...",
-      "availability": {
-        "available": "{count} spots available",
-        "unavailable": "Only {count} spots remain (needed {needed})",
-        "full": "All places are already occupied for this session"
+      "submit": "Register",
+      "loading": "Registering...",
+      "loginPrompt": "Already registered?",
+      "loginLink": "Login here",
+      "success": "Registration successful. Please check your email to verify your account.",
+      "errors": {
+        "firstNameRequired": "First name is required",
+        "lastNameRequired": "Last name is required",
+        "emailRequired": "Email is required",
+        "passwordRequired": "Password is required",
+        "addressRequired": "Address is required",
+        "invalidEmail": "Invalid email address",
+        "passwordLength": "Password must be at least 6 characters long",
+        "passwordMatch": "Passwords do not match",
+        "emailExists": "Email is already registered",
+        "generic": "Registration failed. Please try again."
       }
-    },
-    "admin": {
-      "title": "Admin Controls",
-      "addSession": "Add Session",
-      "trainingType": "Training Type",
-      "dateTime": "Date & Time",
-      "maxParticipants": "Max Participants"
-    },
-    
-    "navbar": {
-      "about": "About Us",
-      "photos": "Photos",
-      "booking": "Booking",
-      "contact": "Contact",
-      "profile": "My Profile",
-      "logout": "Logout",
-      "login": "Login"
-    },
-    "footer": {
-      "copyright": "© 2025 Nitracik. All rights reserved."
     }
   }
+}

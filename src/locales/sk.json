@@ -1,55 +1,124 @@
 {
-    "booking": {
-      "title": "Rezervácia Tréningu",
-      "logout": "Odhlásiť sa",
-      "trainingType": {
-        "label": "Vyberte typ tréningu",
-        "placeholder": "Vyberte...",
-        "mini": "MINI",
-        "midi": "MIDI"
-      },
+  "booking": {
+    "title": "Rezervácia Tréningu",
+    "logout": "Odhlásiť sa",
+    "trainingType": {
+      "label": "Vyberte typ tréningu",
+      "placeholder": "Vyberte...",
+      "mini": "MINI",
+      "midi": "MIDI"
+    },
+    "name": "Vaše meno",
+    "email": "Váš email",
+    "mobile": "Vaše telefónne číslo",
+    "address": "Adresa",
+    "selectDate": "Vyberte dostupný dátum",
+    "selectTime": "Vyberte čas",
+    "childrenCount": "Počet detí",
+    "childrenAge": "Vek detí",
+    "notes": "Dodatočné poznámky",
+    "accompanyingPerson": "Účasť sprevádzajúcej osoby (€3)",
+    "photoConsent": "Súhlas s publikovaním fotografií",
+    "agree": "SUHLASÍM s publikovaním fotografií môjho dieťaťa",
+    "disagree": "NESUHLASÍM s publikovaním fotografií môjho dieťaťa",
+    "consent": "Súhlasím s pravidlami (Povinné)",
+    "terms": "Všeobecné obchodné podmienky",
+    "totalPrice": "Celková cena",
+    "bookButton": "Rezervovať tréning s platobnou povinnosťou",
+    "redirecting": "Presmerovanie na platbu...",
+    "availability": {
+      "available": "Dostupných {count} miest",
+      "unavailable": "Zostáva len {count} miest (potrebujete {needed})",
+      "full": "Všetky miesta sú už obsadené"
+    }
+  },
+  "admin": {
+    "title": "Admin Panel",
+    "addSession": "Pridať reláciu",
+    "trainingType": "Typ tréningu",
+    "dateTime": "Dátum a čas",
+    "maxParticipants": "Maximálny počet"
+  },
+  "navbar": {
+    "about": "O Nitračikovi",
+    "photos": "Galéria",
+    "booking": "Rezervuj si termín",
+    "contact": "Kontakt",
+    "profile": "Profil",
+    "logout": "Odhlásiť sa",
+    "login": "Prihlásiť sa"
+  },
+  "footer": {
+    "copyright": "© 2025 Nitráčik. Všetky práva vyhradené."
+  },
+  "about": {
+    "title": "O nás",
+    "description": "Vitajte v Nitraciku! Špecializujeme sa na profesionálne tréningové sessiony šité na mieru vašim potrebám. Pripojte sa k nám a zlepšite svoje schopnosti."
+  },
+  "contact": {
+    "title": "Kontaktujte nás",
+    "phone": "Telefón",
+    "address": "Adresa",
+    "email": "Email",
+    "form": {
       "name": "Vaše meno",
+      "namePlaceholder": "Zadajte vaše meno",
       "email": "Váš email",
-      "mobile": "Vaše telefónne číslo",
+      "emailPlaceholder": "Zadajte váš email",
+      "message": "Vaša správa",
+      "messagePlaceholder": "Napíšte svoju správu",
+      "submit": "Odoslať správu",
+      "sending": "Odosielam...",
+      "success": "Správa úspešne odoslaná!",
+      "error": "Nepodarilo sa odoslať správu."
+    }
+  },
+  "login": {
+    "title": "Prihlásenie",
+    "email": "Email",
+    "password": "Heslo",
+    "submit": "Prihlásiť sa",
+    "loading": "Prihlasujem...",
+    "registerPrompt": "Ešte nemáte účet?",
+    "createAccount": "Vytvoriť účet",
+    "forgotPassword": "Zabudnuté heslo?",
+    "success": "Úspešne ste sa prihlásili!",
+    "errors": {
+      "required": "Vyplňte všetky polia.",
+      "invalidEmail": "Zadajte platnú emailovú adresu.",
+      "invalidCredentials": "Nesprávny email alebo heslo.",
+      "failed": "Prihlásenie zlyhalo. Skúste to znova."
+    },
+    "alreadyLoggedIn": {
+      "title": "Vitajte späť!",
+      "message": "Ste už prihlásený.",
+      "logout": "Odhlásiť sa"
+    },
+    "register": {
+      "title": "Registrácia",
+      "firstName": "Meno",
+      "lastName": "Priezvisko",
+      "email": "Email",
+      "password": "Heslo",
+      "repeatPassword": "Zopakujte heslo",
       "address": "Adresa",
-      "selectDate": "Vyberte dostupný dátum",
-      "selectTime": "Vyberte čas",
-      "childrenCount": "Počet detí",
-      "childrenAge": "Vek detí",
-      "notes": "Dodatočné poznámky",
-      "accompanyingPerson": "Účasť sprevádzajúcej osoby (€3)",
-      "photoConsent": "Súhlas s publikovaním fotografií",
-      "agree": "SUHLASÍM s publikovaním fotografií môjho dieťaťa",
-      "disagree": "NESUHLASÍM s publikovaním fotografií môjho dieťaťa",
-      "consent": "Súhlasím s pravidlami (Povinné)",
-      "terms": "Všeobecné obchodné podmienky",
-      "totalPrice": "Celková cena",
-      "bookButton": "Rezervovať tréning s platobnou povinnosťou",
-      "redirecting": "Presmerovanie na platbu...",
-      "availability": {
-        "available": "Dostupných {count} miest",
-        "unavailable": "Zostáva len {count} miest (potrebujete {needed})",
-        "full": "Všetky miesta sú už obsadené"
+      "submit": "Registrovať sa",
+      "loading": "Registrujem...",
+      "loginPrompt": "Už máte účet?",
+      "loginLink": "Prihláste sa tu",
+      "success": "Registrácia úspešná. Skontrolujte si email pre overenie účtu.",
+      "errors": {
+        "firstNameRequired": "Meno je povinné",
+        "lastNameRequired": "Priezvisko je povinné",
+        "emailRequired": "Email je povinné",
+        "passwordRequired": "Heslo je povinné",
+        "addressRequired": "Adresa je povinná",
+        "invalidEmail": "Neplatná emailová adresa",
+        "passwordLength": "Heslo musí mať aspoň 6 znakov",
+        "passwordMatch": "Heslá sa nezhodujú",
+        "emailExists": "Email je už registrovaný",
+        "generic": "Registrácia zlyhala. Skúste to znova."
       }
-    },
-    "admin": {
-      "title": "Admin Panel",
-      "addSession": "Pridať reláciu",
-      "trainingType": "Typ tréningu",
-      "dateTime": "Dátum a čas",
-      "maxParticipants": "Maximálny počet"
-    },
-     "navbar": {
-      "about": "O nás",
-      "photos": "Fotky",
-      "booking": "Rezervácia",
-      "contact": "Kontakt",
-      "profile": "Profil",
-      "logout": "Odhlásiť sa",
-      "login": "Prihlásiť sa"
-    },
-    "footer": {
-      "copyright": "© 2025 Nitracik. Všetky práva vyhradené."
     }
   }
-  
+}

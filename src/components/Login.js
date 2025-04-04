@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useTranslation } from '../contexts/LanguageContext';
 
 const Login = ({ onLoginSuccess }) => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -18,7 +20,7 @@ const Login = ({ onLoginSuccess }) => {
 
     // Basic validation
     if (!email || !password) {
-      setError('Please fill in all fields.');
+      setError(t.login.errors.required);
       setLoading(false);
       return;
     }
@@ -26,7 +28,7 @@ const Login = ({ onLoginSuccess }) => {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address.');
+      setError(t.login.errors.invalidEmail);
       setLoading(false);
       return;
     }
@@ -53,10 +55,10 @@ const Login = ({ onLoginSuccess }) => {
     } catch (error) {
       // Handle login errors
       if (error.response?.status === 400) {
-        setError('Invalid email or password.');
+        setError(t.login.errors.invalidCredentials);
         setShowForgotPassword(true); // Show "Forgot Password" link
       } else {
-        setError('Login failed. Please try again.');
+        setError(t.login.errors.failed);
       }
       console.error('Login error:', error.response?.data || error.message);
     } finally {
@@ -72,8 +74,8 @@ const Login = ({ onLoginSuccess }) => {
           <div className="col-md-6">
             <div className="card shadow-sm">
               <div className="card-body text-center">
-                <h2 className="card-title">Welcome Back!</h2>
-                <p>You are already logged in.</p>
+                <h2 className="card-title">{t.login.alreadyLoggedIn.title}</h2>
+                <p>{t.login.alreadyLoggedIn.message}</p>
                 <button
                   className="btn btn-danger"
                   onClick={() => {
@@ -82,7 +84,7 @@ const Login = ({ onLoginSuccess }) => {
                     window.location.reload(); // Refresh the page
                   }}
                 >
-                  Logout
+                  {t.login.alreadyLoggedIn.logout}
                 </button>
               </div>
             </div>
@@ -99,10 +101,10 @@ const Login = ({ onLoginSuccess }) => {
         <div className="col-md-6">
           <div className="card shadow-sm">
             <div className="card-body">
-              <h2 className="card-title text-center">Login</h2>
+              <h2 className="card-title text-center">{t.login.title}</h2>
               <form onSubmit={handleSubmit}>
                 <div className="mb-3">
-                  <label htmlFor="email" className="form-label">Email</label>
+                  <label htmlFor="email" className="form-label">{t.login.email}</label>
                   <input
                     type="email"
                     className={`form-control ${error ? 'is-invalid' : ''}`}
@@ -113,7 +115,7 @@ const Login = ({ onLoginSuccess }) => {
                   />
                 </div>
                 <div className="mb-3">
-                  <label htmlFor="password" className="form-label">Password</label>
+                  <label htmlFor="password" className="form-label">{t.login.password}</label>
                   <input
                     type="password"
                     className={`form-control ${error ? 'is-invalid' : ''}`}
@@ -132,19 +134,19 @@ const Login = ({ onLoginSuccess }) => {
                   {loading ? (
                     <>
                       <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                      <span className="ms-2">Logging in...</span>
+                      <span className="ms-2">{t.login.loading}</span>
                     </>
                   ) : (
-                    'Login'
+                    t.login.submit
                   )}
                 </button>
               </form>
               <div className="mt-3 text-center">
-                <p>Not registered? <Link to="/register">Create an account</Link></p>
+                <p>{t.login.registerPrompt} <Link to="/register">{t.login.createAccount}</Link></p>
                 {/* Show "Forgot Password" link only when login fails */}
                 {showForgotPassword && (
                   <p>
-                    <Link to="/forgot-password">Forgot Password?</Link>
+                    <Link to="/forgot-password">{t.login.forgotPassword}</Link>
                   </p>
                 )}
               </div>
