@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { IMaskInput } from 'react-imask';
 import { Tooltip } from 'react-tooltip';
 import { loadStripe } from '@stripe/stripe-js';
+import { useTranslation } from '../contexts/LanguageContext';
 
 const api = axios.create({
   baseURL: 'http://localhost:5000', // Directly point to backend
@@ -42,6 +43,7 @@ const Booking = () => {
     remainingSpots: 0,
     requestedChildren: 0
   });
+  const { t } = useTranslation();
 
 
   const pricing = {
@@ -305,342 +307,362 @@ const Booking = () => {
     );
   };
 
-  // If the user is not logged in, show the login form
-  if (!isLoggedIn) {
-    return (
-      <div className="container mt-5">
-        <div className="row justify-content-center">
-          <div className="col-md-6">
-            <div className="card shadow-sm">
-              <div className="card-body">
-                <h2 className="card-title text-center">Login</h2>
-                <Login onLoginSuccess={() => {
-                  localStorage.setItem('isLoggedIn', 'true');
-                  setIsLoggedIn(true);
-                }} />
-              </div>
+ // If the user is not logged in, show the login form
+ if (!isLoggedIn) {
+  return (
+    <div className="container mt-5">
+      <div className="row justify-content-center">
+        <div className="col-md-6">
+          <div className="card shadow-sm">
+            <div className="card-body">
+              <h2 className="card-title text-center">{t?.booking?.title || 'Book Your Training'}</h2>
+              <Login onLoginSuccess={() => {
+                localStorage.setItem('isLoggedIn', 'true');
+                setIsLoggedIn(true);
+              }} />
             </div>
           </div>
         </div>
       </div>
-    );
+    </div>
+  );
+}
+
+// Helper function to format availability messages
+const formatAvailabilityMessage = () => {
+  if (!availability.isAvailable) {
+    if (availability.remainingSpots === 0) {
+      return t?.booking?.availability?.full || 'All places are already occupied for this session. Please choose another date or time.';
+    }
+    return t?.booking?.availability?.unavailable
+      ?.replace('{count}', availability.remainingSpots)
+      ?.replace('{needed}', availability.requestedChildren) || 
+      `Only ${availability.remainingSpots} spot${availability.remainingSpots !== 1 ? 's' : ''} remain (needed ${availability.requestedChildren})`;
   }
-  console.log('Should show admin panel?', isAdmin);
-  // If the user is logged in, show the booking form
-  return (
-    <div className="container mt-5">
-      <h2 className="text-center text-primary">Book Your Training</h2>
-      <button
-        className="btn btn-danger mb-3"
-        onClick={() => {
-          localStorage.removeItem('isLoggedIn');
-          localStorage.removeItem('userId');
-          window.location.reload(); // Refresh the page to update the UI
-        }}
-      >
-        Logout
-      </button>
+  return null;
+};
 
-      {isAdmin && (
-        <div className="admin-panel mb-5">
-          <h3 className="text-success">Admin Controls</h3>
-          <form onSubmit={handleAddTrainingDate}>
-            <div className="row g-3">
-              <div className="col-md-4">
-                <label className="form-label">Training Type</label>
-                <select
-                  className="form-select"
-                  value={newTrainingType}
-                  onChange={(e) => setNewTrainingType(e.target.value)}
-                >
-                  <option value="MIDI">MIDI</option>
-                  <option value="MINI">MINI</option>
-                </select>
-              </div>
+return (
+  <div className="container mt-5">
+    <h2 className="text-center text-primary">{t?.booking?.title || 'Book Your Training'}</h2>
+    <button
+      className="btn btn-danger mb-3"
+      onClick={() => {
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('userId');
+        window.location.reload();
+      }}
+    >
+      {t?.booking?.logout || 'Logout'}
+    </button>
 
-              <div className="col-md-4">
-                <label className="form-label">Date & Time</label>
-                <input
-                  type="datetime-local"
-                  className="form-control"
-                  value={newTrainingDate}
-                  onChange={(e) => setNewTrainingDate(e.target.value)}
-                />
-              </div>
-
-              <div className="col-md-2">
-                <label className="form-label">Max Participants</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  min="1"
-                  value={maxParticipants}
-                  onChange={(e) => setMaxParticipants(e.target.value)}
-                />
-              </div>
-
-              <div className="col-md-2 d-flex align-items-end">
-                <button type="submit" className="btn btn-success w-100">
-                  ➕ Add Session
-                </button>
-              </div>
+    {isAdmin && (
+      <div className="admin-panel mb-5">
+        <h3 className="text-success">{t?.admin?.title || 'Admin Controls'}</h3>
+        <form onSubmit={handleAddTrainingDate}>
+          <div className="row g-3">
+            <div className="col-md-4">
+              <label className="form-label">{t?.admin?.trainingType || 'Training Type'}</label>
+              <select
+                className="form-select"
+                value={newTrainingType}
+                onChange={(e) => setNewTrainingType(e.target.value)}
+              >
+                <option value="MIDI">{t?.booking?.trainingType?.midi || 'MIDI'}</option>
+                <option value="MINI">{t?.booking?.trainingType?.mini || 'MINI'}</option>
+              </select>
             </div>
-          </form>
+
+            <div className="col-md-4">
+              <label className="form-label">{t?.admin?.dateTime || 'Date & Time'}</label>
+              <input
+                type="datetime-local"
+                className="form-control"
+                value={newTrainingDate}
+                onChange={(e) => setNewTrainingDate(e.target.value)}
+              />
+            </div>
+
+            <div className="col-md-2">
+              <label className="form-label">{t?.admin?.maxParticipants || 'Max Participants'}</label>
+              <input
+                type="number"
+                className="form-control"
+                min="1"
+                value={maxParticipants}
+                onChange={(e) => setMaxParticipants(e.target.value)}
+              />
+            </div>
+
+            <div className="col-md-2 d-flex align-items-end">
+              <button type="submit" className="btn btn-success w-100">
+                {t?.admin?.addSession || 'Add Session'}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    )}
+
+    {isAdmin && <div className="alert alert-success mb-3">{t?.admin?.title || 'ADMIN MODE ACTIVE'}</div>}
+    
+    <form onSubmit={handleSubmit} className="mt-4">
+      {/* Training Type */}
+      <div className="mb-3">
+        <label className="form-label">{t?.booking?.trainingType?.label || 'Select Training Type'}</label>
+        <select
+          className="form-select"
+          value={trainingType}
+          onChange={(e) => {
+            setTrainingType(e.target.value);
+            setSelectedDate('');
+            setSelectedTime('');
+          }}
+        >
+          <option value="">{t?.booking?.trainingType?.placeholder || 'Choose...'}</option>
+          <option value="MINI">{t?.booking?.trainingType?.mini || 'MINI'}</option>
+          <option value="MIDI">{t?.booking?.trainingType?.midi || 'MIDI'}</option>
+        </select>
+      </div>
+
+      {/* User Name */}
+      <div className="mb-3">
+        <label className="form-label">{t?.booking?.name || 'Your Name'}</label>
+        <input
+          type="text"
+          className="form-control"
+          value={userData ? `${userData.first_name} ${userData.last_name}` : ''}
+          readOnly
+        />
+      </div>
+
+      {/* User Email */}
+      <div className="mb-3">
+        <label className="form-label">{t?.booking?.email || 'Your Email'}</label>
+        <input
+          type="email"
+          className="form-control"
+          value={userData ? userData.email : ''}
+          readOnly
+        />
+      </div>
+
+      {/* Mobile Number */}
+      <div className="mb-3">
+        <label className="form-label">{t?.booking?.mobile || 'Your Mobile Number'}</label>
+        <IMaskInput
+          mask="+421 000 000 000"
+          definitions={{
+            '0': /[0-9]/,
+          }}
+          className="form-control"
+          value={mobile}
+          onAccept={(value) => setMobile(value)}
+          placeholder={t?.booking?.mobile || '+421 xxx xxx xxx'}
+        />
+      </div>
+
+      {/* Address */}
+      <div className="mb-3">
+        <label className="form-label">{t?.booking?.address || 'Address'}</label>
+        <input
+          type="text"
+          className="form-control"
+          value={userData ? userData.address : ''}
+          readOnly
+        />
+      </div>
+
+      {/* Select Available Date */}
+      <div className="mb-3">
+        <label className="form-label">{t?.booking?.selectDate || 'Select Available Date'} <span className="text-danger">*</span></label>
+        <Calendar
+          onChange={handleDateChange}
+          value={selectedDate ? new Date(selectedDate) : null}
+          tileClassName={tileClassName}
+          tileDisabled={({ date, view }) => {
+            if (view !== 'month') return false;
+            const formattedDate = date.toLocaleDateString('en-CA');
+            return !trainingDates[trainingType]?.[formattedDate];
+          }}
+          minDate={new Date()}
+          className="custom-calendar"
+        />
+      </div>
+
+      {/* Time Slots */}
+      {selectedDate && trainingType && trainingDates[trainingType]?.[selectedDate] && (
+        <div className="mb-3">
+          <label htmlFor="timeSlots">{t?.booking?.selectTime || 'Select Time'}:</label>
+          <select
+            id="timeSlots"
+            value={selectedTime}
+            onChange={(e) => setSelectedTime(e.target.value)}
+            className="form-select"
+          >
+            <option value="">-- {t?.booking?.selectTime || 'Choose a Time Slot'} --</option>
+            {trainingDates[trainingType][selectedDate].map((time) => (
+              <option key={time} value={time}>
+                {time}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 
-      {isAdmin && <div className="alert alert-success mb-3">ADMIN MODE ACTIVE - You should see admin controls below</div>}
-      <form onSubmit={handleSubmit} className="mt-4">
-        {/* Training Type */}
-        <div className="mb-3">
-          <label className="form-label">Select Training Type</label>
-          <select
-            className="form-select"
-            value={trainingType}
-            onChange={(e) => {
-              setTrainingType(e.target.value);
-              setSelectedDate('');
-              setSelectedTime('');
-            }}
-          >
-            <option value="">Choose...</option>
-            <option value="MINI">MINI</option>
-            <option value="MIDI">MIDI</option>
-          </select>
+      {/* Session Full Warning */}
+      {!availability.isAvailable && (
+        <div className="alert alert-danger mt-3">
+          {formatAvailabilityMessage()}
         </div>
+      )}
 
-        {/* User Name */}
-        <div className="mb-3">
-          <label className="form-label">Your Name</label>
-          <input
-            type="text"
-            className="form-control"
-            value={userData ? `${userData.first_name} ${userData.last_name}` : ''}
-            readOnly
-          />
-        </div>
-
-        {/* User Email */}
-        <div className="mb-3">
-          <label className="form-label">Your Email</label>
-          <input
-            type="email"
-            className="form-control"
-            value={userData ? userData.email : ''}
-            readOnly
-          />
-        </div>
-
-        {/* Mobile Number */}
-        <div className="mb-3">
-          <label className="form-label">Your Mobile Number</label>
-          <IMaskInput
-            mask="+421 000 000 000"
-            definitions={{
-              '0': /[0-9]/,
-            }}
-            className="form-control"
-            value={mobile}
-            onAccept={(value) => setMobile(value)}
-            placeholder="+421 xxx xxx xxx"
-          />
-        </div>
-
-        {/* Address */}
-        <div className="mb-3">
-          <label className="form-label">Address</label>
-          <input
-            type="text"
-            className="form-control"
-            value={userData ? userData.address : ''}
-            readOnly
-          />
-        </div>
-
-        {/* Select Available Date */}
-        <div className="mb-3">
-          <label className="form-label">Select Available Date <span className="text-danger">*</span></label>
-          <Calendar
-            onChange={handleDateChange}
-            value={selectedDate ? new Date(selectedDate) : null}
-            tileClassName={tileClassName}
-            tileDisabled={({ date, view }) => {
-              if (view !== 'month') return false; // Only disable dates in the month view
-              const formattedDate = date.toLocaleDateString('en-CA'); // Format as YYYY-MM-DD
-              return !trainingDates[trainingType]?.[formattedDate]; // Disable unavailable dates
-            }}
-            minDate={new Date()} // Disable past dates
-            className="custom-calendar" // Add a custom class for styling
-          />
-        </div>
-
-
-        {/* Time Slots */}
-        {renderTimeSlots()}
-
-        {/* Session Full Warning */}
-        {!availability.isAvailable && (
-          <div className="alert alert-danger mt-3">
-            {availability.remainingSpots === 0 ? (
-              <>All places are already occupied for this session. Please choose another date or time.</>
-            ) : (
-              <>
-                Not enough available spots!<br />
-                You requested {availability.requestedChildren} children, but only {availability.remainingSpots} spot{availability.remainingSpots !== 1 && 's'} remain.
-              </>
-            )}
-          </div>
-        )}
-
-
-        {/* Number of Children */}
-        <div className="mb-3">
-          <label className="form-label">Number of Children <span className="text-danger">*</span></label>
-          <select
-            className="form-select"
-            value={childrenCount}
-            onChange={(e) => setChildrenCount(parseInt(e.target.value))}
-            required
-          >
-            <option value="1">1 Child (€15)</option>
-            <option value="2">2 Children (€28)</option>
-            <option value="3">3 Children (€39)</option>
-          </select>
-        </div>
-
-        {/* Age of Children */}
-        <div className="mb-3">
-          <label className="form-label">Age of Children <span className="text-danger">*</span></label>
-          <input
-            type="text"
-            className="form-control"
-            value={childrenAge}
-            onChange={(e) => setChildrenAge(e.target.value)}
-            required
-          />
-        </div>
-
-        {/* Additional Notes */}
-        <div className="mb-3">
-          <label className="form-label">Additional Notes</label>
-          <textarea
-            className="form-control"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </div>
-
-        {/* Accompanying Person */}
-        <div className="mb-3">
-          <input
-            type="checkbox"
-            id="accompanyingPerson"
-            checked={accompanyingPerson}
-            onChange={() => setAccompanyingPerson(!accompanyingPerson)}
-          />
-          <label htmlFor="accompanyingPerson" className="ms-2">
-            Participation of Accompanying Person (€3)
-          </label>
-        </div>
-
-        {/* Warning Message */}
-        {warningMessage && (
-          <div className="alert alert-danger mt-3">
-            {warningMessage}
-          </div>
-        )}
-
-        {/* Photo Consent */}
-        <div className="mb-3">
-          <label className="form-label">Photo Publication Consent <span className="text-danger">*</span></label>
-          <div>
-            <div className="form-check">
-              <input
-                className="form-check-input"
-                type="radio"
-                name="photoConsent"
-                id="photoConsentAgree"
-                checked={photoConsent === true}
-                onChange={() => setPhotoConsent(true)}
-                required
-              />
-              <label className="form-check-label" htmlFor="photoConsentAgree">
-                AGREE to publish photos of my children
-              </label>
-            </div>
-            <div className="form-check">
-              <input
-                className="form-check-input"
-                type="radio"
-                name="photoConsent"
-                id="photoConsentDisagree"
-                checked={photoConsent === false}
-                onChange={() => setPhotoConsent(false)}
-                required
-              />
-              <label className="form-check-label" htmlFor="photoConsentDisagree">
-                DISAGREE to publish photos of my children
-              </label>
-            </div>
-          </div>
-        </div>
-
-        {/* Consent Checkbox */}
-        <div className="mb-3">
-          <input
-            type="checkbox"
-            id="consent"
-            checked={consent}
-            onChange={() => setConsent(!consent)}
-            required
-          />
-          <label htmlFor="consent" className="ms-2 text-danger">
-            I agree to the rules (Required)
-          </label>
-          <span className="ms-2">
-            <a
-              href="/terms-and-conditions.pdf" // Replace with the actual path to your PDF
-              target="_blank" // Opens the PDF in a new tab
-              rel="noopener noreferrer" // Security best practice for target="_blank"
-              style={{ color: '#007bff', textDecoration: 'underline' }} // Optional: Style the link
-            >
-              General Terms and Conditions
-            </a>
-          </span>
-        </div>
-
-        {/* Total Price */}
-        <h4>Total Price: €{pricing[childrenCount] + (accompanyingPerson ? 3 : 0)}</h4>
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          className="btn btn-success w-100"
-          disabled={!consent || loading || !availability.isAvailable}
-          data-tooltip-id="booking-tooltip"
-          data-tooltip-content={
-            !availability.isAvailable
-              ? availability.remainingSpots === 0
-                ? 'All places are already occupied for this session'
-                : `Only ${availability.remainingSpots} spot${availability.remainingSpots !== 1 ? 's' : ''} available (needed ${availability.requestedChildren})`
-              : !consent
-                ? 'You must agree to the rules to complete the payment.'
-                : ''
-          }
+      {/* Number of Children */}
+      <div className="mb-3">
+        <label className="form-label">{t?.booking?.childrenCount || 'Number of Children'} <span className="text-danger">*</span></label>
+        <select
+          className="form-select"
+          value={childrenCount}
+          onChange={(e) => setChildrenCount(parseInt(e.target.value))}
+          required
         >
-          {loading ? (
-            <>
-              <span className="spinner-border spinner-border-sm" aria-hidden="true"></span>
-              <span className="ms-2">Redirecting to Payment...</span>
-            </>
-          ) : (
-            'Book Training with Payment Obligation'
-          )}
-        </button>
-        <Tooltip id="booking-tooltip" />
-      </form>
-    </div>
-  );
+          <option value="1">1 {t?.booking?.childrenCount?.includes('Počet') ? 'dieťa' : 'Child'} (€15)</option>
+          <option value="2">2 {t?.booking?.childrenCount?.includes('Počet') ? 'deti' : 'Children'} (€28)</option>
+          <option value="3">3 {t?.booking?.childrenCount?.includes('Počet') ? 'deti' : 'Children'} (€39)</option>
+        </select>
+      </div>
+
+      {/* Age of Children */}
+      <div className="mb-3">
+        <label className="form-label">{t?.booking?.childrenAge || 'Age of Children'} <span className="text-danger">*</span></label>
+        <input
+          type="text"
+          className="form-control"
+          value={childrenAge}
+          onChange={(e) => setChildrenAge(e.target.value)}
+          required
+        />
+      </div>
+
+      {/* Additional Notes */}
+      <div className="mb-3">
+        <label className="form-label">{t?.booking?.notes || 'Additional Notes'}</label>
+        <textarea
+          className="form-control"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+      </div>
+
+      {/* Accompanying Person */}
+      <div className="mb-3">
+        <input
+          type="checkbox"
+          id="accompanyingPerson"
+          checked={accompanyingPerson}
+          onChange={() => setAccompanyingPerson(!accompanyingPerson)}
+        />
+        <label htmlFor="accompanyingPerson" className="ms-2">
+          {t?.booking?.accompanyingPerson || 'Participation of Accompanying Person (€3)'}
+        </label>
+      </div>
+
+      {/* Warning Message */}
+      {warningMessage && (
+        <div className="alert alert-danger mt-3">
+          {warningMessage}
+        </div>
+      )}
+
+      {/* Photo Consent */}
+      <div className="mb-3">
+        <label className="form-label">{t?.booking?.photoConsent || 'Photo Publication Consent'} <span className="text-danger">*</span></label>
+        <div>
+          <div className="form-check">
+            <input
+              className="form-check-input"
+              type="radio"
+              name="photoConsent"
+              id="photoConsentAgree"
+              checked={photoConsent === true}
+              onChange={() => setPhotoConsent(true)}
+              required
+            />
+            <label className="form-check-label" htmlFor="photoConsentAgree">
+              {t?.booking?.agree || 'AGREE to publish photos of my children'}
+            </label>
+          </div>
+          <div className="form-check">
+            <input
+              className="form-check-input"
+              type="radio"
+              name="photoConsent"
+              id="photoConsentDisagree"
+              checked={photoConsent === false}
+              onChange={() => setPhotoConsent(false)}
+              required
+            />
+            <label className="form-check-label" htmlFor="photoConsentDisagree">
+              {t?.booking?.disagree || 'DISAGREE to publish photos of my children'}
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* Consent Checkbox */}
+      <div className="mb-3">
+        <input
+          type="checkbox"
+          id="consent"
+          checked={consent}
+          onChange={() => setConsent(!consent)}
+          required
+        />
+        <label htmlFor="consent" className="ms-2 text-danger">
+          {t?.booking?.consent || 'I agree to the rules (Required)'}
+        </label>
+        <span className="ms-2">
+          <a
+            href="/terms-and-conditions.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#007bff', textDecoration: 'underline' }}
+          >
+            {t?.booking?.terms || 'General Terms and Conditions'}
+          </a>
+        </span>
+      </div>
+
+      {/* Total Price */}
+      <h4>{t?.booking?.totalPrice || 'Total Price'}: €{pricing[childrenCount] + (accompanyingPerson ? 3 : 0)}</h4>
+
+      {/* Submit Button */}
+      <button
+        type="submit"
+        className="btn btn-success w-100"
+        disabled={!consent || loading || !availability.isAvailable}
+        data-tooltip-id="booking-tooltip"
+        data-tooltip-content={
+          !availability.isAvailable
+            ? formatAvailabilityMessage()
+            : !consent
+              ? t?.booking?.consent || 'You must agree to the rules to complete the payment.'
+              : ''
+        }
+      >
+        {loading ? (
+          <>
+            <span className="spinner-border spinner-border-sm" aria-hidden="true"></span>
+            <span className="ms-2">{t?.booking?.redirecting || 'Redirecting to Payment...'}</span>
+          </>
+        ) : (
+          t?.booking?.bookButton || 'Book Training with Payment Obligation'
+        )}
+      </button>
+      <Tooltip id="booking-tooltip" />
+    </form>
+  </div>
+);
 };
 
 export default Booking;
