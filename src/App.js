@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link, BrowserRouter as Router, Route, Routes, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser } from '@fortawesome/free-solid-svg-icons';
@@ -74,6 +74,9 @@ const Navbar = () => {
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
 
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
@@ -85,6 +88,23 @@ const Navbar = () => {
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen); // Toggle menu visibility
   };
+
+  const toggleDropdown = () => {
+    setIsDropdownOpen(!isDropdownOpen);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   return (
     <nav className={`navbar navbar-expand-lg navbar-light shadow-sm py-3 ${theme === 'dark' ? 'navbar-dark bg-dark' : 'bg-white'}`}>
@@ -98,56 +118,82 @@ const Navbar = () => {
             onClick={toggleMenu}
             aria-label="Toggle navigation"
           >
-            {isMenuOpen ? (
-              <span>✕</span> /* Close icon */
-            ) : (
-              <span>☰</span> /* Hamburger icon */
-            )}
+            {isMenuOpen ? <span>✕</span> : <span>☰</span>}
           </button>
         </div>
         <div className={`collapse navbar-collapse ${isMenuOpen ? 'show' : ''}`} id="navbarNav">
-          <ul className="navbar-nav mx-auto mb-2 mb-lg-0">
-            <li className="nav-item mx-lg-3">
+          {/* Centered Navigation Links */}
+          <ul className="navbar-nav">
+            <li className="nav-item">
               <Link className="nav-link nav-link-custom" to="/about">
-                {t?.navbar?.about || 'About Us'}
+                {t?.navbar?.about || 'About Nitracik'}
               </Link>
             </li>
-            <li className="nav-item mx-lg-3">
+            <li className="nav-item">
               <Link className="nav-link nav-link-custom" to="/photos">
-                {t?.navbar?.photos || 'Photos'}
+                {t?.navbar?.photos || 'Gallery'}
               </Link>
             </li>
-            <li className="nav-item mx-lg-3">
+            <li className="nav-item">
               <Link className="nav-link nav-link-custom" to="/booking">
-                {t?.navbar?.booking || 'Booking'}
+                {t?.navbar?.booking || 'Book your session'}
               </Link>
             </li>
-            <li className="nav-item mx-lg-3">
+            <li className="nav-item">
               <Link className="nav-link nav-link-custom" to="/contact">
                 {t?.navbar?.contact || 'Contact'}
               </Link>
             </li>
-            {isLoggedIn && (
-              <li className="nav-item mx-lg-3">
-                <Link className="nav-link nav-link-custom" to="/profile">
-                  <FontAwesomeIcon icon={faUser} className="me-2" />
-                  {t?.navbar?.profile || 'My Profile'}
-                </Link>
-              </li>
-            )}
           </ul>
-          <div className="navbar-controls">
-            <LanguageSwitcher />
-            <ThemeToggle />
-            {isLoggedIn ? (
-              <button className="btn-logout" onClick={handleLogout}>
-                {t?.navbar?.logout || 'Logout'}
-              </button>
-            ) : (
-              <Link className="btn-login" to="/login">
-                {t?.navbar?.login || 'Login'}
-              </Link>
-            )}
+  
+          {/* Right-aligned Controls */}
+          <div className="navbar-controls-wrapper">
+            <div className="navbar-controls-group">
+              <LanguageSwitcher />
+              <ThemeToggle />
+              <div className={`user-dropdown ${isDropdownOpen ? 'open' : ''}`} ref={dropdownRef}>
+                <button 
+                  className="user-dropdown-toggle" 
+                  onClick={toggleDropdown}
+                  aria-expanded={isDropdownOpen}
+                  aria-label="User menu"
+                >
+                  <FontAwesomeIcon icon={faUser} className="user-icon" />
+                </button>
+                <div className="user-dropdown-menu">
+                  {isLoggedIn ? (
+                    <>
+                      <Link
+                        to="/profile"
+                        className="dropdown-item"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        <FontAwesomeIcon icon={faUser} className="me-2" />
+                        {t?.navbar?.profile || 'My Profile'}
+                      </Link>
+                      <div className="dropdown-divider"></div>
+                      <button
+                        className="dropdown-item"
+                        onClick={() => {
+                          handleLogout();
+                          setIsDropdownOpen(false);
+                        }}
+                      >
+                        {t?.navbar?.logout || 'Logout'}
+                      </button>
+                    </>
+                  ) : (
+                    <Link
+                      to="/login"
+                      className="dropdown-item"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      {t?.navbar?.login || 'Login'}
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
