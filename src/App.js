@@ -21,6 +21,7 @@ import UserProfile from './components/UserProfile';
 import AccountDeleted from './components/AccountDeleted';
 import PaymentSuccess from './components/PaymentSuccess';
 import PaymentCancelled from './components/PaymentCancelled';
+import SeasonTickets from './components/SeasonTickets';
 import { LanguageProvider } from './contexts/LanguageContext';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -248,6 +249,8 @@ const AppContent = () => {
             <Route path="/account-deleted" element={<AccountDeleted />} />
             <Route path="/payment-success" element={<PaymentSuccess />} />
             <Route path="/payment-cancelled" element={<PaymentCancelled />} />
+            <Route path="/season-tickets" element={<SeasonTickets />} />
+           
           </Routes>
         </main>
         <Footer />
