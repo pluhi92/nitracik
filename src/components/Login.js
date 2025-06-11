@@ -9,14 +9,14 @@ const Login = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false); // Add this state
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setShowForgotPassword(false); // Reset state on new submission
+    setShowForgotPassword(false);
 
     // Basic validation
     if (!email || !password) {
@@ -43,8 +43,9 @@ const Login = ({ onLoginSuccess }) => {
 
       console.log('Login successful:', response.data);
 
-      // Store userId in localStorage
+      // Store userId, userName, and isLoggedIn in localStorage
       localStorage.setItem('userId', response.data.userId);
+      localStorage.setItem('userName', response.data.userName || 'Unknown User'); // Combine first_name and last_name
       localStorage.setItem('isLoggedIn', 'true');
 
       // Show success alert
@@ -56,7 +57,7 @@ const Login = ({ onLoginSuccess }) => {
       // Handle login errors
       if (error.response?.status === 400) {
         setError(t.login.errors.invalidCredentials);
-        setShowForgotPassword(true); // Show "Forgot Password" link
+        setShowForgotPassword(true);
       } else {
         setError(t.login.errors.failed);
       }
@@ -81,6 +82,7 @@ const Login = ({ onLoginSuccess }) => {
                   onClick={() => {
                     localStorage.removeItem('isLoggedIn');
                     localStorage.removeItem('userId');
+                    localStorage.removeItem('userName'); // Clear userName on logout
                     window.location.reload(); // Refresh the page
                   }}
                 >
@@ -143,7 +145,6 @@ const Login = ({ onLoginSuccess }) => {
               </form>
               <div className="mt-3 text-center">
                 <p>{t.login.registerPrompt} <Link to="/register">{t.login.createAccount}</Link></p>
-                {/* Show "Forgot Password" link only when login fails */}
                 {showForgotPassword && (
                   <p>
                     <Link to="/forgot-password">{t.login.forgotPassword}</Link>
