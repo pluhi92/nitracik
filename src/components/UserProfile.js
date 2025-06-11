@@ -12,11 +12,13 @@ const UserProfile = () => {
   const [password, setPassword] = useState('');
   const [bookedSessions, setBookedSessions] = useState({ sessions: [], participants: [] });
   const [seasonTickets, setSeasonTickets] = useState([]);
+  const [adminSeasonTickets, setAdminSeasonTickets] = useState([]);
   const navigate = useNavigate();
   const userId = localStorage.getItem('userId');
+  const userName = localStorage.getItem('userName') || 'Unknown User'; // Assuming name is stored after login
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Admin check
+  // Admin check and fetch data
   useEffect(() => {
     const checkAdmin = async () => {
       try {
@@ -40,11 +42,23 @@ const UserProfile = () => {
       }
     };
 
+    const fetchAdminSeasonTickets = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/api/admin/season-tickets`, {
+          withCredentials: true,
+        });
+        setAdminSeasonTickets(response.data);
+      } catch (error) {
+        console.error('Error fetching admin season tickets:', error);
+      }
+    };
+
     if (userId) {
       checkAdmin();
       fetchSeasonTickets();
+      if (isAdmin) fetchAdminSeasonTickets();
     }
-  }, [userId]);
+  }, [userId, isAdmin]);
 
   // Fetch bookings data
   useEffect(() => {
@@ -169,17 +183,37 @@ const UserProfile = () => {
     }
 
     try {
-      await axios.delete(`http://localhost:5000/api/bookings/${bookingId}`, {
+      console.log(`Attempting to cancel booking with ID: ${bookingId}`); // Debug log
+      const deleteResponse = await axios.delete(`http://localhost:5000/api/bookings/${bookingId}`, {
         withCredentials: true,
       });
+
+      // Send cancellation email to user and admin with userName
+      await axios.post(
+        'http://localhost:5000/api/send-cancellation-email',
+        {
+          bookingId,
+          userId,
+          adminEmail: process.env.REACT_APP_ADMIN_EMAIL,
+          trainingDate: deleteResponse.data.trainingDate,
+          userName,
+        },
+        { withCredentials: true }
+      );
+
       const response = await axios.get(`http://localhost:5000/api/bookings/user/${userId}`, {
         withCredentials: true,
       });
       setBookedSessions({ sessions: response.data, participants: [] });
-      alert('Session canceled successfully.');
+      alert('Session canceled successfully. Emails have been sent to you and the admin.');
     } catch (error) {
       console.error('Error canceling session:', error);
-      alert('Failed to cancel session. Please try again.');
+      const errorMessage = error.response?.status === 404
+        ? 'The booking could not be found. It may have been deleted or does not exist.'
+        : error.response?.status === 403
+        ? 'You are not authorized to cancel this booking.'
+        : 'Failed to cancel session. Please try again.';
+      alert(errorMessage);
     }
   };
 
@@ -228,6 +262,35 @@ const UserProfile = () => {
         <div className="admin-sessions">
           {renderSessionTable('MIDI')}
           {renderSessionTable('MINI')}
+          <div className="season-tickets mt-5">
+            <h3>Season Ticket Holders</h3>
+            {adminSeasonTickets.length === 0 ? (
+              <p>No users have purchased season tickets.</p>
+            ) : (
+              <Table striped bordered hover responsive>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Total Entries</th>
+                    <th>Remaining Entries</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminSeasonTickets.map((ticket) => (
+                    <tr key={ticket.user_id}>
+                      <td>
+                        {ticket.first_name} {ticket.last_name}
+                      </td>
+                      <td>{ticket.email}</td>
+                      <td>{ticket.entries_total}</td>
+                      <td>{ticket.entries_remaining}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </div>
         </div>
       ) : (
         <>

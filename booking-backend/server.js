@@ -135,6 +135,18 @@ app.get('/api/admin/bookings', isAdmin, async (req, res) => {
   }
 });
 
+app.get('/api/admin/season-tickets', async (req, res) => {
+  try {
+    const tickets = await pool.query(
+      'SELECT u.first_name, u.last_name, u.email, s.entries_total, s.entries_remaining FROM season_tickets s JOIN users u ON s.user_id = u.id'
+    );
+    res.json(tickets.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch season tickets' });
+  }
+});
+
 app.get('/api/training-dates', async (req, res) => {
   try {
     const result = await pool.query(
@@ -772,7 +784,7 @@ app.post('/api/login', async (req, res) => {
         }
         req.session.userId = user.id;
         console.log('Session after login:', req.session);
-        res.json({ message: 'Login successful', userId: user.id });
+        res.json({ message: 'Login successful', userId: user.id, userName: `${user.first_name} ${user.last_name}` });
       } else {
         res.status(400).json({ message: 'Invalid password' });
       }
@@ -903,19 +915,19 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
     await client.query('BEGIN');
     const bookingId = req.params.bookingId;
 
-    // Fetch booking details including number_of_children
+    // Fetch booking details including training_date before deletion
     const bookingResult = await client.query(
-      'SELECT user_id, number_of_children FROM bookings WHERE id = $1',
+      'SELECT user_id, number_of_children, training_date FROM bookings b JOIN training_availability ta ON b.training_id = ta.id WHERE b.id = $1',
       [bookingId]
     );
 
     if (bookingResult.rows.length === 0) {
-      throw new Error('Booking not found');
+      return res.status(404).json({ error: 'Booking not found' });
     }
 
     const booking = bookingResult.rows[0];
     if (booking.user_id !== req.session.userId) {
-      throw new Error('Unauthorized');
+      return res.status(403).json({ error: 'Unauthorized to cancel this booking' });
     }
 
     // Check if booking was made with a season ticket
@@ -926,32 +938,77 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
 
     if (usageResult.rows.length > 0) {
       const seasonTicketId = usageResult.rows[0].season_ticket_id;
-      // Increment entries_remaining in season_tickets
       await client.query(
         'UPDATE season_tickets SET entries_remaining = entries_remaining + $1 WHERE id = $2',
         [booking.number_of_children, seasonTicketId]
       );
-      // Delete season ticket usage record
       await client.query(
         'DELETE FROM season_ticket_usage WHERE booking_id = $1',
         [bookingId]
       );
     }
 
-    // Delete the booking
-    await client.query(
-      'DELETE FROM bookings WHERE id = $1 AND user_id = $2',
+    // Delete the booking with user_id check
+    const deleteResult = await client.query(
+      'DELETE FROM bookings WHERE id = $1 AND user_id = $2 RETURNING *',
       [bookingId, req.session.userId]
     );
 
+    if (deleteResult.rowCount === 0) {
+      throw new Error('Booking not found or unauthorized');
+    }
+
     await client.query('COMMIT');
-    res.json({ message: 'Booking canceled successfully' });
+    res.json({ message: 'Booking canceled successfully', trainingDate: booking.training_date });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error canceling booking:', error);
+    if (error.message === 'Booking not found or unauthorized') {
+      return res.status(404).json({ error: 'Booking not found or unauthorized' });
+    }
     res.status(500).json({ error: 'Failed to cancel booking' });
   } finally {
     client.release();
+  }
+});
+
+app.post('/api/send-cancellation-email', async (req, res) => {
+  const { bookingId, userId, adminEmail, trainingDate, userName } = req.body;
+  const cancellationTime = new Date().toLocaleString('en-US', { timeZone: 'Europe/Budapest' });
+
+  try {
+    const user = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
+    const userEmail = user.rows[0].email;
+
+    // Email to user
+    const userMailOptions = {
+      from: process.env.EMAIL_USER,
+      to: userEmail,
+      subject: 'Session Cancellation Notification',
+      text: `Your session booked on ${new Date(trainingDate).toLocaleString()} has been canceled.`,
+    };
+
+    // Email to admin
+    const adminMailOptions = {
+      from: process.env.EMAIL_USER,
+      to: adminEmail,
+      subject: 'Session Cancellation Notification (Admin)',
+      text: `Session Cancellation Alert:
+        - Canceled by: ${userName}
+        - Cancellation time: ${cancellationTime}
+        - Session date: ${new Date(trainingDate).toLocaleString()}
+        - Booking ID: ${bookingId}`,
+    };
+
+    await Promise.all([
+      transporter.sendMail(userMailOptions),
+      transporter.sendMail(adminMailOptions),
+    ]);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to send email' });
   }
 });
 
