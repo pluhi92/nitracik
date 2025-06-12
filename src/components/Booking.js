@@ -4,7 +4,7 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import axios from 'axios';
 import Login from './Login';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { IMaskInput } from 'react-imask';
 import { Tooltip } from 'react-tooltip';
 import { loadStripe } from '@stripe/stripe-js';
@@ -34,6 +34,7 @@ const Booking = () => {
   const [useSeasonTicket, setUseSeasonTicket] = useState(false);
   const [selectedSeasonTicket, setSelectedSeasonTicket] = useState('');
   const navigate = useNavigate();
+  const location = useLocation(); // For handling redirect
   const [isAdmin, setIsAdmin] = useState(false);
   const [newTrainingDate, setNewTrainingDate] = useState('');
   const [newTrainingType, setNewTrainingType] = useState('MIDI');
@@ -53,14 +54,12 @@ const Booking = () => {
     3: 39,
   };
 
-  // Reset accompanyingPerson when season ticket is selected
   useEffect(() => {
     if (useSeasonTicket && selectedSeasonTicket) {
       setAccompanyingPerson(false);
     }
   }, [useSeasonTicket, selectedSeasonTicket]);
 
-  // Fetch training dates and season tickets
   useEffect(() => {
     const fetchTrainingDates = async () => {
       try {
@@ -102,7 +101,6 @@ const Booking = () => {
     }
   }, [isLoggedIn]);
 
-  // Redirect to login if not logged in
   useEffect(() => {
     if (!isLoggedIn) {
       navigate('/login');
@@ -111,7 +109,6 @@ const Booking = () => {
     }
   }, [isLoggedIn, navigate]);
 
-  // Admin check
   useEffect(() => {
     const checkAdmin = async () => {
       try {
@@ -125,7 +122,6 @@ const Booking = () => {
     if (isLoggedIn) checkAdmin();
   }, [isLoggedIn]);
 
-  // Fetch user data
   const fetchUserData = async () => {
     try {
       const userId = localStorage.getItem('userId');
@@ -206,7 +202,6 @@ const Booking = () => {
     checkAvailability();
   }, [trainingType, selectedDate, selectedTime, childrenCount]);
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -214,7 +209,6 @@ const Booking = () => {
 
     try {
       if (useSeasonTicket && selectedSeasonTicket) {
-        // Use season ticket
         const response = await api.post('/api/use-season-ticket', {
           userId: userData.id,
           seasonTicketId: selectedSeasonTicket,
@@ -226,7 +220,7 @@ const Booking = () => {
           photoConsent,
           mobile,
           note,
-          accompanyingPerson: false, // Ensure false for season tickets
+          accompanyingPerson: false,
         });
 
         if (response.data.success) {
@@ -234,7 +228,6 @@ const Booking = () => {
           navigate('/profile');
         }
       } else {
-        // Create payment session
         const paymentSession = await api.post('/api/create-payment-session', {
           userId: userData.id,
           trainingType,
@@ -262,6 +255,23 @@ const Booking = () => {
       setLoading(false);
     }
   };
+
+  // Handle success redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const sessionId = urlParams.get('session_id');
+    const bookingId = urlParams.get('booking_id');
+    if (sessionId && bookingId) {
+      // Confirm payment on the client side (optional, server will handle final update)
+      api.get(`/api/booking-success?session_id=${sessionId}&booking_id=${bookingId}`).then(() => {
+        alert(t?.booking?.paymentSuccess || 'Payment successful! Booking confirmed.');
+        navigate('/profile');
+      }).catch(error => {
+        console.error('Error confirming payment:', error);
+        alert(t?.booking?.paymentError || 'Payment confirmation failed. Please contact support.');
+      });
+    }
+  }, [location.search, navigate, t]);
 
   const tileClassName = ({ date, view }) => {
     if (!trainingType || view !== 'month') return null;

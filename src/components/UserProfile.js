@@ -10,15 +10,16 @@ const UserProfile = () => {
   const [error, setError] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [password, setPassword] = useState('');
-  const [bookedSessions, setBookedSessions] = useState({ sessions: [], participants: [] });
+  const [bookedSessions, setBookedSessions] = useState([]);
   const [seasonTickets, setSeasonTickets] = useState([]);
   const [adminSeasonTickets, setAdminSeasonTickets] = useState([]);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const navigate = useNavigate();
   const userId = localStorage.getItem('userId');
-  const userName = localStorage.getItem('userName') || 'Unknown User'; // Assuming name is stored after login
+  const userName = localStorage.getItem('userName') || 'Unknown User';
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Admin check and fetch data
   useEffect(() => {
     const checkAdmin = async () => {
       try {
@@ -60,7 +61,6 @@ const UserProfile = () => {
     }
   }, [userId, isAdmin]);
 
-  // Fetch bookings data
   useEffect(() => {
     const fetchBookings = async () => {
       try {
@@ -68,11 +68,7 @@ const UserProfile = () => {
         const response = await axios.get(`http://localhost:5000${endpoint}`, {
           withCredentials: true,
         });
-        if (isAdmin) {
-          setBookedSessions(response.data);
-        } else {
-          setBookedSessions({ sessions: response.data, participants: [] });
-        }
+        setBookedSessions(isAdmin ? response.data : response.data);
       } catch (error) {
         console.error('Error fetching sessions:', error);
       }
@@ -183,12 +179,11 @@ const UserProfile = () => {
     }
 
     try {
-      console.log(`Attempting to cancel booking with ID: ${bookingId}`); // Debug log
+      console.log(`Attempting to cancel booking with ID: ${bookingId}`);
       const deleteResponse = await axios.delete(`http://localhost:5000/api/bookings/${bookingId}`, {
         withCredentials: true,
       });
 
-      // Send cancellation email to user and admin with userName
       await axios.post(
         'http://localhost:5000/api/send-cancellation-email',
         {
@@ -204,7 +199,7 @@ const UserProfile = () => {
       const response = await axios.get(`http://localhost:5000/api/bookings/user/${userId}`, {
         withCredentials: true,
       });
-      setBookedSessions({ sessions: response.data, participants: [] });
+      setBookedSessions(response.data);
       alert('Session canceled successfully. Emails have been sent to you and the admin.');
     } catch (error) {
       console.error('Error canceling session:', error);
@@ -254,9 +249,69 @@ const UserProfile = () => {
     }
   };
 
+  const handleGenerateReport = async (e) => {
+    e.preventDefault();
+    if (!startDate || !endDate) {
+      alert('Please select both start and end dates.');
+      return;
+    }
+
+    try {
+      const response = await axios.post(
+        'http://localhost:5000/api/admin/payment-report',
+        { startDate, endDate },
+        { withCredentials: true, responseType: 'arraybuffer' } // Changed to arraybuffer for PDF
+      );
+
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `payment_report_${startDate}_to_${endDate}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error generating report:', error);
+      alert('Failed to generate payment report. Check console for details.');
+    }
+  };
+
   return (
     <div className="container mt-5">
       <h2>Account Settings</h2>
+
+      {isAdmin && (
+        <div className="payment-report mt-4">
+          <h4>Generate Payment Report</h4>
+          <Form onSubmit={handleGenerateReport}>
+            <div className="row">
+              <div className="col-md-5 mb-3">
+                <Form.Label>Start Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="col-md-5 mb-3">
+                <Form.Label>End Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="col-md-2 mb-3">
+                <Button type="submit" className="btn btn-primary w-100 mt-4">
+                  Generate PDF
+                </Button>
+              </div>
+            </div>
+          </Form>
+        </div>
+      )}
 
       {isAdmin ? (
         <div className="admin-sessions">
@@ -326,11 +381,11 @@ const UserProfile = () => {
 
           <div className="booked-sessions mt-5">
             <h3>Your Booked Sessions</h3>
-            {bookedSessions.sessions.length === 0 ? (
+            {bookedSessions.length === 0 ? (
               <p>You have no booked sessions.</p>
             ) : (
               <ul className="list-group">
-                {bookedSessions.sessions.map((session) => (
+                {bookedSessions.map((session) => (
                   <li key={session.booking_id} className="list-group-item d-flex justify-content-between align-items-center">
                     <div>
                       <strong>{session.training_type}</strong> - {new Date(session.training_date).toLocaleString()}
