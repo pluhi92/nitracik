@@ -15,6 +15,8 @@ const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const { v4: uuidv4 } = require('uuid');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
 
 const app = express();
 
@@ -80,7 +82,14 @@ const isAdmin = async (req, res, next) => {
 function isAuthenticated(req, res, next) {
   console.log('Session data in isAuthenticated:', req.session);
   if (req.session.userId) {
-    next();
+    // Fetch user email to check admin status
+    pool.query('SELECT email FROM users WHERE id = $1', [req.session.userId], (err, result) => {
+      if (err || !result.rows.length) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+      req.session.email = result.rows[0].email;
+      next();
+    });
   } else {
     res.status(401).json({ message: 'Unauthorized' });
   }
@@ -144,6 +153,157 @@ app.get('/api/admin/season-tickets', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch season tickets' });
+  }
+});
+
+// ... (previous code remains unchanged until /api/admin/payment-report)
+
+app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
+  // Check if user is admin (assuming ADMIN_EMAIL is in env and session has user email)
+  const userEmail = req.session.email; // Ensure this is set in isAuthenticated middleware
+  if (userEmail !== process.env.ADMIN_EMAIL) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  const { startDate, endDate } = req.body;
+  const currentDate = new Date('2025-06-12T23:03:00Z'); // Current date and time: 11:03 PM CEST, June 12, 2025
+
+  // Validate date range
+  if (new Date(endDate) > currentDate) {
+    return res.status(400).json({
+      error: `End date cannot be later than ${currentDate.toLocaleDateString('en-US', { timeZone: 'Europe/Budapest' })}. Please select a date up to June 12, 2025.`,
+    });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    // Convert endDate to include the full day
+    const endDateWithTime = new Date(endDate);
+    endDateWithTime.setHours(23, 59, 59, 999);
+
+    // Fetch payments for sessions (excluding those paid with season tickets)
+    const sessionPayments = await client.query(
+      `SELECT u.last_name, u.first_name, 'reservation' AS order_type, b.amount_paid, b.payment_time 
+       FROM bookings b 
+       JOIN users u ON b.user_id = u.id 
+       LEFT JOIN season_ticket_usage stu ON b.id = stu.booking_id 
+       WHERE b.payment_time BETWEEN $1 AND $2 AND stu.season_ticket_id IS NULL`,
+      [startDate, endDateWithTime]
+    );
+
+    // Fetch payments for season tickets
+    const seasonTicketPayments = await client.query(
+      `SELECT u.last_name, u.first_name, 'season ticket' AS order_type, st.amount_paid, st.payment_time 
+       FROM season_tickets st 
+       JOIN users u ON st.user_id = u.id 
+       WHERE st.payment_time BETWEEN $1 AND $2`,
+      [startDate, endDateWithTime]
+    );
+
+    // Combine and sort results by payment_time
+    const payments = [...sessionPayments.rows, ...seasonTicketPayments.rows].sort((a, b) => new Date(a.payment_time) - new Date(b.payment_time));
+    console.log('Fetched and sorted payments:', payments); // Debug log
+
+   // Generate PDF
+    const doc = new PDFDocument({ margin: 50 }); // This sets equal margins on all sides
+    let buffers = [];
+    doc.on('data', buffers.push.bind(buffers));
+    doc.on('end', () => {
+      const pdfData = Buffer.concat(buffers);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="payment_report_${startDate}_to_${endDate}.pdf"`);
+      res.send(pdfData);
+    });
+
+    // Title and Period
+    doc.fontSize(16).text(`Payment Report`, { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Period: ${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`, { align: 'center' });
+    doc.moveDown(2);
+
+    // Table setup - Calculate to ensure equal left/right margins
+    const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const columnWidths = [120, 120, 100, 100, 150]; // Adjusted widths
+    const totalTableWidth = columnWidths.reduce((a, b) => a + b);
+    
+    // Center the table horizontally
+    const leftMargin = (pageWidth - totalTableWidth) / 2 + doc.page.margins.left;
+    const tableTop = 180;
+    const rowHeight = 30;
+    const cellPadding = 5;
+
+    // Table header
+    doc.font('Helvetica-Bold').fontSize(10);
+    const headerY = tableTop;
+    
+    // Draw header background
+    doc.rect(leftMargin, headerY, totalTableWidth, rowHeight)
+       .fill('#f0f0f0');
+    
+    // Header text
+    doc.fillColor('#000').text('Last Name', leftMargin + cellPadding, headerY + cellPadding, { width: columnWidths[0] - cellPadding * 2 });
+    doc.text('First Name', leftMargin + columnWidths[0] + cellPadding, headerY + cellPadding, { width: columnWidths[1] - cellPadding * 2 });
+    doc.text('Order Type', leftMargin + columnWidths[0] + columnWidths[1] + cellPadding, headerY + cellPadding, { width: columnWidths[2] - cellPadding * 2 });
+    doc.text('Amount Paid', leftMargin + columnWidths[0] + columnWidths[1] + columnWidths[2] + cellPadding, headerY + cellPadding, { width: columnWidths[3] - cellPadding * 2 });
+    doc.text('Payment Time', leftMargin + columnWidths[0] + columnWidths[1] + columnWidths[2] + columnWidths[3] + cellPadding, headerY + cellPadding, { width: columnWidths[4] - cellPadding * 2 });
+
+    // Draw data rows
+    doc.font('Helvetica').fontSize(9);
+    if (payments.length > 0) {
+      payments.forEach((p, index) => {
+        const y = tableTop + rowHeight * (index + 1);
+        const amount = parseFloat(p.amount_paid) || 0;
+        
+        // Alternate row colors
+        if (index % 2 === 0) {
+          doc.rect(leftMargin, y, totalTableWidth, rowHeight)
+             .fill('#ffffff');
+        } else {
+          doc.rect(leftMargin, y, totalTableWidth, rowHeight)
+             .fill('#f9f9f9');
+        }
+        
+        // Cell borders
+        doc.rect(leftMargin, y, totalTableWidth, rowHeight)
+           .stroke('#e0e0e0');
+        
+        // Cell content
+        doc.fillColor('#333').text(p.last_name || 'N/A', leftMargin + cellPadding, y + cellPadding, { width: columnWidths[0] - cellPadding * 2 });
+        doc.text(p.first_name || 'N/A', leftMargin + columnWidths[0] + cellPadding, y + cellPadding, { width: columnWidths[1] - cellPadding * 2 });
+        doc.text(p.order_type || 'N/A', leftMargin + columnWidths[0] + columnWidths[1] + cellPadding, y + cellPadding, { width: columnWidths[2] - cellPadding * 2 });
+        doc.text(`${amount.toFixed(2)} €`, leftMargin + columnWidths[0] + columnWidths[1] + columnWidths[2] + cellPadding, y + cellPadding, { width: columnWidths[3] - cellPadding * 2 });
+        doc.text(p.payment_time ? new Date(p.payment_time).toLocaleString() : 'N/A', leftMargin + columnWidths[0] + columnWidths[1] + columnWidths[2] + columnWidths[3] + cellPadding, y + cellPadding, { width: columnWidths[4] - cellPadding * 2 });
+      });
+
+      // Footer with totals
+      const totalY = tableTop + rowHeight * (payments.length + 1);
+      const totalAmount = payments.reduce((sum, p) => sum + (parseFloat(p.amount_paid) || 0), 0);
+      
+      doc.rect(leftMargin, totalY, totalTableWidth, rowHeight)
+         .fill('#f0f0f0');
+      
+      doc.font('Helvetica-Bold').fillColor('#000')
+         .text('Total:', leftMargin + cellPadding, totalY + cellPadding, { width: columnWidths[0] + columnWidths[1] + columnWidths[2] - cellPadding * 2 });
+      
+      doc.text(`${totalAmount.toFixed(2)} €`, leftMargin + columnWidths[0] + columnWidths[1] + columnWidths[2] + cellPadding, totalY + cellPadding, { width: columnWidths[3] - cellPadding * 2 });
+      
+      doc.rect(leftMargin, totalY, totalTableWidth, rowHeight)
+         .stroke('#e0e0e0');
+    } else {
+      // Center the "no records" message as well
+      doc.fontSize(10).text('No payment records found for the selected period.', doc.page.margins.left, tableTop + rowHeight, { 
+        width: pageWidth,
+        align: 'center' 
+      });
+    }
+
+    doc.end();
+  } catch (error) {
+    console.error('Error generating payment report:', error);
+    res.status(500).json({ error: 'Failed to generate payment report' });
+  } finally {
+    client.release();
   }
 });
 
@@ -289,10 +449,10 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
       throw new Error('Not enough available spots');
     }
 
-    // Insert booking
+    // Insert booking with amount_paid and payment_time
     const bookingResult = await client.query(
-      `INSERT INTO bookings (user_id, training_id, number_of_children, booked_at)
-       VALUES ($1, $2, $3, NOW()) RETURNING id`,
+      `INSERT INTO bookings (user_id, training_id, number_of_children, amount_paid, payment_time, booked_at)
+       VALUES ($1, $2, $3, 0, NULL, NOW()) RETURNING id`,
       [userId, training.id, childrenCount]
     );
     const bookingId = bookingResult.rows[0].id;
@@ -396,36 +556,83 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
       return res.status(400).json({ error: 'Price validation failed' });
     }
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'eur',
-          product_data: { name: `${trainingType} Training Session` },
-          unit_amount: totalPrice * 100,
-        },
-        quantity: 1,
-      }],
-      mode: 'payment',
-      success_url: `${process.env.CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.CLIENT_URL}/payment-canceled`,
-      metadata: {
-        userId,
-        trainingType,
-        selectedDate,
-        selectedTime,
-        childrenCount,
-        childrenAge,
-        totalPrice,
-        photoConsent,
-        mobile,
-        note,
-        accompanyingPerson,
-        type: 'training_session',
-      },
-    });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    res.json({ sessionId: session.id });
+      // Convert time format
+      const [time, modifier] = selectedTime.split(' ');
+      let [hours, minutes] = time.split(':');
+      if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
+      if (modifier === 'AM' && hours === '12') hours = '00';
+      const trainingDateTime = new Date(`${selectedDate}T${hours}:${minutes}`);
+
+      // Find training session
+      const trainingResult = await client.query(
+        `SELECT id, max_participants FROM training_availability WHERE training_type = $1 AND training_date = $2`,
+        [trainingType, trainingDateTime]
+      );
+      if (trainingResult.rows.length === 0) {
+        throw new Error('Training session not found');
+      }
+      const training = trainingResult.rows[0];
+
+      // Check availability
+      const bookingsResult = await client.query(
+        `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1`,
+        [training.id]
+      );
+      const bookedChildren = parseInt(bookingsResult.rows[0].booked_children, 10);
+      if (bookedChildren + childrenCount > training.max_participants) {
+        throw new Error('Not enough available spots');
+      }
+
+      // Create temporary booking with session_id
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'eur',
+            product_data: { name: `${trainingType} Training Session` },
+            unit_amount: totalPrice * 100,
+          },
+          quantity: 1,
+        }],
+        mode: 'payment',
+        success_url: `${process.env.CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}&booking_id={CHECKOUT_SESSION_ID}`, // Placeholder for frontend to replace
+        cancel_url: `${process.env.CLIENT_URL}/payment-canceled`,
+        metadata: {
+          userId,
+          trainingType,
+          selectedDate,
+          selectedTime,
+          childrenCount,
+          childrenAge,
+          totalPrice,
+          photoConsent,
+          mobile,
+          note,
+          accompanyingPerson,
+          type: 'training_session',
+        },
+      });
+
+      const bookingResult = await client.query(
+        `INSERT INTO bookings (user_id, training_id, number_of_children, amount_paid, payment_time, session_id, booked_at)
+         VALUES ($1, $2, $3, NULL, NULL, $4, NOW()) RETURNING id`,
+        [userId, training.id, childrenCount, session.id]
+      );
+      const bookingId = bookingResult.rows[0].id;
+
+      await client.query('COMMIT');
+      res.json({ sessionId: session.id, bookingId });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Payment session error:', error);
+      res.status(500).json({ error: 'Failed to create payment session' });
+    } finally {
+      client.release();
+    }
   } catch (error) {
     console.error('Payment session error:', error);
     res.status(500).json({ error: 'Failed to create payment session' });
@@ -461,9 +668,9 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         expiryDate.setFullYear(expiryDate.getFullYear() + 1); // 1 year expiry
 
         const ticketResult = await client.query(
-          `INSERT INTO season_tickets (user_id, entries_total, entries_remaining, purchase_date, expiry_date, stripe_payment_id)
-           VALUES ($1, $2, $2, NOW(), $3, $4) RETURNING *`,
-          [userId, entries, expiryDate, session.id]
+          `INSERT INTO season_tickets (user_id, entries_total, entries_remaining, purchase_date, expiry_date, stripe_payment_id, amount_paid, payment_time)
+           VALUES ($1, $2, $2, NOW(), $3, $4, $5, $6) RETURNING *`,
+          [userId, entries, expiryDate, session.id, parseFloat(totalPrice), new Date(session.created * 1000)]
         );
 
         const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
@@ -531,12 +738,20 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           throw new Error('Session is full');
         }
 
-        const insertResult = await client.query(
-          `INSERT INTO bookings (user_id, training_id, number_of_children, booked_at)
-           VALUES ($1, $2, $3, NOW()) RETURNING *`,
-          [userId, training.id, childrenCount]
+        // Update existing booking with session_id instead of inserting new one
+        const updateResult = await client.query(
+          `UPDATE bookings 
+           SET amount_paid = $1, payment_time = $2, session_id = NULL 
+           WHERE session_id = $3 
+           RETURNING *`,
+          [parseFloat(totalPrice), new Date(session.created * 1000), session.id]
         );
 
+        if (updateResult.rowCount === 0) {
+          throw new Error('No booking found with the provided session ID');
+        }
+
+        const booking = updateResult.rows[0];
         const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
         const user = userResult.rows[0];
 
@@ -593,6 +808,39 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
   }
 
   res.json({ received: true });
+});
+
+// Updated endpoint to handle payment success redirect
+app.get('/api/booking-success', isAuthenticated, async (req, res) => {
+  const { session_id, booking_id } = req.query;
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+    if (session.payment_status === 'paid') {
+      const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
+      const amountPaid = paymentIntent.amount / 100; // Convert from cents to euros
+      const paymentTime = new Date(paymentIntent.created * 1000);
+
+      // Update existing booking with payment details
+      await client.query(
+        `UPDATE bookings 
+         SET amount_paid = $1, payment_time = $2, session_id = NULL 
+         WHERE id = $3`,
+        [amountPaid, paymentTime, booking_id]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.redirect('/user-profile'); // Redirect to profile after success
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error confirming payment:', error);
+    res.status(500).json({ error: 'Failed to confirm payment' });
+  } finally {
+    client.release();
+  }
 });
 
 app.use((req, res, next) => {
