@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Modal, Button, Form, Table } from 'react-bootstrap';
+import { useTranslation } from '../contexts/LanguageContext'; // Adjusted path
 import { Tooltip } from 'react-tooltip';
 import './UserProfile.css';
 
 const UserProfile = () => {
+  const { t } = useTranslation();
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -83,12 +85,12 @@ const UserProfile = () => {
     const currentDate = new Date().toISOString().split('T')[0]; // Current date in YYYY-MM-DD
     if (endDate && new Date(endDate) > new Date(currentDate)) {
       setIsButtonDisabled(true);
-      setTooltipMessage(`This date is invalid because it is in the future. Please select a date up to ${currentDate}.`);
+      setTooltipMessage(t?.profile?.tooltip?.futureDate?.replace('{date}', currentDate) || `This date is invalid because it is in the future. Please select a date up to ${currentDate}.`);
     } else {
       setIsButtonDisabled(false);
       setTooltipMessage('');
     }
-  }, [endDate]);
+  }, [endDate, t]);
 
   const processSessions = (data) => {
     if (!Array.isArray(data)) {
@@ -131,14 +133,14 @@ const UserProfile = () => {
 
     return (
       <div className="mb-5">
-        <h4>{type} Sessions</h4>
+        <h4>{t?.profile?.sessionType?.[type.toLowerCase()] || `${type} Sessions`}</h4>
         <Table striped bordered hover responsive>
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Type</th>
-              <th>Available Spots</th>
-              <th>Participants (Children)</th>
+              <th>{t?.profile?.table?.date || 'Date'}</th>
+              <th>{t?.profile?.table?.type || 'Type'}</th>
+              <th>{t?.profile?.table?.availableSpots || 'Available Spots'}</th>
+              <th>{t?.profile?.table?.participants || 'Participants'}</th>
             </tr>
           </thead>
           <tbody>
@@ -160,7 +162,7 @@ const UserProfile = () => {
                           </span>
                         </div>
                         <div className="children-count">
-                          {participant.children} child{participant.children !== 1 ? 'ren' : ''}
+                          {t?.profile?.table?.child?.replace('{count}', participant.children) || `Number of children: ${participant.children}`}
                         </div>
                       </div>
                     ))}
@@ -183,11 +185,11 @@ const UserProfile = () => {
 
   const handleCancelSession = async (bookingId, trainingDate) => {
     if (!canCancelSession(trainingDate)) {
-      alert('Cancellation is only allowed up to 10 hours before the session.');
+      alert(t?.profile?.cancel?.alert || 'Cancellation is allowed only within 10 hours before the session.');
       return;
     }
 
-    if (!window.confirm('Are you sure you want to cancel this session?')) {
+    if (!window.confirm(t?.profile?.cancel?.confirm || 'Are you sure you want to cancel this session?')) {
       return;
     }
 
@@ -213,14 +215,14 @@ const UserProfile = () => {
         withCredentials: true,
       });
       setBookedSessions(response.data);
-      alert('Session canceled successfully. Emails have been sent to you and the admin.');
+      alert(t?.profile?.cancel?.success || 'Session was successfully canceled. Emails have been sent to you and the administrator.');
     } catch (error) {
       console.error('Error canceling session:', error);
       const errorMessage = error.response?.status === 404
-        ? 'The booking could not be found. It may have been deleted or does not exist.'
+        ? t?.profile?.cancel?.error?.notFound || 'Booking could not be found. It may have been already deleted or does not exist.'
         : error.response?.status === 403
-        ? 'You are not authorized to cancel this booking.'
-        : 'Failed to cancel session. Please try again.';
+          ? t?.profile?.cancel?.error?.unauthorized || 'You are not authorized to cancel this booking.'
+          : t?.profile?.cancel?.error?.generic || 'Failed to cancel session. Please try again.';
       alert(errorMessage);
     }
   };
@@ -231,7 +233,7 @@ const UserProfile = () => {
 
   const confirmDeleteAccount = async () => {
     if (!password) {
-      setError('Please enter your password');
+      setError(t?.profile?.delete?.error?.required || 'Please enter a password');
       return;
     }
 
@@ -252,10 +254,10 @@ const UserProfile = () => {
         localStorage.removeItem('isLoggedIn');
         navigate('/account-deleted');
       } else {
-        setError('Incorrect password');
+        setError(t?.profile?.delete?.error?.incorrect || 'Incorrect password');
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to delete account');
+      setError(err.response?.data?.error || t?.profile?.delete?.error?.generic || 'Failed to delete account');
     } finally {
       setIsDeleting(false);
       setShowPasswordModal(false);
@@ -265,7 +267,7 @@ const UserProfile = () => {
   const handleGenerateReport = async (e) => {
     e.preventDefault();
     if (!startDate || !endDate) {
-      alert('Please select both start and end dates.');
+      alert(t?.profile?.report?.error?.required || 'Please fill in both dates.');
       return;
     }
 
@@ -285,21 +287,21 @@ const UserProfile = () => {
       link.remove();
     } catch (error) {
       console.error('Error generating report:', error);
-      alert('Failed to generate payment report. Check console for details.');
+      alert(t?.profile?.report?.error?.generic || 'Failed to generate payment report. Check console for details.');
     }
   };
 
   return (
     <div className="container mt-5">
-      <h2>Account Settings</h2>
+      <h2 className="text-center text-primary">{t?.profile?.title || 'Account Settings'}</h2>
 
       {isAdmin && (
         <div className="payment-report mt-4">
-          <h4>Generate Payment Report</h4>
+          <h4>{t?.profile?.report?.title || 'Generate Payment Report'}</h4>
           <Form onSubmit={handleGenerateReport}>
             <div className="row">
               <div className="col-md-5 mb-3">
-                <Form.Label>Start Date</Form.Label>
+                <Form.Label>{t?.profile?.report?.startDate || 'Start Date'}</Form.Label>
                 <Form.Control
                   type="date"
                   value={startDate}
@@ -308,7 +310,7 @@ const UserProfile = () => {
                 />
               </div>
               <div className="col-md-5 mb-3">
-                <Form.Label>End Date</Form.Label>
+                <Form.Label>{t?.profile?.report?.endDate || 'End Date'}</Form.Label>
                 <Form.Control
                   type="date"
                   value={endDate}
@@ -326,7 +328,7 @@ const UserProfile = () => {
                   data-tooltip-place="top"
                   style={{ cursor: isButtonDisabled ? 'not-allowed' : 'pointer' }}
                 >
-                  Generate PDF
+                  {t?.profile?.report?.generate || 'Generate PDF'}
                 </Button>
               </div>
             </div>
@@ -339,17 +341,17 @@ const UserProfile = () => {
           {renderSessionTable('MIDI')}
           {renderSessionTable('MINI')}
           <div className="season-tickets mt-5">
-            <h3>Season Ticket Holders</h3>
+            <h3>{t?.profile?.seasonTickets?.title || 'Season Ticket Holders'}</h3>
             {adminSeasonTickets.length === 0 ? (
-              <p>No users have purchased season tickets.</p>
+              <p>{t?.profile?.seasonTickets?.noTickets || 'No users have purchased season tickets.'}</p>
             ) : (
               <Table striped bordered hover responsive>
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Total Entries</th>
-                    <th>Remaining Entries</th>
+                    <th>{t?.profile?.seasonTickets?.name || 'Name'}</th>
+                    <th>{t?.profile?.seasonTickets?.email || 'Email'}</th>
+                    <th>{t?.profile?.seasonTickets?.totalEntries || 'Total Entries'}</th>
+                    <th>{t?.profile?.seasonTickets?.remainingEntries || 'Remaining Entries'}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -371,18 +373,18 @@ const UserProfile = () => {
       ) : (
         <>
           <div className="season-tickets mt-5">
-            <h3>Your Season Tickets</h3>
+            <h3>{t?.profile?.mySeasonTickets?.title || 'My Season Tickets'}</h3>
             {seasonTickets.length === 0 ? (
-              <p>You have no active season tickets.</p>
+              <p>{t?.profile?.mySeasonTickets?.noTickets || 'You have no active season tickets.'}</p>
             ) : (
               <Table striped bordered hover responsive>
                 <thead>
                   <tr>
-                    <th>Ticket ID</th>
-                    <th>Entries Total</th>
-                    <th>Entries Remaining</th>
-                    <th>Purchase Date</th>
-                    <th>Expiry Date</th>
+                    <th>{t?.profile?.mySeasonTickets?.ticketId || 'Ticket ID'}</th>
+                    <th>{t?.profile?.mySeasonTickets?.entriesTotal || 'Total Entries'}</th>
+                    <th>{t?.profile?.mySeasonTickets?.entriesRemaining || 'Remaining Entries'}</th>
+                    <th>{t?.profile?.mySeasonTickets?.purchaseDate || 'Purchase Date'}</th>
+                    <th>{t?.profile?.mySeasonTickets?.expiryDate || 'Expiry Date'}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -401,9 +403,9 @@ const UserProfile = () => {
           </div>
 
           <div className="booked-sessions mt-5">
-            <h3>Your Booked Sessions</h3>
+            <h3>{t?.profile?.bookedSessions?.title || 'Your Booked Sessions'}</h3>
             {bookedSessions.length === 0 ? (
-              <p>You have no booked sessions.</p>
+              <p>{t?.profile?.bookedSessions?.noSessions || 'You have no booked sessions.'}</p>
             ) : (
               <ul className="list-group">
                 {bookedSessions.map((session) => (
@@ -415,7 +417,7 @@ const UserProfile = () => {
                       data-tooltip-id="cancel-tooltip"
                       data-tooltip-content={
                         !canCancelSession(session.training_date)
-                          ? 'Cancellation is no longer possible because there are less than 10 hours left until the training.'
+                          ? t?.profile?.cancel?.tooltip || 'Cancellation is no longer possible as less than 10 hours remain until the training.'
                           : ''
                       }
                     >
@@ -424,7 +426,7 @@ const UserProfile = () => {
                         onClick={() => handleCancelSession(session.booking_id, session.training_date)}
                         disabled={!canCancelSession(session.training_date)}
                       >
-                        Cancel Session
+                        {t?.profile?.cancel?.button || 'Cancel Session'}
                       </button>
                     </div>
                   </li>
@@ -437,43 +439,43 @@ const UserProfile = () => {
       )}
 
       <div className="danger-zone mt-5">
-        <h5 className="text-danger">Danger Zone</h5>
+        <h5 className="text-danger">{t?.profile?.dangerZone?.title || 'Danger Zone'}</h5>
         <p className="text-muted">
-          Deleting your account will permanently remove all your data from our system. This action cannot be undone.
+          {t?.profile?.dangerZone?.description || 'Deleting your account will permanently remove all your data from our system. This action is irreversible.'}
         </p>
         <button
           onClick={handleDeleteAccount}
           className="btn btn-danger"
           disabled={isDeleting}
         >
-          {isDeleting ? 'Deleting...' : 'Delete My Account'}
+          {isDeleting ? t?.profile?.dangerZone?.deleting || 'Deleting...' : t?.profile?.dangerZone?.delete || 'Delete My Account'}
         </button>
         {error && <div className="alert alert-danger mt-3">{error}</div>}
       </div>
 
       <Modal show={showPasswordModal} onHide={() => setShowPasswordModal(false)}>
         <Modal.Header closeButton>
-          <Modal.Title>Confirm Deletion</Modal.Title>
+          <Modal.Title>{t?.profile?.deleteModal?.title || 'Confirm Deletion'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
             <Form.Group controlId="password">
-              <Form.Label>Enter your password to confirm deletion:</Form.Label>
+              <Form.Label>{t?.profile?.deleteModal?.label || 'Enter your password to confirm deletion:'}</Form.Label>
               <Form.Control
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
+                placeholder={t?.profile?.deleteModal?.placeholder || 'Password'}
               />
             </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowPasswordModal(false)}>
-            Cancel
+            {t?.profile?.deleteModal?.cancel || 'Cancel'}
           </Button>
           <Button variant="danger" onClick={confirmDeleteAccount}>
-            Confirm Delete
+            {t?.profile?.deleteModal?.confirm || 'Confirm Deletion'}
           </Button>
         </Modal.Footer>
       </Modal>
