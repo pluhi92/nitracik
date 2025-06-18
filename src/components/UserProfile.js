@@ -15,6 +15,8 @@ const UserProfile = () => {
   const [adminSeasonTickets, setAdminSeasonTickets] = useState([]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [isButtonDisabled, setIsButtonDisabled] = useState(false);
+  const [tooltipMessage, setTooltipMessage] = useState('');
   const navigate = useNavigate();
   const userId = localStorage.getItem('userId');
   const userName = localStorage.getItem('userName') || 'Unknown User';
@@ -76,6 +78,17 @@ const UserProfile = () => {
 
     if (userId) fetchBookings();
   }, [userId, isAdmin]);
+
+  useEffect(() => {
+    const currentDate = new Date().toISOString().split('T')[0]; // Current date in YYYY-MM-DD
+    if (endDate && new Date(endDate) > new Date(currentDate)) {
+      setIsButtonDisabled(true);
+      setTooltipMessage(`This date is invalid because it is in the future. Please select a date up to ${currentDate}.`);
+    } else {
+      setIsButtonDisabled(false);
+      setTooltipMessage('');
+    }
+  }, [endDate]);
 
   const processSessions = (data) => {
     if (!Array.isArray(data)) {
@@ -260,7 +273,7 @@ const UserProfile = () => {
       const response = await axios.post(
         'http://localhost:5000/api/admin/payment-report',
         { startDate, endDate },
-        { withCredentials: true, responseType: 'arraybuffer' } // Changed to arraybuffer for PDF
+        { withCredentials: true, responseType: 'arraybuffer' }
       );
 
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
@@ -304,7 +317,15 @@ const UserProfile = () => {
                 />
               </div>
               <div className="col-md-2 mb-3">
-                <Button type="submit" className="btn btn-primary w-100 mt-4">
+                <Button
+                  type="submit"
+                  className="btn btn-primary w-100 mt-4"
+                  disabled={isButtonDisabled}
+                  data-tooltip-id="generate-tooltip"
+                  data-tooltip-content={tooltipMessage}
+                  data-tooltip-place="top"
+                  style={{ cursor: isButtonDisabled ? 'not-allowed' : 'pointer' }}
+                >
                   Generate PDF
                 </Button>
               </div>
@@ -456,6 +477,7 @@ const UserProfile = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+      <Tooltip id="generate-tooltip" place="top" effect="solid" />
     </div>
   );
 };
