@@ -156,6 +156,8 @@ app.get('/api/admin/season-tickets', async (req, res) => {
   }
 });
 
+
+
 // ... (previous code remains unchanged until /api/admin/payment-report)
 
 app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
@@ -166,12 +168,12 @@ app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
   }
 
   const { startDate, endDate } = req.body;
-  const currentDate = new Date('2025-06-12T23:03:00Z'); // Current date and time: 11:03 PM CEST, June 12, 2025
+  const currentDate = new Date(); // Use current system date and time: 10:05 AM CEST, June 18, 2025
 
   // Validate date range
   if (new Date(endDate) > currentDate) {
     return res.status(400).json({
-      error: `End date cannot be later than ${currentDate.toLocaleDateString('en-US', { timeZone: 'Europe/Budapest' })}. Please select a date up to June 12, 2025.`,
+      error: `End date cannot be later than ${currentDate.toLocaleDateString('en-US', { timeZone: 'Europe/Budapest' })}. Please select a date up to today.`,
     });
   }
 
@@ -205,7 +207,7 @@ app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
     const payments = [...sessionPayments.rows, ...seasonTicketPayments.rows].sort((a, b) => new Date(a.payment_time) - new Date(b.payment_time));
     console.log('Fetched and sorted payments:', payments); // Debug log
 
-   // Generate PDF
+    // Generate PDF
     const doc = new PDFDocument({ margin: 50 }); // This sets equal margins on all sides
     let buffers = [];
     doc.on('data', buffers.push.bind(buffers));
@@ -306,6 +308,7 @@ app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
     client.release();
   }
 });
+
 
 app.get('/api/training-dates', async (req, res) => {
   try {
