@@ -2,10 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Link, BrowserRouter as Router, Route, Routes, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser } from '@fortawesome/free-solid-svg-icons';
-import { FaSun, FaMoon } from 'react-icons/fa'; // Import theme toggle icons
-import { useTranslation } from './contexts/LanguageContext';
+import { FaSun, FaMoon } from 'react-icons/fa';
+import { useTranslation } from './contexts/LanguageContext'; // Import from context
+import { LanguageProvider } from './contexts/LanguageContext'; // Import provider
 import logo from './assets/logo.png';
-// import loginIcon from './assets/login-icon.png';
 import AboutUs from './components/AboutUs';
 import Booking from './components/Booking';
 import Photos from './components/Photos';
@@ -22,7 +22,6 @@ import AccountDeleted from './components/AccountDeleted';
 import PaymentSuccess from './components/PaymentSuccess';
 import PaymentCancelled from './components/PaymentCancelled';
 import SeasonTickets from './components/SeasonTickets';
-import { LanguageProvider } from './contexts/LanguageContext';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
@@ -31,12 +30,12 @@ import './App.css';
 const ThemeContext = React.createContext();
 
 const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = React.useState('light'); // Default theme is light
+  const [theme, setTheme] = React.useState('light');
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
-    localStorage.setItem('theme', newTheme); // Save theme to localStorage
+    localStorage.setItem('theme', newTheme);
   };
 
   React.useEffect(() => {
@@ -71,23 +70,22 @@ const ThemeToggle = () => {
 // Navbar component
 const Navbar = () => {
   const { t } = useTranslation();
-  const [isMenuOpen, setIsMenuOpen] = useState(false); // Declare state for menu visibility
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
   const navigate = useNavigate();
   const { theme } = useTheme();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-
   const handleLogout = () => {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userId');
-    navigate('/'); // Redirect to home page after logout
-    window.location.reload(); // Refresh the page to update the UI
+    navigate('/');
+    window.location.reload();
   };
 
   const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen); // Toggle menu visibility
+    setIsMenuOpen(!isMenuOpen);
   };
 
   const toggleDropdown = () => {
@@ -123,7 +121,6 @@ const Navbar = () => {
           </button>
         </div>
         <div className={`collapse navbar-collapse ${isMenuOpen ? 'show' : ''}`} id="navbarNav">
-          {/* Centered Navigation Links */}
           <ul className="navbar-nav">
             <li className="nav-item">
               <Link className="nav-link nav-link-custom" to="/about">
@@ -146,8 +143,6 @@ const Navbar = () => {
               </Link>
             </li>
           </ul>
-  
-          {/* Right-aligned Controls */}
           <div className="navbar-controls-wrapper">
             <div className="navbar-controls-group">
               <LanguageSwitcher />
@@ -222,7 +217,6 @@ const Footer = () => {
 const AppContent = () => {
   const { theme } = useTheme();
 
-  // Apply theme to the root element
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
@@ -250,7 +244,6 @@ const AppContent = () => {
             <Route path="/payment-success" element={<PaymentSuccess />} />
             <Route path="/payment-cancelled" element={<PaymentCancelled />} />
             <Route path="/season-tickets" element={<SeasonTickets />} />
-           
           </Routes>
         </main>
         <Footer />

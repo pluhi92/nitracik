@@ -571,7 +571,7 @@ const Booking = () => {
                   <option value="">{t?.booking?.selectSeasonTicket || 'Choose a Season Ticket'}</option>
                   {seasonTickets.map((ticket) => (
                     <option key={ticket.id} value={ticket.id}>
-                      {t?.booking?.seasonTicketOption || 'Season Ticket'} (ID: {ticket.id}, {ticket.entries_remaining} entries remaining)
+                      {t?.booking?.seasonTicketOption || 'Season Ticket'} (ID: {ticket.id}, {t?.booking?.seasonTicketEntries?.replace('{count}', ticket.entries_remaining) || `Remaining entries: ${ticket.entries_remaining}`})
                     </option>
                   ))}
                 </select>
