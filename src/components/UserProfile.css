@@ -125,6 +125,20 @@
   transform: translateY(0);
 }
 
+/* Disabled Button Styling for Generate PDF */
+.btn-primary:disabled {
+  background-color: #6c757d; /* Grayed-out background */
+  border-color: #6c757d; /* Matching border */
+  opacity: 0.65; /* Reduced opacity for disabled state */
+  cursor: not-allowed; /* Custom cursor from inline style */
+}
+
+.btn-primary:disabled:hover {
+  background-color: #6c757d; /* Prevent hover effect */
+  transform: none; /* No transform on hover */
+  box-shadow: none; /* No shadow on hover */
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .admin-sessions table {
@@ -207,4 +221,12 @@
   padding: 0.5rem 1rem!important;
   font-size: 0.85rem!important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1)!important;
+  background-color: #333!important; /* Darker background for contrast */
+  color: #fff!important; /* White text for readability */
+  max-width: 250px!important; /* Ensure message fits */
+  z-index: 1000!important; /* Ensure it stays above other elements */
+}
+
+.react-tooltip:after {
+  border-top-color: #333!important; /* Match arrow to background */
 }

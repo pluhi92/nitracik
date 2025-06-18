@@ -2,6 +2,7 @@
   "booking": {
     "title": "Book Your Training",
     "logout": "Logout",
+    "seasonTickets": "Purchase Season Ticket",
     "trainingType": {
       "label": "Select Training Type",
       "placeholder": "Choose...",
@@ -17,6 +18,11 @@
     "childrenCount": "Number of Children",
     "childrenAge": "Age of Children",
     "notes": "Additional Notes",
+    "useSeasonTicket": "Use Season Ticket",
+    "selectSeasonTicket": "Select Season Ticket",
+    "seasonTicketOption": "Season Ticket",
+    "seasonTicketEntries": "Remaining entries: {count}",
+    "notCoveredBySeasonTicket": "Not covered by season ticket",
     "accompanyingPerson": "Participation of Accompanying Person (€3)",
     "photoConsent": "Photo Publication Consent",
     "agree": "AGREE to publish photos of my children",
@@ -118,6 +124,86 @@
         "passwordMatch": "Passwords do not match",
         "emailExists": "Email is already registered",
         "generic": "Registration failed. Please try again."
+      }
+    }
+  },
+  "profile": {
+    "title": "Account Settings",
+    "report": {
+      "title": "Generate Payment Report",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "generate": "Generate PDF",
+      "error": {
+        "required": "Please fill in both dates.",
+        "generic": "Failed to generate payment report. Check console for details."
+      }
+    },
+    "sessionType": {
+      "midi": "MIDI Sessions",
+      "mini": "MINI Sessions"
+    },
+    "table": {
+      "date": "Date",
+      "type": "Type",
+      "availableSpots": "Available Spots",
+      "participants": "Participants (Children)",
+      "child": "Number of children: {count}"
+    },
+    "seasonTickets": {
+      "title": "Season Ticket Holders",
+      "noTickets": "No users have purchased season tickets.",
+      "name": "Name",
+      "email": "Email",
+      "totalEntries": "Total Entries",
+      "remainingEntries": "Remaining Entries"
+    },
+    "mySeasonTickets": {
+      "title": "My Season Tickets",
+      "noTickets": "You have no active season tickets.",
+      "ticketId": "Ticket ID",
+      "entriesTotal": "Total Entries",
+      "entriesRemaining": "Remaining Entries",
+      "purchaseDate": "Purchase Date",
+      "expiryDate": "Expiry Date"
+    },
+    "bookedSessions": {
+      "title": "Your Booked Sessions",
+      "noSessions": "You have no booked sessions."
+    },
+    "dangerZone": {
+      "title": "Danger Zone",
+      "description": "Deleting your account will permanently remove all your data from our system. This action is irreversible.",
+      "delete": "Delete My Account",
+      "deleting": "Deleting..."
+    },
+    "deleteModal": {
+      "title": "Confirm Deletion",
+      "label": "Enter your password to confirm deletion:",
+      "placeholder": "Password",
+      "cancel": "Cancel",
+      "confirm": "Confirm Deletion"
+    },
+    "cancel": {
+      "button": "Cancel Session",
+      "alert": "Cancellation is allowed only within 10 hours before the session.",
+      "confirm": "Are you sure you want to cancel this session?",
+      "success": "Session was successfully canceled. Emails have been sent to you and the administrator.",
+      "error": {
+        "notFound": "Booking could not be found. It may have been already deleted or does not exist.",
+        "unauthorized": "You are not authorized to cancel this booking.",
+        "generic": "Failed to cancel session. Please try again."
+      },
+      "tooltip": "Cancellation is no longer possible as less than 10 hours remain until the training."
+    },
+    "tooltip": {
+      "futureDate": "This date is invalid because it is in the future. Please select a date up to {date}."
+    },
+    "delete": {
+      "error": {
+        "required": "Please enter a password",
+        "incorrect": "Incorrect password",
+        "generic": "Failed to delete account"
       }
     }
   }

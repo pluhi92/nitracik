@@ -14,6 +14,7 @@
     "firebase-admin": "^13.1.0",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^6.10.0",
+    "pdfkit": "^0.17.1",
     "react": "^19.0.0",
     "react-bootstrap": "^2.10.9",
     "react-calendar": "^5.1.0",

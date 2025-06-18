@@ -2,6 +2,7 @@
   "booking": {
     "title": "Rezervácia Tréningu",
     "logout": "Odhlásiť sa",
+    "seasonTickets": "Kúpiť permanentku",
     "trainingType": {
       "label": "Vyberte typ tréningu",
       "placeholder": "Vyberte...",
@@ -17,6 +18,11 @@
     "childrenCount": "Počet detí",
     "childrenAge": "Vek detí",
     "notes": "Dodatočné poznámky",
+    "useSeasonTicket": "Použiť permanentku",
+    "selectSeasonTicket": "Vyberte permanentku",
+    "seasonTicketOption": "Permanentka",
+    "seasonTicketEntries": "Zostávajúce vstupy: {count}",
+    "notCoveredBySeasonTicket": "Nie je pokryté permanentkou",
     "accompanyingPerson": "Účasť sprevádzajúcej osoby (€3)",
     "photoConsent": "Súhlas s publikovaním fotografií",
     "agree": "SUHLASÍM s publikovaním fotografií môjho dieťaťa",
@@ -118,6 +124,86 @@
         "passwordMatch": "Heslá sa nezhodujú",
         "emailExists": "Email je už registrovaný",
         "generic": "Registrácia zlyhala. Skúste to znova."
+      }
+    }
+  },
+  "profile": {
+    "title": "Nastavenia účtu",
+    "report": {
+      "title": "Generovať výkaz platieb",
+      "startDate": "Začiatočný dátum",
+      "endDate": "Koncový dátum",
+      "generate": "Generovať PDF",
+      "error": {
+        "required": "Prosím, vyplňte oba dátumy.",
+        "generic": "Nepodarilo sa vygenerovať výkaz platieb. Skontrolujte konzolu pre podrobnosti."
+      }
+    },
+    "sessionType": {
+      "midi": "MIDI relácie",
+      "mini": "MINI relácie"
+    },
+    "table": {
+      "date": "Dátum",
+      "type": "Typ",
+      "availableSpots": "Dostupné miesta",
+      "participants": "Účastníci (deti)",
+      "child": "Počet detí: {count}"
+    },
+    "seasonTickets": {
+      "title": "Držitelia sezónnych lístkov",
+      "noTickets": "Žiadni používatelia si nekúpili permanentky.",
+      "name": "Meno",
+      "email": "Email",
+      "totalEntries": "Celkový počet vstupov",
+      "remainingEntries": "Zostávajúce vstupy"
+    },
+    "mySeasonTickets": {
+      "title": "Vaše permanentky",
+      "noTickets": "Nemáte žiadne aktívne permanentky.",
+      "ticketId": "ID Permanentky",
+      "entriesTotal": "Celkový počet vstupov",
+      "entriesRemaining": "Zostávajúce vstupy",
+      "purchaseDate": "Dátum nákupu",
+      "expiryDate": "Dátum expirácie"
+    },
+    "bookedSessions": {
+      "title": "Vaše rezervované relácie",
+      "noSessions": "Nemáte žiadne rezervované relácie."
+    },
+    "dangerZone": {
+      "title": "Nebezpečná zóna",
+      "description": "Vymazaním vášho účtu sa natrvalo odstránia všetky vaše údaje z nášho systému. Táto akcia je nevratná.",
+      "delete": "Vymazať môj účet",
+      "deleting": "Mažem..."
+    },
+    "deleteModal": {
+      "title": "Potvrdenie vymazania",
+      "label": "Zadajte svoje heslo na potvrdenie vymazania:",
+      "placeholder": "Heslo",
+      "cancel": "Zrušiť",
+      "confirm": "Potvrdiť vymazanie"
+    },
+    "cancel": {
+      "button": "Zrušiť reláciu",
+      "alert": "Zrušenie je povolené iba do 10 hodín pred reláciou.",
+      "confirm": "Naozaj chcete zrušiť túto reláciu?",
+      "success": "Relácia bola úspešne zrušená. E-maily boli odoslané vám a administrátorovi.",
+      "error": {
+        "notFound": "Rezerváciu nebolo možné nájsť. Možno bola už vymazaná alebo neexistuje.",
+        "unauthorized": "Nemáte oprávnenie na zrušenie tejto rezervácie.",
+        "generic": "Nepodarilo sa zrušiť reláciu. Skúste to znova."
+      },
+      "tooltip": "Zrušenie už nie je možné, pretože do tréningu zostáva menej ako 10 hodín."
+    },
+    "tooltip": {
+      "futureDate": "Tento dátum je neplatný, pretože je v budúcnosti. Prosím, vyberte dátum do {date}."
+    },
+    "delete": {
+      "error": {
+        "required": "Prosím, zadajte heslo",
+        "incorrect": "Nesprávne heslo",
+        "generic": "Nepodarilo sa vymazať účet"
       }
     }
   }
