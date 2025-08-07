@@ -1,44 +1,232 @@
 /* UserProfile.css */
+/* Admin Sessions Table */
+.admin-sessions table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 15px rgba(0, 0, 0, 0.1);
+}
+
+.admin-sessions thead {
+  background-color: #2c3e50;
+  color: white;
+}
+
+.admin-sessions th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.admin-sessions td {
+  padding: 1rem;
+  vertical-align: top;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.admin-sessions tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-sessions tbody tr:hover {
+  background-color: #f8f9fa;
+  transition: background-color 0.2s ease;
+}
+
+/* Participant List */
+.list-unstyled li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eee;
+  transition: background-color 0.2s ease;
+}
+
+.list-unstyled li:last-child {
+  border-bottom: none;
+}
+
+.list-unstyled li:hover {
+  background-color: #f8f9fa;
+}
+
+/* Booked Sessions List */
+.booked-sessions .list-group-item {
+  margin-bottom: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.booked-sessions .list-group-item:hover {
+  transform: translateX(5px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Status Badges */
+.badge {
+  padding: 0.5em 0.75em;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.bg-success {
+  background-color: #28a745!important;
+}
+
+.bg-danger {
+  background-color: #dc3545!important;
+}
+
+/* Danger Zone */
 .danger-zone {
-    border: 2px solid #dc3545;
-    border-radius: 8px;
-    padding: 20px;
-    margin-top: 30px;
+  border: 2px solid #dc3545;
+  border-radius: 8px;
+  padding: 25px;
+  margin-top: 40px;
+  background: #fff5f5;
+  box-shadow: 0 2px 10px rgba(220, 53, 69, 0.1);
+}
+
+.danger-zone h5 {
+  color: #dc3545;
+  margin-bottom: 20px;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.danger-zone h5::before {
+  content: "⚠️";
+}
+
+.danger-zone p {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #666;
+}
+
+/* Buttons */
+.btn-danger {
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-danger:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(220, 53, 69, 0.3);
+}
+
+.btn-danger:active {
+  transform: translateY(0);
+}
+
+/* Disabled Button Styling for Generate PDF */
+.btn-primary:disabled {
+  background-color: #6c757d; /* Grayed-out background */
+  border-color: #6c757d; /* Matching border */
+  opacity: 0.65; /* Reduced opacity for disabled state */
+  cursor: not-allowed; /* Custom cursor from inline style */
+}
+
+.btn-primary:disabled:hover {
+  background-color: #6c757d; /* Prevent hover effect */
+  transform: none; /* No transform on hover */
+  box-shadow: none; /* No shadow on hover */
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .admin-sessions table {
+    display: block;
+    overflow-x: auto;
   }
   
-  .danger-zone h5 {
-    color: #dc3545;
-    margin-bottom: 15px;
-  }
-  
-  .danger-zone p {
+  .admin-sessions td, 
+  .admin-sessions th {
+    padding: 0.75rem;
     font-size: 0.9rem;
-    margin-bottom: 20px;
   }
   
-  .btn-danger {
-    width: 100%;
-    max-width: 200px;
+  .booked-sessions .list-group-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
   }
-  .booked-sessions {
-    margin-top: 2rem;
+}
+
+/* Participants styling */
+.participants-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.participant-badge {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.participant-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.participant-name {
+  font-weight: 500;
+  color: #212529;
+}
+
+.participant-email {
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.children-count {
+  background-color: #e9ecef;
+  color: #495057;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  min-width: 80px;
+  text-align: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .participant-badge {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
   
-  .booked-sessions h3 {
-    margin-bottom: 1rem;
+  .children-count {
+    align-self: flex-end;
   }
-  
-  .list-group-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  
-  .btn-danger.btn-sm {
-    font-size: 0.875rem;
-    padding: 0.25rem 0.5rem;
-  }
-  .react-tooltip {
-    z-index: 9999 !important; /* Ensure tooltip appears above other elements */
-    pointer-events: auto !important; /* Allow interaction with the tooltip */
-  }
+}
+
+/* Tooltip */
+.react-tooltip {
+  border-radius: 4px!important;
+  padding: 0.5rem 1rem!important;
+  font-size: 0.85rem!important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1)!important;
+  background-color: #333!important; /* Darker background for contrast */
+  color: #fff!important; /* White text for readability */
+  max-width: 250px!important; /* Ensure message fits */
+  z-index: 1000!important; /* Ensure it stays above other elements */
+}
+
+.react-tooltip:after {
+  border-top-color: #333!important; /* Match arrow to background */
+}

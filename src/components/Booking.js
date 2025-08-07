@@ -4,12 +4,14 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import axios from 'axios';
 import Login from './Login';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { IMaskInput } from 'react-imask';
 import { Tooltip } from 'react-tooltip';
+import { loadStripe } from '@stripe/stripe-js';
+import { useTranslation } from '../contexts/LanguageContext';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000', // Directly point to backend
+  baseURL: 'http://localhost:5000',
   withCredentials: true,
 });
 
@@ -27,15 +29,24 @@ const Booking = () => {
   const [consent, setConsent] = useState(false);
   const [photoConsent, setPhotoConsent] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [trainingDates, setTrainingDates] = useState({}); // Stores fetched training dates
+  const [trainingDates, setTrainingDates] = useState({});
+  const [seasonTickets, setSeasonTickets] = useState([]);
+  const [useSeasonTicket, setUseSeasonTicket] = useState(false);
+  const [selectedSeasonTicket, setSelectedSeasonTicket] = useState('');
   const navigate = useNavigate();
+  const location = useLocation(); // For handling redirect
   const [isAdmin, setIsAdmin] = useState(false);
   const [newTrainingDate, setNewTrainingDate] = useState('');
   const [newTrainingType, setNewTrainingType] = useState('MIDI');
   const [maxParticipants, setMaxParticipants] = useState(10);
-  const [isSessionFull, setIsSessionFull] = useState(false);
   const [warningMessage, setWarningMessage] = useState('');
-
+  const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
+  const [availability, setAvailability] = useState({
+    isAvailable: true,
+    remainingSpots: 0,
+    requestedChildren: 0,
+  });
+  const { t } = useTranslation();
 
   const pricing = {
     1: 15,
@@ -43,10 +54,12 @@ const Booking = () => {
     3: 39,
   };
 
-  console.log('Admin email from env:', process.env.REACT_APP_ADMIN_EMAIL);
-  console.log('API URL:', process.env.REACT_APP_API_URL);
+  useEffect(() => {
+    if (useSeasonTicket && selectedSeasonTicket) {
+      setAccompanyingPerson(false);
+    }
+  }, [useSeasonTicket, selectedSeasonTicket]);
 
-  // Fetch training dates from the backend
   useEffect(() => {
     const fetchTrainingDates = async () => {
       try {
@@ -72,12 +85,22 @@ const Booking = () => {
       }
     };
 
+    const fetchSeasonTickets = async () => {
+      try {
+        const userId = localStorage.getItem('userId');
+        const response = await api.get(`/api/season-tickets/${userId}`);
+        setSeasonTickets(response.data.filter(ticket => ticket.entries_remaining > 0 && new Date(ticket.expiry_date) > new Date()));
+      } catch (error) {
+        console.error('Error fetching season tickets:', error);
+      }
+    };
+
     if (isLoggedIn) {
       fetchTrainingDates();
+      fetchSeasonTickets();
     }
   }, [isLoggedIn]);
 
-  // Redirect to login if not logged in
   useEffect(() => {
     if (!isLoggedIn) {
       navigate('/login');
@@ -86,18 +109,11 @@ const Booking = () => {
     }
   }, [isLoggedIn, navigate]);
 
-  // Admin check 
   useEffect(() => {
     const checkAdmin = async () => {
       try {
         const response = await api.get(`/api/users/${localStorage.getItem('userId')}`);
-        console.log('Admin check response:', response.data);
-        console.log('Comparing:', response.data.email, 'vs', process.env.REACT_APP_ADMIN_EMAIL);
-        // Method 1: Check email against ADMIN_EMAIL
         setIsAdmin(response.data.email === process.env.REACT_APP_ADMIN_EMAIL);
-
-        // Method 2: Check role if you added a "role" column
-        // setIsAdmin(response.data.role === 'admin');
       } catch (error) {
         console.error('Admin check failed:', error);
       }
@@ -106,8 +122,6 @@ const Booking = () => {
     if (isLoggedIn) checkAdmin();
   }, [isLoggedIn]);
 
-
-  // Fetch user data
   const fetchUserData = async () => {
     try {
       const userId = localStorage.getItem('userId');
@@ -122,26 +136,16 @@ const Booking = () => {
   const handleAddTrainingDate = async (e) => {
     e.preventDefault();
     try {
-      console.log('Submitting training date:', {
-        trainingType: newTrainingType,
-        trainingDate: newTrainingDate,
-        maxParticipants
-      });
-
       const addResponse = await api.post('/api/set-training', {
         trainingType: newTrainingType,
         trainingDate: newTrainingDate,
-        maxParticipants: parseInt(maxParticipants)
+        maxParticipants: parseInt(maxParticipants),
       });
 
-      console.log('Training date added:', addResponse.data);
-
-      // Refresh training dates
       const fetchResponse = await api.get('/api/training-dates');
       const updatedDates = processTrainingDates(fetchResponse.data);
       setTrainingDates(updatedDates);
 
-      // Clear form
       setNewTrainingDate('');
       setMaxParticipants(10);
 
@@ -152,7 +156,6 @@ const Booking = () => {
     }
   };
 
-  // Add this helper function
   const processTrainingDates = (data) => {
     return data.reduce((acc, training) => {
       const date = new Date(training.training_date).toLocaleDateString('en-CA');
@@ -160,7 +163,6 @@ const Booking = () => {
         hour: '2-digit',
         minute: '2-digit',
       });
-
       if (!acc[training.training_type]) {
         acc[training.training_type] = {};
       }
@@ -171,110 +173,134 @@ const Booking = () => {
       return acc;
     }, {});
   };
-  
+
   useEffect(() => {
-    const checkSessionAvailability = async () => {
-      try {
-        const response = await api.get('/api/check-availability', {
-          params: {
-            trainingType,
-            selectedDate,
-            selectedTime,
-          },
+    const checkAvailability = async () => {
+      if (trainingType && selectedDate && selectedTime && childrenCount) {
+        try {
+          const response = await api.get('/api/check-availability', {
+            params: { trainingType, selectedDate, selectedTime, childrenCount },
+          });
+
+          setAvailability({
+            isAvailable: response.data.available,
+            remainingSpots: response.data.remainingSpots,
+            requestedChildren: childrenCount,
+          });
+        } catch (error) {
+          console.error('Error checking availability:', error);
+        }
+      } else {
+        setAvailability({
+          isAvailable: true,
+          remainingSpots: 0,
+          requestedChildren: 0,
         });
-        setIsSessionFull(response.data.isFull);
-      } catch (error) {
-        console.error('Error checking session availability:', error);
       }
     };
-  
-    if (trainingType && selectedDate && selectedTime) {
-      checkSessionAvailability();
-    } else {
-      setIsSessionFull(false);
-    }
-  }, [trainingType, selectedDate, selectedTime]);
 
-  // Handle form submission
+    checkAvailability();
+  }, [trainingType, selectedDate, selectedTime, childrenCount]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setWarningMessage('');
 
     try {
-      const response = await api.post('/api/book-training', {
-        userId: userData.id,
-        trainingType,
-        selectedDate,
-        selectedTime,
-        childrenCount,
-        childrenAge,
-        totalPrice: pricing[childrenCount] + (accompanyingPerson ? 3 : 0),
-        photoConsent,
-        mobile,
-        note,
-      });
+      if (useSeasonTicket && selectedSeasonTicket) {
+        const response = await api.post('/api/use-season-ticket', {
+          userId: userData.id,
+          seasonTicketId: selectedSeasonTicket,
+          trainingType,
+          selectedDate,
+          selectedTime,
+          childrenCount,
+          childrenAge,
+          photoConsent,
+          mobile,
+          note,
+          accompanyingPerson: false,
+        });
 
-      if (response.data.error) {
-        setWarningMessage('Error processing booking. Please try again.');
+        if (response.data.success) {
+          alert(t?.booking?.seasonTicketSuccess || 'Booking created using season ticket!');
+          navigate('/profile');
+        }
       } else {
-        navigate('/thank-you'); // Redirect to thank-you page
+        const paymentSession = await api.post('/api/create-payment-session', {
+          userId: userData.id,
+          trainingType,
+          selectedDate,
+          selectedTime,
+          childrenCount,
+          childrenAge,
+          totalPrice: pricing[childrenCount] + (accompanyingPerson ? 3 : 0),
+          photoConsent,
+          mobile,
+          note,
+          accompanyingPerson,
+        });
+
+        const stripe = await stripePromise;
+        const { error } = await stripe.redirectToCheckout({
+          sessionId: paymentSession.data.sessionId,
+        });
+
+        if (error) throw error;
       }
     } catch (error) {
-      console.error('Booking error:', error.response?.data || error.message);
-      setWarningMessage('Error processing booking. Please try again.');
-    } finally {
+      console.error('Booking error:', error);
+      setWarningMessage(t?.booking?.error || 'Error processing booking. Please try again.');
       setLoading(false);
     }
   };
 
-  // Highlight available dates on the calendar
+  // Handle success redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const sessionId = urlParams.get('session_id');
+    const bookingId = urlParams.get('booking_id');
+    if (sessionId && bookingId) {
+      // Confirm payment on the client side (optional, server will handle final update)
+      api.get(`/api/booking-success?session_id=${sessionId}&booking_id=${bookingId}`).then(() => {
+        alert(t?.booking?.paymentSuccess || 'Payment successful! Booking confirmed.');
+        navigate('/profile');
+      }).catch(error => {
+        console.error('Error confirming payment:', error);
+        alert(t?.booking?.paymentError || 'Payment confirmation failed. Please contact support.');
+      });
+    }
+  }, [location.search, navigate, t]);
+
   const tileClassName = ({ date, view }) => {
     if (!trainingType || view !== 'month') return null;
-
-    const formattedDate = date.toLocaleDateString('en-CA'); // Format as YYYY-MM-DD
-
+    const formattedDate = date.toLocaleDateString('en-CA');
     if (trainingDates[trainingType]?.[formattedDate]) {
-      return 'available-date'; // Apply custom class for available dates
+      return 'available-date';
     }
-
     return null;
   };
 
-  // Handle date selection
   const handleDateChange = (date) => {
-    const formattedDate = date.toLocaleDateString('en-CA'); // Format as YYYY-MM-DD
+    const formattedDate = date.toLocaleDateString('en-CA');
     setSelectedDate(formattedDate);
     setSelectedTime('');
   };
 
-  // Render available time slots for the selected date
-  const renderTimeSlots = () => {
-    if (!selectedDate || !trainingType) return null;
-
-    const timeSlots = trainingDates[trainingType][selectedDate];
-    if (!timeSlots) return null;
-
-    return (
-      <div className="mb-3">
-        <label htmlFor="timeSlots">Select Time:</label>
-        <select
-          id="timeSlots"
-          value={selectedTime}
-          onChange={(e) => setSelectedTime(e.target.value)}
-          className="form-select"
-        >
-          <option value="">-- Choose a Time Slot --</option>
-          {timeSlots.map((time) => (
-            <option key={time} value={time}>
-              {time}
-            </option>
-          ))}
-        </select>
-      </div>
-    );
+  const formatAvailabilityMessage = () => {
+    if (!availability.isAvailable) {
+      if (availability.remainingSpots === 0) {
+        return t?.booking?.availability?.full || 'All places are already occupied for this session. Please choose another date or time.';
+      }
+      return t?.booking?.availability?.unavailable
+        ?.replace('{count}', availability.remainingSpots)
+        ?.replace('{needed}', availability.requestedChildren) ||
+        `Only ${availability.remainingSpots} spot${availability.remainingSpots !== 1 ? 's' : ''} remain (needed ${availability.requestedChildren})`;
+    }
+    return null;
   };
 
-  // If the user is not logged in, show the login form
   if (!isLoggedIn) {
     return (
       <div className="container mt-5">
@@ -282,11 +308,13 @@ const Booking = () => {
           <div className="col-md-6">
             <div className="card shadow-sm">
               <div className="card-body">
-                <h2 className="card-title text-center">Login</h2>
-                <Login onLoginSuccess={() => {
-                  localStorage.setItem('isLoggedIn', 'true');
-                  setIsLoggedIn(true);
-                }} />
+                <h2 className="card-title text-center">{t?.booking?.title || 'Book Your Training'}</h2>
+                <Login
+                  onLoginSuccess={() => {
+                    localStorage.setItem('isLoggedIn', 'true');
+                    setIsLoggedIn(true);
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -294,41 +322,47 @@ const Booking = () => {
       </div>
     );
   }
-  console.log('Should show admin panel?', isAdmin);
-  // If the user is logged in, show the booking form
+
   return (
     <div className="container mt-5">
-      <h2 className="text-center text-primary">Book Your Training</h2>
-      <button
-        className="btn btn-danger mb-3"
-        onClick={() => {
-          localStorage.removeItem('isLoggedIn');
-          localStorage.removeItem('userId');
-          window.location.reload(); // Refresh the page to update the UI
-        }}
-      >
-        Logout
-      </button>
+      <h2 className="text-center text-primary">{t?.booking?.title || 'Book Your Training'}</h2>
+      <div className="d-flex justify-content-between mb-3">
+        <button
+          className="btn btn-danger"
+          onClick={() => {
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('userId');
+            window.location.reload();
+          }}
+        >
+          {t?.booking?.logout || 'Logout'}
+        </button>
+        <button
+          className="btn btn-primary"
+          onClick={() => navigate('/season-tickets')}
+        >
+          {t?.booking?.seasonTickets || 'Purchase Season Ticket'}
+        </button>
+      </div>
 
       {isAdmin && (
         <div className="admin-panel mb-5">
-          <h3 className="text-success">Admin Controls</h3>
+          <h3 className="text-success">{t?.admin?.title || 'Admin Controls'}</h3>
           <form onSubmit={handleAddTrainingDate}>
             <div className="row g-3">
               <div className="col-md-4">
-                <label className="form-label">Training Type</label>
+                <label className="form-label">{t?.admin?.trainingType || 'Training Type'}</label>
                 <select
                   className="form-select"
                   value={newTrainingType}
                   onChange={(e) => setNewTrainingType(e.target.value)}
                 >
-                  <option value="MIDI">MIDI</option>
-                  <option value="MINI">MINI</option>
+                  <option value="MIDI">{t?.booking?.trainingType?.midi || 'MIDI'}</option>
+                  <option value="MINI">{t?.booking?.trainingType?.mini || 'MINI'}</option>
                 </select>
               </div>
-
               <div className="col-md-4">
-                <label className="form-label">Date & Time</label>
+                <label className="form-label">{t?.admin?.dateTime || 'Date & Time'}</label>
                 <input
                   type="datetime-local"
                   className="form-control"
@@ -336,9 +370,8 @@ const Booking = () => {
                   onChange={(e) => setNewTrainingDate(e.target.value)}
                 />
               </div>
-
               <div className="col-md-2">
-                <label className="form-label">Max Participants</label>
+                <label className="form-label">{t?.admin?.maxParticipants || 'Max Participants'}</label>
                 <input
                   type="number"
                   className="form-control"
@@ -347,10 +380,9 @@ const Booking = () => {
                   onChange={(e) => setMaxParticipants(e.target.value)}
                 />
               </div>
-
               <div className="col-md-2 d-flex align-items-end">
                 <button type="submit" className="btn btn-success w-100">
-                  ➕ Add Session
+                  {t?.admin?.addSession || 'Add Session'}
                 </button>
               </div>
             </div>
@@ -358,10 +390,11 @@ const Booking = () => {
         </div>
       )}
 
-      {isAdmin && <div className="alert alert-success mb-3">ADMIN MODE ACTIVE - You should see admin controls below</div>}
+      {isAdmin && <div className="alert alert-success mb-3">{t?.admin?.title || 'ADMIN MODE ACTIVE'}</div>}
+
       <form onSubmit={handleSubmit} className="mt-4">
         <div className="mb-3">
-          <label className="form-label">Select Training Type</label>
+          <label className="form-label">{t?.booking?.trainingType?.label || 'Select Training Type'}</label>
           <select
             className="form-select"
             value={trainingType}
@@ -371,13 +404,14 @@ const Booking = () => {
               setSelectedTime('');
             }}
           >
-            <option value="">Choose...</option>
-            <option value="MINI">MINI</option>
-            <option value="MIDI">MIDI</option>
+            <option value="">{t?.booking?.trainingType?.placeholder || 'Choose...'}</option>
+            <option value="MINI">{t?.booking?.trainingType?.mini || 'MINI'}</option>
+            <option value="MIDI">{t?.booking?.trainingType?.midi || 'MIDI'}</option>
           </select>
         </div>
+
         <div className="mb-3">
-          <label className="form-label">Your Name</label>
+          <label className="form-label">{t?.booking?.name || 'Your Name'}</label>
           <input
             type="text"
             className="form-control"
@@ -385,8 +419,9 @@ const Booking = () => {
             readOnly
           />
         </div>
+
         <div className="mb-3">
-          <label className="form-label">Your Email</label>
+          <label className="form-label">{t?.booking?.email || 'Your Email'}</label>
           <input
             type="email"
             className="form-control"
@@ -394,21 +429,21 @@ const Booking = () => {
             readOnly
           />
         </div>
+
         <div className="mb-3">
-          <label className="form-label">Your Mobile Number</label>
+          <label className="form-label">{t?.booking?.mobile || 'Your Mobile Number'}</label>
           <IMaskInput
             mask="+421 000 000 000"
-            definitions={{
-              '0': /[0-9]/,
-            }}
+            definitions={{ '0': /[0-9]/ }}
             className="form-control"
             value={mobile}
             onAccept={(value) => setMobile(value)}
-            placeholder="+421 xxx xxx xxx"
+            placeholder={t?.booking?.mobile || '+421 xxx xxx xxx'}
           />
         </div>
+
         <div className="mb-3">
-          <label className="form-label">Address</label>
+          <label className="form-label">{t?.booking?.address || 'Address'}</label>
           <input
             type="text"
             className="form-control"
@@ -416,21 +451,64 @@ const Booking = () => {
             readOnly
           />
         </div>
+
         <div className="mb-3">
-          <label className="form-label">Number of Children <span className="text-danger">*</span></label>
+          <label className="form-label">{t?.booking?.selectDate || 'Select Available Date'} <span className="text-danger">*</span></label>
+          <Calendar
+            onChange={handleDateChange}
+            value={selectedDate ? new Date(selectedDate) : null}
+            tileClassName={tileClassName}
+            tileDisabled={({ date, view }) => {
+              if (view !== 'month') return false;
+              const formattedDate = date.toLocaleDateString('en-CA');
+              return !trainingDates[trainingType]?.[formattedDate];
+            }}
+            minDate={new Date()}
+            className="custom-calendar"
+          />
+        </div>
+
+        {selectedDate && trainingType && trainingDates[trainingType]?.[selectedDate] && (
+          <div className="mb-3">
+            <label htmlFor="timeSlots">{t?.booking?.selectTime || 'Select Time'}:</label>
+            <select
+              id="timeSlots"
+              value={selectedTime}
+              onChange={(e) => setSelectedTime(e.target.value)}
+              className="form-select"
+            >
+              <option value="">-- {t?.booking?.selectTime || 'Choose a Time Slot'} --</option>
+              {trainingDates[trainingType][selectedDate].map((time) => (
+                <option key={time} value={time}>
+                  {time}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {!availability.isAvailable && (
+          <div className="alert alert-danger mt-3">
+            {formatAvailabilityMessage()}
+          </div>
+        )}
+
+        <div className="mb-3">
+          <label className="form-label">{t?.booking?.childrenCount || 'Number of Children'} <span className="text-danger">*</span></label>
           <select
             className="form-select"
             value={childrenCount}
             onChange={(e) => setChildrenCount(parseInt(e.target.value))}
             required
           >
-            <option value="1">1 Child (€15)</option>
-            <option value="2">2 Children (€28)</option>
-            <option value="3">3 Children (€39)</option>
+            <option value="1">1 {t?.booking?.childrenCount?.includes('Počet') ? 'dieťa' : 'Child'} (€15)</option>
+            <option value="2">2 {t?.booking?.childrenCount?.includes('Počet') ? 'deti' : 'Children'} (€28)</option>
+            <option value="3">3 {t?.booking?.childrenCount?.includes('Počet') ? 'deti' : 'Children'} (€39)</option>
           </select>
         </div>
+
         <div className="mb-3">
-          <label className="form-label">Age of Children <span className="text-danger">*</span></label>
+          <label className="form-label">{t?.booking?.childrenAge || 'Age of Children'} <span className="text-danger">*</span></label>
           <input
             type="text"
             className="form-control"
@@ -439,52 +517,77 @@ const Booking = () => {
             required
           />
         </div>
+
         <div className="mb-3">
-          <label className="form-label">Additional Notes</label>
+          <label className="form-label">{t?.booking?.notes || 'Additional Notes'}</label>
           <textarea
             className="form-control"
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
         </div>
-        <div className="mb-3">
-          <label className="form-label">Select Available Date <span className="text-danger">*</span></label>
-          <Calendar
-            onChange={handleDateChange}
-            value={selectedDate ? new Date(selectedDate) : null}
-            tileClassName={tileClassName}
-            tileDisabled={({ date }) => {
-              const formattedDate = date.toLocaleDateString('en-CA'); // Format as YYYY-MM-DD
-              return !trainingDates[trainingType]?.[formattedDate]; // Disable unavailable dates
-            }}
-            minDate={new Date()} // Disable past dates
-            className="custom-calendar" // Add a custom class for styling
-          />
-        </div>
-        {renderTimeSlots()}
+
         <div className="mb-3">
           <input
             type="checkbox"
             id="accompanyingPerson"
             checked={accompanyingPerson}
             onChange={() => setAccompanyingPerson(!accompanyingPerson)}
+            disabled={useSeasonTicket && selectedSeasonTicket}
           />
           <label htmlFor="accompanyingPerson" className="ms-2">
-            Participation of Accompanying Person (€3)
+            {t?.booking?.accompanyingPerson || 'Participation of Accompanying Person (€3)'}
+            {useSeasonTicket && selectedSeasonTicket && (
+              <span className="text-muted ms-2">
+                ({t?.booking?.notCoveredBySeasonTicket || 'Not covered by season ticket'})
+              </span>
+            )}
           </label>
         </div>
-        {isSessionFull && (
-          <div className="alert alert-warning">
-            This training session is full. Please choose another date or time.
+
+        {seasonTickets.length > 0 && (
+          <div className="mb-3">
+            <input
+              type="checkbox"
+              id="useSeasonTicket"
+              checked={useSeasonTicket}
+              onChange={() => {
+                setUseSeasonTicket(!useSeasonTicket);
+                setSelectedSeasonTicket('');
+              }}
+            />
+            <label htmlFor="useSeasonTicket" className="ms-2">
+              {t?.booking?.useSeasonTicket || 'Use Season Ticket'}
+            </label>
+            {useSeasonTicket && (
+              <div className="mt-2">
+                <label className="form-label">{t?.booking?.selectSeasonTicket || 'Select Season Ticket'}</label>
+                <select
+                  className="form-select"
+                  value={selectedSeasonTicket}
+                  onChange={(e) => setSelectedSeasonTicket(e.target.value)}
+                  required={useSeasonTicket}
+                >
+                  <option value="">{t?.booking?.selectSeasonTicket || 'Choose a Season Ticket'}</option>
+                  {seasonTickets.map((ticket) => (
+                    <option key={ticket.id} value={ticket.id}>
+                      {t?.booking?.seasonTicketOption || 'Season Ticket'} (ID: {ticket.id}, {t?.booking?.seasonTicketEntries?.replace('{count}', ticket.entries_remaining) || `Remaining entries: ${ticket.entries_remaining}`})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         )}
+
         {warningMessage && (
           <div className="alert alert-danger mt-3">
             {warningMessage}
           </div>
         )}
+
         <div className="mb-3">
-          <label className="form-label">Photo Publication Consent <span className="text-danger">*</span></label>
+          <label className="form-label">{t?.booking?.photoConsent || 'Photo Publication Consent'} <span className="text-danger">*</span></label>
           <div>
             <div className="form-check">
               <input
@@ -497,7 +600,7 @@ const Booking = () => {
                 required
               />
               <label className="form-check-label" htmlFor="photoConsentAgree">
-                AGREE to publish photos of my children
+                {t?.booking?.agree || 'AGREE to publish photos of my children'}
               </label>
             </div>
             <div className="form-check">
@@ -511,11 +614,12 @@ const Booking = () => {
                 required
               />
               <label className="form-check-label" htmlFor="photoConsentDisagree">
-                DISAGREE to publish photos of my children
+                {t?.booking?.disagree || 'DISAGREE to publish photos of my children'}
               </label>
             </div>
           </div>
         </div>
+
         <div className="mb-3">
           <input
             type="checkbox"
@@ -525,40 +629,46 @@ const Booking = () => {
             required
           />
           <label htmlFor="consent" className="ms-2 text-danger">
-            I agree to the rules (Required)
+            {t?.booking?.consent || 'I agree to the rules (Required)'}
           </label>
           <span className="ms-2">
             <a
-              href="/terms-and-conditions.pdf" // Replace with the actual path to your PDF
-              target="_blank" // Opens the PDF in a new tab
-              rel="noopener noreferrer" // Security best practice for target="_blank"
-              style={{ color: '#007bff', textDecoration: 'underline' }} // Optional: Style the link
+              href="/terms-and-conditions.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#007bff', textDecoration: 'underline' }}
             >
-              General Terms and Conditions
+              {t?.booking?.terms || 'General Terms and Conditions'}
             </a>
           </span>
         </div>
-        <h4>Total Price: €{pricing[childrenCount] + (accompanyingPerson ? 3 : 0)}</h4> 
+
+        {!useSeasonTicket && (
+          <h4>{t?.booking?.totalPrice || 'Total Price'}: €{pricing[childrenCount] + (accompanyingPerson ? 3 : 0)}</h4>
+        )}
+
         <button
-        type="submit"
-        className="btn btn-success w-100"
-        disabled={!consent || loading || isSessionFull}
-        data-tooltip-id="booking-tooltip"
-        data-tooltip-content={
-          isSessionFull
-            ? 'This session is full. Please choose another date or time.'
-            : !consent
-            ? 'You must agree to the rules to book a training.'
-            : ''
-        }
-      >
+          type="submit"
+          className="btn btn-success w-100"
+          disabled={!consent || loading || !availability.isAvailable || (useSeasonTicket && !selectedSeasonTicket)}
+          data-tooltip-id="booking-tooltip"
+          data-tooltip-content={
+            !availability.isAvailable
+              ? formatAvailabilityMessage()
+              : !consent
+                ? t?.booking?.consent || 'You must agree to the rules to complete the booking.'
+                : useSeasonTicket && !selectedSeasonTicket
+                  ? t?.booking?.selectSeasonTicket || 'Please select a season ticket.'
+                  : ''
+          }
+        >
           {loading ? (
             <>
               <span className="spinner-border spinner-border-sm" aria-hidden="true"></span>
-              <span className="ms-2">Booking...</span>
+              <span className="ms-2">{t?.booking?.redirecting || 'Processing...'}</span>
             </>
           ) : (
-            'Book Training'
+            t?.booking?.bookButton || (useSeasonTicket ? 'Book with Season Ticket' : 'Book Training with Payment Obligation')
           )}
         </button>
         <Tooltip id="booking-tooltip" />

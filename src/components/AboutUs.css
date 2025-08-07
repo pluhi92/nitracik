@@ -1,22 +1,24 @@
 /* AboutUs.css */
 .about-us {
   padding: 40px;
-  background-color: #f4f7f6;
+  background-color: inherit; /* Inherit the background color from the parent */
   border-radius: 12px;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
   text-align: center;
+  color: var(--text-color); /* Use CSS variable for text color */
+  transition: background-color var(--transition-speed), color var(--transition-speed); /* Smooth transition */
 }
 
 .about-us h2 {
   font-size: 2.5rem;
   font-weight: bold;
-  color: #333;
+  color: var(--primary-color); /* Use CSS variable for heading color */
   margin-bottom: 15px;
 }
 
 .about-us p {
   font-size: 1.2rem;
-  color: #555;
+  color: var(--text-color); /* Use CSS variable for paragraph text color */
   line-height: 1.8;
 }
 
