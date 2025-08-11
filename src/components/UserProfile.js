@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Modal, Button, Form, Table } from 'react-bootstrap';
-import { useTranslation } from '../contexts/LanguageContext'; // Adjusted path
+import { useTranslation } from '../contexts/LanguageContext';
 import { Tooltip } from 'react-tooltip';
 import './UserProfile.css';
 
@@ -82,7 +82,7 @@ const UserProfile = () => {
   }, [userId, isAdmin]);
 
   useEffect(() => {
-    const currentDate = new Date().toISOString().split('T')[0]; // Current date in YYYY-MM-DD
+    const currentDate = new Date().toISOString().split('T')[0];
     if (endDate && new Date(endDate) > new Date(currentDate)) {
       setIsButtonDisabled(true);
       setTooltipMessage(t?.profile?.tooltip?.futureDate?.replace('{date}', currentDate) || `This date is invalid because it is in the future. Please select a date up to ${currentDate}.`);
@@ -340,6 +340,7 @@ const UserProfile = () => {
         <div className="admin-sessions">
           {renderSessionTable('MIDI')}
           {renderSessionTable('MINI')}
+          {renderSessionTable('MAXI')}
           <div className="season-tickets mt-5">
             <h3>{t?.profile?.seasonTickets?.title || 'Season Ticket Holders'}</h3>
             {adminSeasonTickets.length === 0 ? (

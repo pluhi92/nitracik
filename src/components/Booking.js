@@ -136,7 +136,7 @@ const Booking = () => {
   const handleAddTrainingDate = async (e) => {
     e.preventDefault();
     try {
-      const addResponse = await api.post('/api/set-training', {
+      await api.post('/api/set-training', {
         trainingType: newTrainingType,
         trainingDate: newTrainingDate,
         maxParticipants: parseInt(maxParticipants),
@@ -359,6 +359,7 @@ const Booking = () => {
                 >
                   <option value="MIDI">{t?.booking?.trainingType?.midi || 'MIDI'}</option>
                   <option value="MINI">{t?.booking?.trainingType?.mini || 'MINI'}</option>
+                  <option value="MAXI">{t?.booking?.trainingType?.maxi || 'MAXI'}</option>
                 </select>
               </div>
               <div className="col-md-4">
@@ -407,6 +408,7 @@ const Booking = () => {
             <option value="">{t?.booking?.trainingType?.placeholder || 'Choose...'}</option>
             <option value="MINI">{t?.booking?.trainingType?.mini || 'MINI'}</option>
             <option value="MIDI">{t?.booking?.trainingType?.midi || 'MIDI'}</option>
+            <option value="MAXI">{t?.booking?.trainingType?.maxi || 'MAXI'}</option>
           </select>
         </div>
 

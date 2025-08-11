@@ -7,7 +7,8 @@
       "label": "Vyberte typ tréningu",
       "placeholder": "Vyberte...",
       "mini": "MINI",
-      "midi": "MIDI"
+      "midi": "MIDI",
+      "maxi": "MAXI"
     },
     "name": "Vaše meno",
     "email": "Váš email",
@@ -25,8 +26,8 @@
     "notCoveredBySeasonTicket": "Nie je pokryté permanentkou",
     "accompanyingPerson": "Účasť sprevádzajúcej osoby (€3)",
     "photoConsent": "Súhlas s publikovaním fotografií",
-    "agree": "SUHLASÍM s publikovaním fotografií môjho dieťaťa",
-    "disagree": "NESUHLASÍM s publikovaním fotografií môjho dieťaťa",
+    "agree": "SÚHLASÍM s publikovaním fotografií môjho dieťaťa",
+    "disagree": "NESÚHLASÍM s publikovaním fotografií môjho dieťaťa",
     "consent": "Súhlasím s pravidlami (Povinné)",
     "terms": "Všeobecné obchodné podmienky",
     "totalPrice": "Celková cena",
@@ -141,7 +142,8 @@
     },
     "sessionType": {
       "midi": "MIDI relácie",
-      "mini": "MINI relácie"
+      "mini": "MINI relácie",
+      "maxi": "MAXI relácie"
     },
     "table": {
       "date": "Dátum",

@@ -7,7 +7,8 @@
       "label": "Select Training Type",
       "placeholder": "Choose...",
       "mini": "MINI",
-      "midi": "MIDI"
+      "midi": "MIDI",
+      "maxi": "MAXI"
     },
     "name": "Your Name",
     "email": "Your Email",
@@ -141,7 +142,8 @@
     },
     "sessionType": {
       "midi": "MIDI Sessions",
-      "mini": "MINI Sessions"
+      "mini": "MINI Sessions",
+      "maxi": "MAXI Sessions"
     },
     "table": {
       "date": "Date",
