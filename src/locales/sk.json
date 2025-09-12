@@ -37,7 +37,12 @@
       "available": "Dostupných {count} miest",
       "unavailable": "Zostáva len {count} miest (potrebujete {needed})",
       "full": "Všetky miesta sú už obsadené"
-    }
+    },
+    "paymentSuccess": "Platba úspešná! Rezervácia potvrdená.",
+    "paymentSuccessTitle": "🎉 Platba Úspešná! 🎉",
+    "confirmationMessage": "Vaša rezervácia bola potvrdená. Ďakujeme, že ste si vybrali Nitráčik!",
+    "processingPayment": "Spracovávame vašu platbu...",
+    "seasonTicketSuccess": "Rezervácia vytvorená pomocou permanentky!"
   },
   "admin": {
     "title": "Admin Panel",

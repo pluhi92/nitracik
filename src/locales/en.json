@@ -37,7 +37,12 @@
       "available": "{count} spots available",
       "unavailable": "Only {count} spots remain (needed {needed})",
       "full": "All places are already occupied for this session"
-    }
+    },
+    "paymentSuccess": "Payment successful! Booking confirmed.",
+    "paymentSuccessTitle": "🎉 Payment Successful! 🎉",
+    "confirmationMessage": "Your booking has been confirmed. Thank you for choosing Nitráčik!",
+    "processingPayment": "Processing your payment...",
+    "seasonTicketSuccess": "Booking created using season ticket!"
   },
   "admin": {
     "title": "Admin Controls",
