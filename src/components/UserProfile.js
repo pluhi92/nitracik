@@ -19,10 +19,24 @@ const UserProfile = () => {
   const [endDate, setEndDate] = useState('');
   const [isButtonDisabled, setIsButtonDisabled] = useState(false);
   const [tooltipMessage, setTooltipMessage] = useState('');
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [cancellationType, setCancellationType] = useState('');
+  const [replacementSessions, setReplacementSessions] = useState([]);
+  const [selectedReplacement, setSelectedReplacement] = useState('');
+  const [bookingType, setBookingType] = useState(''); // New state for booking type
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertVariant, setAlertVariant] = useState('success');
   const navigate = useNavigate();
   const userId = localStorage.getItem('userId');
   const userName = localStorage.getItem('userName') || 'Unknown User';
   const [isAdmin, setIsAdmin] = useState(false);
+
+  const showAlert = (message, variant = 'success') => {
+    setAlertMessage(message);
+    setAlertVariant(variant);
+    setTimeout(() => setAlertMessage(''), 5000);
+  };
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -185,45 +199,101 @@ const UserProfile = () => {
 
   const handleCancelSession = async (bookingId, trainingDate) => {
     if (!canCancelSession(trainingDate)) {
-      alert(t?.profile?.cancel?.alert || 'Cancellation is allowed only within 10 hours before the session.');
+      showAlert(t?.profile?.cancel?.alert || 'Cancellation is allowed only within 10 hours before the session.', 'danger');
       return;
     }
 
-    if (!window.confirm(t?.profile?.cancel?.confirm || 'Are you sure you want to cancel this session?')) {
+    setSelectedBooking({ bookingId, trainingDate });
+
+    // Fetch booking type
+    try {
+      const response = await axios.get(`http://localhost:5000/api/bookings/${bookingId}/type`, {
+        withCredentials: true,
+      });
+      if (response.data.error) {
+        throw new Error(response.data.error);
+      }
+      if (!response.data.bookingType) {
+        throw new Error('Booking type not returned');
+      }
+      setBookingType(response.data.bookingType);
+    } catch (error) {
+      console.error('Error fetching booking type:', error);
+      showAlert(
+        error.message || t?.profile?.cancel?.error?.generic || 'Failed to fetch booking details.',
+        'danger'
+      );
+      setSelectedBooking(null);
       return;
     }
+
+    // Fetch replacement sessions
+    try {
+      const response = await axios.get(`http://localhost:5000/api/replacement-sessions/${bookingId}`, {
+        withCredentials: true,
+      });
+      setReplacementSessions(response.data);
+    } catch (error) {
+      console.error('Error fetching replacement sessions:', error);
+      setReplacementSessions([]);
+    }
+
+    setShowCancelModal(true);
+  };
+
+  const confirmCancellation = async () => {
+    if (!selectedBooking) return;
 
     try {
-      console.log(`Attempting to cancel booking with ID: ${bookingId}`);
-      const deleteResponse = await axios.delete(`http://localhost:5000/api/bookings/${bookingId}`, {
+      if (cancellationType === 'refund') {
+        const response = await axios.delete(
+          `http://localhost:5000/api/bookings/${selectedBooking.bookingId}`,
+          { withCredentials: true }
+        );
+
+        if (response.data.error) {
+          showAlert(
+            response.data.error || t?.profile?.cancel?.error?.generic || 'Failed to cancel booking.',
+            'danger'
+          );
+        } else {
+          let message = t?.profile?.cancel?.success || 'Session canceled successfully.';
+          if (response.data.refundProcessed) {
+            message += ` ${t?.profile?.cancel?.refundSuccess || 'Refund has been processed.'} Refund ID: ${response.data.refundId}.`;
+          } else if (response.data.seasonTicketEntriesReturned > 0) {
+            message += ` ${t?.profile?.cancel?.seasonTicketSuccess?.replace('{count}', response.data.seasonTicketEntriesReturned) || `${response.data.seasonTicketEntriesReturned} entries returned to your season ticket.`}`;
+          } else if (response.data.refundError) {
+            message += ` ${t?.profile?.cancel?.refundFailed || 'Refund processing failed.'} ${response.data.refundError}`;
+          }
+          showAlert(message, response.data.refundError ? 'danger' : 'success');
+        }
+      } else if (cancellationType === 'replacement' && selectedReplacement) {
+        const response = await axios.post(
+          `http://localhost:5000/api/replace-booking/${selectedBooking.bookingId}`,
+          { newTrainingId: selectedReplacement },
+          { withCredentials: true }
+        );
+        showAlert(t?.profile?.cancel?.replacementSuccess || 'Session successfully replaced.', 'success');
+      }
+
+      // Refresh bookings
+      const bookingsResponse = await axios.get(`http://localhost:5000/api/bookings/user/${userId}`, {
         withCredentials: true,
       });
-
-      await axios.post(
-        'http://localhost:5000/api/send-cancellation-email',
-        {
-          bookingId,
-          userId,
-          adminEmail: process.env.REACT_APP_ADMIN_EMAIL,
-          trainingDate: deleteResponse.data.trainingDate,
-          userName,
-        },
-        { withCredentials: true }
-      );
-
-      const response = await axios.get(`http://localhost:5000/api/bookings/user/${userId}`, {
-        withCredentials: true,
-      });
-      setBookedSessions(response.data);
-      alert(t?.profile?.cancel?.success || 'Session was successfully canceled. Emails have been sent to you and the administrator.');
+      setBookedSessions(bookingsResponse.data);
     } catch (error) {
-      console.error('Error canceling session:', error);
-      const errorMessage = error.response?.status === 404
-        ? t?.profile?.cancel?.error?.notFound || 'Booking could not be found. It may have been already deleted or does not exist.'
-        : error.response?.status === 403
-          ? t?.profile?.cancel?.error?.unauthorized || 'You are not authorized to cancel this booking.'
-          : t?.profile?.cancel?.error?.generic || 'Failed to cancel session. Please try again.';
-      alert(errorMessage);
+      console.error('Error processing cancellation:', error);
+      showAlert(
+        error.response?.data?.error || t?.profile?.cancel?.error?.generic || 'Failed to process cancellation.',
+        'danger'
+      );
+    } finally {
+      setShowCancelModal(false);
+      setSelectedBooking(null);
+      setReplacementSessions([]);
+      setSelectedReplacement('');
+      setCancellationType('');
+      setBookingType('');
     }
   };
 
@@ -267,7 +337,7 @@ const UserProfile = () => {
   const handleGenerateReport = async (e) => {
     e.preventDefault();
     if (!startDate || !endDate) {
-      alert(t?.profile?.report?.error?.required || 'Please fill in both dates.');
+      showAlert(t?.profile?.report?.error?.required || 'Please fill in both dates.', 'danger');
       return;
     }
 
@@ -287,12 +357,17 @@ const UserProfile = () => {
       link.remove();
     } catch (error) {
       console.error('Error generating report:', error);
-      alert(t?.profile?.report?.error?.generic || 'Failed to generate payment report. Check console for details.');
+      showAlert(t?.profile?.report?.error?.generic || 'Failed to generate payment report. Check console for details.', 'danger');
     }
   };
 
   return (
     <div className="container mt-5">
+      {alertMessage && (
+        <div className={`alert alert-${alertVariant} mt-3`} role="alert">
+          {alertMessage}
+        </div>
+      )}
       <h2 className="text-center text-primary">{t?.profile?.title || 'Account Settings'}</h2>
 
       {isAdmin && (
@@ -424,7 +499,7 @@ const UserProfile = () => {
                     >
                       <button
                         className="btn btn-danger btn-sm"
-                        onClick={() => handleCancelSession(session.booking_id, session.training_date)}
+                        onClick={() => handleCancelSession(session.booking_id, session.training_date, session.training_type)}
                         disabled={!canCancelSession(session.training_date)}
                       >
                         {t?.profile?.cancel?.button || 'Cancel Session'}
@@ -456,7 +531,9 @@ const UserProfile = () => {
 
       <Modal show={showPasswordModal} onHide={() => setShowPasswordModal(false)}>
         <Modal.Header closeButton>
-          <Modal.Title>{t?.profile?.deleteModal?.title || 'Confirm Deletion'}</Modal.Title>
+          <Modal.Title>
+            {t?.profile?.cancelModal?.title?.replace('{type}', selectedBooking?.trainingType || 'Session') || `Cancel ${selectedBooking?.trainingType || 'Session'}`}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
@@ -477,6 +554,87 @@ const UserProfile = () => {
           </Button>
           <Button variant="danger" onClick={confirmDeleteAccount}>
             {t?.profile?.deleteModal?.confirm || 'Confirm Deletion'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={showCancelModal} onHide={() => setShowCancelModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>{t?.profile?.cancelModal?.title || 'Cancel Session'}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <h5>{t?.profile?.cancelModal?.chooseOption || 'Choose cancellation option:'}</h5>
+
+          <Form.Group className="mb-3">
+            {bookingType === 'paid' && (
+              <Form.Check
+                type="radio"
+                name="cancellationType"
+                id="refundOption"
+                label={t?.profile?.cancelModal?.refundOption || 'Cancel session and request refund'}
+                checked={cancellationType === 'refund'}
+                onChange={() => setCancellationType('refund')}
+              />
+            )}
+            <Form.Check
+              type="radio"
+              name="cancellationType"
+              id="replacementOption"
+              label={t?.profile?.cancelModal?.replacementOption || 'Replace with another session'}
+              checked={cancellationType === 'replacement'}
+              onChange={() => setCancellationType('replacement')}
+            />
+          </Form.Group>
+
+          {cancellationType === 'replacement' && (
+            <Form.Group className="mb-3">
+              <Form.Label>{t?.profile?.cancelModal?.selectReplacement || 'Select replacement session:'}</Form.Label>
+              <Form.Select
+                value={selectedReplacement}
+                onChange={(e) => setSelectedReplacement(e.target.value)}
+              >
+                <option value="">{t?.profile?.cancelModal?.chooseSession || 'Choose a session...'}</option>
+                {replacementSessions.map((session) => (
+                  <option key={session.id} value={session.id}>
+                    {new Date(session.training_date).toLocaleString()} - {session.training_type}
+                    ({session.available_spots} spots available)
+                  </option>
+                ))}
+              </Form.Select>
+              {replacementSessions.length === 0 && (
+                <Form.Text className="text-muted">
+                  {t?.profile?.cancelModal?.noReplacements || 'No available replacement sessions found.'}
+                </Form.Text>
+              )}
+            </Form.Group>
+          )}
+
+          {cancellationType === 'refund' && bookingType === 'paid' && (
+            <div className="alert alert-info">
+              <strong>{t?.profile?.cancelModal?.refundInfo || 'Refund Information:'}</strong>
+              <br />
+              {t?.profile?.cancelModal?.refundDetails || 'Your refund will be processed automatically and may take 5-10 business days to appear in your account.'}
+            </div>
+          )}
+          {cancellationType === 'refund' && bookingType === 'season_ticket' && (
+            <div className="alert alert-warning">
+              {t?.profile?.cancelModal?.seasonTicketInfo || 'This booking was made with a season ticket. No refund is applicable; entries will be returned to your season ticket.'}
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowCancelModal(false)}>
+            {t?.profile?.cancelModal?.cancel || 'Cancel'}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={confirmCancellation}
+            disabled={
+              !cancellationType ||
+              (cancellationType === 'replacement' && !selectedReplacement)
+            }
+          >
+            {t?.profile?.cancelModal?.confirm || 'Confirm Cancellation'}
           </Button>
         </Modal.Footer>
       </Modal>
