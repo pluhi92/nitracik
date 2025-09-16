@@ -406,7 +406,7 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
     } = req.body;
 
     if (!userId || !seasonTicketId || !trainingType || !selectedDate || !selectedTime || !childrenCount) {
-      throw new Error('Missing required fields');
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
     // Verify season ticket
@@ -415,14 +415,14 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
       [seasonTicketId, userId]
     );
     if (ticketResult.rows.length === 0) {
-      throw new Error('Season ticket not found');
+      return res.status(404).json({ error: 'Season ticket not found' });
     }
     const ticket = ticketResult.rows[0];
     if (ticket.entries_remaining < childrenCount) {
-      throw new Error('Not enough entries remaining');
+      return res.status(400).json({ error: 'Not enough entries remaining in your season ticket' });
     }
     if (new Date(ticket.expiry_date) < new Date()) {
-      throw new Error('Season ticket has expired');
+      return res.status(400).json({ error: 'Season ticket has expired' });
     }
 
     // Convert time format
@@ -524,7 +524,21 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Season ticket booking error:', error);
-    res.status(500).json({ error: error.message });
+    
+    // Return specific error messages based on the error type
+    if (error.message.includes('Not enough entries remaining')) {
+      res.status(400).json({ error: 'Not enough entries remaining in your season ticket' });
+    } else if (error.message.includes('Season ticket has expired')) {
+      res.status(400).json({ error: 'Season ticket has expired' });
+    } else if (error.message.includes('Season ticket not found')) {
+      res.status(404).json({ error: 'Season ticket not found' });
+    } else if (error.message.includes('Not enough available spots')) {
+      res.status(400).json({ error: 'Not enough available spots in the selected session' });
+    } else if (error.message.includes('Training session not found')) {
+      res.status(404).json({ error: 'Training session not found' });
+    } else {
+      res.status(500).json({ error: 'Failed to process season ticket booking' });
+    }
   } finally {
     client.release();
   }

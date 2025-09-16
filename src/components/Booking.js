@@ -209,6 +209,31 @@ const Booking = () => {
 
     try {
       if (useSeasonTicket && selectedSeasonTicket) {
+        // Pre-validation: Check if selected season ticket has enough entries
+        const selectedTicket = seasonTickets.find(ticket => ticket.id === parseInt(selectedSeasonTicket));
+
+        if (!selectedTicket) {
+          setWarningMessage(t?.booking?.seasonTicketNotFound || 'Selected season ticket not found');
+          setLoading(false);
+          return;
+        }
+
+        if (selectedTicket.entries_remaining < childrenCount) {
+          setWarningMessage(
+            t?.booking?.notEnoughEntries?.replace('{needed}', childrenCount)?.replace('{available}', selectedTicket.entries_remaining) ||
+            `Not enough entries in your season ticket. Needed: ${childrenCount}, Available: ${selectedTicket.entries_remaining}`
+          );
+          setLoading(false);
+          return;
+        }
+
+        // Check if season ticket is expired
+        if (new Date(selectedTicket.expiry_date) < new Date()) {
+          setWarningMessage(t?.booking?.seasonTicketExpired || 'Your season ticket has expired');
+          setLoading(false);
+          return;
+        }
+
         const response = await api.post('/api/use-season-ticket', {
           userId: userData.id,
           seasonTicketId: selectedSeasonTicket,
@@ -251,7 +276,14 @@ const Booking = () => {
       }
     } catch (error) {
       console.error('Booking error:', error);
-      setWarningMessage(t?.booking?.error || 'Error processing booking. Please try again.');
+
+      // Handle season ticket specific errors from server
+      if (error.response?.data?.error) {
+        setWarningMessage(error.response.data.error);
+      } else {
+        setWarningMessage(t?.booking?.error || 'Error processing booking. Please try again.');
+      }
+
       setLoading(false);
     }
   };
@@ -574,6 +606,9 @@ const Booking = () => {
                   {seasonTickets.map((ticket) => (
                     <option key={ticket.id} value={ticket.id}>
                       {t?.booking?.seasonTicketOption || 'Season Ticket'} (ID: {ticket.id}, {t?.booking?.seasonTicketEntries?.replace('{count}', ticket.entries_remaining) || `Remaining entries: ${ticket.entries_remaining}`})
+                      {ticket.entries_remaining < childrenCount && (
+                        <span className="text-danger"> - {t?.booking?.notEnoughEntries || 'Not enough entries'}</span>
+                      )}
                     </option>
                   ))}
                 </select>
