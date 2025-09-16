@@ -22,7 +22,7 @@ const Booking = () => {
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [childrenCount, setChildrenCount] = useState(1);
-  const [childrenAge, setChildrenAge] = useState('');
+  const [childrenAges, setChildrenAges] = useState([]); // Changed from childrenAge string to childrenAges array
   const [note, setNote] = useState('');
   const [mobile, setMobile] = useState('');
   const [accompanyingPerson, setAccompanyingPerson] = useState(false);
@@ -34,7 +34,7 @@ const Booking = () => {
   const [useSeasonTicket, setUseSeasonTicket] = useState(false);
   const [selectedSeasonTicket, setSelectedSeasonTicket] = useState('');
   const navigate = useNavigate();
-  const location = useLocation(); // For handling redirect
+  const location = useLocation();
   const [isAdmin, setIsAdmin] = useState(false);
   const [newTrainingDate, setNewTrainingDate] = useState('');
   const [newTrainingType, setNewTrainingType] = useState('MIDI');
@@ -54,11 +54,43 @@ const Booking = () => {
     3: 39,
   };
 
+  // Helper function for ordinal numbers (1st, 2nd, 3rd, etc.)
+  const getOrdinalSuffix = (number) => {
+    if (number > 3 && number < 21) return 'th';
+    switch (number % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
+    }
+  };
+
+  // Helper function to get the correct year label based on age and language
+  const getYearLabel = (age) => {
+    const isSlovak = t?.booking?.childrenCount?.includes('Počet');
+    if (isSlovak) {
+      if (age === 1) return t?.booking?.yearSingular || 'rok';
+      if (age >= 2 && age <= 4) return t?.booking?.yearPlural2to4 || 'roky';
+      return t?.booking?.yearPlural5Plus || 'rokov';
+    }
+    return age === 1 ? t?.booking?.yearSingular || 'year' : t?.booking?.yearPlural || 'years';
+  };
+
   useEffect(() => {
     if (useSeasonTicket && selectedSeasonTicket) {
       setAccompanyingPerson(false);
     }
   }, [useSeasonTicket, selectedSeasonTicket]);
+
+  // Update childrenAges when childrenCount changes
+  useEffect(() => {
+    const newAges = [];
+    for (let i = 0; i < childrenCount; i++) {
+      // Preserve existing ages or set default to empty string
+      newAges.push(childrenAges[i] || '');
+    }
+    setChildrenAges(newAges);
+  }, [childrenCount]);
 
   useEffect(() => {
     const fetchTrainingDates = async () => {
@@ -202,10 +234,27 @@ const Booking = () => {
     checkAvailability();
   }, [trainingType, selectedDate, selectedTime, childrenCount]);
 
+  // Handle age change for a specific child
+  const handleAgeChange = (index, age) => {
+    const newAges = [...childrenAges];
+    newAges[index] = age === '' ? '' : parseInt(age);
+    setChildrenAges(newAges);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setWarningMessage('');
+
+    // Validate that all ages are selected
+    if (childrenAges.some(age => age === '')) {
+      setWarningMessage(t?.booking?.selectAllAges || 'Please select an age for all children.');
+      setLoading(false);
+      return;
+    }
+
+    // Convert ages array to string for the API (same format as before)
+    const childrenAgeString = childrenAges.join(', ');
 
     try {
       if (useSeasonTicket && selectedSeasonTicket) {
@@ -241,7 +290,7 @@ const Booking = () => {
           selectedDate,
           selectedTime,
           childrenCount,
-          childrenAge,
+          childrenAge: childrenAgeString, // Use the converted string
           photoConsent,
           mobile,
           note,
@@ -259,7 +308,7 @@ const Booking = () => {
           selectedDate,
           selectedTime,
           childrenCount,
-          childrenAge,
+          childrenAge: childrenAgeString, // Use the converted string
           totalPrice: pricing[childrenCount] + (accompanyingPerson ? 3 : 0),
           photoConsent,
           mobile,
@@ -294,7 +343,6 @@ const Booking = () => {
     const sessionId = urlParams.get('session_id');
     const bookingId = urlParams.get('booking_id');
     if (sessionId && bookingId) {
-      // Confirm payment on the client side (optional, server will handle final update)
       api.get(`/api/booking-success?session_id=${sessionId}&booking_id=${bookingId}`).then(() => {
         alert(t?.booking?.paymentSuccess || 'Payment successful! Booking confirmed.');
         navigate('/profile');
@@ -541,15 +589,33 @@ const Booking = () => {
           </select>
         </div>
 
+        {/* Dynamic age selectors - REPLACES the old text input */}
         <div className="mb-3">
           <label className="form-label">{t?.booking?.childrenAge || 'Age of Children'} <span className="text-danger">*</span></label>
-          <input
-            type="text"
-            className="form-control"
-            value={childrenAge}
-            onChange={(e) => setChildrenAge(e.target.value)}
-            required
-          />
+          <div className="row">
+            {childrenAges.map((age, index) => (
+              <div key={index} className="col-md-4 mb-2">
+                <label className="form-label small">
+                  {t?.booking?.childAge?.replace('{number}', index + 1) || `Age of ${index + 1}${getOrdinalSuffix(index + 1)} child`}
+                </label>
+                <select
+                  className="form-select"
+                  value={age}
+                  onChange={(e) => handleAgeChange(index, e.target.value)}
+                  required
+                >
+                  <option value="" disabled>
+                    {t?.booking?.chooseAge || 'Choose an age'}
+                  </option>
+                  {Array.from({ length: 10 }, (_, i) => i + 1).map((ageOption) => (
+                    <option key={ageOption} value={ageOption}>
+                      {ageOption} {getYearLabel(ageOption)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="mb-3">

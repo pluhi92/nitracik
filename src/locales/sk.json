@@ -18,6 +18,8 @@
     "selectTime": "Vyberte čas",
     "childrenCount": "Počet detí",
     "childrenAge": "Vek detí",
+    "chooseAge": "Vyberte vek",
+    "selectAllAges": "Vyberte vek pre všetky deti.",
     "notes": "Dodatočné poznámky",
     "useSeasonTicket": "Použiť permanentku",
     "selectSeasonTicket": "Vyberte permanentku",
@@ -42,7 +44,10 @@
     "paymentSuccessTitle": "🎉 Platba Úspešná! 🎉",
     "confirmationMessage": "Vaša rezervácia bola potvrdená. Ďakujeme, že ste si vybrali Nitráčik!",
     "processingPayment": "Spracovávame vašu platbu...",
-    "seasonTicketSuccess": "Rezervácia vytvorená pomocou permanentky!"
+    "seasonTicketSuccess": "Rezervácia vytvorená pomocou permanentky!",
+    "yearSingular": "rok",
+    "yearPlural2to4": "roky",
+    "yearPlural5Plus": "rokov"
   },
   "admin": {
     "title": "Admin Panel",
