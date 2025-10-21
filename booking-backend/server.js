@@ -524,7 +524,7 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Season ticket booking error:', error);
-    
+
     // Return specific error messages based on the error type
     if (error.message.includes('Not enough entries remaining')) {
       res.status(400).json({ error: 'Not enough entries remaining in your season ticket' });
@@ -633,16 +633,30 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
           photoConsent: photoConsent?.toString() || 'false',
           mobile: mobile || '',
           note: note || '',
-          accompanyingPerson: accompanyingPerson?.toString() || '',
+          accompanyingPerson: accompanyingPerson?.toString() || 'false',
           type: 'training_session',
         },
       });
 
-      // Create temporary booking with session_id
+      // Create booking with all fields
       const bookingResult = await client.query(
-        `INSERT INTO bookings (user_id, training_id, number_of_children, amount_paid, payment_time, session_id, booked_at)
-         VALUES ($1, $2, $3, $4, NULL, $5, NOW()) RETURNING id`,
-        [userId, training.id, childrenCount, totalPrice, session.id]
+        `INSERT INTO bookings (
+          user_id, training_id, number_of_children, amount_paid, payment_time, 
+          session_id, booked_at, children_ages, photo_consent, mobile, note, accompanying_person
+        ) VALUES ($1, $2, $3, $4, NULL, $5, NOW(), $6, $7, $8, $9, $10)
+        RETURNING id`,
+        [
+          userId,
+          training.id,
+          childrenCount,
+          totalPrice,
+          session.id,
+          childrenAge || '',
+          photoConsent !== null ? photoConsent : false,
+          mobile || '',
+          note || '',
+          accompanyingPerson || false,
+        ]
       );
       const bookingId = bookingResult.rows[0].id;
 
@@ -653,6 +667,11 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         userId,
         trainingId: training.id,
         numberOfChildren: childrenCount,
+        childrenAges: childrenAge || '',
+        photoConsent: photoConsent !== null ? photoConsent : false,
+        mobile: mobile || '',
+        note: note || '',
+        accompanyingPerson: accompanyingPerson || false,
         trainingType,
         trainingDate: trainingDateTimeLocal.toISOString()
       });
@@ -1220,13 +1239,15 @@ app.get('/api/bookings/:bookingId/type', isAuthenticated, async (req, res) => {
     try {
       // Verify booking exists and belongs to the user
       const bookingResult = await client.query(
-        'SELECT id, payment_intent_id, amount_paid FROM bookings WHERE id = $1 AND user_id = $2',
+        'SELECT id, payment_intent_id, amount_paid, credit_id FROM bookings WHERE id = $1 AND user_id = $2',
         [bookingId, userId]
       );
 
       if (bookingResult.rows.length === 0) {
         return res.status(404).json({ error: 'Booking not found or unauthorized' });
       }
+
+      const booking = bookingResult.rows[0];
 
       // Check if booking is associated with a season ticket
       const usageResult = await client.query(
@@ -1238,13 +1259,17 @@ app.get('/api/bookings/:bookingId/type', isAuthenticated, async (req, res) => {
         return res.json({ bookingType: 'season_ticket' });
       }
 
+      // Check if booking is a credit-based booking
+      if (booking.credit_id) {
+        return res.json({ bookingType: 'credit' });
+      }
+
       // Check if booking is a paid booking
-      const booking = bookingResult.rows[0];
       if (booking.payment_intent_id || (booking.amount_paid && booking.amount_paid > 0)) {
         return res.json({ bookingType: 'paid' });
       }
 
-      // Fallback if neither season ticket nor paid
+      // Fallback if type could not be determined
       return res.status(400).json({ error: 'Booking type could not be determined' });
     } finally {
       client.release();
@@ -1360,7 +1385,7 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
     // 1. Get complete booking and payment information
     const bookingResult = await client.query(
       `SELECT b.id, b.user_id, b.training_id, b.number_of_children, b.session_id, 
-              b.amount_paid, b.payment_time, b.payment_intent_id,
+              b.amount_paid, b.payment_time, b.payment_intent_id, b.credit_id,
               ta.training_date, ta.training_type,
               u.email, u.first_name, u.last_name
        FROM bookings b 
@@ -1375,6 +1400,17 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
     }
 
     const booking = bookingResult.rows[0];
+    
+    // ✅ NEW: Check if cancellation is allowed (10 hours before session)
+    const trainingDateTime = new Date(booking.training_date);
+    const currentTime = new Date();
+    const timeDifference = trainingDateTime - currentTime;
+    const hoursDifference = timeDifference / (1000 * 60 * 60);
+    
+    if (hoursDifference <= 10) {
+      throw new Error('Cancellation is not allowed within 10 hours of the session');
+    }
+
     console.log('[DEBUG] Booking details:', {
       bookingId: booking.id,
       userId: booking.user_id,
@@ -1383,7 +1419,9 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
       amountPaid: booking.amount_paid || 0,
       paymentTime: booking.payment_time ? booking.payment_time.toISOString() : 'null',
       trainingType: booking.training_type,
-      trainingDate: booking.training_date
+      trainingDate: booking.training_date,
+      creditId: booking.credit_id || 'null',
+      hoursUntilSession: hoursDifference // Added for debugging
     });
 
     // Check if booking was made with season ticket
@@ -1532,8 +1570,8 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
       console.error('[DEBUG] Error sending cancellation emails:', emailError.message);
     }
 
-    res.json({ 
-      message: 'Booking canceled successfully', 
+    res.json({
+      message: 'Booking canceled successfully',
       trainingDate: booking.training_date,
       refundProcessed: !!refundData?.id,
       refundId: refundData?.id,
@@ -1600,6 +1638,407 @@ app.get('/api/refunds/:bookingId', isAuthenticated, async (req, res) => {
   } catch (error) {
     console.error('Error fetching refunds:', error);
     res.status(500).json({ error: 'Failed to fetch refund information' });
+  }
+});
+
+// New endpoint for admin to cancel an entire session (all bookings for a training_id)
+app.post('/api/admin/cancel-session', async (req, res) => {
+  const { trainingId, reason, forceCancel } = req.body; // Added forceCancel
+  const userId = req.session.userId;
+
+  console.log('[DEBUG] Request body:', req.body);
+  console.log('[DEBUG] Session userId:', userId);
+
+  if (!userId) {
+    console.log('[DEBUG] Unauthorized: No userId in session');
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    // Verify user is admin
+    console.log('[DEBUG] Verifying admin status for userId:', userId);
+    const userResult = await client.query('SELECT email, role FROM users WHERE id = $1', [userId]);
+    console.log('[DEBUG] User query result:', userResult.rows);
+    if (userResult.rows.length === 0 || userResult.rows[0].role !== 'admin') {
+      console.log('[DEBUG] Admin check failed');
+      return res.status(403).json({ error: 'Only admins can cancel sessions' });
+    }
+
+    // ✅ NEW: Check if session is within 10 hours (but allow override with forceCancel)
+    console.log('[DEBUG] Checking session timing for trainingId:', trainingId);
+    const trainingResult = await client.query(
+      'SELECT training_date FROM training_availability WHERE id = $1',
+      [trainingId]
+    );
+    
+    if (trainingResult.rows.length > 0) {
+      const trainingDateTime = new Date(trainingResult.rows[0].training_date);
+      const currentTime = new Date();
+      const hoursDifference = (trainingDateTime - currentTime) / (1000 * 60 * 60);
+      
+      console.log('[DEBUG] Session timing check:', {
+        trainingDate: trainingDateTime,
+        currentTime: currentTime,
+        hoursDifference: hoursDifference,
+        forceCancel: forceCancel
+      });
+      
+      if (hoursDifference <= 10 && !forceCancel) {
+        console.log('[DEBUG] Session within 10 hours, forceCancel not set');
+        return res.status(400).json({ 
+          error: 'Session is within 10 hours. Use forceCancel=true to override',
+          hoursUntilSession: hoursDifference,
+          trainingDate: trainingDateTime
+        });
+      }
+      
+      if (hoursDifference <= 10 && forceCancel) {
+        console.log('[DEBUG] Session within 10 hours, but forceCancel is true - proceeding');
+      }
+    } else {
+      console.log('[DEBUG] Training session not found for timing check');
+    }
+
+    // Start transaction
+    console.log('[DEBUG] Starting transaction');
+    await client.query('BEGIN');
+
+    // Fetch all bookings for this training session
+    console.log('[DEBUG] Fetching bookings for trainingId:', trainingId);
+    const bookingsResult = await client.query(
+      `SELECT b.id, b.user_id, b.training_id, b.number_of_children, b.children_ages, 
+              b.photo_consent, b.mobile, b.note, b.accompanying_person,
+              b.amount_paid, b.payment_intent_id, b.payment_time, b.credit_id,
+              ta.training_type, ta.training_date, ta.max_participants,
+              u.email, u.first_name, u.last_name
+       FROM bookings b
+       JOIN training_availability ta ON b.training_id = ta.id
+       JOIN users u ON b.user_id = u.id
+       WHERE b.training_id = $1`,
+      [trainingId]
+    );
+    console.log('[DEBUG] Bookings fetched:', bookingsResult.rows);
+
+    const bookings = bookingsResult.rows;
+    const canceledBookings = [];
+    const errors = [];
+
+    // Process each booking
+    for (const booking of bookings) {
+      console.log('[DEBUG] Processing booking:', booking.id);
+      try {
+        // Check if booking was made with season ticket
+        console.log('[DEBUG] Checking season ticket usage for booking:', booking.id);
+        const seasonTicketUsageResult = await client.query(
+          'SELECT season_ticket_id FROM season_ticket_usage WHERE booking_id = $1',
+          [booking.id]
+        );
+        console.log('[DEBUG] Season ticket usage:', seasonTicketUsageResult.rows);
+
+        let refundData = null;
+
+        // Process refund for paid bookings (not season tickets or credits)
+        if (seasonTicketUsageResult.rows.length === 0 && !booking.credit_id && booking.amount_paid > 0 && booking.payment_intent_id && booking.payment_intent_id !== 'null') {
+          console.log('[DEBUG] Attempting refund for booking:', booking.id);
+          try {
+            const refund = await stripe.refunds.create({
+              payment_intent: booking.payment_intent_id,
+              amount: Math.round(Number(booking.amount_paid) * 100), // Ensure number
+              reason: 'requested_by_customer',
+              metadata: {
+                booking_id: booking.id,
+                user_id: booking.user_id,
+                admin_cancellation: 'true',
+                reason: reason || 'Admin initiated cancellation'
+              }
+            });
+            refundData = refund;
+            console.log('[DEBUG] Refund processed for booking', booking.id, ':', refund.id);
+
+            // Store refund record
+            console.log('[DEBUG] Inserting refund record for booking:', booking.id);
+            await client.query(
+              'INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at) VALUES ($1, $2, $3, $4, $5, NOW())',
+              [booking.id, refund.id, booking.amount_paid, refund.status, `Admin cancellation: ${reason}`]
+            );
+          } catch (refundError) {
+            console.error('[DEBUG] Refund creation error for booking', booking.id, ':', refundError.message);
+            refundData = { error: refundError.message };
+          }
+        }
+
+        // Return season ticket entries if applicable
+        if (seasonTicketUsageResult.rows.length > 0) {
+          const seasonTicketId = seasonTicketUsageResult.rows[0].season_ticket_id;
+          console.log('[DEBUG] Updating season ticket:', seasonTicketId);
+          await client.query(
+            'UPDATE season_tickets SET entries_remaining = entries_remaining + $1 WHERE id = $2',
+            [booking.number_of_children || 1, seasonTicketId]
+          );
+
+          console.log('[DEBUG] Deleting season ticket usage for booking:', booking.id);
+          await client.query(
+            'DELETE FROM season_ticket_usage WHERE booking_id = $1',
+            [booking.id]
+          );
+        }
+
+        // ✅ NEW: Handle credit-based booking reversal
+        else if (booking.credit_id) {
+          console.log('[DEBUG] Reversing credit usage for credit:', booking.credit_id);
+          await client.query(
+            'UPDATE credits SET status = $1, used_at = NULL WHERE id = $2',
+            ['unused', booking.credit_id]
+          );
+        }
+
+        // Insert credit for future use (for all booking types)
+        console.log('[DEBUG] Inserting credit for booking:', booking.id);
+        await client.query(
+          `INSERT INTO credits (
+     user_id, session_id, child_count, companion_count, children_ages, 
+     photo_consent, mobile, note, training_type, original_date, reason, status
+   ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'unused')`,
+          [
+            booking.user_id,
+            booking.training_id,
+            booking.number_of_children,
+            booking.accompanying_person ? 1 : 0,
+            booking.children_ages,
+            booking.photo_consent,
+            booking.mobile,
+            booking.note,
+            booking.training_type,
+            booking.training_date,
+            reason,
+          ]
+        );
+
+        // Delete the booking
+        console.log('[DEBUG] Deleting booking:', booking.id);
+        await client.query('DELETE FROM bookings WHERE id = $1', [booking.id]);
+
+        // Validate email before sending
+        if (!booking.email) {
+          console.error('[DEBUG] No email for booking:', booking.id);
+          errors.push(`No email address for booking ${booking.id}`);
+          continue;
+        }
+
+        // Send email notification
+        console.log('[DEBUG] Sending email for booking:', booking.id);
+        const mailOptions = {
+          from: process.env.EMAIL_USER,
+          to: booking.email,
+          subject: 'Session Cancelled by Admin - Credit Issued',
+          text: `
+            Hello ${booking.first_name || 'User'},
+            
+            Your ${booking.training_type || 'session'} training session on ${new Date(booking.training_date).toLocaleString()} 
+            has been cancelled by the administrator.
+            
+            Reason: ${reason || 'No reason provided'}
+            
+            ${seasonTicketUsageResult.rows.length > 0 ?
+              `Season Ticket: ${booking.number_of_children || 1} entries have been returned to your season ticket.` :
+              booking.credit_id ?
+                `Credit: Your original credit has been returned to your account.` :
+              refundData && refundData.id ?
+                `Refund Information: €${booking.amount_paid || 0} has been refunded. Refund ID: ${refundData.id}` :
+                refundData && refundData.error ?
+                  `Refund Status: Could not process refund automatically. Please contact support. Error: ${refundData.error}` :
+                  'A credit has been issued for future use.'
+            }
+            
+            If you have any questions, please contact us.
+            
+            Best regards,
+            Nitracik Team
+          `.trim(),
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log('[DEBUG] Email sent successfully to:', booking.email);
+
+        canceledBookings.push(booking.id);
+      } catch (bookingError) {
+        console.error('[DEBUG] Error processing booking', booking.id, ':', bookingError.message);
+        errors.push(`Failed to process booking ${booking.id}: ${bookingError.message}`);
+      }
+    }
+
+    // Check if training_availability exists before deletion
+    console.log('[DEBUG] Checking training_availability for deletion:', trainingId);
+    const trainingExists = await client.query('SELECT id FROM training_availability WHERE id = $1', [trainingId]);
+    if (trainingExists.rows.length > 0) {
+      console.log('[DEBUG] Deleting training_availability:', trainingId);
+      await client.query('DELETE FROM training_availability WHERE id = $1', [trainingId]);
+    } else {
+      console.log('[DEBUG] training_availability not found for id:', trainingId);
+      errors.push(`Training availability ${trainingId} not found`);
+    }
+
+    // Commit transaction
+    console.log('[DEBUG] Committing transaction');
+    await client.query('COMMIT');
+
+    console.log('[DEBUG] Response: Success, canceled bookings:', canceledBookings, 'errors:', errors);
+    res.json({
+      success: true,
+      message: 'Session cancelled successfully',
+      canceledBookings: canceledBookings.length,
+      errors: errors.length > 0 ? errors : null,
+      forceCancelUsed: forceCancel || false // Added to response
+    });
+
+  } catch (error) {
+    console.error('[DEBUG] Outer error cancelling session:', error.message, error.stack);
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: 'Failed to cancel session: ' + error.message });
+  } finally {
+    console.log('[DEBUG] Releasing client');
+    client.release();
+  }
+});
+
+// New endpoint to use credit
+app.post('/api/bookings/use-credit', async (req, res) => {
+  const { creditId, trainingId } = req.body;
+  const userId = req.session.userId;
+
+  console.log('[DEBUG] Use credit request:', { creditId, trainingId, userId });
+
+  if (!userId) {
+    console.log('[DEBUG] Unauthorized: No userId in session');
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Fetch the credit
+    console.log('[DEBUG] Fetching credit:', creditId);
+    const creditResult = await client.query(
+      `SELECT user_id, child_count, companion_count, children_ages, 
+              photo_consent, mobile, note, training_type, status
+       FROM credits WHERE id = $1 AND user_id = $2 AND status = 'unused'`,
+      [creditId, userId]
+    );
+
+    if (creditResult.rows.length === 0) {
+      console.log('[DEBUG] Credit not found or not usable');
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Credit not found or not usable' });
+    }
+
+    const credit = creditResult.rows[0];
+
+    // Verify training availability
+    console.log('[DEBUG] Verifying training availability:', trainingId);
+    const trainingResult = await client.query(
+      `SELECT id, training_date, training_type, max_participants 
+       FROM training_availability WHERE id = $1`,
+      [trainingId]
+    );
+
+    if (trainingResult.rows.length === 0) {
+      console.log('[DEBUG] Training not found');
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Training session not found' });
+    }
+
+    // Check participant count
+    console.log('[DEBUG] Checking participant count for trainingId:', trainingId);
+    const currentBookings = await client.query(
+      `SELECT COALESCE(SUM(number_of_children), 0) as total 
+       FROM bookings WHERE training_id = $1`,
+      [trainingId]
+    );
+    const totalParticipants = currentBookings.rows[0].total + credit.child_count;
+    if (totalParticipants > trainingResult.rows[0].max_participants) {
+      console.log('[DEBUG] Training session is full');
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Training session is full' });
+    }
+
+    // Insert new booking
+    console.log('[DEBUG] Inserting new booking for trainingId:', trainingId);
+    await client.query(
+      `INSERT INTO bookings (
+        user_id, training_id, number_of_children, children_ages, 
+        photo_consent, mobile, note, accompanying_person, 
+        amount_paid, payment_intent_id, payment_time, credit_id, 
+        session_id, booked_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())`,
+      [
+        credit.user_id,
+        trainingId,
+        credit.child_count || 1, // Matches default in schema
+        credit.children_ages || '',
+        credit.photo_consent,
+        credit.mobile || '',
+        credit.note || '',
+        credit.companion_count ? true : false,
+        0, // amount_paid: 0 for credit-based booking
+        null, // payment_intent_id: null for credit-based booking
+        null, // payment_time: null for credit-based booking
+        creditId, // credit_id: tracks which credit was used
+        null, // session_id: null for credit-based booking
+      ]
+    );
+
+    // Mark credit as used
+    console.log('[DEBUG] Marking credit as used:', creditId);
+    await client.query(
+      `UPDATE credits SET status = 'used', used_at = NOW() WHERE id = $1`,
+      [creditId]
+    );
+
+    // Commit transaction
+    console.log('[DEBUG] Committing transaction');
+    await client.query('COMMIT');
+
+    res.json({ success: true, message: 'Booking created successfully using credit' });
+  } catch (error) {
+    console.error('[DEBUG] Error using credit:', error.message, error.stack);
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: 'Error using credit: ' + error.message });
+  } finally {
+    console.log('[DEBUG] Releasing client');
+    client.release();
+  }
+});
+
+// New endpoint to get session ID from type, date, time
+app.get('/api/get-session-id', async (req, res) => {
+  const { training_type, date, time } = req.query;
+  try {
+    // Parse time (e.g., '01:00 PM' -> '13:00:00')
+    let [timePart, modifier] = time.split(' ');
+    let [hours, minutes] = timePart.split(':');
+    hours = parseInt(hours);
+    if (modifier === 'PM' && hours !== 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
+    const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes}:00`;
+    const timestamp = `${date} ${formattedTime}`;
+
+    const result = await pool.query(
+      'SELECT id FROM training_availability WHERE training_type = $1 AND training_date = $2',
+      [training_type, timestamp]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    res.json({ id: result.rows[0].id });
+  } catch (error) {
+    console.error('Error getting session ID:', error);
+    res.status(500).json({ error: 'Failed to get session ID' });
   }
 });
 

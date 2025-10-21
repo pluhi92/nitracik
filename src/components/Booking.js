@@ -1,3 +1,4 @@
+// Booking.js
 import React, { useState, useEffect } from 'react';
 import './Booking.css';
 import Calendar from 'react-calendar';
@@ -9,6 +10,7 @@ import { IMaskInput } from 'react-imask';
 import { Tooltip } from 'react-tooltip';
 import { loadStripe } from '@stripe/stripe-js';
 import { useTranslation } from '../contexts/LanguageContext';
+import { Modal, Button, Form } from 'react-bootstrap'; // Added react-bootstrap Modal and Button
 
 const api = axios.create({
   baseURL: 'http://localhost:5000',
@@ -47,6 +49,10 @@ const Booking = () => {
     requestedChildren: 0,
   });
   const { t } = useTranslation();
+  const [credits, setCredits] = useState([]);
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [selectedCredit, setSelectedCredit] = useState(null);
+  const [isCreditMode, setIsCreditMode] = useState(false);
 
   const pricing = {
     1: 15,
@@ -127,9 +133,19 @@ const Booking = () => {
       }
     };
 
+    const fetchCredits = async () => {
+      try {
+        const response = await api.get('/api/user/credits');
+        setCredits(response.data.credits);
+      } catch (error) {
+        console.error('Error fetching credits:', error);
+      }
+    };
+
     if (isLoggedIn) {
       fetchTrainingDates();
       fetchSeasonTickets();
+      fetchCredits();
     }
   }, [isLoggedIn]);
 
@@ -245,6 +261,46 @@ const Booking = () => {
     e.preventDefault();
     setLoading(true);
     setWarningMessage('');
+
+    if (isCreditMode) {
+      // Credit mode booking
+      if (childrenAges.some(age => age === '')) {
+        setWarningMessage(t?.booking?.selectAllAges || 'Please select an age for all children.');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await api.get('/api/get-session-id', {
+          params: {
+            training_type: trainingType,
+            date: selectedDate,
+            time: selectedTime,
+          },
+        });
+        const newSessionId = response.data.id;
+
+        await api.post('/api/bookings/use-credit', {
+          creditId: selectedCredit.id,
+          trainingId: newSessionId, // This matches what the backend expects
+        });
+
+        alert(t?.booking?.creditSuccess || 'Booked with credit!');
+        setIsCreditMode(false);
+        setSelectedCredit(null);
+        navigate('/profile');
+
+        // Refresh credits
+        const creditsResponse = await api.get('/api/user/credits');
+        setCredits(creditsResponse.data.credits);
+      } catch (error) {
+        console.error('Credit booking error:', error);
+        setWarningMessage(error.response?.data?.error || t?.booking?.error || 'Error processing booking. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     // Validate that all ages are selected
     if (childrenAges.some(age => age === '')) {
@@ -381,6 +437,22 @@ const Booking = () => {
     return null;
   };
 
+  const selectCredit = (credit) => {
+    setSelectedCredit(credit);
+    setTrainingType(credit.training_type);
+    setChildrenCount(credit.child_count);
+    setAccompanyingPerson(credit.companion_count > 0);
+    setChildrenAges(credit.children_ages ? credit.children_ages.split(', ').map(Number) : Array(credit.child_count).fill(''));
+    setPhotoConsent(credit.photo_consent);
+    setMobile(credit.mobile || '');
+    setNote(credit.note || '');
+    setConsent(false); // Reset terms
+    setSelectedDate('');
+    setSelectedTime('');
+    setShowCreditModal(false);
+    setIsCreditMode(true);
+  };
+
   if (!isLoggedIn) {
     return (
       <div className="container mt-5">
@@ -425,95 +497,99 @@ const Booking = () => {
         </button>
       </div>
 
+      {credits.length > 0 && (
+        <button
+          className="btn btn-success mb-3"
+          onClick={() => setShowCreditModal(true)}
+        >
+          ✅ {t?.booking?.useCredit || 'I have credit'}
+        </button>
+      )}
+
       {isAdmin && (
         <div className="admin-panel mb-5">
           <h3 className="text-success">{t?.admin?.title || 'Admin Controls'}</h3>
-          <form onSubmit={handleAddTrainingDate}>
+          <Form onSubmit={handleAddTrainingDate}>
             <div className="row g-3">
               <div className="col-md-4">
-                <label className="form-label">{t?.admin?.trainingType || 'Training Type'}</label>
-                <select
-                  className="form-select"
+                <Form.Label>{t?.admin?.trainingType || 'Training Type'}</Form.Label>
+                <Form.Select
                   value={newTrainingType}
                   onChange={(e) => setNewTrainingType(e.target.value)}
                 >
                   <option value="MIDI">{t?.booking?.trainingType?.midi || 'MIDI'}</option>
                   <option value="MINI">{t?.booking?.trainingType?.mini || 'MINI'}</option>
                   <option value="MAXI">{t?.booking?.trainingType?.maxi || 'MAXI'}</option>
-                </select>
+                </Form.Select>
               </div>
               <div className="col-md-4">
-                <label className="form-label">{t?.admin?.dateTime || 'Date & Time'}</label>
-                <input
+                <Form.Label>{t?.admin?.dateTime || 'Date & Time'}</Form.Label>
+                <Form.Control
                   type="datetime-local"
-                  className="form-control"
                   value={newTrainingDate}
                   onChange={(e) => setNewTrainingDate(e.target.value)}
                 />
               </div>
               <div className="col-md-2">
-                <label className="form-label">{t?.admin?.maxParticipants || 'Max Participants'}</label>
-                <input
+                <Form.Label>{t?.admin?.maxParticipants || 'Max Participants'}</Form.Label>
+                <Form.Control
                   type="number"
-                  className="form-control"
                   min="1"
                   value={maxParticipants}
                   onChange={(e) => setMaxParticipants(e.target.value)}
                 />
               </div>
               <div className="col-md-2 d-flex align-items-end">
-                <button type="submit" className="btn btn-success w-100">
+                <Button type="submit" className="w-100">
                   {t?.admin?.addSession || 'Add Session'}
-                </button>
+                </Button>
               </div>
             </div>
-          </form>
+          </Form>
         </div>
       )}
 
       {isAdmin && <div className="alert alert-success mb-3">{t?.admin?.title || 'ADMIN MODE ACTIVE'}</div>}
 
-      <form onSubmit={handleSubmit} className="mt-4">
-        <div className="mb-3">
-          <label className="form-label">{t?.booking?.trainingType?.label || 'Select Training Type'}</label>
-          <select
-            className="form-select"
+      <Form onSubmit={handleSubmit} className="mt-4">
+        <Form.Group className="mb-3">
+          <Form.Label>{t?.booking?.trainingType?.label || 'Select Training Type'}</Form.Label>
+          <Form.Select
             value={trainingType}
             onChange={(e) => {
               setTrainingType(e.target.value);
               setSelectedDate('');
               setSelectedTime('');
             }}
+            disabled={isCreditMode}
           >
             <option value="">{t?.booking?.trainingType?.placeholder || 'Choose...'}</option>
             <option value="MINI">{t?.booking?.trainingType?.mini || 'MINI'}</option>
             <option value="MIDI">{t?.booking?.trainingType?.midi || 'MIDI'}</option>
             <option value="MAXI">{t?.booking?.trainingType?.maxi || 'MAXI'}</option>
-          </select>
-        </div>
+          </Form.Select>
+        </Form.Group>
 
-        <div className="mb-3">
-          <label className="form-label">{t?.booking?.name || 'Your Name'}</label>
-          <input
+        <Form.Group className="mb-3">
+          <Form.Label>{t?.booking?.name || 'Your Name'}</Form.Label>
+          <Form.Control
             type="text"
-            className="form-control"
             value={userData ? `${userData.first_name} ${userData.last_name}` : ''}
             readOnly
           />
-        </div>
+        </Form.Group>
 
-        <div className="mb-3">
-          <label className="form-label">{t?.booking?.email || 'Your Email'}</label>
-          <input
+        <Form.Group className="mb-3">
+          <Form.Label>{t?.booking?.email || 'Your Email'}</Form.Label>
+          <Form.Control
             type="email"
-            className="form-control"
             value={userData ? userData.email : ''}
             readOnly
           />
-        </div>
+        </Form.Group>
 
-        <div className="mb-3">
-          <label className="form-label">{t?.booking?.mobile || 'Your Mobile Number'}</label>
+        <Form.Group className="mb-3">
+          <Form.Label>{t?.booking?.mobile || 'Your Mobile Number'}</Form.Label>
           <IMaskInput
             mask="+421 000 000 000"
             definitions={{ '0': /[0-9]/ }}
@@ -521,21 +597,21 @@ const Booking = () => {
             value={mobile}
             onAccept={(value) => setMobile(value)}
             placeholder={t?.booking?.mobile || '+421 xxx xxx xxx'}
+            disabled={isCreditMode}
           />
-        </div>
+        </Form.Group>
 
-        <div className="mb-3">
-          <label className="form-label">{t?.booking?.address || 'Address'}</label>
-          <input
+        <Form.Group className="mb-3">
+          <Form.Label>{t?.booking?.address || 'Address'}</Form.Label>
+          <Form.Control
             type="text"
-            className="form-control"
             value={userData ? userData.address : ''}
             readOnly
           />
-        </div>
+        </Form.Group>
 
-        <div className="mb-3">
-          <label className="form-label">{t?.booking?.selectDate || 'Select Available Date'} <span className="text-danger">*</span></label>
+        <Form.Group className="mb-3">
+          <Form.Label>{t?.booking?.selectDate || 'Select Available Date'} <span className="text-danger">*</span></Form.Label>
           <Calendar
             onChange={handleDateChange}
             value={selectedDate ? new Date(selectedDate) : null}
@@ -548,16 +624,15 @@ const Booking = () => {
             minDate={new Date()}
             className="custom-calendar"
           />
-        </div>
+        </Form.Group>
 
         {selectedDate && trainingType && trainingDates[trainingType]?.[selectedDate] && (
-          <div className="mb-3">
-            <label htmlFor="timeSlots">{t?.booking?.selectTime || 'Select Time'}:</label>
-            <select
+          <Form.Group className="mb-3">
+            <Form.Label htmlFor="timeSlots">{t?.booking?.selectTime || 'Select Time'}:</Form.Label>
+            <Form.Select
               id="timeSlots"
               value={selectedTime}
               onChange={(e) => setSelectedTime(e.target.value)}
-              className="form-select"
             >
               <option value="">-- {t?.booking?.selectTime || 'Choose a Time Slot'} --</option>
               {trainingDates[trainingType][selectedDate].map((time) => (
@@ -565,8 +640,8 @@ const Booking = () => {
                   {time}
                 </option>
               ))}
-            </select>
-          </div>
+            </Form.Select>
+          </Form.Group>
         )}
 
         {!availability.isAvailable && (
@@ -575,34 +650,33 @@ const Booking = () => {
           </div>
         )}
 
-        <div className="mb-3">
-          <label className="form-label">{t?.booking?.childrenCount || 'Number of Children'} <span className="text-danger">*</span></label>
-          <select
-            className="form-select"
+        <Form.Group className="mb-3">
+          <Form.Label>{t?.booking?.childrenCount || 'Number of Children'} <span className="text-danger">*</span></Form.Label>
+          <Form.Select
             value={childrenCount}
             onChange={(e) => setChildrenCount(parseInt(e.target.value))}
             required
+            disabled={isCreditMode}
           >
             <option value="1">1 {t?.booking?.childrenCount?.includes('Počet') ? 'dieťa' : 'Child'} (€15)</option>
             <option value="2">2 {t?.booking?.childrenCount?.includes('Počet') ? 'deti' : 'Children'} (€28)</option>
             <option value="3">3 {t?.booking?.childrenCount?.includes('Počet') ? 'deti' : 'Children'} (€39)</option>
-          </select>
-        </div>
+          </Form.Select>
+        </Form.Group>
 
-        {/* Dynamic age selectors - REPLACES the old text input */}
-        <div className="mb-3">
-          <label className="form-label">{t?.booking?.childrenAge || 'Age of Children'} <span className="text-danger">*</span></label>
+        <Form.Group className="mb-3">
+          <Form.Label>{t?.booking?.childrenAge || 'Age of Children'} <span className="text-danger">*</span></Form.Label>
           <div className="row">
             {childrenAges.map((age, index) => (
               <div key={index} className="col-md-4 mb-2">
-                <label className="form-label small">
+                <Form.Label className="small">
                   {t?.booking?.childAge?.replace('{number}', index + 1) || `Age of ${index + 1}${getOrdinalSuffix(index + 1)} child`}
-                </label>
-                <select
-                  className="form-select"
+                </Form.Label>
+                <Form.Select
                   value={age}
                   onChange={(e) => handleAgeChange(index, e.target.value)}
                   required
+                  disabled={isCreditMode}
                 >
                   <option value="" disabled>
                     {t?.booking?.chooseAge || 'Choose an age'}
@@ -612,42 +686,45 @@ const Booking = () => {
                       {ageOption} {getYearLabel(ageOption)}
                     </option>
                   ))}
-                </select>
+                </Form.Select>
               </div>
             ))}
           </div>
-        </div>
+        </Form.Group>
 
-        <div className="mb-3">
-          <label className="form-label">{t?.booking?.notes || 'Additional Notes'}</label>
-          <textarea
-            className="form-control"
+        <Form.Group className="mb-3">
+          <Form.Label>{t?.booking?.notes || 'Additional Notes'}</Form.Label>
+          <Form.Control
+            as="textarea"
             value={note}
             onChange={(e) => setNote(e.target.value)}
+            disabled={isCreditMode}
           />
-        </div>
+        </Form.Group>
 
-        <div className="mb-3">
-          <input
+        <Form.Group className="mb-3">
+          <Form.Check
             type="checkbox"
             id="accompanyingPerson"
             checked={accompanyingPerson}
             onChange={() => setAccompanyingPerson(!accompanyingPerson)}
-            disabled={useSeasonTicket && selectedSeasonTicket}
+            disabled={useSeasonTicket && selectedSeasonTicket || isCreditMode}
+            label={
+              <>
+                {t?.booking?.accompanyingPerson || 'Participation of Accompanying Person (€3)'}
+                {useSeasonTicket && selectedSeasonTicket && (
+                  <span className="text-muted ms-2">
+                    ({t?.booking?.notCoveredBySeasonTicket || 'Not covered by season ticket'})
+                  </span>
+                )}
+              </>
+            }
           />
-          <label htmlFor="accompanyingPerson" className="ms-2">
-            {t?.booking?.accompanyingPerson || 'Participation of Accompanying Person (€3)'}
-            {useSeasonTicket && selectedSeasonTicket && (
-              <span className="text-muted ms-2">
-                ({t?.booking?.notCoveredBySeasonTicket || 'Not covered by season ticket'})
-              </span>
-            )}
-          </label>
-        </div>
+        </Form.Group>
 
-        {seasonTickets.length > 0 && (
-          <div className="mb-3">
-            <input
+        {!isCreditMode && seasonTickets.length > 0 && (
+          <Form.Group className="mb-3">
+            <Form.Check
               type="checkbox"
               id="useSeasonTicket"
               checked={useSeasonTicket}
@@ -655,15 +732,12 @@ const Booking = () => {
                 setUseSeasonTicket(!useSeasonTicket);
                 setSelectedSeasonTicket('');
               }}
+              label={t?.booking?.useSeasonTicket || 'Use Season Ticket'}
             />
-            <label htmlFor="useSeasonTicket" className="ms-2">
-              {t?.booking?.useSeasonTicket || 'Use Season Ticket'}
-            </label>
             {useSeasonTicket && (
               <div className="mt-2">
-                <label className="form-label">{t?.booking?.selectSeasonTicket || 'Select Season Ticket'}</label>
-                <select
-                  className="form-select"
+                <Form.Label>{t?.booking?.selectSeasonTicket || 'Select Season Ticket'}</Form.Label>
+                <Form.Select
                   value={selectedSeasonTicket}
                   onChange={(e) => setSelectedSeasonTicket(e.target.value)}
                   required={useSeasonTicket}
@@ -677,10 +751,10 @@ const Booking = () => {
                       )}
                     </option>
                   ))}
-                </select>
+                </Form.Select>
               </div>
             )}
-          </div>
+          </Form.Group>
         )}
 
         {warningMessage && (
@@ -689,71 +763,66 @@ const Booking = () => {
           </div>
         )}
 
-        <div className="mb-3">
-          <label className="form-label">{t?.booking?.photoConsent || 'Photo Publication Consent'} <span className="text-danger">*</span></label>
+        <Form.Group className="mb-3">
+          <Form.Label>{t?.booking?.photoConsent || 'Photo Publication Consent'} <span className="text-danger">*</span></Form.Label>
           <div>
-            <div className="form-check">
-              <input
-                className="form-check-input"
-                type="radio"
-                name="photoConsent"
-                id="photoConsentAgree"
-                checked={photoConsent === true}
-                onChange={() => setPhotoConsent(true)}
-                required
-              />
-              <label className="form-check-label" htmlFor="photoConsentAgree">
-                {t?.booking?.agree || 'AGREE to publish photos of my children'}
-              </label>
-            </div>
-            <div className="form-check">
-              <input
-                className="form-check-input"
-                type="radio"
-                name="photoConsent"
-                id="photoConsentDisagree"
-                checked={photoConsent === false}
-                onChange={() => setPhotoConsent(false)}
-                required
-              />
-              <label className="form-check-label" htmlFor="photoConsentDisagree">
-                {t?.booking?.disagree || 'DISAGREE to publish photos of my children'}
-              </label>
-            </div>
+            <Form.Check
+              type="radio"
+              name="photoConsent"
+              id="photoConsentAgree"
+              checked={photoConsent === true}
+              onChange={() => setPhotoConsent(true)}
+              required
+              disabled={isCreditMode}
+              label={t?.booking?.agree || 'AGREE to publish photos of my children'}
+            />
+            <Form.Check
+              type="radio"
+              name="photoConsent"
+              id="photoConsentDisagree"
+              checked={photoConsent === false}
+              onChange={() => setPhotoConsent(false)}
+              required
+              disabled={isCreditMode}
+              label={t?.booking?.disagree || 'DISAGREE to publish photos of my children'}
+            />
           </div>
-        </div>
+        </Form.Group>
 
-        <div className="mb-3">
-          <input
+        <Form.Group className="mb-3">
+          <Form.Check
             type="checkbox"
             id="consent"
             checked={consent}
             onChange={() => setConsent(!consent)}
             required
+            label={
+              <>
+                {t?.booking?.consent || 'I agree to the rules (Required)'}
+                <span className="ms-2">
+                  <a
+                    href="/terms-and-conditions.pdf"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: '#007bff', textDecoration: 'underline' }}
+                  >
+                    {t?.booking?.terms || 'General Terms and Conditions'}
+                  </a>
+                </span>
+              </>
+            }
           />
-          <label htmlFor="consent" className="ms-2 text-danger">
-            {t?.booking?.consent || 'I agree to the rules (Required)'}
-          </label>
-          <span className="ms-2">
-            <a
-              href="/terms-and-conditions.pdf"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: '#007bff', textDecoration: 'underline' }}
-            >
-              {t?.booking?.terms || 'General Terms and Conditions'}
-            </a>
-          </span>
-        </div>
+        </Form.Group>
 
-        {!useSeasonTicket && (
+        {!useSeasonTicket && !isCreditMode && (
           <h4>{t?.booking?.totalPrice || 'Total Price'}: €{pricing[childrenCount] + (accompanyingPerson ? 3 : 0)}</h4>
         )}
 
-        <button
+        <Button
           type="submit"
-          className="btn btn-success w-100"
-          disabled={!consent || loading || !availability.isAvailable || (useSeasonTicket && !selectedSeasonTicket)}
+          className="w-100"
+          variant="success"
+          disabled={!consent || loading || !availability.isAvailable || (useSeasonTicket && !selectedSeasonTicket) || (isCreditMode && (!selectedDate || !selectedTime))}
           data-tooltip-id="booking-tooltip"
           data-tooltip-content={
             !availability.isAvailable
@@ -771,11 +840,39 @@ const Booking = () => {
               <span className="ms-2">{t?.booking?.redirecting || 'Processing...'}</span>
             </>
           ) : (
-            t?.booking?.bookButton || (useSeasonTicket ? 'Book with Season Ticket' : 'Book Training with Payment Obligation')
+            isCreditMode ? (t?.booking?.bookWithCredit || 'Book with Credit') : (t?.booking?.bookButton || (useSeasonTicket ? 'Book with Season Ticket' : 'Book Training with Payment Obligation'))
           )}
-        </button>
+        </Button>
         <Tooltip id="booking-tooltip" />
-      </form>
+      </Form>
+
+      {/* Credit Selection Modal */}
+      <Modal show={showCreditModal} onHide={() => setShowCreditModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>{t?.booking?.chooseCredit || 'Choose Your Credit'}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {credits.length === 0 ? (
+            <p>{t?.booking?.noCredits || 'No credits available.'}</p>
+          ) : (
+            credits.map((credit) => (
+              <div key={credit.id} className="mb-3">
+                <p><strong>{t?.booking?.originalDate || 'Original Date'}:</strong> {new Date(credit.original_date).toLocaleString()}</p>
+                <p><strong>{t?.booking?.children || 'Children'}:</strong> {credit.child_count} | <strong>{t?.booking?.companions || 'Companions'}:</strong> {credit.companion_count}</p>
+                <p><strong>{t?.booking?.trainingType?.label || 'Training Type'}:</strong> {credit.training_type}</p>
+                <Button variant="primary" onClick={() => selectCredit(credit)}>
+                  {t?.booking?.useThisCredit || 'Use this credit'}
+                </Button>
+              </div>
+            ))
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowCreditModal(false)}>
+            {t?.booking?.cancel || 'Cancel'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };

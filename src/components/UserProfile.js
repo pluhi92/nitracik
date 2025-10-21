@@ -31,6 +31,10 @@ const UserProfile = () => {
   const userId = localStorage.getItem('userId');
   const userName = localStorage.getItem('userName') || 'Unknown User';
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminCancelModal, setShowAdminCancelModal] = useState(false);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [reason, setReason] = useState('');
+  const [forceCancel, setForceCancel] = useState(false);
 
   const showAlert = (message, variant = 'success') => {
     setAlertMessage(message);
@@ -155,39 +159,137 @@ const UserProfile = () => {
               <th>{t?.profile?.table?.type || 'Type'}</th>
               <th>{t?.profile?.table?.availableSpots || 'Available Spots'}</th>
               <th>{t?.profile?.table?.participants || 'Participants'}</th>
+              <th>{t?.profile?.table?.actions || 'Actions'}</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((session) => (
-              <tr key={`${session.training_date}-${session.training_type}`}>
-                <td>{new Date(session.training_date).toLocaleString()}</td>
-                <td>{session.training_type}</td>
-                <td>{session.available_spots}</td>
-                <td>
-                  <div className="participants-container">
-                    {session.participants.map((participant, index) => (
-                      <div key={index} className="participant-badge">
-                        <div className="participant-info">
-                          <span className="participant-name">
-                            {participant.first_name} {participant.last_name}
-                          </span>
-                          <span className="participant-email">
-                            {participant.email}
-                          </span>
+            {filtered.map((session) => {
+              const sessionTime = new Date(session.training_date);
+              const currentTime = new Date();
+              const hoursDifference = (sessionTime - currentTime) / (1000 * 60 * 60);
+              const isWithin10Hours = hoursDifference <= 10;
+              
+              return (
+                <tr key={`${session.training_date}-${session.training_type}`} className={isWithin10Hours ? 'table-warning' : ''}>
+                  <td>{new Date(session.training_date).toLocaleString()}</td>
+                  <td>{session.training_type}</td>
+                  <td>{session.available_spots}</td>
+                  <td>
+                    <div className="participants-container">
+                      {session.participants.map((participant, index) => (
+                        <div key={`${participant.email}-${index}`} className="participant-badge">
+                          <div className="participant-info">
+                            <span className="participant-name">
+                              {participant.first_name} {participant.last_name}
+                            </span>
+                            <span className="participant-email">
+                              {participant.email}
+                            </span>
+                          </div>
+                          <div className="children-count">
+                            {t?.profile?.table?.child?.replace('{count}', participant.children) || `Number of children: ${participant.children}`}
+                          </div>
                         </div>
-                        <div className="children-count">
-                          {t?.profile?.table?.child?.replace('{count}', participant.children) || `Number of children: ${participant.children}`}
-                        </div>
+                      ))}
+                    </div>
+                  </td>
+                  <td>
+                    {/* Regular cancel button */}
+                    <Button
+                      variant="outline-danger"
+                      size="sm"
+                      onClick={() => handleAdminCancelSession(session.training_id, session.training_type, session.training_date, false)}
+                      className="me-2"
+                    >
+                      Cancel Session
+                    </Button>
+                    
+                    {/* Force cancel button for sessions within 10 hours */}
+                    {isWithin10Hours && (
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleAdminCancelSession(session.training_id, session.training_type, session.training_date, true)}
+                        title="Force cancel within 10 hours"
+                      >
+                        Force Cancel
+                      </Button>
+                    )}
+                    {isWithin10Hours && (
+                      <div className="small text-warning mt-1">
+                        {Math.round(hoursDifference)} hours until session
                       </div>
-                    ))}
-                  </div>
-                </td>
-              </tr>
-            ))}
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </Table>
       </div>
     );
+  };
+
+  // UPDATED: Admin cancellation with timing check
+  const handleAdminCancelSession = (id, type, date, useForceCancel = false) => {
+    setSelectedSession({ id, type, date });
+    setReason('');
+    setForceCancel(useForceCancel);
+    
+    if (useForceCancel) {
+      setShowAdminCancelModal(true);
+    } else {
+      // Check timing for regular cancellation
+      const sessionTime = new Date(date);
+      const currentTime = new Date();
+      const hoursDifference = (sessionTime - currentTime) / (1000 * 60 * 60);
+      
+      if (hoursDifference <= 10) {
+        if (window.confirm(`This session is in ${Math.round(hoursDifference)} hours. Do you want to force cancel?`)) {
+          setForceCancel(true);
+        } else {
+          return;
+        }
+      }
+      setShowAdminCancelModal(true);
+    }
+  };
+
+  // UPDATED: Admin cancellation confirmation
+  const confirmAdminCancel = async () => {
+    try {
+      const response = await axios.post('http://localhost:5000/api/admin/cancel-session', {
+        trainingId: selectedSession.id,
+        reason,
+        forceCancel
+      }, { withCredentials: true });
+
+      showAlert(`Session canceled successfully! ${response.data.canceledBookings} bookings affected.${response.data.forceCancelUsed ? ' (Force Cancel)' : ''}`, 'success');
+
+      // Refresh bookings
+      const bookingsResponse = await axios.get('http://localhost:5000/api/admin/bookings', { withCredentials: true });
+      setBookedSessions(bookingsResponse.data);
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Failed to cancel session';
+      
+      // Handle 10-hour restriction error
+      if (errorMessage.includes('within 10 hours')) {
+        if (window.confirm('Session is within 10 hours. Do you want to force cancel?')) {
+          setForceCancel(true);
+          // Retry with force cancel
+          await confirmAdminCancel();
+          return;
+        }
+      } else {
+        showAlert(errorMessage, 'danger');
+      }
+      console.error('Cancel session error:', error);
+    } finally {
+      setShowAdminCancelModal(false);
+      setSelectedSession(null);
+      setReason('');
+      setForceCancel(false);
+    }
   };
 
   const canCancelSession = (trainingDate) => {
@@ -197,9 +299,10 @@ const UserProfile = () => {
     return hoursBeforeSession > 10;
   };
 
+  // UPDATED: User cancellation with 10-hour check
   const handleCancelSession = async (bookingId, trainingDate) => {
     if (!canCancelSession(trainingDate)) {
-      showAlert(t?.profile?.cancel?.alert || 'Cancellation is allowed only within 10 hours before the session.', 'danger');
+      showAlert(t?.profile?.cancel?.alert || 'Cancellation is not allowed within 10 hours of the session.', 'danger');
       return;
     }
 
@@ -241,6 +344,7 @@ const UserProfile = () => {
     setShowCancelModal(true);
   };
 
+  // UPDATED: User cancellation confirmation with proper error handling
   const confirmCancellation = async () => {
     if (!selectedBooking) return;
 
@@ -262,6 +366,8 @@ const UserProfile = () => {
             message += ` ${t?.profile?.cancel?.refundSuccess || 'Refund has been processed.'} Refund ID: ${response.data.refundId}.`;
           } else if (response.data.seasonTicketEntriesReturned > 0) {
             message += ` ${t?.profile?.cancel?.seasonTicketSuccess?.replace('{count}', response.data.seasonTicketEntriesReturned) || `${response.data.seasonTicketEntriesReturned} entries returned to your season ticket.`}`;
+          } else if (response.data.creditReturned) {
+            message += ` ${t?.profile?.cancel?.creditReturned || 'Your credit has been returned to your account.'}`;
           } else if (response.data.refundError) {
             message += ` ${t?.profile?.cancel?.refundFailed || 'Refund processing failed.'} ${response.data.refundError}`;
           }
@@ -283,10 +389,16 @@ const UserProfile = () => {
       setBookedSessions(bookingsResponse.data);
     } catch (error) {
       console.error('Error processing cancellation:', error);
-      showAlert(
-        error.response?.data?.error || t?.profile?.cancel?.error?.generic || 'Failed to process cancellation.',
-        'danger'
-      );
+      
+      // Handle 10-hour restriction error
+      if (error.response?.data?.error?.includes('10 hours')) {
+        showAlert('Cancellation is not allowed within 10 hours of the session.', 'danger');
+      } else {
+        showAlert(
+          error.response?.data?.error || t?.profile?.cancel?.error?.generic || 'Failed to process cancellation.',
+          'danger'
+        );
+      }
     } finally {
       setShowCancelModal(false);
       setSelectedBooking(null);
@@ -488,6 +600,7 @@ const UserProfile = () => {
                   <li key={session.booking_id} className="list-group-item d-flex justify-content-between align-items-center">
                     <div>
                       <strong>{session.training_type}</strong> - {new Date(session.training_date).toLocaleString()}
+                      {session.credit_id && <span className="badge bg-success ms-2">Credit Booking</span>}
                     </div>
                     <div
                       data-tooltip-id="cancel-tooltip"
@@ -532,7 +645,7 @@ const UserProfile = () => {
       <Modal show={showPasswordModal} onHide={() => setShowPasswordModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>
-            {t?.profile?.cancelModal?.title?.replace('{type}', selectedBooking?.trainingType || 'Session') || `Cancel ${selectedBooking?.trainingType || 'Session'}`}
+            {t?.profile?.deleteModal?.title || 'Confirm Account Deletion'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -621,6 +734,11 @@ const UserProfile = () => {
               {t?.profile?.cancelModal?.seasonTicketInfo || 'This booking was made with a season ticket. No refund is applicable; entries will be returned to your season ticket.'}
             </div>
           )}
+          {cancellationType === 'refund' && bookingType === 'credit' && (
+            <div className="alert alert-success">
+              {t?.profile?.cancelModal?.creditInfo || 'This booking was made with a credit. Your credit will be returned to your account for future use.'}
+            </div>
+          )}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowCancelModal(false)}>
@@ -635,6 +753,40 @@ const UserProfile = () => {
             }
           >
             {t?.profile?.cancelModal?.confirm || 'Confirm Cancellation'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Admin Cancel Session Modal */}
+      <Modal show={showAdminCancelModal} onHide={() => setShowAdminCancelModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {forceCancel ? 'Force Cancel Session' : 'Cancel Session'}
+            {forceCancel && <span className="text-warning ms-2">(Within 10 Hours)</span>}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>
+            {forceCancel ? 'FORCE CANCEL:' : 'Cancel'} {selectedSession?.type} session on {selectedSession?.date ? new Date(selectedSession.date).toLocaleString() : ''}?
+            {forceCancel && <div className="alert alert-warning mt-2">This session is within 10 hours. Force cancel will proceed despite timing restrictions.</div>}
+          </p>
+          <Form.Group controlId="reason">
+            <Form.Label>Reason for cancellation:</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              required
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowAdminCancelModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={confirmAdminCancel}>
+            {forceCancel ? 'Force Cancel' : 'Confirm Cancel'}
           </Button>
         </Modal.Footer>
       </Modal>
