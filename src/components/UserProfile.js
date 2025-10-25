@@ -127,6 +127,7 @@ const UserProfile = () => {
           max_participants: session.max_participants,
           total_children: session.total_children || 0,
           available_spots: session.available_spots || session.max_participants,
+          cancelled: session.cancelled, // ✅ Make sure this is included
           participants: [],
         };
       }
@@ -142,10 +143,27 @@ const UserProfile = () => {
     return Object.values(grouped);
   };
 
+  const refreshBookings = async () => {
+    try {
+      const endpoint = isAdmin ? '/api/admin/bookings' : `/api/bookings/user/${userId}`;
+      const response = await axios.get(`http://localhost:5000${endpoint}`, {
+        withCredentials: true,
+      });
+      setBookedSessions(response.data);
+      console.log('[DEBUG] Bookings refreshed after cancellation');
+    } catch (error) {
+      console.error('Error refreshing sessions:', error);
+    }
+  };
+
+  // In the renderSessionTable function, update the table row rendering:
   const renderSessionTable = (type) => {
     const filtered = processSessions(bookedSessions)
       .filter((session) => session.training_type === type)
       .sort((a, b) => new Date(b.training_date) - new Date(a.training_date));
+
+    console.log('[DEBUG] Filtered sessions for', type, ':', filtered);
+    console.log('[DEBUG] First session cancelled status:', filtered[0]?.cancelled);
 
     if (filtered.length === 0) return null;
 
@@ -168,16 +186,33 @@ const UserProfile = () => {
               const currentTime = new Date();
               const hoursDifference = (sessionTime - currentTime) / (1000 * 60 * 60);
               const isWithin10Hours = hoursDifference <= 10;
-              
+
+              // ✅ Check if session is cancelled - FIXED: Use the correct field name
+              const isCancelled = session.cancelled === true || session.is_cancelled === true;
+
               return (
-                <tr key={`${session.training_date}-${session.training_type}`} className={isWithin10Hours ? 'table-warning' : ''}>
-                  <td>{new Date(session.training_date).toLocaleString()}</td>
+                <tr
+                  key={`${session.training_date}-${session.training_type}`}
+                  className={`${isCancelled ? 'table-secondary text-muted' : ''} ${isWithin10Hours && !isCancelled ? 'table-warning' : ''
+                    }`}
+                >
+                  <td>
+                    {new Date(session.training_date).toLocaleString()}
+                    {isCancelled && (
+                      <div className="small text-danger mt-1">
+                        ❌ {t?.profile?.cancelled || 'CANCELLED'}
+                      </div>
+                    )}
+                  </td>
                   <td>{session.training_type}</td>
                   <td>{session.available_spots}</td>
                   <td>
                     <div className="participants-container">
                       {session.participants.map((participant, index) => (
-                        <div key={`${participant.email}-${index}`} className="participant-badge">
+                        <div
+                          key={`${participant.email}-${index}`}
+                          className="participant-badge"
+                        >
                           <div className="participant-info">
                             <span className="participant-name">
                               {participant.first_name} {participant.last_name}
@@ -187,38 +222,64 @@ const UserProfile = () => {
                             </span>
                           </div>
                           <div className="children-count">
-                            {t?.profile?.table?.child?.replace('{count}', participant.children) || `Number of children: ${participant.children}`}
+                            {t?.profile?.table?.child?.replace(
+                              '{count}',
+                              participant.children
+                            ) || `Number of children: ${participant.children}`}
                           </div>
                         </div>
                       ))}
                     </div>
                   </td>
                   <td>
-                    {/* Regular cancel button */}
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      onClick={() => handleAdminCancelSession(session.training_id, session.training_type, session.training_date, false)}
-                      className="me-2"
-                    >
-                      Cancel Session
-                    </Button>
-                    
-                    {/* Force cancel button for sessions within 10 hours */}
-                    {isWithin10Hours && (
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => handleAdminCancelSession(session.training_id, session.training_type, session.training_date, true)}
-                        title="Force cancel within 10 hours"
-                      >
-                        Force Cancel
-                      </Button>
-                    )}
-                    {isWithin10Hours && (
-                      <div className="small text-warning mt-1">
-                        {Math.round(hoursDifference)} hours until session
-                      </div>
+                    {/* ✅ Disable cancel buttons for cancelled sessions */}
+                    {isCancelled ? (
+                      <span className="text-muted small">
+                        {t?.profile?.alreadyCancelled || 'Session cancelled'}
+                      </span>
+                    ) : (
+                      <>
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() =>
+                            handleAdminCancelSession(
+                              session.training_id,
+                              session.training_type,
+                              session.training_date,
+                              false
+                            )
+                          }
+                          className="me-2"
+                          title="Cancel this session"
+                        >
+                          {t?.profile?.cancelSession || 'Cancel Session'}
+                        </Button>
+
+                        {isWithin10Hours && (
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() =>
+                              handleAdminCancelSession(
+                                session.training_id,
+                                session.training_type,
+                                session.training_date,
+                                true
+                              )
+                            }
+                            title="Force cancel within 10 hours"
+                          >
+                            {t?.profile?.forceCancel || 'Force Cancel'}
+                          </Button>
+                        )}
+
+                        {isWithin10Hours && (
+                          <div className="small text-warning mt-1">
+                            {Math.round(hoursDifference)} {t?.profile?.hoursUntilSession || 'hours until session'}
+                          </div>
+                        )}
+                      </>
                     )}
                   </td>
                 </tr>
@@ -235,7 +296,7 @@ const UserProfile = () => {
     setSelectedSession({ id, type, date });
     setReason('');
     setForceCancel(useForceCancel);
-    
+
     if (useForceCancel) {
       setShowAdminCancelModal(true);
     } else {
@@ -243,7 +304,7 @@ const UserProfile = () => {
       const sessionTime = new Date(date);
       const currentTime = new Date();
       const hoursDifference = (sessionTime - currentTime) / (1000 * 60 * 60);
-      
+
       if (hoursDifference <= 10) {
         if (window.confirm(`This session is in ${Math.round(hoursDifference)} hours. Do you want to force cancel?`)) {
           setForceCancel(true);
@@ -266,17 +327,15 @@ const UserProfile = () => {
 
       showAlert(`Session canceled successfully! ${response.data.canceledBookings} bookings affected.${response.data.forceCancelUsed ? ' (Force Cancel)' : ''}`, 'success');
 
-      // Refresh bookings
-      const bookingsResponse = await axios.get('http://localhost:5000/api/admin/bookings', { withCredentials: true });
-      setBookedSessions(bookingsResponse.data);
+      // ✅ Refresh bookings immediately after cancellation
+      await refreshBookings();
+
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Failed to cancel session';
-      
-      // Handle 10-hour restriction error
+
       if (errorMessage.includes('within 10 hours')) {
         if (window.confirm('Session is within 10 hours. Do you want to force cancel?')) {
           setForceCancel(true);
-          // Retry with force cancel
           await confirmAdminCancel();
           return;
         }
@@ -389,7 +448,7 @@ const UserProfile = () => {
       setBookedSessions(bookingsResponse.data);
     } catch (error) {
       console.error('Error processing cancellation:', error);
-      
+
       // Handle 10-hour restriction error
       if (error.response?.data?.error?.includes('10 hours')) {
         showAlert('Cancellation is not allowed within 10 hours of the session.', 'danger');

@@ -133,10 +133,13 @@ const Booking = () => {
       }
     };
 
+    // ✅ FIXED: proper credit loading
     const fetchCredits = async () => {
       try {
-        const response = await api.get('/api/user/credits');
-        setCredits(response.data.credits);
+        const userId = localStorage.getItem('userId');
+        if (!userId) return;
+        const response = await api.get(`/api/credits/${userId}`);
+        setCredits(response.data);
       } catch (error) {
         console.error('Error fetching credits:', error);
       }
@@ -257,6 +260,7 @@ const Booking = () => {
     setChildrenAges(newAges);
   };
 
+  // Update the handleSubmit function to properly format ages for credit booking
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -280,9 +284,18 @@ const Booking = () => {
         });
         const newSessionId = response.data.id;
 
+        // ✅ FIXED: Format ages as string for database storage
+        const childrenAgeString = childrenAges.join(', ');
+
         await api.post('/api/bookings/use-credit', {
           creditId: selectedCredit.id,
-          trainingId: newSessionId, // This matches what the backend expects
+          trainingId: newSessionId,
+          // Include updated ages and other details
+          childrenAges: childrenAges.join(', '),  // Send as comma-separated string
+          photoConsent: photoConsent,
+          mobile: mobile,
+          note: note,
+          accompanyingPerson: accompanyingPerson
         });
 
         alert(t?.booking?.creditSuccess || 'Booked with credit!');
@@ -291,8 +304,8 @@ const Booking = () => {
         navigate('/profile');
 
         // Refresh credits
-        const creditsResponse = await api.get('/api/user/credits');
-        setCredits(creditsResponse.data.credits);
+        const creditsResponse = await api.get('/api/credits/' + localStorage.getItem('userId'));
+        setCredits(creditsResponse.data);
       } catch (error) {
         console.error('Credit booking error:', error);
         setWarningMessage(error.response?.data?.error || t?.booking?.error || 'Error processing booking. Please try again.');
@@ -442,6 +455,28 @@ const Booking = () => {
     setTrainingType(credit.training_type);
     setChildrenCount(credit.child_count);
     setAccompanyingPerson(credit.companion_count > 0);
+
+    // ✅ FIXED: Properly parse ages from credit
+    let parsedAges = [];
+    if (credit.children_ages) {
+      if (typeof credit.children_ages === 'string') {
+        // Handle string format like "4, 5" or "4,5"
+        parsedAges = credit.children_ages
+          .split(',')
+          .map(age => age.trim())
+          .map(age => parseInt(age))
+          .filter(age => !isNaN(age) && age > 0);
+      } else if (Array.isArray(credit.children_ages)) {
+        // Handle array format
+        parsedAges = credit.children_ages.map(age => parseInt(age)).filter(age => !isNaN(age));
+      }
+    }
+
+    // If no ages found or count doesn't match, create empty array
+    if (parsedAges.length !== credit.child_count) {
+      parsedAges = Array(credit.child_count).fill('');
+    }
+
     setChildrenAges(credit.children_ages ? credit.children_ages.split(', ').map(Number) : Array(credit.child_count).fill(''));
     setPhotoConsent(credit.photo_consent);
     setMobile(credit.mobile || '');
@@ -498,12 +533,19 @@ const Booking = () => {
       </div>
 
       {credits.length > 0 && (
-        <button
-          className="btn btn-success mb-3"
-          onClick={() => setShowCreditModal(true)}
-        >
-          ✅ {t?.booking?.useCredit || 'I have credit'}
-        </button>
+        <div className="alert alert-info text-center mb-3">
+          <strong>
+            {t?.booking?.youHaveCredit || 'You have'} {credits.length}{' '}
+            {credits.length === 1 ? 'credit' : 'credits'}!
+          </strong>
+          <br />
+          <button
+            className="btn btn-success mt-2"
+            onClick={() => setShowCreditModal(true)}
+          >
+            🎫 {t?.booking?.useCredit || 'Use Credit'}
+          </button>
+        </div>
       )}
 
       {isAdmin && (
@@ -664,6 +706,7 @@ const Booking = () => {
           </Form.Select>
         </Form.Group>
 
+        // Update the age selection in the form to be enabled in credit mode
         <Form.Group className="mb-3">
           <Form.Label>{t?.booking?.childrenAge || 'Age of Children'} <span className="text-danger">*</span></Form.Label>
           <div className="row">
@@ -676,7 +719,8 @@ const Booking = () => {
                   value={age}
                   onChange={(e) => handleAgeChange(index, e.target.value)}
                   required
-                  disabled={isCreditMode}
+                  // ✅ FIXED: Allow age selection in credit mode
+                  disabled={false} // Always enabled since we need to allow changes
                 >
                   <option value="" disabled>
                     {t?.booking?.chooseAge || 'Choose an age'}
