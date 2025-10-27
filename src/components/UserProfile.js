@@ -127,7 +127,7 @@ const UserProfile = () => {
           max_participants: session.max_participants,
           total_children: session.total_children || 0,
           available_spots: session.available_spots || session.max_participants,
-          cancelled: session.cancelled, // ✅ Make sure this is included
+          cancelled: session.cancelled, // ✅ Include cancelled status
           participants: [],
         };
       }
@@ -156,14 +156,11 @@ const UserProfile = () => {
     }
   };
 
-  // In the renderSessionTable function, update the table row rendering:
+  // In the renderSessionTable function, add a check for remaining bookings in cancelled sessions
   const renderSessionTable = (type) => {
     const filtered = processSessions(bookedSessions)
       .filter((session) => session.training_type === type)
       .sort((a, b) => new Date(b.training_date) - new Date(a.training_date));
-
-    console.log('[DEBUG] Filtered sessions for', type, ':', filtered);
-    console.log('[DEBUG] First session cancelled status:', filtered[0]?.cancelled);
 
     if (filtered.length === 0) return null;
 
@@ -177,6 +174,7 @@ const UserProfile = () => {
               <th>{t?.profile?.table?.type || 'Type'}</th>
               <th>{t?.profile?.table?.availableSpots || 'Available Spots'}</th>
               <th>{t?.profile?.table?.participants || 'Participants'}</th>
+              <th>{t?.profile?.table?.remainingBookings || 'Remaining Bookings'}</th>
               <th>{t?.profile?.table?.actions || 'Actions'}</th>
             </tr>
           </thead>
@@ -187,8 +185,9 @@ const UserProfile = () => {
               const hoursDifference = (sessionTime - currentTime) / (1000 * 60 * 60);
               const isWithin10Hours = hoursDifference <= 10;
 
-              // ✅ Check if session is cancelled - FIXED: Use the correct field name
-              const isCancelled = session.cancelled === true || session.is_cancelled === true;
+              // Check if session is cancelled
+              const isCancelled = session.cancelled === true;
+              const remainingBookings = session.participants.length;
 
               return (
                 <tr
@@ -232,11 +231,46 @@ const UserProfile = () => {
                     </div>
                   </td>
                   <td>
-                    {/* ✅ Disable cancel buttons for cancelled sessions */}
+                    {isCancelled && (
+                      <div className={`text-center ${remainingBookings > 0 ? 'text-warning' : 'text-success'}`}>
+                        <strong>{remainingBookings}</strong>
+                        <div className="small">
+                          {remainingBookings > 0
+                            ? 'pending resolution'
+                            : 'ready to delete'
+                          }
+                        </div>
+                      </div>
+                    )}
+                  </td>
+                  <td>
                     {isCancelled ? (
-                      <span className="text-muted small">
-                        {t?.profile?.alreadyCancelled || 'Session cancelled'}
-                      </span>
+                      <div className="d-flex flex-column gap-2">
+                        {remainingBookings === 0 ? (
+                          <>
+                            <span className="text-success small">
+                              ✅ Ready to delete
+                            </span>
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => handleDeleteSession(
+                                session.training_id,
+                                session.training_type,
+                                session.training_date
+                              )}
+                              title="Permanently delete this cancelled session"
+                              className="d-flex align-items-center justify-content-center"
+                            >
+                              🗑️ Delete Session
+                            </Button>
+                          </>
+                        ) : (
+                          <span className="text-warning small">
+                            ⏳ {remainingBookings} booking(s) pending resolution
+                          </span>
+                        )}
+                      </div>
                     ) : (
                       <>
                         <Button
@@ -468,6 +502,29 @@ const UserProfile = () => {
     }
   };
 
+  const handleDeleteSession = async (trainingId, trainingType, trainingDate) => {
+    if (!window.confirm(`Are you sure you want to permanently delete the ${trainingType} session on ${new Date(trainingDate).toLocaleString()}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await axios.delete(
+        `http://localhost:5000/api/admin/training-sessions/${trainingId}`,
+        { withCredentials: true }
+      );
+
+      showAlert(response.data.message || 'Session deleted successfully!', 'success');
+
+      // Refresh the bookings list
+      await refreshBookings();
+
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to delete session';
+      showAlert(errorMessage, 'danger');
+    }
+  };
+
   const handleDeleteAccount = async () => {
     setShowPasswordModal(true);
   };
@@ -655,30 +712,38 @@ const UserProfile = () => {
               <p>{t?.profile?.bookedSessions?.noSessions || 'You have no booked sessions.'}</p>
             ) : (
               <ul className="list-group">
-                {bookedSessions.map((session) => (
-                  <li key={session.booking_id} className="list-group-item d-flex justify-content-between align-items-center">
-                    <div>
-                      <strong>{session.training_type}</strong> - {new Date(session.training_date).toLocaleString()}
-                      {session.credit_id && <span className="badge bg-success ms-2">Credit Booking</span>}
-                    </div>
-                    <div
-                      data-tooltip-id="cancel-tooltip"
-                      data-tooltip-content={
-                        !canCancelSession(session.training_date)
-                          ? t?.profile?.cancel?.tooltip || 'Cancellation is no longer possible as less than 10 hours remain until the training.'
-                          : ''
-                      }
-                    >
-                      <button
-                        className="btn btn-danger btn-sm"
-                        onClick={() => handleCancelSession(session.booking_id, session.training_date, session.training_type)}
-                        disabled={!canCancelSession(session.training_date)}
+                {bookedSessions.map((session) => {
+                  const isCancelled = session.cancelled === true;
+                  const canCancel = !isCancelled && canCancelSession(session.training_date);
+
+                  return (
+                    <li key={session.booking_id} className={`list-group-item d-flex justify-content-between align-items-center ${isCancelled ? 'list-group-item-secondary' : ''}`}>
+                      <div>
+                        <strong>{session.training_type}</strong> - {new Date(session.training_date).toLocaleString()}
+                        {session.credit_id && <span className="badge bg-success ms-2">Credit Booking</span>}
+                        {isCancelled && <span className="badge bg-danger ms-2">CANCELLED</span>}
+                      </div>
+                      <div
+                        data-tooltip-id="cancel-tooltip"
+                        data-tooltip-content={
+                          isCancelled
+                            ? 'This session has been cancelled by admin. Check your email for refund/credit options.'
+                            : !canCancel
+                              ? t?.profile?.cancel?.tooltip || 'Cancellation is no longer possible as less than 10 hours remain until the training.'
+                              : ''
+                        }
                       >
-                        {t?.profile?.cancel?.button || 'Cancel Session'}
-                      </button>
-                    </div>
-                  </li>
-                ))}
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleCancelSession(session.booking_id, session.training_date, session.training_type)}
+                          disabled={isCancelled || !canCancel}
+                        >
+                          {isCancelled ? 'Cancelled' : t?.profile?.cancel?.button || 'Cancel Session'}
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
             <Tooltip id="cancel-tooltip" place="top" effect="solid" />

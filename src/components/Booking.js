@@ -454,7 +454,11 @@ const Booking = () => {
     setSelectedCredit(credit);
     setTrainingType(credit.training_type);
     setChildrenCount(credit.child_count);
-    setAccompanyingPerson(credit.companion_count > 0);
+
+    // ✅ FIXED: Properly set accompanyingPerson from credit data
+    // If companion_count > 0, set accompanyingPerson to true
+    const hasAccompanyingPerson = credit.companion_count > 0;
+    setAccompanyingPerson(hasAccompanyingPerson);
 
     // ✅ FIXED: Properly parse ages from credit
     let parsedAges = [];
@@ -477,7 +481,7 @@ const Booking = () => {
       parsedAges = Array(credit.child_count).fill('');
     }
 
-    setChildrenAges(credit.children_ages ? credit.children_ages.split(', ').map(Number) : Array(credit.child_count).fill(''));
+    setChildrenAges(parsedAges);
     setPhotoConsent(credit.photo_consent);
     setMobile(credit.mobile || '');
     setNote(credit.note || '');
@@ -486,6 +490,13 @@ const Booking = () => {
     setSelectedTime('');
     setShowCreditModal(false);
     setIsCreditMode(true);
+
+    console.log('[DEBUG] Credit selected:', {
+      creditId: credit.id,
+      accompanyingPerson: hasAccompanyingPerson,
+      companion_count: credit.companion_count,
+      child_count: credit.child_count
+    });
   };
 
   if (!isLoggedIn) {
@@ -706,7 +717,7 @@ const Booking = () => {
           </Form.Select>
         </Form.Group>
 
-        // Update the age selection in the form to be enabled in credit mode
+        
         <Form.Group className="mb-3">
           <Form.Label>{t?.booking?.childrenAge || 'Age of Children'} <span className="text-danger">*</span></Form.Label>
           <div className="row">
@@ -752,7 +763,7 @@ const Booking = () => {
             id="accompanyingPerson"
             checked={accompanyingPerson}
             onChange={() => setAccompanyingPerson(!accompanyingPerson)}
-            disabled={useSeasonTicket && selectedSeasonTicket || isCreditMode}
+            disabled={useSeasonTicket && selectedSeasonTicket} // Only disable for season tickets
             label={
               <>
                 {t?.booking?.accompanyingPerson || 'Participation of Accompanying Person (€3)'}

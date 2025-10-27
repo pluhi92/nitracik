@@ -1233,11 +1233,14 @@ app.get('/api/bookings/user/:userId', isAuthenticated, async (req, res) => {
   try {
     const userId = req.params.userId;
     const result = await pool.query(`
-      SELECT b.id AS booking_id, t.training_type, t.training_date
+      SELECT 
+        b.id AS booking_id, 
+        t.training_type, 
+        t.training_date,
+        t.cancelled
       FROM bookings b
       JOIN training_availability t ON b.training_id = t.id
       WHERE b.user_id = $1
-        AND (t.cancelled IS NULL OR t.cancelled = FALSE)
       ORDER BY t.training_date ASC
     `, [userId]);
     res.json(result.rows);
@@ -1624,6 +1627,82 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
   }
 });
 
+//Permanently delete cancelled sessions by Admin
+app.delete('/api/admin/training-sessions/:trainingId', isAdmin, async (req, res) => {
+  const { trainingId } = req.params;
+  const client = await pool.connect();
+
+  console.log('[DEBUG] Deleting training session:', trainingId);
+
+  try {
+    await client.query('BEGIN');
+
+    // 1. Verify the session exists and is cancelled
+    const sessionCheck = await client.query(
+      'SELECT id, training_type, training_date, cancelled FROM training_availability WHERE id = $1',
+      [trainingId]
+    );
+
+    if (sessionCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Training session not found' });
+    }
+
+    const session = sessionCheck.rows[0];
+    
+    if (!session.cancelled) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Only cancelled sessions can be deleted' });
+    }
+
+    // 2. ✅ UPDATED: Check if there are any remaining bookings for this session
+    const bookingsCheck = await client.query(
+      'SELECT COUNT(*) as booking_count, ARRAY_AGG(user_id) as user_ids FROM bookings WHERE training_id = $1',
+      [trainingId]
+    );
+
+    const bookingCount = parseInt(bookingsCheck.rows[0].booking_count);
+    
+    if (bookingCount > 0) {
+      const userIds = bookingsCheck.rows[0].user_ids;
+      await client.query('ROLLBACK');
+      return res.status(400).json({ 
+        error: `Cannot delete session. ${bookingCount} booking(s) still remain.`,
+        remainingBookings: bookingCount,
+        userIds: userIds,
+        message: 'All users must process their refunds or credits before deletion.'
+      });
+    }
+
+    // 3. Delete the session (only if no bookings remain)
+    const deleteResult = await client.query(
+      'DELETE FROM training_availability WHERE id = $1 RETURNING *',
+      [trainingId]
+    );
+
+    if (deleteResult.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Failed to delete training session' });
+    }
+
+    await client.query('COMMIT');
+
+    console.log('[DEBUG] Training session deleted successfully:', trainingId);
+    res.json({ 
+      success: true, 
+      message: 'Training session deleted permanently',
+      deletedSession: deleteResult.rows[0]
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Delete training session error:', error);
+    res.status(500).json({ error: 'Failed to delete training session: ' + error.message });
+  } finally {
+    client.release();
+  }
+});
+
 // Add webhook handler for refund updates
 app.post('/stripe-refund-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
@@ -1675,7 +1754,7 @@ app.get('/api/refunds/:bookingId', isAuthenticated, async (req, res) => {
 });
 
 
-// ADMIN: Cancel Session (Email refund/credit options)
+// ADMIN: Cancel Session (Email refund/credit options) - UPDATED to preserve bookings
 app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
   const { trainingId, reason, forceCancel } = req.body;
   const userId = req.session.userId;
@@ -1709,7 +1788,7 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
       });
     }
 
-    // 3. ✅ FIXED: Update the training_availability to mark as cancelled
+    // 3. ✅ UPDATED: Only mark the training session as cancelled - DON'T delete bookings
     const updateResult = await client.query(
       'UPDATE training_availability SET cancelled = TRUE WHERE id = $1 RETURNING *',
       [trainingId]
@@ -1792,83 +1871,130 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
 });
 
 
-// Refund processing
+// Update refund endpoint to remove booking AFTER processing
 app.get('/api/booking/refund', async (req, res) => {
   const { bookingId } = req.query;
   if (!bookingId) return res.status(400).send('Missing bookingId.');
 
+  const client = await pool.connect();
+  
   try {
-    const booking = await pool.query(
-      'SELECT payment_intent_id, amount_paid FROM bookings WHERE id = $1',
+    await client.query('BEGIN');
+
+    // Get booking details including training_id
+    const booking = await client.query(
+      'SELECT user_id, training_id, payment_intent_id, amount_paid FROM bookings WHERE id = $1',
       [bookingId]
     );
-    if (!booking.rows.length) return res.status(404).send('Booking not found.');
+    
+    if (!booking.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).send('Booking not found.');
+    }
 
-    const { payment_intent_id, amount_paid } = booking.rows[0];
+    const { user_id, training_id, payment_intent_id, amount_paid } = booking.rows[0];
+
+    // Process refund
     const refund = await stripe.refunds.create({ payment_intent: payment_intent_id });
 
-    await pool.query(
+    // Store refund record
+    await client.query(
       `INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at)
        VALUES ($1, $2, $3, $4, $5, NOW())`,
       [bookingId, refund.id, amount_paid, refund.status, 'User selected refund']
     );
 
+    // ✅ UPDATED: Delete the booking ONLY AFTER successful refund processing
+    console.log('[DEBUG] Removing booking after successful refund:', bookingId);
+    await client.query(
+      'DELETE FROM bookings WHERE id = $1 AND user_id = $2',
+      [bookingId, user_id]
+    );
+
+    await client.query('COMMIT');
+
     res.send(`
       <h2>✅ Refund Processed</h2>
       <p>Your refund was successfully processed. Refund ID: <strong>${refund.id}</strong>.</p>
+      <p>Your booking has been removed from the cancelled session.</p>
       <p>Thank you,<br/>Nitracik Team</p>
     `);
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('Refund error:', err);
     res.status(500).send('<h2>❌ Refund Failed</h2><p>Please contact support.</p>');
+  } finally {
+    client.release();
   }
 });
 
-// Credit processing
+// Update credit processing endpoint to remove booking AFTER processing
 app.get('/api/booking/credit', async (req, res) => {
   const { bookingId } = req.query;
   if (!bookingId) return res.status(400).send('Missing bookingId.');
 
+  const client = await pool.connect();
+  
   try {
-    const booking = await pool.query(`
+    await client.query('BEGIN');
+
+    const booking = await client.query(`
       SELECT user_id, training_id, number_of_children, children_ages,
              photo_consent, mobile, note
       FROM bookings WHERE id = $1
     `, [bookingId]);
-    if (!booking.rows.length) return res.status(404).send('Booking not found.');
+    
+    if (!booking.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).send('Booking not found.');
+    }
 
     const b = booking.rows[0];
+    
     // ✅ Check if a credit already exists for this user + session
-    const existing = await pool.query(
+    const existing = await client.query(
       `SELECT id FROM credits WHERE user_id = $1 AND session_id = $2`,
       [b.user_id, b.training_id]
     );
 
     if (existing.rows.length === 0) {
-      await pool.query(`
-    INSERT INTO credits (
-      user_id, session_id, child_count, children_ages, photo_consent,
-      mobile, note, training_type, original_date, reason, status, created_at
-    )
-    SELECT $1, $2, $3, $4, $5, $6, $7, ta.training_type, ta.training_date,
-           'User selected credit', 'active', NOW()
-    FROM training_availability ta
-    WHERE ta.id = $2
-  `, [b.user_id, b.training_id, b.number_of_children, b.children_ages, b.photo_consent, b.mobile, b.note]);
+      await client.query(`
+        INSERT INTO credits (
+          user_id, session_id, child_count, children_ages, photo_consent,
+          mobile, note, training_type, original_date, reason, status, created_at
+        )
+        SELECT $1, $2, $3, $4, $5, $6, $7, ta.training_type, ta.training_date,
+               'User selected credit', 'active', NOW()
+        FROM training_availability ta
+        WHERE ta.id = $2
+      `, [b.user_id, b.training_id, b.number_of_children, b.children_ages, b.photo_consent, b.mobile, b.note]);
     }
+
+    // ✅ UPDATED: Delete the booking ONLY AFTER successful credit creation
+    console.log('[DEBUG] Removing booking after successful credit creation:', bookingId);
+    await client.query(
+      'DELETE FROM bookings WHERE id = $1 AND user_id = $2',
+      [bookingId, b.user_id]
+    );
+
+    await client.query('COMMIT');
 
     res.send(`
       <h2>🎫 Credit Added</h2>
       <p>A credit for this session has been added to your account.</p>
+      <p>Your booking has been removed from the cancelled session.</p>
       <p>Thank you,<br/>Nitracik Team</p>
     `);
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('Credit error:', err);
     res.status(500).send('<h2>❌ Credit Failed</h2><p>Please contact support.</p>');
+  } finally {
+    client.release();
   }
 });
 
-// New endpoint to use credit
+// Endpoint to use credit for new booking
 app.post('/api/bookings/use-credit', async (req, res) => {
   const { creditId, trainingId, childrenAges, photoConsent, mobile, note, accompanyingPerson } = req.body;
   const userId = req.session.userId;
@@ -1877,7 +2003,7 @@ app.post('/api/bookings/use-credit', async (req, res) => {
     creditId, 
     trainingId, 
     userId, 
-    childrenAges,  // ✅ Now receiving updated ages
+    childrenAges,
     photoConsent,
     mobile,
     note,
@@ -1894,12 +2020,12 @@ app.post('/api/bookings/use-credit', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Fetch the credit
+    // Fetch the credit with session_id to identify the original cancelled session
     console.log('[DEBUG] Fetching credit:', creditId);
     const creditResult = await client.query(
       `SELECT user_id, child_count, companion_count, children_ages, 
-              photo_consent, mobile, note, training_type, status
-       FROM credits WHERE id = $1 AND user_id = $2 AND status = 'active'`,  // ✅ Changed from 'unused' to 'active'
+              photo_consent, mobile, note, training_type, status, session_id
+       FROM credits WHERE id = $1 AND user_id = $2 AND status = 'active'`,
       [creditId, userId]
     );
 
@@ -1910,9 +2036,10 @@ app.post('/api/bookings/use-credit', async (req, res) => {
     }
 
     const credit = creditResult.rows[0];
+    const originalSessionId = credit.session_id;
 
-    // Verify training availability
-    console.log('[DEBUG] Verifying training availability:', trainingId);
+    // Verify NEW training availability
+    console.log('[DEBUG] Verifying new training availability:', trainingId);
     const trainingResult = await client.query(
       `SELECT id, training_date, training_type, max_participants 
        FROM training_availability WHERE id = $1`,
@@ -1925,8 +2052,8 @@ app.post('/api/bookings/use-credit', async (req, res) => {
       return res.status(404).json({ error: 'Training session not found' });
     }
 
-    // Check participant count
-    console.log('[DEBUG] Checking participant count for trainingId:', trainingId);
+    // Check participant count for NEW session
+    console.log('[DEBUG] Checking participant count for new trainingId:', trainingId);
     const currentBookings = await client.query(
       `SELECT COALESCE(SUM(number_of_children), 0) as total 
        FROM bookings WHERE training_id = $1`,
@@ -1937,6 +2064,16 @@ app.post('/api/bookings/use-credit', async (req, res) => {
       console.log('[DEBUG] Training session is full');
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Training session is full' });
+    }
+
+    // ✅ NEW: Delete the original booking from the cancelled session
+    if (originalSessionId) {
+      console.log('[DEBUG] Removing original booking from cancelled session:', originalSessionId);
+      await client.query(
+        'DELETE FROM bookings WHERE user_id = $1 AND training_id = $2',
+        [userId, originalSessionId]
+      );
+      console.log('[DEBUG] Original booking removed from cancelled session');
     }
 
     // ✅ Use updated form data or fall back to credit data
@@ -1968,11 +2105,11 @@ app.post('/api/bookings/use-credit', async (req, res) => {
         credit.user_id,
         trainingId,
         credit.child_count || 1,
-        finalChildrenAges,  // ✅ Use updated ages
-        finalPhotoConsent,  // ✅ Use updated photo consent
-        finalMobile,        // ✅ Use updated mobile
-        finalNote,          // ✅ Use updated note
-        finalAccompanyingPerson,  // ✅ Use updated accompanying person status
+        finalChildrenAges,
+        finalPhotoConsent,
+        finalMobile,
+        finalNote,
+        finalAccompanyingPerson,
         0, // amount_paid: 0 for credit-based booking
         null, // payment_intent_id: null for credit-based booking
         null, // payment_time: null for credit-based booking
@@ -2025,6 +2162,7 @@ app.post('/api/bookings/use-credit', async (req, res) => {
             Notes: ${finalNote || 'None'}
             Booking ID: ${bookingId}
             Credit ID: ${creditId}
+            Original cancelled session cleared: ${originalSessionId || 'N/A'}
           `.trim(),
         };
 
@@ -2044,6 +2182,8 @@ app.post('/api/bookings/use-credit', async (req, res) => {
             - Children: ${credit.child_count}
             - Children Ages: ${finalChildrenAges}
             - Mobile: ${finalMobile || 'Not provided'}
+            
+            Your original cancelled session has been cleared.
             
             Thank you for using your credit!
             
