@@ -284,13 +284,10 @@ const Booking = () => {
         });
         const newSessionId = response.data.id;
 
-        // ✅ FIXED: Format ages as string for database storage
-        const childrenAgeString = childrenAges.join(', ');
-
+        // ✅ FIXED: Remove the duplicate childrenAgeString declaration and send childrenAges as string
         await api.post('/api/bookings/use-credit', {
           creditId: selectedCredit.id,
           trainingId: newSessionId,
-          // Include updated ages and other details
           childrenAges: childrenAges.join(', '),  // Send as comma-separated string
           photoConsent: photoConsent,
           mobile: mobile,
@@ -455,23 +452,19 @@ const Booking = () => {
     setTrainingType(credit.training_type);
     setChildrenCount(credit.child_count);
 
-    // ✅ FIXED: Properly set accompanyingPerson from credit data
-    // If companion_count > 0, set accompanyingPerson to true
-    const hasAccompanyingPerson = credit.companion_count > 0;
-    setAccompanyingPerson(hasAccompanyingPerson);
+    // ✅ Handle potential null values for accompanying_person
+    setAccompanyingPerson(credit.accompanying_person === true);
 
-    // ✅ FIXED: Properly parse ages from credit
+    // Parse ages from credit
     let parsedAges = [];
     if (credit.children_ages) {
       if (typeof credit.children_ages === 'string') {
-        // Handle string format like "4, 5" or "4,5"
         parsedAges = credit.children_ages
           .split(',')
           .map(age => age.trim())
           .map(age => parseInt(age))
           .filter(age => !isNaN(age) && age > 0);
       } else if (Array.isArray(credit.children_ages)) {
-        // Handle array format
         parsedAges = credit.children_ages.map(age => parseInt(age)).filter(age => !isNaN(age));
       }
     }
@@ -493,8 +486,7 @@ const Booking = () => {
 
     console.log('[DEBUG] Credit selected:', {
       creditId: credit.id,
-      accompanyingPerson: hasAccompanyingPerson,
-      companion_count: credit.companion_count,
+      accompanyingPerson: credit.accompanying_person,
       child_count: credit.child_count
     });
   };
@@ -717,7 +709,7 @@ const Booking = () => {
           </Form.Select>
         </Form.Group>
 
-        
+
         <Form.Group className="mb-3">
           <Form.Label>{t?.booking?.childrenAge || 'Age of Children'} <span className="text-danger">*</span></Form.Label>
           <div className="row">
@@ -913,7 +905,7 @@ const Booking = () => {
             credits.map((credit) => (
               <div key={credit.id} className="mb-3">
                 <p><strong>{t?.booking?.originalDate || 'Original Date'}:</strong> {new Date(credit.original_date).toLocaleString()}</p>
-                <p><strong>{t?.booking?.children || 'Children'}:</strong> {credit.child_count} | <strong>{t?.booking?.companions || 'Companions'}:</strong> {credit.companion_count}</p>
+                <p><strong>{t?.booking?.children || 'Children'}:</strong> {credit.child_count} | <strong>{t?.booking?.accompanyingPerson || 'Accompanying Person'}:</strong> {credit.accompanying_person ? 'Yes' : 'No'}</p>
                 <p><strong>{t?.booking?.trainingType?.label || 'Training Type'}:</strong> {credit.training_type}</p>
                 <Button variant="primary" onClick={() => selectCredit(credit)}>
                   {t?.booking?.useThisCredit || 'Use this credit'}

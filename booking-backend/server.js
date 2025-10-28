@@ -1304,7 +1304,7 @@ app.get('/api/credits/:userId', isAuthenticated, async (req, res) => {
   try {
     const userId = req.params.userId;
     const credits = await pool.query(`
-      SELECT id, training_type, original_date, child_count, status
+      SELECT id, training_type, original_date, child_count, accompanying_person, status
       FROM credits
       WHERE user_id = $1 AND status = 'active'
       ORDER BY created_at DESC
@@ -1649,7 +1649,7 @@ app.delete('/api/admin/training-sessions/:trainingId', isAdmin, async (req, res)
     }
 
     const session = sessionCheck.rows[0];
-    
+
     if (!session.cancelled) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Only cancelled sessions can be deleted' });
@@ -1662,11 +1662,11 @@ app.delete('/api/admin/training-sessions/:trainingId', isAdmin, async (req, res)
     );
 
     const bookingCount = parseInt(bookingsCheck.rows[0].booking_count);
-    
+
     if (bookingCount > 0) {
       const userIds = bookingsCheck.rows[0].user_ids;
       await client.query('ROLLBACK');
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: `Cannot delete session. ${bookingCount} booking(s) still remain.`,
         remainingBookings: bookingCount,
         userIds: userIds,
@@ -1688,8 +1688,8 @@ app.delete('/api/admin/training-sessions/:trainingId', isAdmin, async (req, res)
     await client.query('COMMIT');
 
     console.log('[DEBUG] Training session deleted successfully:', trainingId);
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Training session deleted permanently',
       deletedSession: deleteResult.rows[0]
     });
@@ -1771,7 +1771,7 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
       'SELECT training_date FROM training_availability WHERE id = $1',
       [trainingId]
     );
-    
+
     if (trainingRes.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Training session not found' });
@@ -1779,12 +1779,12 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
 
     const trainingDate = new Date(trainingRes.rows[0].training_date);
     const hoursDiff = (trainingDate - new Date()) / (1000 * 60 * 60);
-    
+
     // 2. Check 10-hour rule unless forceCancel is true
     if (hoursDiff <= 10 && !forceCancel) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ 
-        error: 'Session is within 10 hours. Use forceCancel=true to override.' 
+      return res.status(400).json({
+        error: 'Session is within 10 hours. Use forceCancel=true to override.'
       });
     }
 
@@ -1877,137 +1877,304 @@ app.get('/api/booking/refund', async (req, res) => {
   if (!bookingId) return res.status(400).send('Missing bookingId.');
 
   const client = await pool.connect();
-  
+
   try {
     await client.query('BEGIN');
 
-    // Get booking details including training_id
-    const booking = await client.query(
+    // Try to find the booking first
+    const bookingRes = await client.query(
       'SELECT user_id, training_id, payment_intent_id, amount_paid FROM bookings WHERE id = $1',
       [bookingId]
     );
-    
-    if (!booking.rows.length) {
-      await client.query('ROLLBACK');
-      return res.status(404).send('Booking not found.');
+
+    let firstTimeRefund = false;
+    let refundRecord = null;
+
+    // ✅ CASE 1: Booking found → process refund (first click)
+    if (bookingRes.rows.length > 0) {
+      const { user_id, payment_intent_id, amount_paid } = bookingRes.rows[0];
+
+      // Double-check if refund already exists for this booking
+      const existingRefund = await client.query(
+        'SELECT refund_id, status FROM refunds WHERE booking_id = $1',
+        [bookingId]
+      );
+
+      if (existingRefund.rows.length === 0) {
+        // Create Stripe refund
+        const refund = await stripe.refunds.create({
+          payment_intent: payment_intent_id,
+        });
+
+        refundRecord = refund;
+
+        // Store refund record
+        await client.query(
+          `INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at)
+           VALUES ($1, $2, $3, $4, $5, NOW())`,
+          [bookingId, refund.id, amount_paid, refund.status, 'User selected refund']
+        );
+
+        // Delete booking after successful refund
+        await client.query('DELETE FROM bookings WHERE id = $1 AND user_id = $2', [bookingId, user_id]);
+
+        firstTimeRefund = true;
+      } else {
+        refundRecord = existingRefund.rows[0];
+      }
     }
-
-    const { user_id, training_id, payment_intent_id, amount_paid } = booking.rows[0];
-
-    // Process refund
-    const refund = await stripe.refunds.create({ payment_intent: payment_intent_id });
-
-    // Store refund record
-    await client.query(
-      `INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())`,
-      [bookingId, refund.id, amount_paid, refund.status, 'User selected refund']
-    );
-
-    // ✅ UPDATED: Delete the booking ONLY AFTER successful refund processing
-    console.log('[DEBUG] Removing booking after successful refund:', bookingId);
-    await client.query(
-      'DELETE FROM bookings WHERE id = $1 AND user_id = $2',
-      [bookingId, user_id]
-    );
 
     await client.query('COMMIT');
 
-    res.send(`
-      <h2>✅ Refund Processed</h2>
-      <p>Your refund was successfully processed. Refund ID: <strong>${refund.id}</strong>.</p>
-      <p>Your booking has been removed from the cancelled session.</p>
-      <p>Thank you,<br/>Nitracik Team</p>
+    // ✅ CASE 1A: Refund just processed successfully
+    if (firstTimeRefund && refundRecord) {
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Refund Processed Successfully</title>
+            <meta http-equiv="refresh" content="4;url=${process.env.CLIENT_URL}/booking" />
+            <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+                .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
+                .success-icon { font-size: 60px; margin-bottom: 20px; }
+                .countdown { margin-top: 20px; font-size: 14px; color: #666; }
+            </style>
+        </head>
+        <body>
+            <div class="success-container">
+                <div class="success-icon">💳</div>
+                <h2>Refund Processed Successfully!</h2>
+                <p>Your refund (ID: <strong>${refundRecord.id}</strong>) was successfully processed.</p>
+                <p>You’ll be automatically redirected in <span id="countdown">4</span> seconds...</p>
+                <div class="countdown">
+                    <a href="${process.env.CLIENT_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
+                </div>
+            </div>
+            <script>
+                let seconds = 4;
+                const el = document.getElementById('countdown');
+                const timer = setInterval(() => {
+                    seconds--; el.textContent = seconds;
+                    if (seconds <= 0) clearInterval(timer);
+                }, 1000);
+            </script>
+        </body>
+        </html>
+      `);
+    }
+
+    // ✅ CASE 2: Booking missing or refund already exists → show "Already processed"
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>Refund Already Processed</title>
+          <meta http-equiv="refresh" content="4;url=${process.env.CLIENT_URL}/booking" />
+          <style>
+              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+              .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
+              .success-icon { font-size: 60px; margin-bottom: 20px; }
+              .countdown { margin-top: 20px; font-size: 14px; color: #666; }
+          </style>
+      </head>
+      <body>
+          <div class="success-container">
+              <div class="success-icon">✅</div>
+              <h2>Refund Already Processed</h2>
+              <p>Your refund has already been handled successfully.</p>
+              <p>You’ll be redirected in <span id="countdown">4</span> seconds...</p>
+              <div class="countdown">
+                  <a href="${process.env.CLIENT_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
+              </div>
+          </div>
+          <script>
+              let seconds = 4;
+              const el = document.getElementById('countdown');
+              const timer = setInterval(() => {
+                  seconds--; el.textContent = seconds;
+                  if (seconds <= 0) clearInterval(timer);
+              }, 1000);
+          </script>
+      </body>
+      </html>
     `);
+
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Refund error:', err);
-    res.status(500).send('<h2>❌ Refund Failed</h2><p>Please contact support.</p>');
+    res.redirect(`${process.env.CLIENT_URL}/error?reason=refund_failed`);
   } finally {
     client.release();
   }
 });
 
-// Update credit processing endpoint to remove booking AFTER processing
+// Alternative credit processing endpoint that doesn't depend on training_availability
 app.get('/api/booking/credit', async (req, res) => {
   const { bookingId } = req.query;
   if (!bookingId) return res.status(400).send('Missing bookingId.');
 
   const client = await pool.connect();
-  
+
   try {
     await client.query('BEGIN');
 
-    const booking = await client.query(`
-      SELECT user_id, training_id, number_of_children, children_ages,
-             photo_consent, mobile, note
-      FROM bookings WHERE id = $1
+    // Try to find the booking
+    const bookingRes = await client.query(`
+      SELECT 
+        b.user_id, 
+        b.training_id, 
+        b.number_of_children, 
+        b.children_ages,
+        b.photo_consent, 
+        b.mobile, 
+        b.note,
+        b.accompanying_person,
+        ta.training_type,
+        ta.training_date
+      FROM bookings b
+      LEFT JOIN training_availability ta ON b.training_id = ta.id
+      WHERE b.id = $1
     `, [bookingId]);
-    
-    if (!booking.rows.length) {
-      await client.query('ROLLBACK');
-      return res.status(404).send('Booking not found.');
+
+    let firstTimeCredit = false;
+
+    // ✅ CASE 1: Booking exists → create new credit (FIRST CLICK)
+    if (bookingRes.rows.length > 0) {
+      const b = bookingRes.rows[0];
+
+      // Check if credit already exists for this user/session
+      const existingCredit = await client.query(
+        `SELECT id FROM credits WHERE user_id = $1 AND session_id = $2`,
+        [b.user_id, b.training_id]
+      );
+
+      if (existingCredit.rows.length === 0) {
+        await client.query(`
+          INSERT INTO credits (
+            user_id, session_id, child_count, accompanying_person, children_ages, photo_consent,
+            mobile, note, training_type, original_date, reason, status, created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'User selected credit', 'active', NOW())
+        `, [
+          b.user_id,
+          b.training_id,
+          b.number_of_children,
+          b.accompanying_person || false,
+          b.children_ages,
+          b.photo_consent,
+          b.mobile,
+          b.note,
+          b.training_type || 'UNKNOWN',
+          b.training_date || new Date()
+        ]);
+
+        // Delete original booking (so it won’t reappear)
+        await client.query('DELETE FROM bookings WHERE id = $1 AND user_id = $2', [bookingId, b.user_id]);
+        firstTimeCredit = true;
+      }
     }
-
-    const b = booking.rows[0];
-    
-    // ✅ Check if a credit already exists for this user + session
-    const existing = await client.query(
-      `SELECT id FROM credits WHERE user_id = $1 AND session_id = $2`,
-      [b.user_id, b.training_id]
-    );
-
-    if (existing.rows.length === 0) {
-      await client.query(`
-        INSERT INTO credits (
-          user_id, session_id, child_count, children_ages, photo_consent,
-          mobile, note, training_type, original_date, reason, status, created_at
-        )
-        SELECT $1, $2, $3, $4, $5, $6, $7, ta.training_type, ta.training_date,
-               'User selected credit', 'active', NOW()
-        FROM training_availability ta
-        WHERE ta.id = $2
-      `, [b.user_id, b.training_id, b.number_of_children, b.children_ages, b.photo_consent, b.mobile, b.note]);
-    }
-
-    // ✅ UPDATED: Delete the booking ONLY AFTER successful credit creation
-    console.log('[DEBUG] Removing booking after successful credit creation:', bookingId);
-    await client.query(
-      'DELETE FROM bookings WHERE id = $1 AND user_id = $2',
-      [bookingId, b.user_id]
-    );
 
     await client.query('COMMIT');
 
-    res.send(`
-      <h2>🎫 Credit Added</h2>
-      <p>A credit for this session has been added to your account.</p>
-      <p>Your booking has been removed from the cancelled session.</p>
-      <p>Thank you,<br/>Nitracik Team</p>
+    // ✅ CASE 1A: Credit just added
+    if (firstTimeCredit) {
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Credit Added Successfully</title>
+            <meta http-equiv="refresh" content="4;url=${process.env.CLIENT_URL}/booking" />
+            <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+                .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
+                .success-icon { font-size: 60px; margin-bottom: 20px; }
+                .countdown { margin-top: 20px; font-size: 14px; color: #666; }
+            </style>
+        </head>
+        <body>
+            <div class="success-container">
+                <div class="success-icon">🎫</div>
+                <h2>Credit Added Successfully!</h2>
+                <p>Your credit has been added to your account and is ready to use.</p>
+                <p>You’ll be automatically redirected in <span id="countdown">4</span> seconds...</p>
+                <div class="countdown">
+                    <a href="${process.env.CLIENT_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
+                </div>
+            </div>
+            <script>
+                let seconds = 4;
+                const el = document.getElementById('countdown');
+                const timer = setInterval(() => {
+                    seconds--; el.textContent = seconds;
+                    if (seconds <= 0) clearInterval(timer);
+                }, 1000);
+            </script>
+        </body>
+        </html>
+      `);
+    }
+
+    // ✅ CASE 2: Booking not found (so already processed earlier)
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>Credit Already Processed</title>
+          <meta http-equiv="refresh" content="4;url=${process.env.CLIENT_URL}/booking" />
+          <style>
+              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+              .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
+              .success-icon { font-size: 60px; margin-bottom: 20px; }
+              .countdown { margin-top: 20px; font-size: 14px; color: #666; }
+          </style>
+      </head>
+      <body>
+          <div class="success-container">
+              <div class="success-icon">✅</div>
+              <h2>Credit Already Processed</h2>
+              <p>Your credit was already added earlier and is ready to use.</p>
+              <p>You’ll be redirected in <span id="countdown">4</span> seconds...</p>
+              <div class="countdown">
+                  <a href="${process.env.CLIENT_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
+              </div>
+          </div>
+          <script>
+              let seconds = 4;
+              const el = document.getElementById('countdown');
+              const timer = setInterval(() => {
+                  seconds--; el.textContent = seconds;
+                  if (seconds <= 0) clearInterval(timer);
+              }, 1000);
+          </script>
+      </body>
+      </html>
     `);
+
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Credit error:', err);
-    res.status(500).send('<h2>❌ Credit Failed</h2><p>Please contact support.</p>');
+    res.redirect(`${process.env.CLIENT_URL}/error?reason=credit_failed`);
   } finally {
     client.release();
   }
 });
+
 
 // Endpoint to use credit for new booking
 app.post('/api/bookings/use-credit', async (req, res) => {
   const { creditId, trainingId, childrenAges, photoConsent, mobile, note, accompanyingPerson } = req.body;
   const userId = req.session.userId;
 
-  console.log('[DEBUG] Use credit request:', { 
-    creditId, 
-    trainingId, 
-    userId, 
+  console.log('[DEBUG] Use credit request:', {
+    creditId,
+    trainingId,
+    userId,
     childrenAges,
     photoConsent,
     mobile,
     note,
-    accompanyingPerson 
+    accompanyingPerson
   });
 
   if (!userId) {
@@ -2020,10 +2187,10 @@ app.post('/api/bookings/use-credit', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Fetch the credit with session_id to identify the original cancelled session
+    // ✅ FIX: Fetch the credit with accompanying_person instead of companion_count
     console.log('[DEBUG] Fetching credit:', creditId);
     const creditResult = await client.query(
-      `SELECT user_id, child_count, companion_count, children_ages, 
+      `SELECT user_id, child_count, accompanying_person, children_ages, 
               photo_consent, mobile, note, training_type, status, session_id
        FROM credits WHERE id = $1 AND user_id = $2 AND status = 'active'`,
       [creditId, userId]
@@ -2081,7 +2248,7 @@ app.post('/api/bookings/use-credit', async (req, res) => {
     const finalPhotoConsent = photoConsent !== undefined ? photoConsent : credit.photo_consent;
     const finalMobile = mobile || credit.mobile || '';
     const finalNote = note || credit.note || '';
-    const finalAccompanyingPerson = accompanyingPerson !== undefined ? accompanyingPerson : (credit.companion_count ? true : false);
+    const finalAccompanyingPerson = accompanyingPerson !== undefined ? accompanyingPerson : (credit.accompanying_person || false);
 
     console.log('[DEBUG] Final booking data:', {
       childrenAges: finalChildrenAges,
@@ -2134,7 +2301,7 @@ app.post('/api/bookings/use-credit', async (req, res) => {
         'SELECT first_name, last_name, email FROM users WHERE id = $1',
         [userId]
       );
-      
+
       const trainingResult = await client.query(
         'SELECT training_type, training_date FROM training_availability WHERE id = $1',
         [trainingId]
@@ -2143,7 +2310,7 @@ app.post('/api/bookings/use-credit', async (req, res) => {
       if (userResult.rows.length > 0 && trainingResult.rows.length > 0) {
         const user = userResult.rows[0];
         const training = trainingResult.rows[0];
-        
+
         // Admin email
         const adminMailOptions = {
           from: process.env.EMAIL_USER,
@@ -2196,7 +2363,7 @@ app.post('/api/bookings/use-credit', async (req, res) => {
           transporter.sendMail(adminMailOptions),
           transporter.sendMail(userMailOptions),
         ]);
-        
+
         console.log('[DEBUG] Confirmation emails sent successfully');
       }
     } catch (emailError) {
@@ -2208,8 +2375,8 @@ app.post('/api/bookings/use-credit', async (req, res) => {
     console.log('[DEBUG] Committing transaction');
     await client.query('COMMIT');
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Booking created successfully using credit',
       bookingId: bookingId
     });
