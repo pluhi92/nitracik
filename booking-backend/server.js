@@ -129,22 +129,33 @@ app.get('/api/admin/bookings', isAdmin, async (req, res) => {
         u.last_name,
         u.email,
         b.number_of_children,
-        SUM(b.number_of_children) OVER (PARTITION BY ta.id) AS total_children,
+        b.active,
+        b.booking_type,
+        b.amount_paid,
+        COALESCE(SUM(b.number_of_children) OVER (PARTITION BY ta.id), 0) AS total_children,
         (ta.max_participants - COALESCE(SUM(b.number_of_children) OVER (PARTITION BY ta.id), 0)) AS available_spots
       FROM training_availability ta
-      LEFT JOIN bookings b ON ta.id = b.training_id
-      LEFT JOIN users u ON b.user_id = u.id
+      LEFT JOIN bookings b 
+        ON ta.id = b.training_id
+      LEFT JOIN users u 
+        ON b.user_id = u.id
       WHERE ta.training_date >= NOW()
+        AND (
+          b.active = true
+          OR NOT EXISTS (
+            SELECT 1 FROM bookings b2 WHERE b2.credit_id = b.id
+          )
+        )
       ORDER BY ta.training_date DESC, ta.training_type;
     `);
 
-    console.log('[DEBUG] Admin bookings fetched:', result.rows.length);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching admin bookings:', error);
     res.status(500).json({ error: 'Failed to fetch bookings' });
   }
 });
+
 
 app.get('/api/admin/season-tickets', async (req, res) => {
   try {
@@ -162,15 +173,16 @@ app.get('/api/admin/season-tickets', async (req, res) => {
 
 // ... (previous code remains unchanged until /api/admin/payment-report)
 
+// Update /api/admin/payment-report endpoint
 app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
-  // Check if user is admin (assuming ADMIN_EMAIL is in env and session has user email)
-  const userEmail = req.session.email; // Ensure this is set in isAuthenticated middleware
+  // Check if user is admin
+  const userEmail = req.session.email;
   if (userEmail !== process.env.ADMIN_EMAIL) {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
   const { startDate, endDate } = req.body;
-  const currentDate = new Date(); // Use current system date and time: 10:05 AM CEST, June 18, 2025
+  const currentDate = new Date();
 
   // Validate date range
   if (new Date(endDate) > currentDate) {
@@ -186,31 +198,42 @@ app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
     const endDateWithTime = new Date(endDate);
     endDateWithTime.setHours(23, 59, 59, 999);
 
-    // Fetch payments for sessions (excluding those paid with season tickets)
+    // ✅ UPDATED: Fetch only PAID bookings (excluding credit and season ticket bookings)
     const sessionPayments = await client.query(
-      `SELECT u.last_name, u.first_name, 'reservation' AS order_type, b.amount_paid, b.payment_time 
-       FROM bookings b 
-       JOIN users u ON b.user_id = u.id 
-       LEFT JOIN season_ticket_usage stu ON b.id = stu.booking_id 
-       WHERE b.payment_time BETWEEN $1 AND $2 AND stu.season_ticket_id IS NULL`,
+      `SELECT 
+    u.last_name, 
+    u.first_name, 
+    'reservation' AS order_type,
+    b.amount_paid, 
+    b.payment_time,
+    b.booked_at
+   FROM bookings b 
+   JOIN users u ON b.user_id = u.id 
+   WHERE b.payment_time BETWEEN $1 AND $2 
+   AND b.booking_type = 'paid' -- ✅ ONLY include paid bookings
+   AND b.amount_paid > 0
+   ORDER BY b.payment_time ASC`,
       [startDate, endDateWithTime]
     );
 
-    // Fetch payments for season tickets
+    // Fetch payments for season ticket purchases
     const seasonTicketPayments = await client.query(
-      `SELECT u.last_name, u.first_name, 'season ticket' AS order_type, st.amount_paid, st.payment_time 
+      `SELECT u.last_name, u.first_name, 'season ticket purchase' AS order_type, 
+              st.amount_paid, st.payment_time, st.purchase_date as booked_at
        FROM season_tickets st 
        JOIN users u ON st.user_id = u.id 
        WHERE st.payment_time BETWEEN $1 AND $2`,
       [startDate, endDateWithTime]
     );
 
-    // Combine and sort results by payment_time
-    const payments = [...sessionPayments.rows, ...seasonTicketPayments.rows].sort((a, b) => new Date(a.payment_time) - new Date(b.payment_time));
-    console.log('Fetched and sorted payments:', payments); // Debug log
+    // Combine and sort results by payment time
+    const payments = [...sessionPayments.rows, ...seasonTicketPayments.rows]
+      .sort((a, b) => new Date(a.payment_time) - new Date(b.payment_time));
+
+    console.log('Fetched payments - Paid bookings:', sessionPayments.rows.length, 'Season ticket purchases:', seasonTicketPayments.rows.length);
 
     // Generate PDF
-    const doc = new PDFDocument({ margin: 50 }); // This sets equal margins on all sides
+    const doc = new PDFDocument({ margin: 50 });
     let buffers = [];
     doc.on('data', buffers.push.bind(buffers));
     doc.on('end', () => {
@@ -226,9 +249,9 @@ app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
     doc.fontSize(12).text(`Period: ${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`, { align: 'center' });
     doc.moveDown(2);
 
-    // Table setup - Calculate to ensure equal left/right margins
+    // Table setup
     const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-    const columnWidths = [120, 120, 100, 100, 150]; // Adjusted widths
+    const columnWidths = [120, 120, 120, 100, 150];
     const totalTableWidth = columnWidths.reduce((a, b) => a + b);
 
     // Center the table horizontally
@@ -277,7 +300,11 @@ app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
         doc.text(p.first_name || 'N/A', leftMargin + columnWidths[0] + cellPadding, y + cellPadding, { width: columnWidths[1] - cellPadding * 2 });
         doc.text(p.order_type || 'N/A', leftMargin + columnWidths[0] + columnWidths[1] + cellPadding, y + cellPadding, { width: columnWidths[2] - cellPadding * 2 });
         doc.text(`${amount.toFixed(2)} €`, leftMargin + columnWidths[0] + columnWidths[1] + columnWidths[2] + cellPadding, y + cellPadding, { width: columnWidths[3] - cellPadding * 2 });
-        doc.text(p.payment_time ? new Date(p.payment_time).toLocaleString() : 'N/A', leftMargin + columnWidths[0] + columnWidths[1] + columnWidths[2] + columnWidths[3] + cellPadding, y + cellPadding, { width: columnWidths[4] - cellPadding * 2 });
+
+        // Show payment time for both types
+        const displayDate = p.payment_time ? new Date(p.payment_time).toLocaleString() : 'N/A';
+
+        doc.text(displayDate, leftMargin + columnWidths[0] + columnWidths[1] + columnWidths[2] + columnWidths[3] + cellPadding, y + cellPadding, { width: columnWidths[4] - cellPadding * 2 });
       });
 
       // Footer with totals
@@ -295,7 +322,7 @@ app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
       doc.rect(leftMargin, totalY, totalTableWidth, rowHeight)
         .stroke('#e0e0e0');
     } else {
-      // Center the "no records" message as well
+      // Center the "no records" message
       doc.fontSize(10).text('No payment records found for the selected period.', doc.page.margins.left, tableTop + rowHeight, {
         width: pageWidth,
         align: 'center'
@@ -471,8 +498,8 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
 
     // Insert booking with amount_paid and payment_time
     const bookingResult = await client.query(
-      `INSERT INTO bookings (user_id, training_id, number_of_children, amount_paid, payment_time, booked_at)
-       VALUES ($1, $2, $3, 0, NULL, NOW()) RETURNING id`,
+      `INSERT INTO bookings (user_id, training_id, number_of_children, amount_paid, payment_time, booked_at, active, booking_type)
+   VALUES ($1, $2, $3, 0, NULL, NOW(), true, 'season_ticket') RETURNING id`,
       [userId, training.id, childrenCount]
     );
     const bookingId = bookingResult.rows[0].id;
@@ -658,10 +685,10 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
       // Create booking with all fields
       const bookingResult = await client.query(
         `INSERT INTO bookings (
-          user_id, training_id, number_of_children, amount_paid, payment_time, 
-          session_id, booked_at, children_ages, photo_consent, mobile, note, accompanying_person
-        ) VALUES ($1, $2, $3, $4, NULL, $5, NOW(), $6, $7, $8, $9, $10)
-        RETURNING id`,
+    user_id, training_id, number_of_children, amount_paid, payment_time, 
+    session_id, booked_at, children_ages, photo_consent, mobile, note, accompanying_person, active, booking_type
+  ) VALUES ($1, $2, $3, $4, NULL, $5, NOW(), $6, $7, $8, $9, $10, true, 'paid')
+  RETURNING id`,
         [
           userId,
           training.id,
@@ -1182,7 +1209,7 @@ app.get('/api/check-availability', async (req, res) => {
     const training = trainingResult.rows[0];
     const bookingsResult = await pool.query(
       `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children
-       FROM bookings WHERE training_id = $1`,
+   FROM bookings WHERE training_id = $1 AND active = true`,
       [training.id]
     );
 
@@ -1237,10 +1264,12 @@ app.get('/api/bookings/user/:userId', isAuthenticated, async (req, res) => {
         b.id AS booking_id, 
         t.training_type, 
         t.training_date,
-        t.cancelled
+        t.cancelled,
+        b.active,
+        b.booking_type -- ✅ ADD: Include booking_type
       FROM bookings b
       JOIN training_availability t ON b.training_id = t.id
-      WHERE b.user_id = $1
+      WHERE b.user_id = $1 AND b.active = true
       ORDER BY t.training_date ASC
     `, [userId]);
     res.json(result.rows);
@@ -1280,7 +1309,7 @@ app.get('/api/bookings/:bookingId/type', isAuthenticated, async (req, res) => {
       }
 
       // Check if booking is a credit-based booking
-      if (booking.credit_id) {
+      if (booking.credit_id || booking.booking_type === 'credit') {
         return res.json({ bookingType: 'credit' });
       }
 
@@ -1881,16 +1910,16 @@ app.get('/api/booking/refund', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Try to find the booking first
+    // Try to find the active booking first
     const bookingRes = await client.query(
-      'SELECT user_id, training_id, payment_intent_id, amount_paid FROM bookings WHERE id = $1',
+      'SELECT user_id, training_id, payment_intent_id, amount_paid FROM bookings WHERE id = $1 AND active = true',
       [bookingId]
     );
 
     let firstTimeRefund = false;
     let refundRecord = null;
 
-    // ✅ CASE 1: Booking found → process refund (first click)
+    // ✅ CASE 1: Active booking found → process refund and deactivate booking
     if (bookingRes.rows.length > 0) {
       const { user_id, payment_intent_id, amount_paid } = bookingRes.rows[0];
 
@@ -1915,8 +1944,11 @@ app.get('/api/booking/refund', async (req, res) => {
           [bookingId, refund.id, amount_paid, refund.status, 'User selected refund']
         );
 
-        // Delete booking after successful refund
-        await client.query('DELETE FROM bookings WHERE id = $1 AND user_id = $2', [bookingId, user_id]);
+        // ✅ NEW: Deactivate booking instead of deleting it
+        await client.query(
+          'UPDATE bookings SET active = false WHERE id = $1 AND user_id = $2',
+          [bookingId, user_id]
+        );
 
         firstTimeRefund = true;
       } else {
@@ -1926,7 +1958,7 @@ app.get('/api/booking/refund', async (req, res) => {
 
     await client.query('COMMIT');
 
-    // ✅ CASE 1A: Refund just processed successfully
+    // ✅ Success response (same as before)
     if (firstTimeRefund && refundRecord) {
       return res.send(`
         <!DOCTYPE html>
@@ -1946,7 +1978,7 @@ app.get('/api/booking/refund', async (req, res) => {
                 <div class="success-icon">💳</div>
                 <h2>Refund Processed Successfully!</h2>
                 <p>Your refund (ID: <strong>${refundRecord.id}</strong>) was successfully processed.</p>
-                <p>You’ll be automatically redirected in <span id="countdown">4</span> seconds...</p>
+                <p>You'll be automatically redirected in <span id="countdown">4</span> seconds...</p>
                 <div class="countdown">
                     <a href="${process.env.CLIENT_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
                 </div>
@@ -1964,7 +1996,7 @@ app.get('/api/booking/refund', async (req, res) => {
       `);
     }
 
-    // ✅ CASE 2: Booking missing or refund already exists → show "Already processed"
+    // ✅ Already processed response
     return res.send(`
       <!DOCTYPE html>
       <html>
@@ -1983,7 +2015,7 @@ app.get('/api/booking/refund', async (req, res) => {
               <div class="success-icon">✅</div>
               <h2>Refund Already Processed</h2>
               <p>Your refund has already been handled successfully.</p>
-              <p>You’ll be redirected in <span id="countdown">4</span> seconds...</p>
+              <p>You'll be redirected in <span id="countdown">4</span> seconds...</p>
               <div class="countdown">
                   <a href="${process.env.CLIENT_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
               </div>
@@ -2034,12 +2066,12 @@ app.get('/api/booking/credit', async (req, res) => {
         ta.training_date
       FROM bookings b
       LEFT JOIN training_availability ta ON b.training_id = ta.id
-      WHERE b.id = $1
+      WHERE b.id = $1 AND b.active = true
     `, [bookingId]);
 
     let firstTimeCredit = false;
 
-    // ✅ CASE 1: Booking exists → create new credit (FIRST CLICK)
+    // ✅ CASE 1: Active booking exists → create new credit and deactivate booking
     if (bookingRes.rows.length > 0) {
       const b = bookingRes.rows[0];
 
@@ -2050,6 +2082,7 @@ app.get('/api/booking/credit', async (req, res) => {
       );
 
       if (existingCredit.rows.length === 0) {
+        // Create credit record
         await client.query(`
           INSERT INTO credits (
             user_id, session_id, child_count, accompanying_person, children_ages, photo_consent,
@@ -2069,15 +2102,19 @@ app.get('/api/booking/credit', async (req, res) => {
           b.training_date || new Date()
         ]);
 
-        // Delete original booking (so it won’t reappear)
-        await client.query('DELETE FROM bookings WHERE id = $1 AND user_id = $2', [bookingId, b.user_id]);
+        // ✅ NEW: Deactivate the booking but keep original booking_type
+        await client.query(
+          'UPDATE bookings SET active = false WHERE id = $1 AND user_id = $2',
+          [bookingId, b.user_id]
+        );
+
         firstTimeCredit = true;
       }
     }
 
     await client.query('COMMIT');
 
-    // ✅ CASE 1A: Credit just added
+    // ✅ Success response (same as before)
     if (firstTimeCredit) {
       return res.send(`
         <!DOCTYPE html>
@@ -2097,7 +2134,7 @@ app.get('/api/booking/credit', async (req, res) => {
                 <div class="success-icon">🎫</div>
                 <h2>Credit Added Successfully!</h2>
                 <p>Your credit has been added to your account and is ready to use.</p>
-                <p>You’ll be automatically redirected in <span id="countdown">4</span> seconds...</p>
+                <p>You'll be automatically redirected in <span id="countdown">4</span> seconds...</p>
                 <div class="countdown">
                     <a href="${process.env.CLIENT_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
                 </div>
@@ -2115,7 +2152,7 @@ app.get('/api/booking/credit', async (req, res) => {
       `);
     }
 
-    // ✅ CASE 2: Booking not found (so already processed earlier)
+    // ✅ Already processed response
     return res.send(`
       <!DOCTYPE html>
       <html>
@@ -2134,7 +2171,7 @@ app.get('/api/booking/credit', async (req, res) => {
               <div class="success-icon">✅</div>
               <h2>Credit Already Processed</h2>
               <p>Your credit was already added earlier and is ready to use.</p>
-              <p>You’ll be redirected in <span id="countdown">4</span> seconds...</p>
+              <p>You'll be redirected in <span id="countdown">4</span> seconds...</p>
               <div class="countdown">
                   <a href="${process.env.CLIENT_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
               </div>
@@ -2233,14 +2270,14 @@ app.post('/api/bookings/use-credit', async (req, res) => {
       return res.status(400).json({ error: 'Training session is full' });
     }
 
-    // ✅ NEW: Delete the original booking from the cancelled session
+    // ✅ NEW: Only deactivate the original booking but keep booking_type as 'paid'
     if (originalSessionId) {
-      console.log('[DEBUG] Removing original booking from cancelled session:', originalSessionId);
+      console.log('[DEBUG] Deactivating original booking from cancelled session:', originalSessionId);
       await client.query(
-        'DELETE FROM bookings WHERE user_id = $1 AND training_id = $2',
-        [userId, originalSessionId]
+        'UPDATE bookings SET active = false WHERE user_id = $1 AND training_id = $2 AND booking_type = $3',
+        [userId, originalSessionId, 'paid'] // Only deactivate paid bookings, keep type as 'paid'
       );
-      console.log('[DEBUG] Original booking removed from cancelled session');
+      console.log('[DEBUG] Original paid booking deactivated (not deleted)');
     }
 
     // ✅ Use updated form data or fall back to credit data
@@ -2258,16 +2295,16 @@ app.post('/api/bookings/use-credit', async (req, res) => {
       accompanyingPerson: finalAccompanyingPerson
     });
 
-    // Insert new booking with updated information
+    // Insert new booking with updated information - explicitly set as 'credit'
     console.log('[DEBUG] Inserting new booking for trainingId:', trainingId);
     const bookingResult = await client.query(
       `INSERT INTO bookings (
-        user_id, training_id, number_of_children, children_ages, 
-        photo_consent, mobile, note, accompanying_person, 
-        amount_paid, payment_intent_id, payment_time, credit_id, 
-        session_id, booked_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
-      RETURNING id`,
+    user_id, training_id, number_of_children, children_ages, 
+    photo_consent, mobile, note, accompanying_person, 
+    amount_paid, payment_intent_id, payment_time, credit_id, 
+    session_id, booked_at, booking_type, active
+  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), $14, $15)
+  RETURNING id`,
       [
         credit.user_id,
         trainingId,
@@ -2282,6 +2319,8 @@ app.post('/api/bookings/use-credit', async (req, res) => {
         null, // payment_time: null for credit-based booking
         creditId, // credit_id: tracks which credit was used
         null, // session_id: null for credit-based booking
+        'credit', // ✅ CRITICAL: Explicitly set booking_type to 'credit'
+        true // active: true for new booking
       ]
     );
 

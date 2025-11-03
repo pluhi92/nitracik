@@ -137,6 +137,9 @@ const UserProfile = () => {
           last_name: session.last_name,
           email: session.email,
           children: session.number_of_children || 1,
+          booking_type: session.booking_type || null,
+          active: session.active,
+          amount_paid: session.amount_paid || 0,
         });
       }
     });
@@ -219,6 +222,31 @@ const UserProfile = () => {
                             <span className="participant-email">
                               {participant.email}
                             </span>
+                            {/* ✅ NEW: Add booking type badge for admin view */}
+                            <div className="mt-1">
+                              <span className={`badge ${participant.booking_type === 'credit'
+                                ? 'bg-info'
+                                : participant.booking_type === 'season_ticket'
+                                  ? 'bg-warning'
+                                  : participant.booking_type === 'paid' && participant.active === false
+                                    ? 'bg-secondary'
+                                    : 'bg-success'
+                                }`}>
+                                {participant.booking_type === 'credit'
+                                  ? 'Credit'
+                                  : participant.booking_type === 'season_ticket'
+                                    ? 'Season Ticket'
+                                    : participant.booking_type === 'paid' && participant.active === false
+                                      ? 'Paid (Canceled)'
+                                      : 'Paid'}
+                              </span>
+
+                              {participant.amount_paid > 0 && (
+                                <span className="badge bg-primary ms-1">
+                                  €{participant.amount_paid}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="children-count">
                             {t?.profile?.table?.child?.replace(
@@ -716,12 +744,51 @@ const UserProfile = () => {
                   const isCancelled = session.cancelled === true;
                   const canCancel = !isCancelled && canCancelSession(session.training_date);
 
+                  // ✅ NEW: Determine booking type and styling
+                  const getBookingTypeInfo = () => {
+                    if (session.credit_id) {
+                      return { type: 'credit', label: 'Credit Booking', badgeClass: 'bg-info' };
+                    }
+                    if (session.booking_type === 'season_ticket') {
+                      return { type: 'season_ticket', label: 'Season Ticket', badgeClass: 'bg-warning' };
+                    }
+                    if (session.amount_paid > 0) {
+                      return { type: 'paid', label: 'Paid Booking', badgeClass: 'bg-success' };
+                    }
+                    return { type: 'unknown', label: 'Booking', badgeClass: 'bg-secondary' };
+                  };
+
+                  const bookingTypeInfo = getBookingTypeInfo();
+
                   return (
                     <li key={session.booking_id} className={`list-group-item d-flex justify-content-between align-items-center ${isCancelled ? 'list-group-item-secondary' : ''}`}>
-                      <div>
-                        <strong>{session.training_type}</strong> - {new Date(session.training_date).toLocaleString()}
-                        {session.credit_id && <span className="badge bg-success ms-2">Credit Booking</span>}
-                        {isCancelled && <span className="badge bg-danger ms-2">CANCELLED</span>}
+                      <div className="d-flex flex-column">
+                        <div className="d-flex align-items-center mb-2">
+                          <strong>{session.training_type}</strong>
+                          <span className="mx-2">-</span>
+                          {new Date(session.training_date).toLocaleString()}
+                        </div>
+                        <div className="d-flex flex-wrap gap-2">
+                          {/* ✅ NEW: Booking Type Badge */}
+                          <span className={`badge ${bookingTypeInfo.badgeClass}`}>
+                            {bookingTypeInfo.label}
+                          </span>
+
+                          {/* ✅ NEW: Amount Display for Paid Bookings */}
+                          {session.amount_paid > 0 && (
+                            <span className="badge bg-primary">
+                              €{session.amount_paid}
+                            </span>
+                          )}
+
+                          {/* Children Count */}
+                          <span className="badge bg-light text-dark">
+                            {session.number_of_children} {session.number_of_children === 1 ? 'child' : 'children'}
+                          </span>
+
+                          {/* Cancelled Badge */}
+                          {isCancelled && <span className="badge bg-danger">CANCELLED</span>}
+                        </div>
                       </div>
                       <div
                         data-tooltip-id="cancel-tooltip"
