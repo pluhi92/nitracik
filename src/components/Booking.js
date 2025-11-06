@@ -53,6 +53,7 @@ const Booking = () => {
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [selectedCredit, setSelectedCredit] = useState(null);
   const [isCreditMode, setIsCreditMode] = useState(false);
+  const [fillFormPreference, setFillFormPreference] = useState({});
 
   const pricing = {
     1: 15,
@@ -447,28 +448,36 @@ const Booking = () => {
     return null;
   };
 
-  const selectCredit = (credit) => {
+  const selectCredit = (credit, fillForm = false) => {
     setSelectedCredit(credit);
     setTrainingType(credit.training_type);
+
+    // ✅ Set children count from credit
     setChildrenCount(credit.child_count);
 
-    // ✅ Handle potential null values for accompanying_person
-    // Set accompanying_person based on credit data and make it read-only
+    // ✅ Handle accompanying_person - always set from original booking and read-only
     setAccompanyingPerson(credit.accompanying_person === true);
 
-    // Parse ages from credit
+    // ✅ FIXED: Parse ages from credit - handle the "4, 3" format correctly
     let parsedAges = [];
     if (credit.children_ages) {
+      console.log('[DEBUG] Original children_ages:', credit.children_ages);
+
       if (typeof credit.children_ages === 'string') {
+        // Handle "4, 3" format - split by comma and clean up
         parsedAges = credit.children_ages
           .split(',')
           .map(age => age.trim())
-          .map(age => parseInt(age))
-          .filter(age => !isNaN(age) && age > 0);
+          .map(age => {
+            const parsed = parseInt(age);
+            return isNaN(parsed) ? '' : parsed;
+          });
       } else if (Array.isArray(credit.children_ages)) {
         parsedAges = credit.children_ages.map(age => parseInt(age)).filter(age => !isNaN(age));
       }
     }
+
+    console.log('[DEBUG] Parsed ages:', parsedAges);
 
     // If no ages found or count doesn't match, create empty array
     if (parsedAges.length !== credit.child_count) {
@@ -477,26 +486,50 @@ const Booking = () => {
 
     setChildrenAges(parsedAges);
 
-    // ✅ Set photo consent from credit but keep it editable
-    setPhotoConsent(credit.photo_consent);
+    // ✅ CONDITIONAL: Fill mobile, notes, and photo consent based on checkbox
+    if (fillForm) {
+      console.log('[DEBUG] Filling form with original data:', {
+        photoConsent: credit.photo_consent,
+        mobile: credit.mobile,
+        note: credit.note,
+        childrenAges: parsedAges
+      });
 
-    // ✅ Set mobile and note from credit but keep them editable
-    setMobile(credit.mobile || '');
-    setNote(credit.note || '');
+      // Fill with original booking data
+      setPhotoConsent(credit.photo_consent);
+      setMobile(credit.mobile || '');
+      setNote(credit.note || '');
+    } else {
+      console.log('[DEBUG] Leaving form empty for user input');
+      // Leave empty for user to fill
+      setPhotoConsent(null);
+      setMobile('');
+      setNote('');
+    }
 
-    setConsent(false); // Reset terms
+    // ✅ ALWAYS reset consent to false (user must agree again)
+    setConsent(false);
+
+    // ✅ Reset the fill form preferences for this credit
+    setFillFormPreference(prev => ({
+      ...prev,
+      [credit.id]: false // Reset this credit's preference
+    }));
+
     setSelectedDate('');
     setSelectedTime('');
     setShowCreditModal(false);
     setIsCreditMode(true);
 
-    console.log('[DEBUG] Credit selected:', {
+    console.log('[DEBUG] Credit selected - Final state:', {
       creditId: credit.id,
       accompanyingPerson: credit.accompanying_person,
       child_count: credit.child_count,
-      photoConsent: credit.photo_consent,
-      mobile: credit.mobile,
-      note: credit.note
+      fillForm: fillForm,
+      childrenAges: parsedAges,
+      photoConsent: fillForm ? credit.photo_consent : 'empty',
+      mobile: fillForm ? credit.mobile : 'empty',
+      note: fillForm ? credit.note : 'empty'
     });
   };
 
@@ -912,7 +945,10 @@ const Booking = () => {
       </Form>
 
       {/* Credit Selection Modal */}
-      <Modal show={showCreditModal} onHide={() => setShowCreditModal(false)}>
+      <Modal show={showCreditModal} onHide={() => {
+        setShowCreditModal(false);
+        setFillFormPreference({}); // ✅ Reset preferences when modal closes
+      }}>
         <Modal.Header closeButton>
           <Modal.Title>{t?.booking?.chooseCredit || 'Choose Your Credit'}</Modal.Title>
         </Modal.Header>
@@ -921,14 +957,33 @@ const Booking = () => {
             <p>{t?.booking?.noCredits || 'No credits available.'}</p>
           ) : (
             credits.map((credit) => (
-              <div key={credit.id} className="mb-3">
+              <div key={credit.id} className="mb-3 p-3 border rounded">
                 <p><strong>{t?.booking?.originalDate || 'Original Date'}:</strong> {new Date(credit.original_date).toLocaleString()}</p>
                 <p><strong>{t?.booking?.children || 'Children'}:</strong> {credit.child_count} | <strong>{t?.booking?.accompanyingPerson || 'Accompanying Person'}:</strong> {credit.accompanying_person ? 'Yes' : 'No'}</p>
                 <p><strong>{t?.booking?.trainingType?.label || 'Training Type'}:</strong> {credit.training_type}</p>
                 <p><strong>{t?.booking?.photoConsent || 'Photo Consent'}:</strong> {credit.photo_consent ? 'Agreed' : 'Disagreed'}</p>
                 {credit.mobile && <p><strong>{t?.booking?.mobile || 'Mobile'}:</strong> {credit.mobile}</p>}
                 {credit.note && <p><strong>{t?.booking?.notes || 'Notes'}:</strong> {credit.note}</p>}
-                <Button variant="primary" onClick={() => selectCredit(credit)}>
+
+                {/* ✅ Fill form checkbox */}
+                <Form.Check
+                  type="checkbox"
+                  id={`fill-form-${credit.id}`}
+                  label={t?.booking?.fillFormFromOriginal || 'Fill in the form based on the original booking'}
+                  className="mb-2 mt-2"
+                  checked={fillFormPreference[credit.id] || false}
+                  onChange={(e) => {
+                    setFillFormPreference(prev => ({
+                      ...prev,
+                      [credit.id]: e.target.checked
+                    }));
+                  }}
+                />
+
+                <Button
+                  variant="primary"
+                  onClick={() => selectCredit(credit, fillFormPreference[credit.id] || false)}
+                >
                   {t?.booking?.useThisCredit || 'Use this credit'}
                 </Button>
               </div>
@@ -936,7 +991,10 @@ const Booking = () => {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowCreditModal(false)}>
+          <Button variant="secondary" onClick={() => {
+            setShowCreditModal(false);
+            setFillFormPreference({}); // ✅ Reset preferences when modal closes
+          }}>
             {t?.booking?.cancel || 'Cancel'}
           </Button>
         </Modal.Footer>

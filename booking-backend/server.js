@@ -1333,7 +1333,17 @@ app.get('/api/credits/:userId', isAuthenticated, async (req, res) => {
   try {
     const userId = req.params.userId;
     const credits = await pool.query(`
-      SELECT id, training_type, original_date, child_count, accompanying_person, status
+      SELECT 
+        id, 
+        training_type, 
+        original_date, 
+        child_count, 
+        accompanying_person, 
+        children_ages,
+        photo_consent,
+        mobile,
+        note,
+        status
       FROM credits
       WHERE user_id = $1 AND status = 'active'
       ORDER BY created_at DESC
@@ -2227,9 +2237,18 @@ app.post('/api/bookings/use-credit', async (req, res) => {
     // ✅ FIX: Fetch the credit with accompanying_person instead of companion_count
     console.log('[DEBUG] Fetching credit:', creditId);
     const creditResult = await client.query(
-      `SELECT user_id, child_count, accompanying_person, children_ages, 
-              photo_consent, mobile, note, training_type, status, session_id
-       FROM credits WHERE id = $1 AND user_id = $2 AND status = 'active'`,
+      `SELECT 
+    user_id, 
+    child_count, 
+    accompanying_person, 
+    children_ages,
+    photo_consent, 
+    mobile, 
+    note, 
+    training_type, 
+    status, 
+    session_id
+   FROM credits WHERE id = $1 AND user_id = $2 AND status = 'active'`,
       [creditId, userId]
     );
 
