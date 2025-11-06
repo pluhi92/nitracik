@@ -453,6 +453,7 @@ const Booking = () => {
     setChildrenCount(credit.child_count);
 
     // ✅ Handle potential null values for accompanying_person
+    // Set accompanying_person based on credit data and make it read-only
     setAccompanyingPerson(credit.accompanying_person === true);
 
     // Parse ages from credit
@@ -475,9 +476,14 @@ const Booking = () => {
     }
 
     setChildrenAges(parsedAges);
+
+    // ✅ Set photo consent from credit but keep it editable
     setPhotoConsent(credit.photo_consent);
+
+    // ✅ Set mobile and note from credit but keep them editable
     setMobile(credit.mobile || '');
     setNote(credit.note || '');
+
     setConsent(false); // Reset terms
     setSelectedDate('');
     setSelectedTime('');
@@ -487,7 +493,10 @@ const Booking = () => {
     console.log('[DEBUG] Credit selected:', {
       creditId: credit.id,
       accompanyingPerson: credit.accompanying_person,
-      child_count: credit.child_count
+      child_count: credit.child_count,
+      photoConsent: credit.photo_consent,
+      mobile: credit.mobile,
+      note: credit.note
     });
   };
 
@@ -642,7 +651,7 @@ const Booking = () => {
             value={mobile}
             onAccept={(value) => setMobile(value)}
             placeholder={t?.booking?.mobile || '+421 xxx xxx xxx'}
-            disabled={isCreditMode}
+          // ✅ REMOVED: disabled={isCreditMode} - Keep mobile editable in credit mode
           />
         </Form.Group>
 
@@ -745,7 +754,7 @@ const Booking = () => {
             as="textarea"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            disabled={isCreditMode}
+          // ✅ REMOVED: disabled={isCreditMode} - Keep notes editable in credit mode
           />
         </Form.Group>
 
@@ -754,12 +763,21 @@ const Booking = () => {
             type="checkbox"
             id="accompanyingPerson"
             checked={accompanyingPerson}
-            onChange={() => setAccompanyingPerson(!accompanyingPerson)}
-            disabled={useSeasonTicket && selectedSeasonTicket} // Only disable for season tickets
+            onChange={
+              isCreditMode
+                ? undefined // ✅ No onChange in credit mode (read-only)
+                : () => setAccompanyingPerson(!accompanyingPerson) // ✅ Normal onChange in regular mode
+            }
+            disabled={isCreditMode || (useSeasonTicket && selectedSeasonTicket)} // ✅ Disable in credit mode or season ticket
             label={
               <>
                 {t?.booking?.accompanyingPerson || 'Participation of Accompanying Person (€3)'}
-                {useSeasonTicket && selectedSeasonTicket && (
+                {isCreditMode && (
+                  <span className="text-muted ms-2">
+                    ({t?.booking?.creditModeReadOnly || 'Set from original booking - read only'})
+                  </span>
+                )}
+                {useSeasonTicket && selectedSeasonTicket && !isCreditMode && (
                   <span className="text-muted ms-2">
                     ({t?.booking?.notCoveredBySeasonTicket || 'Not covered by season ticket'})
                   </span>
@@ -820,7 +838,7 @@ const Booking = () => {
               checked={photoConsent === true}
               onChange={() => setPhotoConsent(true)}
               required
-              disabled={isCreditMode}
+              // ✅ REMOVED: disabled={isCreditMode} - Keep photo consent editable in credit mode
               label={t?.booking?.agree || 'AGREE to publish photos of my children'}
             />
             <Form.Check
@@ -830,7 +848,7 @@ const Booking = () => {
               checked={photoConsent === false}
               onChange={() => setPhotoConsent(false)}
               required
-              disabled={isCreditMode}
+              // ✅ REMOVED: disabled={isCreditMode} - Keep photo consent editable in credit mode
               label={t?.booking?.disagree || 'DISAGREE to publish photos of my children'}
             />
           </div>
@@ -907,6 +925,9 @@ const Booking = () => {
                 <p><strong>{t?.booking?.originalDate || 'Original Date'}:</strong> {new Date(credit.original_date).toLocaleString()}</p>
                 <p><strong>{t?.booking?.children || 'Children'}:</strong> {credit.child_count} | <strong>{t?.booking?.accompanyingPerson || 'Accompanying Person'}:</strong> {credit.accompanying_person ? 'Yes' : 'No'}</p>
                 <p><strong>{t?.booking?.trainingType?.label || 'Training Type'}:</strong> {credit.training_type}</p>
+                <p><strong>{t?.booking?.photoConsent || 'Photo Consent'}:</strong> {credit.photo_consent ? 'Agreed' : 'Disagreed'}</p>
+                {credit.mobile && <p><strong>{t?.booking?.mobile || 'Mobile'}:</strong> {credit.mobile}</p>}
+                {credit.note && <p><strong>{t?.booking?.notes || 'Notes'}:</strong> {credit.note}</p>}
                 <Button variant="primary" onClick={() => selectCredit(credit)}>
                   {t?.booking?.useThisCredit || 'Use this credit'}
                 </Button>
