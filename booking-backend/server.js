@@ -123,26 +123,39 @@ app.get('/api/admin/bookings', isAdmin, async (req, res) => {
         ta.training_date,
         ta.training_type,
         ta.max_participants,
+        ta.cancelled,
         u.id AS user_id,
         u.first_name,
         u.last_name,
         u.email,
         b.number_of_children,
-        SUM(b.number_of_children) OVER (PARTITION BY ta.id) AS total_children,
-        (ta.max_participants - SUM(b.number_of_children) OVER (PARTITION BY ta.id)) AS available_spots
+        b.active,
+        b.booking_type,
+        b.amount_paid,
+        COALESCE(SUM(b.number_of_children) OVER (PARTITION BY ta.id), 0) AS total_children,
+        (ta.max_participants - COALESCE(SUM(b.number_of_children) OVER (PARTITION BY ta.id), 0)) AS available_spots
       FROM training_availability ta
-      LEFT JOIN bookings b ON ta.id = b.training_id
-      LEFT JOIN users u ON b.user_id = u.id
+      LEFT JOIN bookings b 
+        ON ta.id = b.training_id
+      LEFT JOIN users u 
+        ON b.user_id = u.id
       WHERE ta.training_date >= NOW()
+        AND (
+          b.active = true
+          OR NOT EXISTS (
+            SELECT 1 FROM bookings b2 WHERE b2.credit_id = b.id
+          )
+        )
       ORDER BY ta.training_date DESC, ta.training_type;
     `);
-    
+
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching admin bookings:', error);
     res.status(500).json({ error: 'Failed to fetch bookings' });
   }
 });
+
 
 app.get('/api/admin/season-tickets', async (req, res) => {
   try {
@@ -160,15 +173,16 @@ app.get('/api/admin/season-tickets', async (req, res) => {
 
 // ... (previous code remains unchanged until /api/admin/payment-report)
 
+// Update /api/admin/payment-report endpoint
 app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
-  // Check if user is admin (assuming ADMIN_EMAIL is in env and session has user email)
-  const userEmail = req.session.email; // Ensure this is set in isAuthenticated middleware
+  // Check if user is admin
+  const userEmail = req.session.email;
   if (userEmail !== process.env.ADMIN_EMAIL) {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
   const { startDate, endDate } = req.body;
-  const currentDate = new Date(); // Use current system date and time: 10:05 AM CEST, June 18, 2025
+  const currentDate = new Date();
 
   // Validate date range
   if (new Date(endDate) > currentDate) {
@@ -184,31 +198,42 @@ app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
     const endDateWithTime = new Date(endDate);
     endDateWithTime.setHours(23, 59, 59, 999);
 
-    // Fetch payments for sessions (excluding those paid with season tickets)
+    // ✅ UPDATED: Fetch only PAID bookings (excluding credit and season ticket bookings)
     const sessionPayments = await client.query(
-      `SELECT u.last_name, u.first_name, 'reservation' AS order_type, b.amount_paid, b.payment_time 
-       FROM bookings b 
-       JOIN users u ON b.user_id = u.id 
-       LEFT JOIN season_ticket_usage stu ON b.id = stu.booking_id 
-       WHERE b.payment_time BETWEEN $1 AND $2 AND stu.season_ticket_id IS NULL`,
+      `SELECT 
+    u.last_name, 
+    u.first_name, 
+    'reservation' AS order_type,
+    b.amount_paid, 
+    b.payment_time,
+    b.booked_at
+   FROM bookings b 
+   JOIN users u ON b.user_id = u.id 
+   WHERE b.payment_time BETWEEN $1 AND $2 
+   AND b.booking_type = 'paid' -- ✅ ONLY include paid bookings
+   AND b.amount_paid > 0
+   ORDER BY b.payment_time ASC`,
       [startDate, endDateWithTime]
     );
 
-    // Fetch payments for season tickets
+    // Fetch payments for season ticket purchases
     const seasonTicketPayments = await client.query(
-      `SELECT u.last_name, u.first_name, 'season ticket' AS order_type, st.amount_paid, st.payment_time 
+      `SELECT u.last_name, u.first_name, 'season ticket purchase' AS order_type, 
+              st.amount_paid, st.payment_time, st.purchase_date as booked_at
        FROM season_tickets st 
        JOIN users u ON st.user_id = u.id 
        WHERE st.payment_time BETWEEN $1 AND $2`,
       [startDate, endDateWithTime]
     );
 
-    // Combine and sort results by payment_time
-    const payments = [...sessionPayments.rows, ...seasonTicketPayments.rows].sort((a, b) => new Date(a.payment_time) - new Date(b.payment_time));
-    console.log('Fetched and sorted payments:', payments); // Debug log
+    // Combine and sort results by payment time
+    const payments = [...sessionPayments.rows, ...seasonTicketPayments.rows]
+      .sort((a, b) => new Date(a.payment_time) - new Date(b.payment_time));
+
+    console.log('Fetched payments - Paid bookings:', sessionPayments.rows.length, 'Season ticket purchases:', seasonTicketPayments.rows.length);
 
     // Generate PDF
-    const doc = new PDFDocument({ margin: 50 }); // This sets equal margins on all sides
+    const doc = new PDFDocument({ margin: 50 });
     let buffers = [];
     doc.on('data', buffers.push.bind(buffers));
     doc.on('end', () => {
@@ -224,11 +249,11 @@ app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
     doc.fontSize(12).text(`Period: ${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`, { align: 'center' });
     doc.moveDown(2);
 
-    // Table setup - Calculate to ensure equal left/right margins
+    // Table setup
     const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-    const columnWidths = [120, 120, 100, 100, 150]; // Adjusted widths
+    const columnWidths = [120, 120, 120, 100, 150];
     const totalTableWidth = columnWidths.reduce((a, b) => a + b);
-    
+
     // Center the table horizontally
     const leftMargin = (pageWidth - totalTableWidth) / 2 + doc.page.margins.left;
     const tableTop = 180;
@@ -238,11 +263,11 @@ app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
     // Table header
     doc.font('Helvetica-Bold').fontSize(10);
     const headerY = tableTop;
-    
+
     // Draw header background
     doc.rect(leftMargin, headerY, totalTableWidth, rowHeight)
-       .fill('#f0f0f0');
-    
+      .fill('#f0f0f0');
+
     // Header text
     doc.fillColor('#000').text('Last Name', leftMargin + cellPadding, headerY + cellPadding, { width: columnWidths[0] - cellPadding * 2 });
     doc.text('First Name', leftMargin + columnWidths[0] + cellPadding, headerY + cellPadding, { width: columnWidths[1] - cellPadding * 2 });
@@ -256,47 +281,51 @@ app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
       payments.forEach((p, index) => {
         const y = tableTop + rowHeight * (index + 1);
         const amount = parseFloat(p.amount_paid) || 0;
-        
+
         // Alternate row colors
         if (index % 2 === 0) {
           doc.rect(leftMargin, y, totalTableWidth, rowHeight)
-             .fill('#ffffff');
+            .fill('#ffffff');
         } else {
           doc.rect(leftMargin, y, totalTableWidth, rowHeight)
-             .fill('#f9f9f9');
+            .fill('#f9f9f9');
         }
-        
+
         // Cell borders
         doc.rect(leftMargin, y, totalTableWidth, rowHeight)
-           .stroke('#e0e0e0');
-        
+          .stroke('#e0e0e0');
+
         // Cell content
         doc.fillColor('#333').text(p.last_name || 'N/A', leftMargin + cellPadding, y + cellPadding, { width: columnWidths[0] - cellPadding * 2 });
         doc.text(p.first_name || 'N/A', leftMargin + columnWidths[0] + cellPadding, y + cellPadding, { width: columnWidths[1] - cellPadding * 2 });
         doc.text(p.order_type || 'N/A', leftMargin + columnWidths[0] + columnWidths[1] + cellPadding, y + cellPadding, { width: columnWidths[2] - cellPadding * 2 });
         doc.text(`${amount.toFixed(2)} €`, leftMargin + columnWidths[0] + columnWidths[1] + columnWidths[2] + cellPadding, y + cellPadding, { width: columnWidths[3] - cellPadding * 2 });
-        doc.text(p.payment_time ? new Date(p.payment_time).toLocaleString() : 'N/A', leftMargin + columnWidths[0] + columnWidths[1] + columnWidths[2] + columnWidths[3] + cellPadding, y + cellPadding, { width: columnWidths[4] - cellPadding * 2 });
+
+        // Show payment time for both types
+        const displayDate = p.payment_time ? new Date(p.payment_time).toLocaleString() : 'N/A';
+
+        doc.text(displayDate, leftMargin + columnWidths[0] + columnWidths[1] + columnWidths[2] + columnWidths[3] + cellPadding, y + cellPadding, { width: columnWidths[4] - cellPadding * 2 });
       });
 
       // Footer with totals
       const totalY = tableTop + rowHeight * (payments.length + 1);
       const totalAmount = payments.reduce((sum, p) => sum + (parseFloat(p.amount_paid) || 0), 0);
-      
+
       doc.rect(leftMargin, totalY, totalTableWidth, rowHeight)
-         .fill('#f0f0f0');
-      
+        .fill('#f0f0f0');
+
       doc.font('Helvetica-Bold').fillColor('#000')
-         .text('Total:', leftMargin + cellPadding, totalY + cellPadding, { width: columnWidths[0] + columnWidths[1] + columnWidths[2] - cellPadding * 2 });
-      
+        .text('Total:', leftMargin + cellPadding, totalY + cellPadding, { width: columnWidths[0] + columnWidths[1] + columnWidths[2] - cellPadding * 2 });
+
       doc.text(`${totalAmount.toFixed(2)} €`, leftMargin + columnWidths[0] + columnWidths[1] + columnWidths[2] + cellPadding, totalY + cellPadding, { width: columnWidths[3] - cellPadding * 2 });
-      
+
       doc.rect(leftMargin, totalY, totalTableWidth, rowHeight)
-         .stroke('#e0e0e0');
+        .stroke('#e0e0e0');
     } else {
-      // Center the "no records" message as well
-      doc.fontSize(10).text('No payment records found for the selected period.', doc.page.margins.left, tableTop + rowHeight, { 
+      // Center the "no records" message
+      doc.fontSize(10).text('No payment records found for the selected period.', doc.page.margins.left, tableTop + rowHeight, {
         width: pageWidth,
-        align: 'center' 
+        align: 'center'
       });
     }
 
@@ -312,18 +341,33 @@ app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
 
 app.get('/api/training-dates', async (req, res) => {
   try {
+    const userId = req.session?.userId || null;
+    let isAdmin = false;
+
+    if (userId) {
+      const roleCheck = await pool.query('SELECT role FROM users WHERE id = $1', [userId]);
+      isAdmin = roleCheck.rows[0]?.role === 'admin';
+    }
+
+    // ✅ If admin → show all; else → hide cancelled
     const result = await pool.query(
-      `SELECT id, training_type, training_date, max_participants
-       FROM training_availability
-       WHERE training_date >= NOW()
-       ORDER BY training_date ASC`
+      `
+      SELECT id, training_type, training_date, max_participants, cancelled
+      FROM training_availability
+      WHERE training_date >= NOW()
+      ${isAdmin ? '' : 'AND (cancelled IS NULL OR cancelled = FALSE)'}
+      ORDER BY training_date ASC
+      `
     );
+
     res.json(result.rows);
   } catch (error) {
     console.error('Fetch training dates error:', error);
     res.status(500).json({ error: 'Failed to fetch training dates' });
   }
 });
+
+
 
 app.get('/api/season-tickets/:userId', isAuthenticated, async (req, res) => {
   try {
@@ -406,7 +450,7 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
     } = req.body;
 
     if (!userId || !seasonTicketId || !trainingType || !selectedDate || !selectedTime || !childrenCount) {
-      throw new Error('Missing required fields');
+      return res.status(400).json({ error: 'Missing required fields' });
     }
 
     // Verify season ticket
@@ -415,14 +459,14 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
       [seasonTicketId, userId]
     );
     if (ticketResult.rows.length === 0) {
-      throw new Error('Season ticket not found');
+      return res.status(404).json({ error: 'Season ticket not found' });
     }
     const ticket = ticketResult.rows[0];
     if (ticket.entries_remaining < childrenCount) {
-      throw new Error('Not enough entries remaining');
+      return res.status(400).json({ error: 'Not enough entries remaining in your season ticket' });
     }
     if (new Date(ticket.expiry_date) < new Date()) {
-      throw new Error('Season ticket has expired');
+      return res.status(400).json({ error: 'Season ticket has expired' });
     }
 
     // Convert time format
@@ -454,8 +498,8 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
 
     // Insert booking with amount_paid and payment_time
     const bookingResult = await client.query(
-      `INSERT INTO bookings (user_id, training_id, number_of_children, amount_paid, payment_time, booked_at)
-       VALUES ($1, $2, $3, 0, NULL, NOW()) RETURNING id`,
+      `INSERT INTO bookings (user_id, training_id, number_of_children, amount_paid, payment_time, booked_at, active, booking_type)
+   VALUES ($1, $2, $3, 0, NULL, NOW(), true, 'season_ticket') RETURNING id`,
       [userId, training.id, childrenCount]
     );
     const bookingId = bookingResult.rows[0].id;
@@ -524,7 +568,21 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Season ticket booking error:', error);
-    res.status(500).json({ error: error.message });
+
+    // Return specific error messages based on the error type
+    if (error.message.includes('Not enough entries remaining')) {
+      res.status(400).json({ error: 'Not enough entries remaining in your season ticket' });
+    } else if (error.message.includes('Season ticket has expired')) {
+      res.status(400).json({ error: 'Season ticket has expired' });
+    } else if (error.message.includes('Season ticket not found')) {
+      res.status(404).json({ error: 'Season ticket not found' });
+    } else if (error.message.includes('Not enough available spots')) {
+      res.status(400).json({ error: 'Not enough available spots in the selected session' });
+    } else if (error.message.includes('Training session not found')) {
+      res.status(404).json({ error: 'Training session not found' });
+    } else {
+      res.status(500).json({ error: 'Failed to process season ticket booking' });
+    }
   } finally {
     client.release();
   }
@@ -568,12 +626,13 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
       let [hours, minutes] = time.split(':');
       if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
       if (modifier === 'AM' && hours === '12') hours = '00';
-      const trainingDateTime = new Date(`${selectedDate}T${hours}:${minutes}`);
+      const trainingDateTimeUTC = new Date(`${selectedDate}T${hours}:${minutes}`);
+      const trainingDateTimeLocal = new Date(trainingDateTimeUTC.toLocaleString('en-US', { timeZone: 'Europe/Budapest' }));
 
       // Find training session
       const trainingResult = await client.query(
-        `SELECT id, max_participants FROM training_availability WHERE training_type = $1 AND training_date = $2`,
-        [trainingType, trainingDateTime]
+        `SELECT id, max_participants, training_type, training_date FROM training_availability WHERE training_type = $1 AND training_date = $2`,
+        [trainingType, trainingDateTimeLocal]
       );
       if (trainingResult.rows.length === 0) {
         throw new Error('Training session not found');
@@ -590,55 +649,89 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         throw new Error('Not enough available spots');
       }
 
-      // Create temporary booking with session_id
+      // Create Stripe checkout session
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [{
           price_data: {
             currency: 'eur',
-            product_data: { name: `${trainingType} Training Session` },
-            unit_amount: totalPrice * 100,
+            product_data: {
+              name: `${trainingType} Training Session`,
+              description: `Training on ${trainingDateTimeLocal.toLocaleString('en-US', { timeZone: 'Europe/Budapest' })}`
+            },
+            unit_amount: Math.round(totalPrice * 100),
           },
           quantity: 1,
         }],
         mode: 'payment',
-        success_url: `${process.env.CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}&booking_id={CHECKOUT_SESSION_ID}`, // Placeholder for frontend to replace
+        success_url: `${process.env.CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}&booking_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.CLIENT_URL}/payment-canceled`,
         metadata: {
-          userId,
+          userId: userId.toString(),
           trainingType,
           selectedDate,
           selectedTime,
-          childrenCount,
-          childrenAge,
-          totalPrice,
-          photoConsent,
-          mobile,
-          note,
-          accompanyingPerson,
+          childrenCount: childrenCount.toString(),
+          childrenAge: childrenAge?.toString() || '',
+          totalPrice: totalPrice.toString(),
+          photoConsent: photoConsent?.toString() || 'false',
+          mobile: mobile || '',
+          note: note || '',
+          accompanyingPerson: accompanyingPerson?.toString() || 'false',
           type: 'training_session',
         },
       });
 
+      // Create booking with all fields
       const bookingResult = await client.query(
-        `INSERT INTO bookings (user_id, training_id, number_of_children, amount_paid, payment_time, session_id, booked_at)
-         VALUES ($1, $2, $3, NULL, NULL, $4, NOW()) RETURNING id`,
-        [userId, training.id, childrenCount, session.id]
+        `INSERT INTO bookings (
+    user_id, training_id, number_of_children, amount_paid, payment_time, 
+    session_id, booked_at, children_ages, photo_consent, mobile, note, accompanying_person, active, booking_type
+  ) VALUES ($1, $2, $3, $4, NULL, $5, NOW(), $6, $7, $8, $9, $10, true, 'paid')
+  RETURNING id`,
+        [
+          userId,
+          training.id,
+          childrenCount,
+          totalPrice,
+          session.id,
+          childrenAge || '',
+          photoConsent !== null ? photoConsent : false,
+          mobile || '',
+          note || '',
+          accompanyingPerson || false,
+        ]
       );
       const bookingId = bookingResult.rows[0].id;
+
+      console.log('[DEBUG] Booking created:', {
+        bookingId,
+        sessionId: session.id,
+        amountPaid: totalPrice,
+        userId,
+        trainingId: training.id,
+        numberOfChildren: childrenCount,
+        childrenAges: childrenAge || '',
+        photoConsent: photoConsent !== null ? photoConsent : false,
+        mobile: mobile || '',
+        note: note || '',
+        accompanyingPerson: accompanyingPerson || false,
+        trainingType,
+        trainingDate: trainingDateTimeLocal.toISOString()
+      });
 
       await client.query('COMMIT');
       res.json({ sessionId: session.id, bookingId });
     } catch (error) {
       await client.query('ROLLBACK');
-      console.error('Payment session error:', error);
-      res.status(500).json({ error: 'Failed to create payment session' });
+      console.error('[DEBUG] Payment session error:', error.message);
+      res.status(500).json({ error: `Failed to create payment session: ${error.message}` });
     } finally {
       client.release();
     }
   } catch (error) {
-    console.error('Payment session error:', error);
-    res.status(500).json({ error: 'Failed to create payment session' });
+    console.error('[DEBUG] Payment session error:', error.message);
+    res.status(500).json({ error: `Failed to create payment session: ${error.message}` });
   }
 });
 
@@ -652,9 +745,9 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
-    console.log('Webhook Event Received:', event.type);
+    console.log('[DEBUG] Webhook Event Received:', event.type);
   } catch (err) {
-    console.error('Webhook Signature Verification Failed:', err.message);
+    console.error('[DEBUG] Webhook Signature Verification Failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -675,6 +768,13 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
            VALUES ($1, $2, $2, NOW(), $3, $4, $5, $6) RETURNING *`,
           [userId, entries, expiryDate, session.id, parseFloat(totalPrice), new Date(session.created * 1000)]
         );
+
+        console.log('[DEBUG] Season ticket created:', {
+          ticketId: ticketResult.rows[0].id,
+          userId,
+          entries,
+          amountPaid: totalPrice
+        });
 
         const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
         const user = userResult.rows[0];
@@ -697,6 +797,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         };
 
         await transporter.sendMail(mailOptions);
+        console.log('[DEBUG] Season ticket email sent to:', user.email);
       } else if (session.metadata.type === 'training_session') {
         const {
           userId,
@@ -741,13 +842,17 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           throw new Error('Session is full');
         }
 
-        // Update existing booking with session_id instead of inserting new one
+        // Update existing booking with payment details
+        const paymentIntentId = session.payment_intent;
         const updateResult = await client.query(
           `UPDATE bookings 
-           SET amount_paid = $1, payment_time = $2, session_id = NULL 
-           WHERE session_id = $3 
+           SET amount_paid = $1, 
+               payment_time = $2, 
+               payment_intent_id = $3, 
+               session_id = NULL 
+           WHERE session_id = $4 
            RETURNING *`,
-          [parseFloat(totalPrice), new Date(session.created * 1000), session.id]
+          [parseFloat(totalPrice), new Date(session.created * 1000), paymentIntentId, session.id]
         );
 
         if (updateResult.rowCount === 0) {
@@ -755,6 +860,13 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         }
 
         const booking = updateResult.rows[0];
+        console.log('[DEBUG] Booking updated with payment details:', {
+          bookingId: booking.id,
+          paymentIntentId,
+          amountPaid: totalPrice,
+          sessionId: session.id
+        });
+
         const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
         const user = userResult.rows[0];
 
@@ -775,6 +887,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
             Photo Consent: ${photoConsent ? 'Agreed' : 'Declined'}
             Notes: ${note || 'No additional notes'}
             Price: €${totalPrice}
+            Payment Intent: ${paymentIntentId}
           `.trim(),
         };
 
@@ -799,12 +912,13 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           transporter.sendMail(adminMailOptions),
           transporter.sendMail(userMailOptions),
         ]);
+        console.log('[DEBUG] Booking confirmation emails sent to:', user.email, process.env.ADMIN_EMAIL);
       }
 
       await client.query('COMMIT');
     } catch (error) {
       await client.query('ROLLBACK');
-      console.error('Webhook processing error:', error);
+      console.error('[DEBUG] Webhook processing error:', error.message);
     } finally {
       client.release();
     }
@@ -1075,7 +1189,7 @@ app.get('/api/users/:id', async (req, res) => {
 app.get('/api/check-availability', async (req, res) => {
   try {
     const { trainingType, selectedDate, selectedTime, childrenCount } = req.query;
-    
+
     const [time, modifier] = selectedTime.split(' ');
     let [hours, minutes] = time.split(':');
     if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
@@ -1095,7 +1209,7 @@ app.get('/api/check-availability', async (req, res) => {
     const training = trainingResult.rows[0];
     const bookingsResult = await pool.query(
       `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children
-       FROM bookings WHERE training_id = $1`,
+   FROM bookings WHERE training_id = $1 AND active = true`,
       [training.id]
     );
 
@@ -1145,18 +1259,195 @@ app.post('/api/verify-password', isAuthenticated, async (req, res) => {
 app.get('/api/bookings/user/:userId', isAuthenticated, async (req, res) => {
   try {
     const userId = req.params.userId;
-    const result = await pool.query(
-      `SELECT b.id AS booking_id, t.training_type, t.training_date
-       FROM bookings b
-       JOIN training_availability t ON b.training_id = t.id
-       WHERE b.user_id = $1
-       ORDER BY t.training_date ASC`,
-      [userId]
-    );
+    const result = await pool.query(`
+      SELECT 
+        b.id AS booking_id, 
+        t.training_type, 
+        t.training_date,
+        t.cancelled,
+        b.active,
+        b.booking_type -- ✅ ADD: Include booking_type
+      FROM bookings b
+      JOIN training_availability t ON b.training_id = t.id
+      WHERE b.user_id = $1 AND b.active = true
+      ORDER BY t.training_date ASC
+    `, [userId]);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching user bookings:', error);
     res.status(500).json({ error: 'Failed to fetch bookings' });
+  }
+});
+
+app.get('/api/bookings/:bookingId/type', isAuthenticated, async (req, res) => {
+  try {
+    const bookingId = req.params.bookingId;
+    const userId = req.session.userId;
+
+    const client = await pool.connect();
+    try {
+      // Verify booking exists and belongs to the user
+      const bookingResult = await client.query(
+        'SELECT id, payment_intent_id, amount_paid, credit_id FROM bookings WHERE id = $1 AND user_id = $2',
+        [bookingId, userId]
+      );
+
+      if (bookingResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Booking not found or unauthorized' });
+      }
+
+      const booking = bookingResult.rows[0];
+
+      // Check if booking is associated with a season ticket
+      const usageResult = await client.query(
+        'SELECT season_ticket_id FROM season_ticket_usage WHERE booking_id = $1',
+        [bookingId]
+      );
+
+      if (usageResult.rows.length > 0) {
+        return res.json({ bookingType: 'season_ticket' });
+      }
+
+      // Check if booking is a credit-based booking
+      if (booking.credit_id || booking.booking_type === 'credit') {
+        return res.json({ bookingType: 'credit' });
+      }
+
+      // Check if booking is a paid booking
+      if (booking.payment_intent_id || (booking.amount_paid && booking.amount_paid > 0)) {
+        return res.json({ bookingType: 'paid' });
+      }
+
+      // Fallback if type could not be determined
+      return res.status(400).json({ error: 'Booking type could not be determined' });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('[DEBUG] Error checking booking type:', error.message);
+    res.status(500).json({ error: 'Failed to check booking type: ' + error.message });
+  }
+});
+
+app.get('/api/credits/:userId', isAuthenticated, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const credits = await pool.query(`
+      SELECT 
+        id, 
+        training_type, 
+        original_date, 
+        child_count, 
+        accompanying_person, 
+        children_ages,
+        photo_consent,
+        mobile,
+        note,
+        status
+      FROM credits
+      WHERE user_id = $1 AND status = 'active'
+      ORDER BY created_at DESC
+    `, [userId]);
+    res.json(credits.rows);
+  } catch (err) {
+    console.error('Error fetching credits:', err);
+    res.status(500).json({ error: 'Failed to fetch credits' });
+  }
+});
+
+app.post('/api/replace-booking/:bookingId', isAuthenticated, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { bookingId } = req.params;
+    const { newTrainingId } = req.body;
+
+    // 1. Check that booking belongs to logged-in user
+    const bookingResult = await client.query(
+      'SELECT * FROM bookings WHERE id = $1 AND user_id = $2',
+      [bookingId, req.session.userId]
+    );
+    if (bookingResult.rows.length === 0) {
+      throw new Error('Booking not found or unauthorized');
+    }
+    const booking = bookingResult.rows[0];
+
+    // 2. Check capacity in new session
+    const availabilityResult = await client.query(
+      `SELECT ta.id, ta.max_participants, COALESCE(SUM(b.number_of_children),0) AS booked
+       FROM training_availability ta
+       LEFT JOIN bookings b ON ta.id = b.training_id
+       WHERE ta.id = $1
+       GROUP BY ta.id`,
+      [newTrainingId]
+    );
+    if (availabilityResult.rows.length === 0) {
+      throw new Error('New training session not found');
+    }
+    const availability = availabilityResult.rows[0];
+    if (availability.booked + booking.number_of_children > availability.max_participants) {
+      throw new Error('Not enough spots in the new session');
+    }
+
+    // 3. Update booking to point to new training_id
+    await client.query(
+      'UPDATE bookings SET training_id = $1 WHERE id = $2',
+      [newTrainingId, bookingId]
+    );
+
+    await client.query('COMMIT');
+    res.json({ message: 'Booking replaced successfully' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Replace booking error:', error.message);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+
+app.get('/api/replacement-sessions/:bookingId', isAuthenticated, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const userId = req.session.userId;
+
+    // Get the current booking details
+    const bookingResult = await pool.query(
+      `SELECT b.*, ta.training_type, ta.training_date, ta.max_participants 
+       FROM bookings b 
+       JOIN training_availability ta ON b.training_id = ta.id 
+       WHERE b.id = $1 AND b.user_id = $2`,
+      [bookingId, userId]
+    );
+
+    if (bookingResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    const booking = bookingResult.rows[0];
+    const currentDate = new Date();
+
+    // Find available sessions of the same type in the future (excluding the current booking's session)
+    const replacementSessions = await pool.query(
+      `SELECT ta.id, ta.training_type, ta.training_date, ta.max_participants,
+              (ta.max_participants - COALESCE(SUM(b.number_of_children), 0)) as available_spots
+       FROM training_availability ta
+       LEFT JOIN bookings b ON ta.id = b.training_id
+       WHERE ta.training_type = $1 
+         AND ta.training_date > $2
+         AND ta.id != $3
+         AND ta.training_date > NOW()
+       GROUP BY ta.id
+       HAVING (ta.max_participants - COALESCE(SUM(b.number_of_children), 0)) >= $4
+       ORDER BY ta.training_date ASC`,
+      [booking.training_type, currentDate, booking.training_id, booking.number_of_children]
+    );
+
+    res.json(replacementSessions.rows);
+  } catch (error) {
+    console.error('Error fetching replacement sessions:', error);
+    res.status(500).json({ error: 'Failed to fetch replacement sessions' });
   }
 });
 
@@ -1166,29 +1457,120 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
     await client.query('BEGIN');
     const bookingId = req.params.bookingId;
 
-    // Fetch booking details including training_date before deletion
+    // 1. Get complete booking and payment information
     const bookingResult = await client.query(
-      'SELECT user_id, number_of_children, training_date FROM bookings b JOIN training_availability ta ON b.training_id = ta.id WHERE b.id = $1',
-      [bookingId]
+      `SELECT b.id, b.user_id, b.training_id, b.number_of_children, b.session_id, 
+              b.amount_paid, b.payment_time, b.payment_intent_id, b.credit_id,
+              ta.training_date, ta.training_type,
+              u.email, u.first_name, u.last_name
+       FROM bookings b 
+       JOIN training_availability ta ON b.training_id = ta.id
+       JOIN users u ON b.user_id = u.id 
+       WHERE b.id = $1 AND b.user_id = $2`,
+      [bookingId, req.session.userId]
     );
 
     if (bookingResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Booking not found' });
+      throw new Error('Booking not found or unauthorized');
     }
 
     const booking = bookingResult.rows[0];
-    if (booking.user_id !== req.session.userId) {
-      return res.status(403).json({ error: 'Unauthorized to cancel this booking' });
+
+    // ✅ NEW: Check if cancellation is allowed (10 hours before session)
+    const trainingDateTime = new Date(booking.training_date);
+    const currentTime = new Date();
+    const timeDifference = trainingDateTime - currentTime;
+    const hoursDifference = timeDifference / (1000 * 60 * 60);
+
+    if (hoursDifference <= 10) {
+      throw new Error('Cancellation is not allowed within 10 hours of the session');
     }
 
-    // Check if booking was made with a season ticket
+    console.log('[DEBUG] Booking details:', {
+      bookingId: booking.id,
+      userId: booking.user_id,
+      sessionId: booking.session_id || 'null',
+      paymentIntentId: booking.payment_intent_id || 'null',
+      amountPaid: booking.amount_paid || 0,
+      paymentTime: booking.payment_time ? booking.payment_time.toISOString() : 'null',
+      trainingType: booking.training_type,
+      trainingDate: booking.training_date,
+      creditId: booking.credit_id || 'null',
+      hoursUntilSession: hoursDifference // Added for debugging
+    });
+
+    // Check if booking was made with season ticket
     const usageResult = await client.query(
       'SELECT season_ticket_id FROM season_ticket_usage WHERE booking_id = $1',
       [bookingId]
     );
 
+    let refundData = null;
+
+    // 2. Process Stripe refund only for paid bookings (not season tickets)
+    if (usageResult.rows.length === 0) {
+      if (!booking.amount_paid || booking.amount_paid <= 0) {
+        console.log('[DEBUG] Skipping refund: amount_paid is missing or zero');
+        refundData = { error: 'No payment associated with this booking' };
+        await client.query(
+          'INSERT INTO refunds (booking_id, amount, status, reason, created_at) VALUES ($1, $2, $3, $4, NOW())',
+          [bookingId, 0, 'failed', 'No payment associated with this booking']
+        );
+      } else if (!booking.payment_intent_id) {
+        console.log('[DEBUG] Skipping refund: payment_intent_id is missing');
+        refundData = { error: 'No payment intent found for this booking' };
+        await client.query(
+          'INSERT INTO refunds (booking_id, amount, status, reason, created_at) VALUES ($1, $2, $3, $4, NOW())',
+          [bookingId, booking.amount_paid, 'failed', 'No payment intent found']
+        );
+      } else {
+        try {
+          // Create refund using payment_intent_id
+          const refund = await stripe.refunds.create({
+            payment_intent: booking.payment_intent_id,
+            amount: Math.round(booking.amount_paid * 100),
+            reason: 'requested_by_customer',
+            metadata: {
+              booking_id: bookingId,
+              user_id: booking.user_id,
+              training_type: booking.training_type,
+              training_date: booking.training_date
+            }
+          });
+
+          console.log('[DEBUG] Refund processed:', {
+            refundId: refund.id,
+            paymentIntentId: booking.payment_intent_id,
+            amount: booking.amount_paid
+          });
+          refundData = refund;
+
+          // Store refund reference in database
+          await client.query(
+            'INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at) VALUES ($1, $2, $3, $4, $5, NOW())',
+            [bookingId, refund.id, booking.amount_paid, refund.status, 'Cancellation by customer']
+          );
+        } catch (refundError) {
+          console.error('[DEBUG] Refund creation error:', refundError.message);
+          let userFriendlyMessage = 'Failed to process refund. Please contact support.';
+          if (refundError.type === 'StripeInvalidRequestError') {
+            userFriendlyMessage = 'Invalid refund request. The payment may have already been refunded or is invalid.';
+          } else if (refundError.code === 'resource_missing') {
+            userFriendlyMessage = 'Payment record not found. Please contact support.';
+          }
+          refundData = { error: userFriendlyMessage };
+          await client.query(
+            'INSERT INTO refunds (booking_id, amount, status, reason, created_at) VALUES ($1, $2, $3, $4, NOW())',
+            [bookingId, booking.amount_paid, 'failed', userFriendlyMessage]
+          );
+        }
+      }
+    }
+
+    // 3. Handle season ticket usage reversal
     if (usageResult.rows.length > 0) {
       const seasonTicketId = usageResult.rows[0].season_ticket_id;
+      console.log('[DEBUG] Reversing season ticket usage for ticket:', seasonTicketId);
       await client.query(
         'UPDATE season_tickets SET entries_remaining = entries_remaining + $1 WHERE id = $2',
         [booking.number_of_children, seasonTicketId]
@@ -1199,7 +1581,8 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
       );
     }
 
-    // Delete the booking with user_id check
+    // 4. Delete the booking (refunds.booking_id will be set to NULL by constraint)
+    console.log('[DEBUG] Deleting booking:', bookingId);
     const deleteResult = await client.query(
       'DELETE FROM bookings WHERE id = $1 AND user_id = $2 RETURNING *',
       [bookingId, req.session.userId]
@@ -1210,56 +1593,887 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
     }
 
     await client.query('COMMIT');
-    res.json({ message: 'Booking canceled successfully', trainingDate: booking.training_date });
+
+    // 5. Send cancellation emails with refund information
+    try {
+      const adminMailOptions = {
+        from: process.env.EMAIL_USER,
+        to: process.env.ADMIN_EMAIL,
+        subject: 'Session Cancellation Notification',
+        text: `
+          Session Cancellation
+          User: ${booking.first_name} ${booking.last_name}
+          Email: ${booking.email}
+          Training: ${booking.training_type}
+          Date: ${new Date(booking.training_date).toLocaleString()}
+          Children: ${booking.number_of_children}
+          Refund Status: ${refundData ? (refundData.id ? `Processed (${refundData.id})` : `Failed: ${refundData.error}`) : 'Not applicable (season ticket)'}
+          Amount: €${booking.amount_paid || 0}
+        `.trim(),
+      };
+
+      const userMailOptions = {
+        from: process.env.EMAIL_USER,
+        to: booking.email,
+        subject: 'Session Cancellation Confirmation',
+        text: `
+          Hello ${booking.first_name},
+          Your ${booking.training_type} training session on ${new Date(booking.training_date).toLocaleString()} has been successfully canceled.
+          ${refundData && refundData.id ? `
+            Refund Information:
+            - Amount: €${booking.amount_paid}
+            - Refund ID: ${refundData.id}
+            - Status: ${refundData.status}
+            The refund may take 5-10 business days to appear in your account.
+          ` : refundData && refundData.error ? `
+            Refund Status: Failed to process refund: ${refundData.error}. Please contact support.
+          ` : usageResult.rows.length > 0 ? `
+            Season Ticket: ${booking.number_of_children} entries have been returned to your season ticket.
+          ` : ''}
+          If you have any questions, please contact us.
+          Best regards,
+          Nitracik Team
+        `.trim(),
+      };
+
+      await Promise.all([
+        transporter.sendMail(adminMailOptions),
+        transporter.sendMail(userMailOptions),
+      ]);
+      console.log('[DEBUG] Cancellation emails sent successfully');
+    } catch (emailError) {
+      console.error('[DEBUG] Error sending cancellation emails:', emailError.message);
+    }
+
+    res.json({
+      message: 'Booking canceled successfully',
+      trainingDate: booking.training_date,
+      refundProcessed: !!refundData?.id,
+      refundId: refundData?.id,
+      seasonTicketEntriesReturned: usageResult.rows.length > 0 ? booking.number_of_children : 0,
+      refundError: refundData?.error || null
+    });
+
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Error canceling booking:', error);
+    console.error('[DEBUG] Error canceling booking:', error.message);
     if (error.message === 'Booking not found or unauthorized') {
       return res.status(404).json({ error: 'Booking not found or unauthorized' });
     }
-    res.status(500).json({ error: 'Failed to cancel booking' });
+    return res.status(500).json({ error: 'Failed to cancel booking: ' + error.message });
   } finally {
     client.release();
   }
 });
 
-app.post('/api/send-cancellation-email', async (req, res) => {
-  const { bookingId, userId, adminEmail, trainingDate, userName } = req.body;
-  const cancellationTime = new Date().toLocaleString('en-US', { timeZone: 'Europe/Budapest' });
+//Permanently delete cancelled sessions by Admin
+app.delete('/api/admin/training-sessions/:trainingId', isAdmin, async (req, res) => {
+  const { trainingId } = req.params;
+  const client = await pool.connect();
+
+  console.log('[DEBUG] Deleting training session:', trainingId);
 
   try {
-    const user = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
-    const userEmail = user.rows[0].email;
+    await client.query('BEGIN');
 
-    // Email to user
-    const userMailOptions = {
-      from: process.env.EMAIL_USER,
-      to: userEmail,
-      subject: 'Session Cancellation Notification',
-      text: `Your session booked on ${new Date(trainingDate).toLocaleString()} has been canceled.`,
-    };
+    // 1. Verify the session exists and is cancelled
+    const sessionCheck = await client.query(
+      'SELECT id, training_type, training_date, cancelled FROM training_availability WHERE id = $1',
+      [trainingId]
+    );
 
-    // Email to admin
-    const adminMailOptions = {
-      from: process.env.EMAIL_USER,
-      to: adminEmail,
-      subject: 'Session Cancellation Notification (Admin)',
-      text: `Session Cancellation Alert:
-        - Canceled by: ${userName}
-        - Cancellation time: ${cancellationTime}
-        - Session date: ${new Date(trainingDate).toLocaleString()}
-        - Booking ID: ${bookingId}`,
-    };
+    if (sessionCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Training session not found' });
+    }
 
-    await Promise.all([
-      transporter.sendMail(userMailOptions),
-      transporter.sendMail(adminMailOptions),
-    ]);
+    const session = sessionCheck.rows[0];
 
-    res.json({ success: true });
+    if (!session.cancelled) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Only cancelled sessions can be deleted' });
+    }
+
+    // 2. ✅ UPDATED: Check if there are any remaining bookings for this session
+    const bookingsCheck = await client.query(
+      'SELECT COUNT(*) as booking_count, ARRAY_AGG(user_id) as user_ids FROM bookings WHERE training_id = $1',
+      [trainingId]
+    );
+
+    const bookingCount = parseInt(bookingsCheck.rows[0].booking_count);
+
+    if (bookingCount > 0) {
+      const userIds = bookingsCheck.rows[0].user_ids;
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: `Cannot delete session. ${bookingCount} booking(s) still remain.`,
+        remainingBookings: bookingCount,
+        userIds: userIds,
+        message: 'All users must process their refunds or credits before deletion.'
+      });
+    }
+
+    // 3. Delete the session (only if no bookings remain)
+    const deleteResult = await client.query(
+      'DELETE FROM training_availability WHERE id = $1 RETURNING *',
+      [trainingId]
+    );
+
+    if (deleteResult.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Failed to delete training session' });
+    }
+
+    await client.query('COMMIT');
+
+    console.log('[DEBUG] Training session deleted successfully:', trainingId);
+    res.json({
+      success: true,
+      message: 'Training session deleted permanently',
+      deletedSession: deleteResult.rows[0]
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Delete training session error:', error);
+    res.status(500).json({ error: 'Failed to delete training session: ' + error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Add webhook handler for refund updates
+app.post('/stripe-refund-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to send email' });
+    console.error('Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  if (event.type === 'charge.refund.updated') {
+    const refund = event.data.object;
+
+    try {
+      await pool.query(
+        'UPDATE refunds SET status = $1, updated_at = NOW() WHERE refund_id = $2',
+        [refund.status, refund.id]
+      );
+      console.log('Refund status updated:', refund.id, refund.status);
+    } catch (error) {
+      console.error('Error updating refund status:', error);
+    }
+  }
+
+  res.json({ received: true });
+});
+
+// Add endpoint to get refund status
+app.get('/api/refunds/:bookingId', isAuthenticated, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+
+    const result = await pool.query(
+      'SELECT * FROM refunds WHERE booking_id = $1 ORDER BY created_at DESC',
+      [bookingId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching refunds:', error);
+    res.status(500).json({ error: 'Failed to fetch refund information' });
+  }
+});
+
+
+// ADMIN: Cancel Session (Email refund/credit options) - UPDATED to preserve bookings
+app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
+  const { trainingId, reason, forceCancel } = req.body;
+  const userId = req.session.userId;
+
+  console.log('[DEBUG] Admin cancel session request:', { trainingId, reason, forceCancel });
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // 1. Verify the training session exists and get its date
+    const trainingRes = await client.query(
+      'SELECT training_date FROM training_availability WHERE id = $1',
+      [trainingId]
+    );
+
+    if (trainingRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Training session not found' });
+    }
+
+    const trainingDate = new Date(trainingRes.rows[0].training_date);
+    const hoursDiff = (trainingDate - new Date()) / (1000 * 60 * 60);
+
+    // 2. Check 10-hour rule unless forceCancel is true
+    if (hoursDiff <= 10 && !forceCancel) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: 'Session is within 10 hours. Use forceCancel=true to override.'
+      });
+    }
+
+    // 3. ✅ UPDATED: Only mark the training session as cancelled - DON'T delete bookings
+    const updateResult = await client.query(
+      'UPDATE training_availability SET cancelled = TRUE WHERE id = $1 RETURNING *',
+      [trainingId]
+    );
+
+    if (updateResult.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Failed to cancel training session' });
+    }
+
+    console.log('[DEBUG] Training session marked as cancelled:', trainingId);
+
+    // 4. Get all bookings for this session to send emails
+    const bookingsRes = await client.query(`
+      SELECT b.id AS booking_id, b.user_id, b.amount_paid, b.payment_intent_id,
+             u.email, u.first_name, u.last_name,
+             ta.training_type, ta.training_date
+      FROM bookings b
+      JOIN users u ON b.user_id = u.id
+      JOIN training_availability ta ON ta.id = b.training_id
+      WHERE b.training_id = $1
+    `, [trainingId]);
+
+    const bookings = bookingsRes.rows;
+    console.log('[DEBUG] Affected bookings:', bookings.length);
+
+    // 5. Send cancellation emails to all affected users
+    const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
+
+    for (const booking of bookings) {
+      const refundUrl = `${CLIENT_URL}/refund-option?bookingId=${booking.booking_id}&action=refund`;
+      const creditUrl = `${CLIENT_URL}/refund-option?bookingId=${booking.booking_id}&action=credit`;
+
+      const sessionDate = new Date(booking.training_date).toLocaleString('en-GB', {
+        dateStyle: 'full',
+        timeStyle: 'short',
+      });
+
+      const html = `
+        <div style="font-family:Arial, sans-serif; line-height:1.6;">
+          <h3>Training Session Cancelled</h3>
+          <p>Dear ${booking.first_name},</p>
+          <p>Your <strong>${booking.training_type}</strong> training on <strong>${sessionDate}</strong> has been cancelled.</p>
+          <p>Reason: ${reason || 'No reason provided.'}</p>
+          <p>Please choose one of the following:</p>
+          <div style="margin:20px 0;">
+            <a href="${refundUrl}" style="background:#e63946;color:white;padding:10px 20px;text-decoration:none;border-radius:6px;">💳 Request Refund</a>
+            &nbsp;&nbsp;
+            <a href="${creditUrl}" style="background:#2a9d8f;color:white;padding:10px 20px;text-decoration:none;border-radius:6px;">🎫 Accept Credit</a>
+          </div>
+          <p>If you take no action, your payment will remain on hold.</p>
+          <p>Best regards,<br/>Nitracik Team</p>
+        </div>
+      `;
+
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: booking.email,
+        subject: `Cancelled: ${booking.training_type} Training`,
+        html,
+      });
+    }
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: `Session cancelled successfully. ${bookings.length} users notified.`,
+      canceledBookings: bookings.length,
+      forceCancelUsed: forceCancel || false
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Cancel session error:', error);
+    res.status(500).json({ error: 'Failed to cancel session: ' + error.message });
+  } finally {
+    client.release();
+  }
+});
+
+
+// Update refund endpoint to remove booking AFTER processing
+app.get('/api/booking/refund', async (req, res) => {
+  const { bookingId } = req.query;
+  if (!bookingId) return res.status(400).send('Missing bookingId.');
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Try to find the active booking first
+    const bookingRes = await client.query(
+      'SELECT user_id, training_id, payment_intent_id, amount_paid FROM bookings WHERE id = $1 AND active = true',
+      [bookingId]
+    );
+
+    let firstTimeRefund = false;
+    let refundRecord = null;
+
+    // ✅ CASE 1: Active booking found → process refund and deactivate booking
+    if (bookingRes.rows.length > 0) {
+      const { user_id, payment_intent_id, amount_paid } = bookingRes.rows[0];
+
+      // Double-check if refund already exists for this booking
+      const existingRefund = await client.query(
+        'SELECT refund_id, status FROM refunds WHERE booking_id = $1',
+        [bookingId]
+      );
+
+      if (existingRefund.rows.length === 0) {
+        // Create Stripe refund
+        const refund = await stripe.refunds.create({
+          payment_intent: payment_intent_id,
+        });
+
+        refundRecord = refund;
+
+        // Store refund record
+        await client.query(
+          `INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at)
+           VALUES ($1, $2, $3, $4, $5, NOW())`,
+          [bookingId, refund.id, amount_paid, refund.status, 'User selected refund']
+        );
+
+        // ✅ NEW: Deactivate booking instead of deleting it
+        await client.query(
+          'UPDATE bookings SET active = false WHERE id = $1 AND user_id = $2',
+          [bookingId, user_id]
+        );
+
+        firstTimeRefund = true;
+      } else {
+        refundRecord = existingRefund.rows[0];
+      }
+    }
+
+    await client.query('COMMIT');
+
+    // ✅ Success response (same as before)
+    if (firstTimeRefund && refundRecord) {
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Refund Processed Successfully</title>
+            <meta http-equiv="refresh" content="4;url=${process.env.CLIENT_URL}/booking" />
+            <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+                .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
+                .success-icon { font-size: 60px; margin-bottom: 20px; }
+                .countdown { margin-top: 20px; font-size: 14px; color: #666; }
+            </style>
+        </head>
+        <body>
+            <div class="success-container">
+                <div class="success-icon">💳</div>
+                <h2>Refund Processed Successfully!</h2>
+                <p>Your refund (ID: <strong>${refundRecord.id}</strong>) was successfully processed.</p>
+                <p>You'll be automatically redirected in <span id="countdown">4</span> seconds...</p>
+                <div class="countdown">
+                    <a href="${process.env.CLIENT_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
+                </div>
+            </div>
+            <script>
+                let seconds = 4;
+                const el = document.getElementById('countdown');
+                const timer = setInterval(() => {
+                    seconds--; el.textContent = seconds;
+                    if (seconds <= 0) clearInterval(timer);
+                }, 1000);
+            </script>
+        </body>
+        </html>
+      `);
+    }
+
+    // ✅ Already processed response
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>Refund Already Processed</title>
+          <meta http-equiv="refresh" content="4;url=${process.env.CLIENT_URL}/booking" />
+          <style>
+              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+              .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
+              .success-icon { font-size: 60px; margin-bottom: 20px; }
+              .countdown { margin-top: 20px; font-size: 14px; color: #666; }
+          </style>
+      </head>
+      <body>
+          <div class="success-container">
+              <div class="success-icon">✅</div>
+              <h2>Refund Already Processed</h2>
+              <p>Your refund has already been handled successfully.</p>
+              <p>You'll be redirected in <span id="countdown">4</span> seconds...</p>
+              <div class="countdown">
+                  <a href="${process.env.CLIENT_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
+              </div>
+          </div>
+          <script>
+              let seconds = 4;
+              const el = document.getElementById('countdown');
+              const timer = setInterval(() => {
+                  seconds--; el.textContent = seconds;
+                  if (seconds <= 0) clearInterval(timer);
+              }, 1000);
+          </script>
+      </body>
+      </html>
+    `);
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Refund error:', err);
+    res.redirect(`${process.env.CLIENT_URL}/error?reason=refund_failed`);
+  } finally {
+    client.release();
+  }
+});
+
+// Alternative credit processing endpoint that doesn't depend on training_availability
+app.get('/api/booking/credit', async (req, res) => {
+  const { bookingId } = req.query;
+  if (!bookingId) return res.status(400).send('Missing bookingId.');
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Try to find the booking
+    const bookingRes = await client.query(`
+      SELECT 
+        b.user_id, 
+        b.training_id, 
+        b.number_of_children, 
+        b.children_ages,
+        b.photo_consent, 
+        b.mobile, 
+        b.note,
+        b.accompanying_person,
+        ta.training_type,
+        ta.training_date
+      FROM bookings b
+      LEFT JOIN training_availability ta ON b.training_id = ta.id
+      WHERE b.id = $1 AND b.active = true
+    `, [bookingId]);
+
+    let firstTimeCredit = false;
+
+    // ✅ CASE 1: Active booking exists → create new credit and deactivate booking
+    if (bookingRes.rows.length > 0) {
+      const b = bookingRes.rows[0];
+
+      // Check if credit already exists for this user/session
+      const existingCredit = await client.query(
+        `SELECT id FROM credits WHERE user_id = $1 AND session_id = $2`,
+        [b.user_id, b.training_id]
+      );
+
+      if (existingCredit.rows.length === 0) {
+        // Create credit record
+        await client.query(`
+          INSERT INTO credits (
+            user_id, session_id, child_count, accompanying_person, children_ages, photo_consent,
+            mobile, note, training_type, original_date, reason, status, created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'User selected credit', 'active', NOW())
+        `, [
+          b.user_id,
+          b.training_id,
+          b.number_of_children,
+          b.accompanying_person || false,
+          b.children_ages,
+          b.photo_consent,
+          b.mobile,
+          b.note,
+          b.training_type || 'UNKNOWN',
+          b.training_date || new Date()
+        ]);
+
+        // ✅ NEW: Deactivate the booking but keep original booking_type
+        await client.query(
+          'UPDATE bookings SET active = false WHERE id = $1 AND user_id = $2',
+          [bookingId, b.user_id]
+        );
+
+        firstTimeCredit = true;
+      }
+    }
+
+    await client.query('COMMIT');
+
+    // ✅ Success response (same as before)
+    if (firstTimeCredit) {
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Credit Added Successfully</title>
+            <meta http-equiv="refresh" content="4;url=${process.env.CLIENT_URL}/booking" />
+            <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+                .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
+                .success-icon { font-size: 60px; margin-bottom: 20px; }
+                .countdown { margin-top: 20px; font-size: 14px; color: #666; }
+            </style>
+        </head>
+        <body>
+            <div class="success-container">
+                <div class="success-icon">🎫</div>
+                <h2>Credit Added Successfully!</h2>
+                <p>Your credit has been added to your account and is ready to use.</p>
+                <p>You'll be automatically redirected in <span id="countdown">4</span> seconds...</p>
+                <div class="countdown">
+                    <a href="${process.env.CLIENT_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
+                </div>
+            </div>
+            <script>
+                let seconds = 4;
+                const el = document.getElementById('countdown');
+                const timer = setInterval(() => {
+                    seconds--; el.textContent = seconds;
+                    if (seconds <= 0) clearInterval(timer);
+                }, 1000);
+            </script>
+        </body>
+        </html>
+      `);
+    }
+
+    // ✅ Already processed response
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>Credit Already Processed</title>
+          <meta http-equiv="refresh" content="4;url=${process.env.CLIENT_URL}/booking" />
+          <style>
+              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+              .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
+              .success-icon { font-size: 60px; margin-bottom: 20px; }
+              .countdown { margin-top: 20px; font-size: 14px; color: #666; }
+          </style>
+      </head>
+      <body>
+          <div class="success-container">
+              <div class="success-icon">✅</div>
+              <h2>Credit Already Processed</h2>
+              <p>Your credit was already added earlier and is ready to use.</p>
+              <p>You'll be redirected in <span id="countdown">4</span> seconds...</p>
+              <div class="countdown">
+                  <a href="${process.env.CLIENT_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
+              </div>
+          </div>
+          <script>
+              let seconds = 4;
+              const el = document.getElementById('countdown');
+              const timer = setInterval(() => {
+                  seconds--; el.textContent = seconds;
+                  if (seconds <= 0) clearInterval(timer);
+              }, 1000);
+          </script>
+      </body>
+      </html>
+    `);
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Credit error:', err);
+    res.redirect(`${process.env.CLIENT_URL}/error?reason=credit_failed`);
+  } finally {
+    client.release();
+  }
+});
+
+
+// Endpoint to use credit for new booking
+app.post('/api/bookings/use-credit', async (req, res) => {
+  const { creditId, trainingId, childrenAges, photoConsent, mobile, note, accompanyingPerson } = req.body;
+  const userId = req.session.userId;
+
+  console.log('[DEBUG] Use credit request:', {
+    creditId,
+    trainingId,
+    userId,
+    childrenAges,
+    photoConsent,
+    mobile,
+    note,
+    accompanyingPerson
+  });
+
+  if (!userId) {
+    console.log('[DEBUG] Unauthorized: No userId in session');
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // ✅ FIX: Fetch the credit with accompanying_person instead of companion_count
+    console.log('[DEBUG] Fetching credit:', creditId);
+    const creditResult = await client.query(
+      `SELECT 
+    user_id, 
+    child_count, 
+    accompanying_person, 
+    children_ages,
+    photo_consent, 
+    mobile, 
+    note, 
+    training_type, 
+    status, 
+    session_id
+   FROM credits WHERE id = $1 AND user_id = $2 AND status = 'active'`,
+      [creditId, userId]
+    );
+
+    if (creditResult.rows.length === 0) {
+      console.log('[DEBUG] Credit not found or not usable');
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Credit not found or not usable' });
+    }
+
+    const credit = creditResult.rows[0];
+    const originalSessionId = credit.session_id;
+
+    // Verify NEW training availability
+    console.log('[DEBUG] Verifying new training availability:', trainingId);
+    const trainingResult = await client.query(
+      `SELECT id, training_date, training_type, max_participants 
+       FROM training_availability WHERE id = $1`,
+      [trainingId]
+    );
+
+    if (trainingResult.rows.length === 0) {
+      console.log('[DEBUG] Training not found');
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Training session not found' });
+    }
+
+    // Check participant count for NEW session
+    console.log('[DEBUG] Checking participant count for new trainingId:', trainingId);
+    const currentBookings = await client.query(
+      `SELECT COALESCE(SUM(number_of_children), 0) as total 
+       FROM bookings WHERE training_id = $1`,
+      [trainingId]
+    );
+    const totalParticipants = currentBookings.rows[0].total + credit.child_count;
+    if (totalParticipants > trainingResult.rows[0].max_participants) {
+      console.log('[DEBUG] Training session is full');
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Training session is full' });
+    }
+
+    // ✅ NEW: Only deactivate the original booking but keep booking_type as 'paid'
+    if (originalSessionId) {
+      console.log('[DEBUG] Deactivating original booking from cancelled session:', originalSessionId);
+      await client.query(
+        'UPDATE bookings SET active = false WHERE user_id = $1 AND training_id = $2 AND booking_type = $3',
+        [userId, originalSessionId, 'paid'] // Only deactivate paid bookings, keep type as 'paid'
+      );
+      console.log('[DEBUG] Original paid booking deactivated (not deleted)');
+    }
+
+    // ✅ Use updated form data or fall back to credit data
+    const finalChildrenAges = childrenAges || credit.children_ages || '';
+    const finalPhotoConsent = photoConsent !== undefined ? photoConsent : credit.photo_consent;
+    const finalMobile = mobile || credit.mobile || '';
+    const finalNote = note || credit.note || '';
+    const finalAccompanyingPerson = accompanyingPerson !== undefined ? accompanyingPerson : (credit.accompanying_person || false);
+
+    console.log('[DEBUG] Final booking data:', {
+      childrenAges: finalChildrenAges,
+      photoConsent: finalPhotoConsent,
+      mobile: finalMobile,
+      note: finalNote,
+      accompanyingPerson: finalAccompanyingPerson
+    });
+
+    // Insert new booking with updated information - explicitly set as 'credit'
+    console.log('[DEBUG] Inserting new booking for trainingId:', trainingId);
+    const bookingResult = await client.query(
+      `INSERT INTO bookings (
+    user_id, training_id, number_of_children, children_ages, 
+    photo_consent, mobile, note, accompanying_person, 
+    amount_paid, payment_intent_id, payment_time, credit_id, 
+    session_id, booked_at, booking_type, active
+  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), $14, $15)
+  RETURNING id`,
+      [
+        credit.user_id,
+        trainingId,
+        credit.child_count || 1,
+        finalChildrenAges,
+        finalPhotoConsent,
+        finalMobile,
+        finalNote,
+        finalAccompanyingPerson,
+        0, // amount_paid: 0 for credit-based booking
+        null, // payment_intent_id: null for credit-based booking
+        null, // payment_time: null for credit-based booking
+        creditId, // credit_id: tracks which credit was used
+        null, // session_id: null for credit-based booking
+        'credit', // ✅ CRITICAL: Explicitly set booking_type to 'credit'
+        true // active: true for new booking
+      ]
+    );
+
+    const bookingId = bookingResult.rows[0].id;
+    console.log('[DEBUG] Booking created with ID:', bookingId);
+
+    // Mark credit as used
+    console.log('[DEBUG] Marking credit as used:', creditId);
+    await client.query(
+      `UPDATE credits SET status = 'used', used_at = NOW() WHERE id = $1`,
+      [creditId]
+    );
+
+    // ✅ Send confirmation emails
+    try {
+      const userResult = await client.query(
+        'SELECT first_name, last_name, email FROM users WHERE id = $1',
+        [userId]
+      );
+
+      const trainingResult = await client.query(
+        'SELECT training_type, training_date FROM training_availability WHERE id = $1',
+        [trainingId]
+      );
+
+      if (userResult.rows.length > 0 && trainingResult.rows.length > 0) {
+        const user = userResult.rows[0];
+        const training = trainingResult.rows[0];
+
+        // Admin email
+        const adminMailOptions = {
+          from: process.env.EMAIL_USER,
+          to: process.env.ADMIN_EMAIL,
+          subject: 'Credit-Based Booking Created',
+          text: `
+            New booking created using credit:
+            User: ${user.first_name} ${user.last_name}
+            Email: ${user.email}
+            Training: ${training.training_type}
+            Date: ${new Date(training.training_date).toLocaleString()}
+            Children: ${credit.child_count}
+            Children Ages: ${finalChildrenAges}
+            Mobile: ${finalMobile}
+            Photo Consent: ${finalPhotoConsent ? 'Agreed' : 'Declined'}
+            Notes: ${finalNote || 'None'}
+            Booking ID: ${bookingId}
+            Credit ID: ${creditId}
+            Original cancelled session cleared: ${originalSessionId || 'N/A'}
+          `.trim(),
+        };
+
+        // User email
+        const userMailOptions = {
+          from: process.env.EMAIL_USER,
+          to: user.email,
+          subject: 'Booking Confirmation (Credit)',
+          text: `
+            Hello ${user.first_name},
+            
+            Your booking has been confirmed using your credit!
+            
+            Details:
+            - Training: ${training.training_type}
+            - Date: ${new Date(training.training_date).toLocaleString()}
+            - Children: ${credit.child_count}
+            - Children Ages: ${finalChildrenAges}
+            - Mobile: ${finalMobile || 'Not provided'}
+            
+            Your original cancelled session has been cleared.
+            
+            Thank you for using your credit!
+            
+            Best regards,
+            Nitracik Team
+          `.trim(),
+        };
+
+        await Promise.all([
+          transporter.sendMail(adminMailOptions),
+          transporter.sendMail(userMailOptions),
+        ]);
+
+        console.log('[DEBUG] Confirmation emails sent successfully');
+      }
+    } catch (emailError) {
+      console.error('[DEBUG] Error sending confirmation emails:', emailError.message);
+      // Don't fail the booking if email fails
+    }
+
+    // Commit transaction
+    console.log('[DEBUG] Committing transaction');
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: 'Booking created successfully using credit',
+      bookingId: bookingId
+    });
+  } catch (error) {
+    console.error('[DEBUG] Error using credit:', error.message, error.stack);
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: 'Error using credit: ' + error.message });
+  } finally {
+    console.log('[DEBUG] Releasing client');
+    client.release();
+  }
+});
+
+// New endpoint to get session ID from type, date, time
+app.get('/api/get-session-id', async (req, res) => {
+  const { training_type, date, time } = req.query;
+  try {
+    // Parse time (e.g., '01:00 PM' -> '13:00:00')
+    let [timePart, modifier] = time.split(' ');
+    let [hours, minutes] = timePart.split(':');
+    hours = parseInt(hours);
+    if (modifier === 'PM' && hours !== 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
+    const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes}:00`;
+    const timestamp = `${date} ${formattedTime}`;
+
+    const result = await pool.query(
+      'SELECT id FROM training_availability WHERE training_type = $1 AND training_date = $2',
+      [training_type, timestamp]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    res.json({ id: result.rows[0].id });
+  } catch (error) {
+    console.error('Error getting session ID:', error);
+    res.status(500).json({ error: 'Failed to get session ID' });
   }
 });
 

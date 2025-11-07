@@ -23,6 +23,7 @@ import PaymentSuccess from './components/PaymentSuccess';
 import PaymentCancelled from './components/PaymentCancelled';
 import SeasonTickets from './components/SeasonTickets';
 import LanguageSwitcher from './components/LanguageSwitcher';
+import RefundOption from './components/RefundOption';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
@@ -244,6 +245,7 @@ const AppContent = () => {
             <Route path="/payment-success" element={<PaymentSuccess />} />
             <Route path="/payment-cancelled" element={<PaymentCancelled />} />
             <Route path="/season-tickets" element={<SeasonTickets />} />
+            <Route path="/refund-option" element={<RefundOption />} />
           </Routes>
         </main>
         <Footer />
