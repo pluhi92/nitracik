@@ -4,7 +4,7 @@ import axios from 'axios';
 import { Modal, Button, Form, Table } from 'react-bootstrap';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Tooltip } from 'react-tooltip';
-import './UserProfile.css';
+import '../styles/components/UserProfile.css';
 
 const UserProfile = () => {
   const { t } = useTranslation();
@@ -159,25 +159,40 @@ const UserProfile = () => {
     }
   };
 
-  // In the renderSessionTable function, add a check for remaining bookings in cancelled sessions
-  const renderSessionTable = (type) => {
-    const filtered = processSessions(bookedSessions)
-      .filter((session) => session.training_type === type)
-      .sort((a, b) => new Date(b.training_date) - new Date(a.training_date));
+  // Slovak date formatter
+const formatSlovakDate = (dateString) => {
+  const date = new Date(dateString);
+  const day = date.getDate();
+  const month = date.getMonth() + 1;
+  const year = date.getFullYear();
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  
+  return `${day}. ${month}. ${year} - ${hours}:${minutes}`;
+};
 
-    if (filtered.length === 0) return null;
+// In the renderSessionTable function, replace the table structure:
+const renderSessionTable = (type) => {
+  const filtered = processSessions(bookedSessions)
+    .filter((session) => session.training_type === type)
+    .sort((a, b) => new Date(b.training_date) - new Date(a.training_date));
 
-    return (
-      <div className="mb-5">
-        <h4>{t?.profile?.sessionType?.[type.toLowerCase()] || `${type} Sessions`}</h4>
-        <Table striped bordered hover responsive>
+  if (filtered.length === 0) return null;
+
+  return (
+    <div className="admin-sessions mb-5">
+      <h4 className="section-header">
+        {t?.profile?.sessionType?.[type.toLowerCase()] || `${type} Sessions`}
+      </h4>
+      <div className="table-responsive">
+        <Table striped hover className="mb-0">
           <thead>
             <tr>
               <th>{t?.profile?.table?.date || 'Date'}</th>
               <th>{t?.profile?.table?.type || 'Type'}</th>
               <th>{t?.profile?.table?.availableSpots || 'Available Spots'}</th>
               <th>{t?.profile?.table?.participants || 'Participants'}</th>
-              <th>{t?.profile?.table?.remainingBookings || 'Remaining Bookings'}</th>
+              <th>{t?.profile?.table?.children || 'Children'}</th>
               <th>{t?.profile?.table?.actions || 'Actions'}</th>
             </tr>
           </thead>
@@ -187,27 +202,44 @@ const UserProfile = () => {
               const currentTime = new Date();
               const hoursDifference = (sessionTime - currentTime) / (1000 * 60 * 60);
               const isWithin10Hours = hoursDifference <= 10;
-
-              // Check if session is cancelled
               const isCancelled = session.cancelled === true;
               const remainingBookings = session.participants.length;
+              const totalChildren = session.participants.reduce((sum, participant) => sum + participant.children, 0);
 
               return (
                 <tr
                   key={`${session.training_date}-${session.training_type}`}
-                  className={`${isCancelled ? 'table-secondary text-muted' : ''} ${isWithin10Hours && !isCancelled ? 'table-warning' : ''
-                    }`}
+                  className={`
+                    ${isCancelled ? 'session-cancelled' : ''}
+                    ${isWithin10Hours && !isCancelled ? 'session-warning' : ''}
+                  `}
                 >
                   <td>
-                    {new Date(session.training_date).toLocaleString()}
+                    <div className="fw-semibold">
+                      {formatSlovakDate(session.training_date)}
+                    </div>
                     {isCancelled && (
-                      <div className="small text-danger mt-1">
+                      <div className="status-indicator status-cancelled mt-1">
                         ❌ {t?.profile?.cancelled || 'CANCELLED'}
                       </div>
                     )}
+                    {isWithin10Hours && !isCancelled && (
+                      <div className="time-warning">
+                        ⏳ {Math.round(hoursDifference)} {t?.profile?.hoursUntilSession || 'hours'}
+                      </div>
+                    )}
                   </td>
-                  <td>{session.training_type}</td>
-                  <td>{session.available_spots}</td>
+                  <td>
+                    <span className="badge bg-primary">{session.training_type}</span>
+                  </td>
+                  <td>
+                    <div className="text-center">
+                      <span className={`fw-bold ${session.available_spots === 0 ? 'text-danger' : 'text-success'}`}>
+                        {session.available_spots}
+                      </span>
+                      <div className="small text-muted">of {session.max_participants}</div>
+                    </div>
+                  </td>
                   <td>
                     <div className="participants-container">
                       {session.participants.map((participant, index) => (
@@ -216,133 +248,119 @@ const UserProfile = () => {
                           className="participant-badge"
                         >
                           <div className="participant-info">
-                            <span className="participant-name">
+                            <div className="participant-name">
                               {participant.first_name} {participant.last_name}
-                            </span>
-                            <span className="participant-email">
+                            </div>
+                            <div className="participant-email">
                               {participant.email}
-                            </span>
-                            {/* ✅ NEW: Add booking type badge for admin view */}
-                            <div className="mt-1">
-                              <span className={`badge ${participant.booking_type === 'credit'
-                                ? 'bg-info'
-                                : participant.booking_type === 'season_ticket'
-                                  ? 'bg-warning'
-                                  : participant.booking_type === 'paid' && participant.active === false
-                                    ? 'bg-secondary'
-                                    : 'bg-success'
-                                }`}>
-                                {participant.booking_type === 'credit'
-                                  ? 'Credit'
+                            </div>
+                            <div className="booking-details">
+                              <span className={`booking-method ${
+                                participant.booking_type === 'credit'
+                                  ? 'booking-credit'
                                   : participant.booking_type === 'season_ticket'
-                                    ? 'Season Ticket'
-                                    : participant.booking_type === 'paid' && participant.active === false
-                                      ? 'Paid (Canceled)'
-                                      : 'Paid'}
+                                  ? 'booking-season-ticket'
+                                  : participant.booking_type === 'paid' && participant.active === false
+                                  ? 'booking-cancelled'
+                                  : 'booking-paid'
+                              }`}>
+                                {participant.booking_type === 'credit'
+                                  ? '💳 Credit'
+                                  : participant.booking_type === 'season_ticket'
+                                  ? '🎫 Season Ticket'
+                                  : participant.booking_type === 'paid' && participant.active === false
+                                  ? '❌ Cancelled'
+                                  : '💰 Paid'}
                               </span>
-
+                              
                               {participant.amount_paid > 0 && (
-                                <span className="badge bg-primary ms-1">
+                                <span className="amount-badge">
                                   €{participant.amount_paid}
                                 </span>
                               )}
                             </div>
                           </div>
-                          <div className="children-count">
-                            {t?.profile?.table?.child?.replace(
-                              '{count}',
-                              participant.children
-                            ) || `Number of children: ${participant.children}`}
-                          </div>
+                        </div>
+                      ))}
+                      {session.participants.length === 0 && (
+                        <div className="text-muted small">No participants</div>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="text-center">
+                      <span className="fw-bold text-primary">{totalChildren}</span>
+                      <div className="small text-muted">total</div>
+                      {session.participants.map((participant, index) => (
+                        <div key={index} className="small">
+                          {participant.children} {participant.children === 1 ? 'child' : 'children'}
                         </div>
                       ))}
                     </div>
                   </td>
                   <td>
-                    {isCancelled && (
-                      <div className={`text-center ${remainingBookings > 0 ? 'text-warning' : 'text-success'}`}>
-                        <strong>{remainingBookings}</strong>
-                        <div className="small">
-                          {remainingBookings > 0
-                            ? 'pending resolution'
-                            : 'ready to delete'
-                          }
-                        </div>
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    {isCancelled ? (
-                      <div className="d-flex flex-column gap-2">
-                        {remainingBookings === 0 ? (
-                          <>
-                            <span className="text-success small">
-                              ✅ Ready to delete
+                    <div className="session-actions">
+                      {isCancelled ? (
+                        <div className="d-flex flex-column gap-2">
+                          {remainingBookings === 0 ? (
+                            <>
+                              <span className="status-indicator status-ready">
+                                ✅ Ready to delete
+                              </span>
+                              <button
+                                className="btn-delete-session"
+                                onClick={() => handleDeleteSession(
+                                  session.training_id,
+                                  session.training_type,
+                                  session.training_date
+                                )}
+                                title="Permanently delete this cancelled session"
+                              >
+                                🗑️ Delete Session
+                              </button>
+                            </>
+                          ) : (
+                            <span className="status-indicator status-pending">
+                              ⏳ {remainingBookings} pending
                             </span>
-                            <Button
-                              variant="outline-danger"
-                              size="sm"
-                              onClick={() => handleDeleteSession(
-                                session.training_id,
-                                session.training_type,
-                                session.training_date
-                              )}
-                              title="Permanently delete this cancelled session"
-                              className="d-flex align-items-center justify-content-center"
-                            >
-                              🗑️ Delete Session
-                            </Button>
-                          </>
-                        ) : (
-                          <span className="text-warning small">
-                            ⏳ {remainingBookings} booking(s) pending resolution
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <>
-                        <Button
-                          variant="outline-danger"
-                          size="sm"
-                          onClick={() =>
-                            handleAdminCancelSession(
-                              session.training_id,
-                              session.training_type,
-                              session.training_date,
-                              false
-                            )
-                          }
-                          className="me-2"
-                          title="Cancel this session"
-                        >
-                          {t?.profile?.cancelSession || 'Cancel Session'}
-                        </Button>
-
-                        {isWithin10Hours && (
-                          <Button
-                            variant="danger"
-                            size="sm"
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            className="btn-cancel"
                             onClick={() =>
                               handleAdminCancelSession(
                                 session.training_id,
                                 session.training_type,
                                 session.training_date,
-                                true
+                                false
                               )
                             }
-                            title="Force cancel within 10 hours"
+                            title="Cancel this session"
                           >
-                            {t?.profile?.forceCancel || 'Force Cancel'}
-                          </Button>
-                        )}
+                            🚫 {t?.profile?.cancelSession || 'Cancel Session'}
+                          </button>
 
-                        {isWithin10Hours && (
-                          <div className="small text-warning mt-1">
-                            {Math.round(hoursDifference)} {t?.profile?.hoursUntilSession || 'hours until session'}
-                          </div>
-                        )}
-                      </>
-                    )}
+                          {isWithin10Hours && (
+                            <button
+                              className="btn-force-cancel"
+                              onClick={() =>
+                                handleAdminCancelSession(
+                                  session.training_id,
+                                  session.training_type,
+                                  session.training_date,
+                                  true
+                                )
+                              }
+                              title="Force cancel within 10 hours"
+                            >
+                              ⚡ {t?.profile?.forceCancel || 'Force Cancel'}
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -350,8 +368,9 @@ const UserProfile = () => {
           </tbody>
         </Table>
       </div>
-    );
-  };
+    </div>
+  );
+};
 
   // UPDATED: Admin cancellation with timing check
   const handleAdminCancelSession = (id, type, date, useForceCancel = false) => {

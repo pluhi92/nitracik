@@ -1,0 +1,67 @@
+/* src/styles/components/Contact.css */
+.contact {
+  padding: 4rem 1rem;
+  background: var(--bg-muted);
+}
+
+.contact-container { text-align: center; }
+
+.contact-title {
+  color: var(--primary);
+  margin-bottom: 2.5rem;
+}
+
+.contact-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 2.5rem;
+}
+
+.contact-item {
+  flex: 1;
+  min-width: 250px;
+  padding: 1.5rem;
+  background: var(--primary);
+  color: white;
+  border-radius: var(--radius);
+  transition: var(--transition);
+}
+
+.contact-item:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.contact-item h3 {
+  color: var(--secondary);
+  margin-bottom: .5rem;
+}
+
+.contact-item p { color: #fff; }
+
+.contact-form {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  background: var(--primary);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.contact-form .form-group label {
+  color: white;
+}
+
+.map-container {
+  margin-top: 2.5rem;
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 768px) {
+  .contact-info { flex-direction: column; }
+  .contact-form { padding: 1rem; }
+}

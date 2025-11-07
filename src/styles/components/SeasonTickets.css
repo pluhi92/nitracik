@@ -1,0 +1,64 @@
+/* src/styles/components/SeasonTickets.css */
+.season-tickets-container {
+  padding: 3rem 1rem;
+  background: var(--bg-muted);
+}
+
+.ticket-card {
+  max-width: 400px;
+  margin: 1rem auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: var(--transition);
+}
+
+.ticket-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg);
+}
+
+.ticket-card .card-body {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.card-title {
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.price-text {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--secondary);
+}
+
+.card-text.text-muted {
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.buy-button {
+  align-self: flex-start;
+  background: var(--secondary);
+  color: white;
+  padding: .75rem 1.25rem;
+  border-radius: var(--radius);
+  font-weight: 600;
+  transition: var(--transition);
+}
+
+.buy-button:hover {
+  background: var(--secondary-dark);
+}
+
+@media (max-width: 768px) {
+  .card-title { font-size: var(--fs-xl); }
+  .price-text { font-size: 1.75rem; }
+}

@@ -46,7 +46,28 @@
     "processingPayment": "Processing your payment...",
     "seasonTicketSuccess": "Booking created using season ticket!",
     "yearSingular": "year",
-    "yearPlural": "years"
+    "yearPlural": "years",
+    "childAge": "Age of {number} child",
+    "youHaveCredit": "You have",
+    "useCredit": "Use Credit",
+    "creditSuccess": "Booked with credit!",
+    "error": "Error processing booking. Please try again.",
+    "paymentError": "Payment confirmation failed. Please contact support.",
+    "seasonTicketNotFound": "Selected season ticket not found",
+    "notEnoughEntries": "Not enough entries in your season ticket. Needed: {needed}, Available: {available}",
+    "seasonTicketExpired": "Your season ticket has expired",
+    "bookWithCredit": "Book with Credit",
+    "chooseCredit": "Choose Your Credit",
+    "noCredits": "No credits available.",
+    "originalDate": "Original Date",
+    "children": "Children",
+    "fillFormFromOriginal": "Fill in the form based on the original booking",
+    "useThisCredit": "Use this credit",
+    "cancel": "Cancel",
+    "creditModeReadOnly": "Set from original booking - read only",
+    "child": "child",
+    "childrenPlural": "children",
+    "processing": "Processing..."
   },
   "admin": {
     "title": "Admin Controls",
@@ -215,7 +236,30 @@
         "required": "Please enter a password",
         "incorrect": "Incorrect password",
         "generic": "Failed to delete account"
-      }
+      },
+      "cancelled": "CANCELLED",
+      "cancelSession": "Cancel Session",
+      "forceCancel": "Force Cancel",
+      "hoursUntilSession": "hours until session",
+      "cancelModal": {
+        "title": "Cancel Session",
+        "chooseOption": "Choose cancellation option:",
+        "refundOption": "Cancel session and request refund",
+        "replacementOption": "Replace with another session",
+        "selectReplacement": "Select replacement session:",
+        "chooseSession": "Choose a session...",
+        "noReplacements": "No available replacement sessions found.",
+        "refundInfo": "Refund Information:",
+        "refundDetails": "Your refund will be processed automatically and may take 5-10 business days to appear in your account.",
+        "seasonTicketInfo": "This booking was made with a season ticket. No refund is applicable; entries will be returned to your season ticket.",
+        "creditInfo": "This booking was made with a credit. Your credit will be returned to your account for future use.",
+        "confirm": "Confirm Cancellation"
+      },
+      "refundSuccess": "Refund has been processed.",
+      "seasonTicketSuccess": "{count} entries returned to your season ticket.",
+      "creditReturned": "Your credit has been returned to your account.",
+      "refundFailed": "Refund processing failed.",
+      "replacementSuccess": "Session successfully replaced."
     }
   }
 }

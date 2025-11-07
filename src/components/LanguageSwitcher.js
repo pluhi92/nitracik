@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from '../contexts/LanguageContext';
+import '../styles/components/LanguageSwitcher.css';
 
 const LanguageSwitcher = () => {
   const { language, changeLanguage } = useTranslation();

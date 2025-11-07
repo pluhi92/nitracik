@@ -47,7 +47,28 @@
     "seasonTicketSuccess": "Rezervácia vytvorená pomocou permanentky!",
     "yearSingular": "rok",
     "yearPlural2to4": "roky",
-    "yearPlural5Plus": "rokov"
+    "yearPlural5Plus": "rokov",
+    "childAge": "Vek {number}. dieťaťa",
+    "youHaveCredit": "Máte",
+    "useCredit": "Použiť kredit",
+    "creditSuccess": "Rezervácia vytvorená pomocou kreditu!",
+    "error": "Chyba pri spracovaní rezervácie. Skúste to znova.",
+    "paymentError": "Potvrdenie platby zlyhalo. Kontaktujte podporu.",
+    "seasonTicketNotFound": "Vybraná permanentka nebola nájdená",
+    "notEnoughEntries": "Nedostatok vstupov vo vašej permanentke. Potrebujete: {needed}, Dostupné: {available}",
+    "seasonTicketExpired": "Vaša permanentka expirovala",
+    "bookWithCredit": "Rezervovať s kreditom",
+    "chooseCredit": "Vyberte si kredit",
+    "noCredits": "Nie sú k dispozícii žiadne kredity.",
+    "originalDate": "Pôvodný dátum",
+    "children": "Deti",
+    "fillFormFromOriginal": "Vyplniť formulár podľa pôvodnej rezervácie",
+    "useThisCredit": "Použiť tento kredit",
+    "cancel": "Zrušiť",
+    "creditModeReadOnly": "Nastavené z pôvodnej rezervácie - len na čítanie",
+    "child": "dieťa",
+    "childrenPlural": "deti",
+    "processing": "Spracovávam..."
   },
   "admin": {
     "title": "Admin Panel",
@@ -216,7 +237,30 @@
         "required": "Prosím, zadajte heslo",
         "incorrect": "Nesprávne heslo",
         "generic": "Nepodarilo sa vymazať účet"
-      }
+      },
+      "cancelled": "ZRUŠENÉ",
+      "cancelSession": "Zrušiť reláciu",
+      "forceCancel": "Vynútené zrušenie",
+      "hoursUntilSession": "hodín do relácie",
+      "cancelModal": {
+        "title": "Zrušiť reláciu",
+        "chooseOption": "Vyberte možnosť zrušenia:",
+        "refundOption": "Zrušiť reláciu a požiadať o refundáciu",
+        "replacementOption": "Nahradiť inou reláciou",
+        "selectReplacement": "Vyberte náhradnú reláciu:",
+        "chooseSession": "Vyberte reláciu...",
+        "noReplacements": "Nenašli sa žiadne dostupné náhradné relácie.",
+        "refundInfo": "Informácie o refundácii:",
+        "refundDetails": "Vaša refundácia bude spracovaná automaticky a môže trvať 5-10 pracovných dní, kým sa objaví na vašom účte.",
+        "seasonTicketInfo": "Táto rezervácia bola vytvorená pomocou permanentky. Refundácia nie je možná; vstupy budú vrátené na vašu permanentku.",
+        "creditInfo": "Táto rezervácia bola vytvorená pomocou kreditu. Váš kredit bude vrátený na váš účet pre budúce použitie.",
+        "confirm": "Potvrdiť zrušenie"
+      },
+      "refundSuccess": "Refundácia bola spracovaná.",
+      "seasonTicketSuccess": "{count} vstupov bolo vrátených na vašu permanentku.",
+      "creditReturned": "Váš kredit bol vrátený na váš účet.",
+      "refundFailed": "Spracovanie refundácie zlyhalo.",
+      "replacementSuccess": "Relácia bola úspešne nahradená."
     }
   }
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from '../contexts/LanguageContext';
-import './AboutUs.css';
+import '../styles/components/AboutUs.css';
 
 const AboutUs = () => {
   const { t } = useTranslation();

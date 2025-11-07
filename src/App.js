@@ -3,8 +3,8 @@ import { Link, BrowserRouter as Router, Route, Routes, useNavigate } from 'react
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser } from '@fortawesome/free-solid-svg-icons';
 import { FaSun, FaMoon } from 'react-icons/fa';
-import { useTranslation } from './contexts/LanguageContext'; // Import from context
-import { LanguageProvider } from './contexts/LanguageContext'; // Import provider
+import { useTranslation } from './contexts/LanguageContext';
+import { LanguageProvider } from './contexts/LanguageContext';
 import logo from './assets/logo.png';
 import AboutUs from './components/AboutUs';
 import Booking from './components/Booking';
@@ -25,7 +25,7 @@ import SeasonTickets from './components/SeasonTickets';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import RefundOption from './components/RefundOption';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import './App.css';
+import './styles/components/App.css';
 
 // Theme context and provider
 const ThemeContext = React.createContext();
@@ -60,10 +60,10 @@ const ThemeToggle = () => {
   return (
     <button
       onClick={toggleTheme}
-      className="theme-toggle btn btn-link"
+      className="theme-toggle"
       aria-label="Toggle theme"
     >
-      {theme === 'light' ? <FaMoon size={24} /> : <FaSun size={24} />}
+      {theme === 'light' ? <FaMoon size={20} /> : <FaSun size={20} />}
     </button>
   );
 };
@@ -107,12 +107,15 @@ const Navbar = () => {
   }, []);
 
   return (
-    <nav className={`navbar navbar-expand-lg navbar-light shadow-sm py-3 ${theme === 'dark' ? 'navbar-dark bg-dark' : 'bg-white'}`}>
-      <div className="container">
+    <nav className="navbar">
+      <div className="navbar-container">
+        {/* Left: Logo */}
         <div className="navbar-header">
           <Link className="navbar-brand" to="/">
             <img src={logo} alt="Logo" className="logo-image" />
           </Link>
+
+          {/* Mobile toggle */}
           <button
             className="navbar-toggler"
             onClick={toggleMenu}
@@ -121,75 +124,98 @@ const Navbar = () => {
             {isMenuOpen ? <span>✕</span> : <span>☰</span>}
           </button>
         </div>
-        <div className={`collapse navbar-collapse ${isMenuOpen ? 'show' : ''}`} id="navbarNav">
-          <ul className="navbar-nav">
-            <li className="nav-item">
-              <Link className="nav-link nav-link-custom" to="/about">
-                {t?.navbar?.about || 'About Nitracik'}
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link nav-link-custom" to="/photos">
-                {t?.navbar?.photos || 'Gallery'}
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link nav-link-custom" to="/booking">
-                {t?.navbar?.booking || 'Book your session'}
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link nav-link-custom" to="/contact">
-                {t?.navbar?.contact || 'Contact'}
-              </Link>
-            </li>
-          </ul>
-          <div className="navbar-controls-wrapper">
-            <div className="navbar-controls-group">
-              <LanguageSwitcher />
-              <ThemeToggle />
-              <div className={`user-dropdown ${isDropdownOpen ? 'open' : ''}`} ref={dropdownRef}>
-                <button 
-                  className="user-dropdown-toggle" 
-                  onClick={toggleDropdown}
-                  aria-expanded={isDropdownOpen}
-                  aria-label="User menu"
+
+        {/* Center: Navigation Links - HORIZONTAL LAYOUT */}
+        <ul className={`navbar-nav ${isMenuOpen ? 'show' : ''}`}>
+          <li className="nav-item">
+            <Link 
+              className="nav-link-custom" 
+              to="/about" 
+              onClick={() => setIsMenuOpen(false)}
+            >
+              {t?.navbar?.about || 'About Nitracik'}
+            </Link>
+          </li>
+          <li className="nav-item">
+            <Link 
+              className="nav-link-custom" 
+              to="/photos" 
+              onClick={() => setIsMenuOpen(false)}
+            >
+              {t?.navbar?.photos || 'Gallery'}
+            </Link>
+          </li>
+          <li className="nav-item">
+            <Link 
+              className="nav-link-custom" 
+              to="/booking" 
+              onClick={() => setIsMenuOpen(false)}
+            >
+              {t?.navbar?.booking || 'Book your session'}
+            </Link>
+          </li>
+          <li className="nav-item">
+            <Link 
+              className="nav-link-custom" 
+              to="/contact" 
+              onClick={() => setIsMenuOpen(false)}
+            >
+              {t?.navbar?.contact || 'Contact'}
+            </Link>
+          </li>
+        </ul>
+
+        {/* Right: Controls */}
+        <div className={`navbar-controls-wrapper ${isMenuOpen ? 'show' : ''}`}>
+          <LanguageSwitcher />
+          <ThemeToggle />
+          <div className={`user-dropdown ${isDropdownOpen ? 'open' : ''}`} ref={dropdownRef}>
+            <button
+              className="user-dropdown-toggle"
+              onClick={toggleDropdown}
+              aria-expanded={isDropdownOpen}
+              aria-label="User menu"
+            >
+              <FontAwesomeIcon icon={faUser} className="user-icon" />
+            </button>
+            <div className="user-dropdown-menu">
+              {isLoggedIn ? (
+                <>
+                  <Link
+                    to="/profile"
+                    className="dropdown-item"
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faUser} className="me-2" />
+                    {t?.navbar?.profile || 'My Profile'}
+                  </Link>
+                  <div className="dropdown-divider"></div>
+                  <button
+                    className="dropdown-item"
+                    onClick={() => {
+                      handleLogout();
+                      setIsDropdownOpen(false);
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    {t?.navbar?.logout || 'Logout'}
+                  </button>
+                </>
+              ) : (
+                <Link
+                  to="/login"
+                  className="dropdown-item"
+                  onClick={() => {
+                    setIsDropdownOpen(false);
+                    setIsMenuOpen(false);
+                  }}
                 >
-                  <FontAwesomeIcon icon={faUser} className="user-icon" />
-                </button>
-                <div className="user-dropdown-menu">
-                  {isLoggedIn ? (
-                    <>
-                      <Link
-                        to="/profile"
-                        className="dropdown-item"
-                        onClick={() => setIsDropdownOpen(false)}
-                      >
-                        <FontAwesomeIcon icon={faUser} className="me-2" />
-                        {t?.navbar?.profile || 'My Profile'}
-                      </Link>
-                      <div className="dropdown-divider"></div>
-                      <button
-                        className="dropdown-item"
-                        onClick={() => {
-                          handleLogout();
-                          setIsDropdownOpen(false);
-                        }}
-                      >
-                        {t?.navbar?.logout || 'Logout'}
-                      </button>
-                    </>
-                  ) : (
-                    <Link
-                      to="/login"
-                      className="dropdown-item"
-                      onClick={() => setIsDropdownOpen(false)}
-                    >
-                      {t?.navbar?.login || 'Login'}
-                    </Link>
-                  )}
-                </div>
-              </div>
+                  {t?.navbar?.login || 'Login'}
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -200,13 +226,12 @@ const Navbar = () => {
 
 // Footer component
 const Footer = () => {
-  const { theme } = useTheme();
   const { t } = useTranslation();
 
   return (
-    <footer className={`py-4 mt-auto ${theme === 'dark' ? 'bg-dark text-white' : 'bg-light text-dark'}`}>
+    <footer>
       <div className="container text-center">
-        <p className="mb-0 fs-5">
+        <p className="mb-0">
           {t?.footer?.copyright || '© 2025 Nitracik. All rights reserved.'}
         </p>
       </div>

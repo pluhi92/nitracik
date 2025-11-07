@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useTranslation } from "../contexts/LanguageContext";
-import "./Contact.css";
+import '../styles/components/Contact.css';
 
 function Contact() {
   const { t } = useTranslation();

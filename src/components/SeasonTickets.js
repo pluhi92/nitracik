@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { loadStripe } from '@stripe/stripe-js';
 import { useTranslation } from '../contexts/LanguageContext';
-import './SeasonTickets.css';
+import '../styles/components/SeasonTickets.css';
 
 const api = axios.create({
   baseURL: 'http://localhost:5000',

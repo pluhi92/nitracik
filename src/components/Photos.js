@@ -1,5 +1,5 @@
 import React from 'react';
-import './Photos.css';
+import '../styles/components/Photos.css';
 
 const Photos = () => {
   // Example photo URLs (replace with your actual photos)
