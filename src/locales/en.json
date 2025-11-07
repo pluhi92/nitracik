@@ -7,7 +7,8 @@
       "label": "Select Training Type",
       "placeholder": "Choose...",
       "mini": "MINI",
-      "midi": "MIDI"
+      "midi": "MIDI",
+      "maxi": "MAXI"
     },
     "name": "Your Name",
     "email": "Your Email",
@@ -17,6 +18,8 @@
     "selectTime": "Select Time",
     "childrenCount": "Number of Children",
     "childrenAge": "Age of Children",
+    "chooseAge": "Choose an age",
+    "selectAllAges": "Please select an age for all children.",
     "notes": "Additional Notes",
     "useSeasonTicket": "Use Season Ticket",
     "selectSeasonTicket": "Select Season Ticket",
@@ -36,7 +39,14 @@
       "available": "{count} spots available",
       "unavailable": "Only {count} spots remain (needed {needed})",
       "full": "All places are already occupied for this session"
-    }
+    },
+    "paymentSuccess": "Payment successful! Booking confirmed.",
+    "paymentSuccessTitle": "🎉 Payment Successful! 🎉",
+    "confirmationMessage": "Your booking has been confirmed. Thank you for choosing Nitráčik!",
+    "processingPayment": "Processing your payment...",
+    "seasonTicketSuccess": "Booking created using season ticket!",
+    "yearSingular": "year",
+    "yearPlural": "years"
   },
   "admin": {
     "title": "Admin Controls",
@@ -141,7 +151,8 @@
     },
     "sessionType": {
       "midi": "MIDI Sessions",
-      "mini": "MINI Sessions"
+      "mini": "MINI Sessions",
+      "maxi": "MAXI Sessions"
     },
     "table": {
       "date": "Date",

@@ -7,7 +7,8 @@
       "label": "Vyberte typ tréningu",
       "placeholder": "Vyberte...",
       "mini": "MINI",
-      "midi": "MIDI"
+      "midi": "MIDI",
+      "maxi": "MAXI"
     },
     "name": "Vaše meno",
     "email": "Váš email",
@@ -17,6 +18,8 @@
     "selectTime": "Vyberte čas",
     "childrenCount": "Počet detí",
     "childrenAge": "Vek detí",
+    "chooseAge": "Vyberte vek",
+    "selectAllAges": "Vyberte vek pre všetky deti.",
     "notes": "Dodatočné poznámky",
     "useSeasonTicket": "Použiť permanentku",
     "selectSeasonTicket": "Vyberte permanentku",
@@ -25,8 +28,8 @@
     "notCoveredBySeasonTicket": "Nie je pokryté permanentkou",
     "accompanyingPerson": "Účasť sprevádzajúcej osoby (€3)",
     "photoConsent": "Súhlas s publikovaním fotografií",
-    "agree": "SUHLASÍM s publikovaním fotografií môjho dieťaťa",
-    "disagree": "NESUHLASÍM s publikovaním fotografií môjho dieťaťa",
+    "agree": "SÚHLASÍM s publikovaním fotografií môjho dieťaťa",
+    "disagree": "NESÚHLASÍM s publikovaním fotografií môjho dieťaťa",
     "consent": "Súhlasím s pravidlami (Povinné)",
     "terms": "Všeobecné obchodné podmienky",
     "totalPrice": "Celková cena",
@@ -36,7 +39,15 @@
       "available": "Dostupných {count} miest",
       "unavailable": "Zostáva len {count} miest (potrebujete {needed})",
       "full": "Všetky miesta sú už obsadené"
-    }
+    },
+    "paymentSuccess": "Platba úspešná! Rezervácia potvrdená.",
+    "paymentSuccessTitle": "🎉 Platba Úspešná! 🎉",
+    "confirmationMessage": "Vaša rezervácia bola potvrdená. Ďakujeme, že ste si vybrali Nitráčik!",
+    "processingPayment": "Spracovávame vašu platbu...",
+    "seasonTicketSuccess": "Rezervácia vytvorená pomocou permanentky!",
+    "yearSingular": "rok",
+    "yearPlural2to4": "roky",
+    "yearPlural5Plus": "rokov"
   },
   "admin": {
     "title": "Admin Panel",
@@ -141,7 +152,8 @@
     },
     "sessionType": {
       "midi": "MIDI relácie",
-      "mini": "MINI relácie"
+      "mini": "MINI relácie",
+      "maxi": "MAXI relácie"
     },
     "table": {
       "date": "Dátum",
