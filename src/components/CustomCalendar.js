@@ -1,17 +1,35 @@
 // src/components/CustomCalendar.js
 import React, { useState, useEffect } from 'react';
-import '../styles/components/Booking.css';
+import '../styles/components/CustomCalendar.css';
+import { useTranslation } from '../contexts/LanguageContext';
 
 const CustomCalendar = ({ trainingDates, trainingType, selectedDate, onDateSelect, minDate = new Date() }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState([]);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const { t } = useTranslation();
+  const [prevCalendarDays, setPrevCalendarDays] = useState([]);
+  const [animationDirection, setAnimationDirection] = useState('');
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
+  const getTranslatedWeekday = (day) => {
+    const translations = {
+      'MON': t?.calendar?.mon || 'PO',
+      'TUE': t?.calendar?.tue || 'UT',
+      'WED': t?.calendar?.wed || 'ST',
+      'THU': t?.calendar?.thu || 'ŠT',
+      'FRI': t?.calendar?.fri || 'PI',
+      'SAT': t?.calendar?.sat || 'SO',
+      'SUN': t?.calendar?.sun || 'NE'
+    };
+    return translations[day] || day;
+  };
 
   // Generate calendar days
   useEffect(() => {
@@ -21,17 +39,13 @@ const CustomCalendar = ({ trainingDates, trainingType, selectedDate, onDateSelec
   const generateCalendar = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    
-    // First day of the month
+
     const firstDay = new Date(year, month, 1);
-    // Last day of the month
     const lastDay = new Date(year, month + 1, 0);
-    // Last day of previous month
     const prevLastDay = new Date(year, month, 0);
-    
-    const firstDayIndex = firstDay.getDay();
-    const lastDayIndex = lastDay.getDay();
-    const nextDays = 7 - lastDayIndex - 1;
+
+    let firstDayIndex = firstDay.getDay() - 1;
+    if (firstDayIndex === -1) firstDayIndex = 6;
 
     const days = [];
 
@@ -39,19 +53,27 @@ const CustomCalendar = ({ trainingDates, trainingType, selectedDate, onDateSelec
     for (let i = firstDayIndex; i > 0; i--) {
       const day = prevLastDay.getDate() - i + 1;
       const date = new Date(year, month - 1, day);
+      const dayOfWeek = date.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const formattedDate = date.toLocaleDateString('en-CA');
+      const isAvailable = trainingType && trainingDates[trainingType]?.[formattedDate];
+
       days.push({
         date,
         isCurrentMonth: false,
         isToday: false,
-        isAvailable: false,
+        isAvailable,
         isSelected: false,
-        isDisabled: true
+        isDisabled: true,
+        isWeekend
       });
     }
 
     // Current month days
     for (let i = 1; i <= lastDay.getDate(); i++) {
       const date = new Date(year, month, i);
+      const dayOfWeek = date.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
       const formattedDate = date.toLocaleDateString('en-CA');
       const isToday = isSameDay(date, new Date());
       const isAvailable = trainingType && trainingDates[trainingType]?.[formattedDate];
@@ -64,20 +86,30 @@ const CustomCalendar = ({ trainingDates, trainingType, selectedDate, onDateSelec
         isToday,
         isAvailable,
         isSelected,
-        isDisabled
+        isDisabled,
+        isWeekend
       });
     }
 
     // Next month days
-    for (let i = 1; i <= nextDays; i++) {
+    const totalCells = 42;
+    const nextDaysCount = totalCells - days.length;
+
+    for (let i = 1; i <= nextDaysCount; i++) {
       const date = new Date(year, month + 1, i);
+      const dayOfWeek = date.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const formattedDate = date.toLocaleDateString('en-CA');
+      const isAvailable = trainingType && trainingDates[trainingType]?.[formattedDate];
+
       days.push({
         date,
         isCurrentMonth: false,
         isToday: false,
-        isAvailable: false,
+        isAvailable,
         isSelected: false,
-        isDisabled: true
+        isDisabled: true,
+        isWeekend
       });
     }
 
@@ -86,8 +118,8 @@ const CustomCalendar = ({ trainingDates, trainingType, selectedDate, onDateSelec
 
   const isSameDay = (date1, date2) => {
     return date1.getDate() === date2.getDate() &&
-           date1.getMonth() === date2.getMonth() &&
-           date1.getFullYear() === date2.getFullYear();
+      date1.getMonth() === date2.getMonth() &&
+      date1.getFullYear() === date2.getFullYear();
   };
 
   const handleDateClick = (day) => {
@@ -97,23 +129,46 @@ const CustomCalendar = ({ trainingDates, trainingType, selectedDate, onDateSelec
     }
   };
 
-  const goToPreviousMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  const goToNextMonth = () => {
+    if (isAnimating) return;
+    setIsAnimating(true);
+    setPrevCalendarDays(calendarDays);
+    setAnimationDirection('down');
+    setTimeout(() => {
+      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+      setAnimationDirection('');
+      setPrevCalendarDays([]);
+      setIsAnimating(false);
+    }, 450);
   };
 
-  const goToNextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  const goToPreviousMonth = () => {
+    if (isAnimating) return;
+    setIsAnimating(true);
+    setPrevCalendarDays(calendarDays);
+    setAnimationDirection('up');
+    setTimeout(() => {
+      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+      setAnimationDirection('');
+      setPrevCalendarDays([]);
+      setIsAnimating(false);
+    }, 450);
   };
 
   const getDayClassNames = (day) => {
     const classNames = ['calendar-day'];
-    
+
     if (!day.isCurrentMonth) classNames.push('calendar-day-other-month');
     if (day.isToday) classNames.push('calendar-day-today');
-    if (day.isAvailable && day.isCurrentMonth) classNames.push('calendar-day-available');
-    if (day.isSelected) classNames.push('calendar-day-selected');
-    if (day.isDisabled) classNames.push('calendar-day-disabled');
-    
+
+    if (day.isAvailable && day.isCurrentMonth) {
+      classNames.push('calendar-day-available');
+    } else {
+      if (day.isSelected) classNames.push('calendar-day-selected');
+      if (day.isDisabled) classNames.push('calendar-day-disabled');
+      if (day.isWeekend) classNames.push('calendar-day-weekend');
+    }
+
     return classNames.join(' ');
   };
 
@@ -130,32 +185,58 @@ const CustomCalendar = ({ trainingDates, trainingType, selectedDate, onDateSelec
 
       <div className="calendar-week-days">
         {weekdays.map(day => (
-          <div key={day} className="week-day">{day}</div>
-        ))}
-      </div>
-
-      <div className="calendar-days">
-        {calendarDays.map((day, index) => (
-          <div
-            key={index}
-            className={getDayClassNames(day)}
-            onClick={() => handleDateClick(day)}
-          >
-            {day.date.getDate()}
+          <div key={day} className="week-day">
+            {getTranslatedWeekday(day)}
           </div>
         ))}
       </div>
 
+      <div className="calendar-container">
+        {/* Only show one calendar at a time to prevent cutting off */}
+        {prevCalendarDays.length > 0 ? (
+          <div className={`calendar-content ${animationDirection === 'down' ? 'slide-out-down' : 'slide-out-up'}`}>
+            <div className="calendar-days">
+              {prevCalendarDays.map((day, idx) => (
+                <div key={idx} className={getDayClassNames(day)}>
+                  {day.date.getDate()}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className={`calendar-content ${animationDirection === 'down' ? 'slide-in-down' : animationDirection === 'up' ? 'slide-in-up' : ''}`}>
+            <div className="calendar-days">
+              {calendarDays.map((day, idx) => (
+                <div 
+                  key={idx} 
+                  className={getDayClassNames(day)}
+                  onClick={() => handleDateClick(day)}
+                >
+                  {day.date.getDate()}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="calendar-navigation">
-        <button className="nav-button prev-button" onClick={goToPreviousMonth}>
-          ‹
-        </button>
         <div className="current-month">
           {months[currentDate.getMonth()]} {currentDate.getFullYear()}
         </div>
-        <button className="nav-button next-button" onClick={goToNextMonth}>
-          ›
-        </button>
+
+        <div className="nav-buttons-wrapper">
+          <button className="nav-button up-button" onClick={goToPreviousMonth} disabled={isAnimating}>
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(90deg)' }}>
+              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <button className="nav-button down-button" onClick={goToNextMonth} disabled={isAnimating}>
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(90deg)' }}>
+              <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );

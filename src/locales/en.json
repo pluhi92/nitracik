@@ -261,5 +261,14 @@
       "refundFailed": "Refund processing failed.",
       "replacementSuccess": "Session successfully replaced."
     }
+  },
+  "calendar": {
+    "mon": "MON",
+    "tue": "TUE",
+    "wed": "WED",
+    "thu": "THU",
+    "fri": "FRI",
+    "sat": "SAT",
+    "sun": "SUN"
   }
 }

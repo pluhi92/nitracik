@@ -262,5 +262,14 @@
       "refundFailed": "Spracovanie refundácie zlyhalo.",
       "replacementSuccess": "Relácia bola úspešne nahradená."
     }
+  },
+  "calendar": {
+    "mon": "PO",
+    "tue": "UT",
+    "wed": "ST",
+    "thu": "ŠT",
+    "fri": "PI",
+    "sat": "SO",
+    "sun": "NE"
   }
 }

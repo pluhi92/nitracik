@@ -1,6 +1,6 @@
 /* src/styles/components/Booking.css */
 .booking-container {
-  max-width: 800px; /* Wider container to accommodate side-by-side layout */
+  max-width: 800px;
   margin: var(--space-10) auto;
   padding: var(--space-8);
   background: var(--bg-card);
@@ -42,187 +42,6 @@
   align-items: start;
 }
 
-/* ===== Custom Calendar Styles - Nitrācīk Design ===== */
-.calendar-wrapper {
-  background: var(--bg-card);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  border: 2px solid var(--border);
-}
-
-.calendar-header {
-  background: var(--bg-card);
-  padding: var(--space-4);
-  text-align: center;
-  border-bottom: 1px solid var(--border);
-}
-
-.calendar-logo {
-  margin-bottom: var(--space-3);
-}
-
-.logo-image {
-  max-width: 120px;
-  height: auto;
-  display: block;
-  margin: 0 auto;
-}
-
-/* Remove the month-year from header */
-.calendar-month-year {
-  display: none;
-}
-
-.calendar-week-days {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  background: var(--bg-muted);
-  border-bottom: 1px solid var(--border);
-}
-
-.week-day {
-  padding: var(--space-3) var(--space-2);
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-secondary);
-  text-align: center;
-  text-transform: uppercase;
-}
-
-.calendar-days {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 1px;
-  background: var(--border);
-  padding: 1px;
-}
-
-.calendar-day {
-  height: 3rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--text-primary);
-  background: var(--bg-card);
-  cursor: pointer;
-  transition: var(--transition);
-  position: relative;
-  border: none;
-}
-
-.calendar-day:hover:not(.calendar-day-other-month, .calendar-day-disabled) {
-  background: var(--bg-muted);
-  transform: scale(1.05);
-}
-
-.calendar-day-other-month {
-  color: var(--text-muted);
-  opacity: 0.4;
-  cursor: default;
-  background: var(--bg-muted);
-}
-
-.calendar-day-today {
-  background: var(--color-primary-50);
-  color: var(--color-primary-700);
-  font-weight: var(--font-weight-semibold);
-  border: 2px solid var(--color-primary-200);
-}
-
-/* Available Dates - Exact color from your image */
-.calendar-day-available {
-  background: #FFA000 !important; /* Exact color from your image */
-  color: var(--color-white) !important;
-  font-weight: var(--font-weight-bold);
-}
-
-.calendar-day-available:hover {
-  background: #FF8F00 !important; /* Slightly darker on hover */
-  transform: scale(1.05);
-}
-
-/* Selected Date - Logo Left Color (Orange) */
-.calendar-day-selected {
-  background: var(--color-secondary-500) !important;
-  color: var(--color-white) !important;
-  font-weight: var(--font-weight-bold);
-  box-shadow: var(--shadow-md);
-}
-
-.calendar-day-selected:hover {
-  background: var(--color-secondary-600) !important;
-}
-
-.calendar-day-disabled {
-  background: var(--bg-muted) !important;
-  color: var(--text-muted) !important;
-  cursor: not-allowed;
-  opacity: 0.4;
-}
-
-/* Remove weekend special styling - make them same as workdays */
-.calendar-day:nth-child(7n),
-.calendar-day:nth-child(7n+1) {
-  background: var(--bg-card); /* Same as regular days */
-  color: var(--text-primary); /* Same as regular days */
-}
-
-.calendar-day-other-month:nth-child(7n),
-.calendar-day-other-month:nth-child(7n+1) {
-  background: var(--bg-muted); /* Same as other month days */
-  color: var(--text-muted);
-}
-
-/* Override background colors for available/selected days */
-.calendar-day:nth-child(7n).calendar-day-available,
-.calendar-day:nth-child(7n+1).calendar-day-available {
-  background: #FFA000 !important; /* Available color overrides weekend */
-}
-
-.calendar-day:nth-child(7n).calendar-day-selected,
-.calendar-day:nth-child(7n+1).calendar-day-selected {
-  background: var(--color-secondary-500) !important; /* Selected color overrides weekend */
-}
-
-.calendar-navigation {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-4);
-  background: var(--bg-muted);
-  border-top: 1px solid var(--border);
-}
-
-.nav-button {
-  background: var(--color-primary-500); /* Green by default */
-  color: var(--color-white);
-  border: none;
-  border-radius: var(--radius);
-  width: 2.5rem;
-  height: 2.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: var(--transition);
-  font-size: var(--text-lg);
-  font-weight: var(--font-weight-bold);
-}
-
-.nav-button:hover {
-  background: var(--color-secondary-500) !important; /* Orange on hover */
-  transform: translateY(-1px);
-}
-
-.current-month {
-  font-size: var(--text-base);
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-primary);
-}
-
 /* ===== Form Elements ===== */
 .booking-form {
   display: flex;
@@ -230,7 +49,6 @@
   gap: var(--space-5);
 }
 
-/* Dropdown Container - Equal Width */
 .dropdown-group {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -272,7 +90,7 @@
   box-shadow: 0 0 0 3px rgba(230, 138, 117, 0.1);
 }
 
-/* Checkbox Styles */
+/* Checkbox – FIXED checkmark */
 .checkbox-group {
   margin: var(--space-4) 0;
 }
@@ -296,6 +114,7 @@
   cursor: pointer;
   transition: var(--transition);
   position: relative;
+  appearance: none;
 }
 
 .form-check-input:checked {
@@ -303,15 +122,18 @@
   border-color: var(--color-secondary-500);
 }
 
+/* FIX 3: Proper checkmark using CSS instead of text */
 .form-check-input:checked::after {
-  content: '✓';
+  content: '';
   position: absolute;
-  top: 50%;
+  top: 45%;
   left: 50%;
-  transform: translate(-50%, -50%);
-  color: white;
-  font-size: var(--text-sm);
-  font-weight: var(--font-weight-bold);
+  transform: translate(-50%, -50%) rotate(45deg);
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  margin-top: -1px;
 }
 
 .form-check-label {
@@ -321,7 +143,7 @@
   font-weight: var(--font-weight-medium);
 }
 
-/* Price Display */
+/* Price & Buttons */
 .price-section {
   display: flex;
   justify-content: space-between;
@@ -343,7 +165,6 @@
   color: var(--color-secondary-600);
 }
 
-/* Button Styles */
 .booking-container button {
   width: 100%;
   padding: var(--space-4) var(--space-6);
@@ -364,10 +185,6 @@
   box-shadow: var(--shadow-md);
 }
 
-.booking-container button:active {
-  transform: translateY(0);
-}
-
 .booking-container button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -375,7 +192,7 @@
   box-shadow: none !important;
 }
 
-/* ===== Alerts & Indicators ===== */
+/* Alerts */
 .alert-danger {
   color: var(--color-error);
   background-color: #fef2f2;
@@ -408,37 +225,23 @@
   font-weight: var(--font-weight-bold);
 }
 
-/* ===== Responsive Design ===== */
+/* Responsive */
 @media (max-width: 768px) {
   .booking-container {
     padding: var(--space-6);
     margin: var(--space-6) var(--space-4);
     max-width: 100%;
   }
-  
+
   .booking-layout {
     grid-template-columns: 1fr;
     gap: var(--space-6);
   }
-  
-  .calendar-wrapper {
-    max-width: 100%;
-  }
-  
-  .calendar-day {
-    height: 2.5rem;
-    font-size: var(--text-xs);
-  }
-  
-  .logo-image {
-    max-width: 100px;
-  }
-  
+
   .dropdown-group {
     grid-template-columns: 1fr;
-    gap: var(--space-3);
   }
-  
+
   .form-check {
     font-size: var(--text-base);
   }
@@ -450,30 +253,11 @@
     margin: var(--space-4) var(--space-2);
     border-radius: var(--radius-lg);
   }
-  
-  .calendar-day {
-    height: 2.25rem;
-  }
-  
-  .week-day {
-    padding: var(--space-2) var(--space-1);
-    font-size: var(--text-xs);
-  }
-  
-  .nav-button {
-    width: 2rem;
-    height: 2rem;
-    font-size: var(--text-base);
-  }
-  
-  .calendar-navigation {
-    padding: var(--space-3);
-  }
-  
+
   .booking-container h2 {
     font-size: var(--text-2xl);
   }
-  
+
   .price-amount {
     font-size: var(--text-xl);
   }
