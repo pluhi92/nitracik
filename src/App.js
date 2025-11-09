@@ -26,6 +26,7 @@ import LanguageSwitcher from './components/LanguageSwitcher';
 import RefundOption from './components/RefundOption';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/components/App.css';
+import Foot from './components/Foot';
 
 // Theme context and provider
 const ThemeContext = React.createContext();
@@ -224,20 +225,7 @@ const Navbar = () => {
   );
 };
 
-// Footer component
-const Footer = () => {
-  const { t } = useTranslation();
 
-  return (
-    <footer>
-      <div className="container text-center">
-        <p className="mb-0">
-          {t?.footer?.copyright || '© 2025 Nitracik. All rights reserved.'}
-        </p>
-      </div>
-    </footer>
-  );
-};
 
 // Main App component
 const AppContent = () => {
@@ -273,7 +261,7 @@ const AppContent = () => {
             <Route path="/refund-option" element={<RefundOption />} />
           </Routes>
         </main>
-        <Footer />
+        <Foot />
       </div>
     </Router>
   );

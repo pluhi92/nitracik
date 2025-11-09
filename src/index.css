@@ -178,5 +178,6 @@ header.menu button:focus {
   @import './styles/components/Booking.css';
   @import './styles/components/UserProfile.css';
   @import './styles/components/CustomCalendar.css';
+  @import './styles/components/Foot.css';
 
 }
