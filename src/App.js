@@ -27,6 +27,8 @@ import RefundOption from './components/RefundOption';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/components/App.css';
 import Foot from './components/Foot';
+import CookieConsent from "./components/CookieConsent";
+
 
 // Theme context and provider
 const ThemeContext = React.createContext();
@@ -262,6 +264,7 @@ const AppContent = () => {
           </Routes>
         </main>
         <Foot />
+        <CookieConsent />
       </div>
     </Router>
   );
