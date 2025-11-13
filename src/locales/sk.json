@@ -181,7 +181,9 @@
       "type": "Typ",
       "availableSpots": "Dostupné miesta",
       "participants": "Účastníci (deti)",
-      "child": "Počet detí: {count}"
+      "child": "Počet detí: {count}",
+      "children": "Deti",
+      "actions": "Akcie"
     },
     "seasonTickets": {
       "title": "Držitelia sezónnych lístkov",
@@ -261,6 +263,45 @@
       "creditReturned": "Váš kredit bol vrátený na váš účet.",
       "refundFailed": "Spracovanie refundácie zlyhalo.",
       "replacementSuccess": "Relácia bola úspešne nahradená."
+    },
+    "info": {
+      "title": "Vaše profilové informácie",
+      "address": "Adresa",
+      "noAddress": "Nebola zadaná adresa",
+      "mobile": "Telefónne číslo",
+      "noMobile": "Nebolo zadané telefónne číslo",
+      "editButton": "Upraviť profilové informácie",
+      "addressPlaceholder": "Zadajte svoju úplnú adresu",
+      "mobilePlaceholder": "Zadajte svoje telefónne číslo (voliteľné)",
+      "mobileHelp": "Voliteľné: Pridajte svoje telefónne číslo pre dôležité aktualizácie"
+    },
+    "update": {
+      "success": "Profil bol úspešne aktualizovaný!",
+      "error": {
+        "required": "Adresa je povinná",
+        "generic": "Nepodarilo sa aktualizovať profil"
+      },
+      "updating": "Aktualizujem...",
+      "save": "Uložiť zmeny",
+      "cancel": "Zrušiť"
+    },
+    "cancelled": "ZRUŠENÉ",
+    "hoursUntilSession": "hodín do relácie",
+    "admin": {
+      "readyToDelete": "✅ Pripravené na vymazanie",
+      "deleteSession": "🗑️ Vymazať reláciu",
+      "pendingCancellations": "⏳ {count} čaká",
+      "forceCancelTooltip": "Vynútené zrušenie do 10 hodín"
+    },
+    "status": {
+      "ready": "Pripravené na vymazanie",
+      "pending": "{count} čaká"
+    },
+    "bookingMethods": {
+      "credit": "💳 Kredit",
+      "season_ticket": "🎫 Permanentka",
+      "paid": "💰 Zaplatené",
+      "cancelled": "❌ Zrušené"
     }
   },
   "calendar": {

@@ -29,7 +29,6 @@ import './styles/components/App.css';
 import Foot from './components/Foot';
 import CookieConsent from "./components/CookieConsent";
 
-
 // Theme context and provider
 const ThemeContext = React.createContext();
 
@@ -71,19 +70,91 @@ const ThemeToggle = () => {
   );
 };
 
-// Navbar component
+// User context to manage user state globally
+const UserContext = React.createContext();
+
+const UserProvider = ({ children }) => {
+  const [user, setUser] = useState({
+    isLoggedIn: false,
+    firstName: '',
+    userId: null
+  });
+
+  // Initialize user state from localStorage on app start
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    const firstName = localStorage.getItem('userFirstName') || 
+                     localStorage.getItem('userName')?.split(' ')[0] || 
+                     '';
+    const userId = localStorage.getItem('userId');
+
+    if (isLoggedIn) {
+      setUser({
+        isLoggedIn: true,
+        firstName,
+        userId
+      });
+    }
+  }, []);
+
+  const updateUser = (userData) => {
+    setUser(userData);
+  };
+
+  const logout = () => {
+    setUser({
+      isLoggedIn: false,
+      firstName: '',
+      userId: null
+    });
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userFirstName');
+  };
+
+  return (
+    <UserContext.Provider value={{ user, updateUser, logout }}>
+      {children}
+    </UserContext.Provider>
+  );
+};
+
+const useUser = () => React.useContext(UserContext);
+
+// GreetingBar component - UPDATED
+const GreetingBar = () => {
+  const { user } = useUser();
+
+  console.log('GreetingBar Debug - User state:', user);
+
+  if (!user.isLoggedIn) {
+    return null;
+  }
+
+  return (
+    <div className="greeting-bar">
+      <div className="greeting-container">
+        <span className="greeting-text">
+          Hello, <strong>{user.firstName || 'User'}</strong>! Welcome back.
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// Navbar component - UPDATED
 const Navbar = () => {
   const { t } = useTranslation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  const { user, logout } = useUser();
   const navigate = useNavigate();
   const { theme } = useTheme();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
   const handleLogout = () => {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userId');
+    logout();
     navigate('/');
     window.location.reload();
   };
@@ -131,36 +202,36 @@ const Navbar = () => {
         {/* Center: Navigation Links - HORIZONTAL LAYOUT */}
         <ul className={`navbar-nav ${isMenuOpen ? 'show' : ''}`}>
           <li className="nav-item">
-            <Link 
-              className="nav-link-custom" 
-              to="/about" 
+            <Link
+              className="nav-link-custom"
+              to="/about"
               onClick={() => setIsMenuOpen(false)}
             >
               {t?.navbar?.about || 'About Nitracik'}
             </Link>
           </li>
           <li className="nav-item">
-            <Link 
-              className="nav-link-custom" 
-              to="/photos" 
+            <Link
+              className="nav-link-custom"
+              to="/photos"
               onClick={() => setIsMenuOpen(false)}
             >
               {t?.navbar?.photos || 'Gallery'}
             </Link>
           </li>
           <li className="nav-item">
-            <Link 
-              className="nav-link-custom" 
-              to="/booking" 
+            <Link
+              className="nav-link-custom"
+              to="/booking"
               onClick={() => setIsMenuOpen(false)}
             >
               {t?.navbar?.booking || 'Book your session'}
             </Link>
           </li>
           <li className="nav-item">
-            <Link 
-              className="nav-link-custom" 
-              to="/contact" 
+            <Link
+              className="nav-link-custom"
+              to="/contact"
               onClick={() => setIsMenuOpen(false)}
             >
               {t?.navbar?.contact || 'Contact'}
@@ -182,7 +253,7 @@ const Navbar = () => {
               <FontAwesomeIcon icon={faUser} className="user-icon" />
             </button>
             <div className="user-dropdown-menu">
-              {isLoggedIn ? (
+              {user.isLoggedIn ? (
                 <>
                   <Link
                     to="/profile"
@@ -227,8 +298,6 @@ const Navbar = () => {
   );
 };
 
-
-
 // Main App component
 const AppContent = () => {
   const { theme } = useTheme();
@@ -241,6 +310,7 @@ const AppContent = () => {
     <Router>
       <div className="d-flex flex-column min-vh-100">
         <Navbar />
+        <GreetingBar />
         <main className="flex-grow-1">
           <Routes>
             <Route path="/" element={<AboutUs />} />
@@ -269,14 +339,17 @@ const AppContent = () => {
     </Router>
   );
 };
-
-// Wrap the app with both ThemeProvider and LanguageProvider
+ 
+// Wrap the app with all providers
 const App = () => (
   <LanguageProvider>
     <ThemeProvider>
-      <AppContent />
+      <UserProvider>
+        <AppContent />
+      </UserProvider>
     </ThemeProvider>
   </LanguageProvider>
 );
 
 export default App;
+export { useUser };

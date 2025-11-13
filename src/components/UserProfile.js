@@ -36,6 +36,14 @@ const UserProfile = () => {
   const [reason, setReason] = useState('');
   const [forceCancel, setForceCancel] = useState(false);
 
+  // Add these new state variables for profile editing
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedAddress, setEditedAddress] = useState('');
+  const [editedMobile, setEditedMobile] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState('');
+  const [updateVariant, setUpdateVariant] = useState('success');
+
   const showAlert = (message, variant = 'success') => {
     setAlertMessage(message);
     setAlertVariant(variant);
@@ -110,6 +118,26 @@ const UserProfile = () => {
     }
   }, [endDate, t]);
 
+  // Add this useEffect to load current user data
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/api/users/${userId}`, {
+          withCredentials: true,
+        });
+        const userData = response.data;
+        setEditedAddress(userData.address || '');
+        setEditedMobile(userData.mobile || ''); // This will now work after adding the column
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+
+    if (userId) {
+      fetchUserData();
+    }
+  }, [userId]);
+
   const processSessions = (data) => {
     if (!Array.isArray(data)) {
       console.error('Expected array but received:', data);
@@ -156,6 +184,45 @@ const UserProfile = () => {
       console.log('[DEBUG] Bookings refreshed after cancellation');
     } catch (error) {
       console.error('Error refreshing sessions:', error);
+    }
+  };
+
+  // Add this function to handle profile updates
+  const handleUpdateProfile = async () => {
+    if (!editedAddress.trim()) {
+      setUpdateMessage(t?.profile?.update?.error?.required || 'Address is required');
+      setUpdateVariant('danger');
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const response = await axios.put(
+        `http://localhost:5000/api/users/${userId}`,
+        {
+          address: editedAddress.trim(),
+          mobile: editedMobile.trim() || null,
+        },
+        { withCredentials: true }
+      );
+
+      setUpdateMessage(t?.profile?.update?.success || 'Profile updated successfully!');
+      setUpdateVariant('success');
+      setIsEditing(false);
+      
+      // Update local storage if needed
+      localStorage.setItem('userAddress', editedAddress.trim());
+      
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setUpdateMessage(
+        error.response?.data?.error || 
+        t?.profile?.update?.error?.generic || 
+        'Failed to update profile'
+      );
+      setUpdateVariant('danger');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -833,6 +900,107 @@ const renderSessionTable = (type) => {
               </ul>
             )}
             <Tooltip id="cancel-tooltip" place="top" effect="solid" />
+          </div>
+
+          {/* Profile Information Section - ADDED */}
+          <div className="profile-info mt-5">
+            <h3>{t?.profile?.info?.title || 'Your Profile Information'}</h3>
+            
+            {updateMessage && (
+              <div className={`alert alert-${updateVariant} mt-3`} role="alert">
+                {updateMessage}
+              </div>
+            )}
+            
+            <div className="card">
+              <div className="card-body">
+                {!isEditing ? (
+                  // Display mode
+                  <div className="row">
+                    <div className="col-md-6">
+                      <h5>{t?.profile?.info?.address || 'Address'}</h5>
+                      <p className="text-muted">{editedAddress || t?.profile?.info?.noAddress || 'No address provided'}</p>
+                    </div>
+                    <div className="col-md-6">
+                      <h5>{t?.profile?.info?.mobile || 'Mobile Number'}</h5>
+                      <p className="text-muted">
+                        {editedMobile || t?.profile?.info?.noMobile || 'No mobile number provided'}
+                      </p>
+                    </div>
+                    <div className="col-12 mt-3">
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => setIsEditing(true)}
+                      >
+                        {t?.profile?.info?.editButton || 'Edit Profile Information'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  // Edit mode
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <Form.Group>
+                        <Form.Label>{t?.profile?.info?.address || 'Address'} *</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={editedAddress}
+                          onChange={(e) => setEditedAddress(e.target.value)}
+                          placeholder={t?.profile?.info?.addressPlaceholder || 'Enter your full address'}
+                          required
+                        />
+                      </Form.Group>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <Form.Group>
+                        <Form.Label>{t?.profile?.info?.mobile || 'Mobile Number'}</Form.Label>
+                        <Form.Control
+                          type="tel"
+                          value={editedMobile}
+                          onChange={(e) => setEditedMobile(e.target.value)}
+                          placeholder={t?.profile?.info?.mobilePlaceholder || 'Enter your mobile number (optional)'}
+                        />
+                        <Form.Text className="text-muted">
+                          {t?.profile?.info?.mobileHelp || 'Optional: Add your mobile number for important updates'}
+                        </Form.Text>
+                      </Form.Group>
+                    </div>
+                    <div className="col-12 mt-3">
+                      <button
+                        className="btn btn-success me-2"
+                        onClick={handleUpdateProfile}
+                        disabled={isUpdating || !editedAddress.trim()}
+                      >
+                        {isUpdating 
+                          ? (t?.profile?.update?.updating || 'Updating...') 
+                          : (t?.profile?.update?.save || 'Save Changes')
+                        }
+                      </button>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          setIsEditing(false);
+                          setUpdateMessage('');
+                          // Reload original data
+                          axios.get(`http://localhost:5000/api/users/${userId}`, {
+                            withCredentials: true,
+                          })
+                          .then(response => {
+                            const userData = response.data;
+                            setEditedAddress(userData.address || '');
+                            setEditedMobile(userData.mobile || '');
+                          })
+                          .catch(error => console.error('Error fetching user data:', error));
+                        }}
+                        disabled={isUpdating}
+                      >
+                        {t?.profile?.update?.cancel || 'Cancel'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </>
       )}

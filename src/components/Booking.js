@@ -1,7 +1,6 @@
 // Booking.js
 import React, { useState, useEffect } from 'react';
 import '../styles/components/Booking.css';
-import Calendar from 'react-calendar';
 import CustomCalendar from './CustomCalendar';
 import axios from 'axios';
 import Login from './Login';

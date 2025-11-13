@@ -1171,6 +1171,37 @@ app.post('/api/logout', (req, res) => {
   });
 });
 
+// Update user profile (address and mobile)
+app.put('/api/users/:id', isAuthenticated, async (req, res) => {
+  const { id } = req.params;
+  const { address, mobile } = req.body;
+
+  // Check if user is updating their own profile
+  if (parseInt(id) !== req.session.userId) {
+    return res.status(403).json({ error: 'Unauthorized to update this profile' });
+  }
+
+  try {
+    const result = await pool.query(
+      'UPDATE users SET address = $1, mobile = $2, updated_at = NOW() WHERE id = $3 RETURNING id, first_name, last_name, email, address, mobile',
+      [address, mobile, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Profile updated successfully',
+      user: result.rows[0] 
+    });
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
 app.get('/api/users/:id', async (req, res) => {
   const { id } = req.params;
   try {

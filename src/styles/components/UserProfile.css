@@ -456,6 +456,77 @@
   to { transform: rotate(360deg); }
 }
 
+/* DANGER ZONE - Card styling with proper spacing */
+.danger-zone {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.danger-zone::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(to bottom, #dc3545, #fd7e14);
+}
+
+.danger-zone h5 {
+  color: #dc3545;
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.danger-zone h5::before {
+  content: "⚠️";
+  font-size: 1.1em;
+}
+
+.danger-zone p {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.danger-zone .btn-danger {
+  margin-top: 0.5rem;
+  transition: all var(--transition) ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.danger-zone .btn-danger:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 12px rgba(220, 53, 69, 0.3);
+}
+
+.danger-zone .btn-danger:active {
+  transform: translateY(0);
+}
+
+/* Dark mode adjustments for Danger Zone */
+[data-theme="dark"] .danger-zone {
+  background: rgba(220, 53, 69, 0.05);
+  border-color: rgba(220, 53, 69, 0.2);
+}
+
+[data-theme="dark"] .danger-zone::before {
+  background: linear-gradient(to bottom, #dc3545, #ff6b35);
+}
+
 /* Dark mode adjustments for transparent headers */
 [data-theme="dark"] {
   .section-header {
@@ -526,8 +597,7 @@
     margin-left: 0; /* Remove any negative margins */
     margin-right: 0;
   }
-}
-  
+
   .admin-sessions table {
     font-size: 0.8rem;
   }
@@ -576,6 +646,21 @@
     justify-content: flex-end;
   }
 
+  /* Danger Zone mobile adjustments */
+  .danger-zone {
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .danger-zone h5 {
+    font-size: 1.1rem;
+  }
+  
+  .danger-zone p {
+    font-size: 0.9rem;
+  }
+}
 
 /* More specific mobile fixes */
 @media (max-width: 576px) {
@@ -613,6 +698,23 @@
     font-size: 0.7rem;
     padding: 0.35rem 0.5rem;
   }
+
+  /* Danger Zone small mobile adjustments */
+  .danger-zone {
+    padding: 1.25rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .danger-zone h5 {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .danger-zone p {
+    font-size: 0.85rem;
+    margin-bottom: 1.25rem;
+  }
 }
 
 /* Print styles */
@@ -629,5 +731,10 @@
   .admin-sessions thead {
     background: #f8f9fa !important;
     color: #000 !important;
+  }
+  
+  .danger-zone {
+    border: 2px solid #dc3545;
+    background: white !important;
   }
 }

@@ -180,7 +180,9 @@
       "type": "Type",
       "availableSpots": "Available Spots",
       "participants": "Participants (Children)",
-      "child": "Number of children: {count}"
+      "child": "Number of children: {count}",
+      "children": "Children",
+      "actions": "Actions"
     },
     "seasonTickets": {
       "title": "Season Ticket Holders",
@@ -260,6 +262,45 @@
       "creditReturned": "Your credit has been returned to your account.",
       "refundFailed": "Refund processing failed.",
       "replacementSuccess": "Session successfully replaced."
+    },
+    "info": {
+      "title": "Your Profile Information",
+      "address": "Address",
+      "noAddress": "No address provided",
+      "mobile": "Mobile Number",
+      "noMobile": "No mobile number provided",
+      "editButton": "Edit Profile Information",
+      "addressPlaceholder": "Enter your full address",
+      "mobilePlaceholder": "Enter your mobile number (optional)",
+      "mobileHelp": "Optional: Add your mobile number for important updates"
+    },
+    "update": {
+      "success": "Profile updated successfully!",
+      "error": {
+        "required": "Address is required",
+        "generic": "Failed to update profile"
+      },
+      "updating": "Updating...",
+      "save": "Save Changes",
+      "cancel": "Cancel"
+    },
+    "cancelled": "CANCELLED",
+    "hoursUntilSession": "hours until session",
+    "admin": {
+      "readyToDelete": "✅ Ready to delete",
+      "deleteSession": "🗑️ Delete Session",
+      "pendingCancellations": "⏳ {count} pending",
+      "forceCancelTooltip": "Force cancel within 10 hours"
+    },
+    "status": {
+      "ready": "Ready to delete",
+      "pending": "{count} pending"
+    },
+    "bookingMethods": {
+      "credit": "💳 Credit",
+      "season_ticket": "🎫 Season Ticket",
+      "paid": "💰 Paid",
+      "cancelled": "❌ Cancelled"
     }
   },
   "calendar": {
