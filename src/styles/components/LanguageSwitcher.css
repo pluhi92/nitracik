@@ -1,29 +1,54 @@
-/* src/styles/components/LanguageSwitcher.css */
-.language-switcher {
-  display: flex;
-  gap: .5rem;
-  align-items: center;
-  margin-left: 1rem;               /* space from ThemeToggle */
+/* Image flags */
+.flag-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  display: block;
 }
 
-.language-switcher button {
-  min-width: 2.5rem;
-  padding: .35rem .6rem;
-  font-size: .8rem;
-  font-weight: 600;
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  border-radius: var(--radius-sm);
+/* Buttons */
+.language-btn-bs {
+  background: none;
+  border: none;
   cursor: pointer;
-  transition: var(--transition);
+  padding: 6px;
+  border-radius: 16px;
+  min-width: 35px;
+  min-height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
 }
 
-.language-switcher button.active {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
+.language-btn-bs:hover .flag-icon {
+  transform: scale(1.12);
 }
 
-.language-switcher button:hover:not(.active) {
-  background: var(--bg-muted);
+.language-btn-bs.active {
+  background-color: var(--secondary-color);
+  color: #fff;
+}
+
+/* Wrapper */
+.language-switcher-bs {
+  display: flex;
+  gap: 6px;
+  background: rgba(230, 138, 117, 0.15);
+  border: 1px solid rgba(230, 138, 117, 0.3);
+  padding: 4px;
+  border-radius: 20px;
+}
+
+/* Mobile */
+@media (max-width: 991px) {
+  .flag-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .language-btn-bs {
+    min-width: 34px;
+    min-height: 34px;
+  }
 }
