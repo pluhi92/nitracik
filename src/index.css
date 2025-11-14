@@ -170,6 +170,7 @@ header.menu button:focus {
   }
 
   /* Component overrides – order matters */
+  @import './styles/components/App.css';
   @import './styles/components/LanguageSwitcher.css';
   @import './styles/components/AboutUs.css';
   @import './styles/components/Contact.css';

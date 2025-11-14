@@ -28,6 +28,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/components/App.css';
 import Foot from './components/Foot';
 import CookieConsent from "./components/CookieConsent";
+import GreetingBar from './components/GreetingBar';
 
 // Theme context and provider
 const ThemeContext = React.createContext();
@@ -122,34 +123,12 @@ const UserProvider = ({ children }) => {
 
 const useUser = () => React.useContext(UserContext);
 
-// GreetingBar component - UPDATED
-const GreetingBar = () => {
-  const { user } = useUser();
-
-  console.log('GreetingBar Debug - User state:', user);
-
-  if (!user.isLoggedIn) {
-    return null;
-  }
-
-  return (
-    <div className="greeting-bar">
-      <div className="greeting-container">
-        <span className="greeting-text">
-          Hello, <strong>{user.firstName || 'User'}</strong>! Welcome back.
-        </span>
-      </div>
-    </div>
-  );
-};
-
 // Navbar component - UPDATED
 const Navbar = () => {
   const { t } = useTranslation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, logout } = useUser();
   const navigate = useNavigate();
-  const { theme } = useTheme();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 

@@ -2,10 +2,12 @@ import React from "react";
 import { Link } from "react-router-dom";
 import "../styles/components/Foot.css";
 import logo from "../assets/logo.png";
+import stripeLogo from "../assets/stripe-logo.png";
 import { FaInstagram, FaFacebookF } from "react-icons/fa";
+import { SiVisa, SiMastercard, SiApplepay, SiGooglepay } from "react-icons/si";
 
 const Foot = () => {
-  
+
   const handleCookiePreferences = (e) => {
     e.preventDefault();
     // Check if the CookieConsent component is available and call its function
@@ -81,6 +83,19 @@ const Foot = () => {
               </a>
             </li>
           </ul>
+
+          {/* NEW: Payment Methods Section */}
+          <div className="payment-methods">
+            <div className="stripe-logo">
+              <img src={stripeLogo} alt="Stripe" className="stripe-logo-img" />
+            </div>
+            <div className="payment-icons">
+              <SiVisa className="payment-icon visa" title="Visa" />
+              <SiMastercard className="payment-icon mastercard" title="MasterCard" />
+              <SiApplepay className="payment-icon applepay" title="Apple Pay" />
+              <SiGooglepay className="payment-icon googlepay" title="Google Pay" />
+            </div>
+          </div>
         </div>
       </div>
 
