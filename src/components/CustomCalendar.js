@@ -1,37 +1,33 @@
 // src/components/CustomCalendar.js
 import React, { useState, useEffect } from 'react';
-import '../styles/components/CustomCalendar.css';
 import { useTranslation } from '../contexts/LanguageContext';
+import logo from '../assets/logo_bez.PNG';
 
-const CustomCalendar = ({ trainingDates, trainingType, selectedDate, onDateSelect, minDate = new Date() }) => {
+const CustomCalendar = ({
+  trainingDates,
+  trainingType,
+  selectedDate,
+  onDateSelect,
+  minDate = new Date(),
+}) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState([]);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const { t } = useTranslation();
   const [prevCalendarDays, setPrevCalendarDays] = useState([]);
   const [animationDirection, setAnimationDirection] = useState('');
+  const [isAnimating, setIsAnimating] = useState(false);
+  const { t } = useTranslation();
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+    'July', 'August', 'September', 'October', 'November', 'December',
   ];
 
   const weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
   const getTranslatedWeekday = (day) => {
-    const translations = {
-      'MON': t?.calendar?.mon || 'PO',
-      'TUE': t?.calendar?.tue || 'UT',
-      'WED': t?.calendar?.wed || 'ST',
-      'THU': t?.calendar?.thu || 'ŠT',
-      'FRI': t?.calendar?.fri || 'PI',
-      'SAT': t?.calendar?.sat || 'SO',
-      'SUN': t?.calendar?.sun || 'NE'
-    };
-    return translations[day] || day;
+    return t?.calendar?.[day.toLowerCase()] || day.slice(0, 2).toUpperCase();
   };
 
-  // Generate calendar days
   useEffect(() => {
     generateCalendar();
   }, [currentDate, trainingDates, trainingType, selectedDate]);
@@ -39,201 +35,181 @@ const CustomCalendar = ({ trainingDates, trainingType, selectedDate, onDateSelec
   const generateCalendar = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const prevLastDay = new Date(year, month, 0);
-
     let firstDayIndex = firstDay.getDay() - 1;
     if (firstDayIndex === -1) firstDayIndex = 6;
 
     const days = [];
 
-    // Previous month days
+    // Predchádzajúci mesiac
     for (let i = firstDayIndex; i > 0; i--) {
       const day = prevLastDay.getDate() - i + 1;
       const date = new Date(year, month - 1, day);
-      const dayOfWeek = date.getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      const formattedDate = date.toLocaleDateString('en-CA');
-      const isAvailable = trainingType && trainingDates[trainingType]?.[formattedDate];
-
-      days.push({
-        date,
-        isCurrentMonth: false,
-        isToday: false,
-        isAvailable,
-        isSelected: false,
-        isDisabled: true,
-        isWeekend
-      });
+      days.push(createDayObject(date, false));
     }
 
-    // Current month days
+    // Aktuálny mesiac
     for (let i = 1; i <= lastDay.getDate(); i++) {
       const date = new Date(year, month, i);
-      const dayOfWeek = date.getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      const formattedDate = date.toLocaleDateString('en-CA');
-      const isToday = isSameDay(date, new Date());
-      const isAvailable = trainingType && trainingDates[trainingType]?.[formattedDate];
-      const isSelected = selectedDate && isSameDay(date, new Date(selectedDate));
-      const isDisabled = date < minDate || !isAvailable;
-
-      days.push({
-        date,
-        isCurrentMonth: true,
-        isToday,
-        isAvailable,
-        isSelected,
-        isDisabled,
-        isWeekend
-      });
+      days.push(createDayObject(date, true));
     }
 
-    // Next month days
+    // Nasledujúci mesiac – doplníme, aby bol grid vždy 42 dní (6 riadkov)
     const totalCells = 42;
-    const nextDaysCount = totalCells - days.length;
-
-    for (let i = 1; i <= nextDaysCount; i++) {
+    const nextMonthDays = totalCells - days.length;
+    for (let i = 1; i <= nextMonthDays; i++) {
       const date = new Date(year, month + 1, i);
-      const dayOfWeek = date.getDay();
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      const formattedDate = date.toLocaleDateString('en-CA');
-      const isAvailable = trainingType && trainingDates[trainingType]?.[formattedDate];
-
-      days.push({
-        date,
-        isCurrentMonth: false,
-        isToday: false,
-        isAvailable,
-        isSelected: false,
-        isDisabled: true,
-        isWeekend
-      });
+      days.push(createDayObject(date, false));
     }
 
     setCalendarDays(days);
   };
 
-  const isSameDay = (date1, date2) => {
-    return date1.getDate() === date2.getDate() &&
-      date1.getMonth() === date2.getMonth() &&
-      date1.getFullYear() === date2.getFullYear();
+  const createDayObject = (date, isCurrentMonth) => {
+  const formattedDate = date.toLocaleDateString('en-CA');
+  const isAvailable = trainingType && trainingDates[trainingType]?.[formattedDate];
+  const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+  // Opravená logika: dátum je disabled len ak je STRICTLY pred minDate (nie rovnaký deň)
+  const isPastDate = date < minDate && !isSameDay(date, minDate);
+  const disabled = isPastDate || !isAvailable;
+
+  return {
+    date,
+    isCurrentMonth,
+    isToday: isSameDay(date, new Date()),
+    isAvailable,
+    isSelected: selectedDate && isSameDay(date, new Date(selectedDate)),
+    isDisabled: disabled,
+    isWeekend,
+    dayOfWeek,
   };
+};
+
+  const isSameDay = (a, b) =>
+    a.getDate() === b.getDate() &&
+    a.getMonth() === b.getMonth() &&
+    a.getFullYear() === b.getFullYear();
 
   const handleDateClick = (day) => {
-    if (!day.isDisabled && day.isCurrentMonth && day.isAvailable) {
-      const formattedDate = day.date.toLocaleDateString('en-CA');
-      onDateSelect(formattedDate);
+    if (!day.isDisabled && day.isAvailable) {
+      onDateSelect(day.date.toLocaleDateString('en-CA'));
     }
   };
 
-  const goToNextMonth = () => {
+  const switchMonth = (direction) => {
     if (isAnimating) return;
     setIsAnimating(true);
     setPrevCalendarDays(calendarDays);
-    setAnimationDirection('down');
+    setAnimationDirection(direction);
     setTimeout(() => {
-      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+      setCurrentDate(
+        new Date(currentDate.getFullYear(), currentDate.getMonth() + (direction === 'down' ? 1 : -1), 1),
+      );
       setAnimationDirection('');
       setPrevCalendarDays([]);
       setIsAnimating(false);
-    }, 450);
+    }, 350);
   };
 
-  const goToPreviousMonth = () => {
-    if (isAnimating) return;
-    setIsAnimating(true);
-    setPrevCalendarDays(calendarDays);
-    setAnimationDirection('up');
-    setTimeout(() => {
-      setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-      setAnimationDirection('');
-      setPrevCalendarDays([]);
-      setIsAnimating(false);
-    }, 450);
-  };
+ const getDayClasses = (day, idx) => {
+  let base = 'flex items-center justify-center text-sm font-medium aspect-square transition-all';
 
-  const getDayClassNames = (day) => {
-    const classNames = ['calendar-day'];
+  // Kliknutý deň má vlastnú farbu
+  if (day.isSelected) return `${base} bg-secondary-600 text-white font-bold shadow`;
 
-    if (!day.isCurrentMonth) classNames.push('calendar-day-other-month');
-    if (day.isToday) classNames.push('calendar-day-today');
-
-    if (day.isAvailable && day.isCurrentMonth) {
-      classNames.push('calendar-day-available');
-    } else {
-      if (day.isSelected) classNames.push('calendar-day-selected');
-      if (day.isDisabled) classNames.push('calendar-day-disabled');
-      if (day.isWeekend) classNames.push('calendar-day-weekend');
+  // Dnešok - čierny border + farebné pozadie podľa dostupnosti
+  if (day.isToday) {
+    if (day.isAvailable) {
+      return `${base} bg-[#FFA000] border-2 !border-black text-white font-bold hover:bg-[#FF8F00] cursor-pointer`;
     }
+    return `${base} bg-primary-50 border-2 !border-black text-primary-700 font-semibold`;
+  }
 
-    return classNames.join(' ');
-  };
+  // Dostupný tréning – hover efekt tmavší
+  if (day.isAvailable) return `${base} bg-secondary-500 text-white font-bold hover:bg-secondary-600 cursor-pointer`;
+
+  // Víkendy – stále read-only, s vyšším kontrastom border
+  if (day.isWeekend) return `${base} bg-gray-300 text-neutral-700 cursor-not-allowed opacity-50`;
+
+  // Minulé alebo nedostupné dni
+  if (day.isDisabled) return `${base} bg-muted text-muted cursor-not-allowed opacity-40`;
+
+  // Dni mimo aktuálneho mesiaca
+  if (!day.isCurrentMonth) return `${base} bg-muted opacity-40 cursor-not-allowed`;
+
+  // Pracovné dni
+  return `${base} bg-white text-neutral-800`;
+};
 
   return (
-    <div className="calendar-wrapper">
-      <div className="calendar-header">
-        <div className="calendar-logo">
-          <img src="/plan3_transp.png" alt="Nitrācīk" className="logo-image" />
-        </div>
-        <div className="calendar-month-year">
-          {months[currentDate.getMonth()]} {currentDate.getFullYear()}
-        </div>
+    <div className="bg-card rounded-xl shadow-lg border-2 border-border overflow-hidden">
+      {/* Header */}
+      <div className="bg-card p-4 text-center border-b border-border">
+        <img src={logo} alt="Nitrācīk" className="mx-auto mb-3 max-w-[120px]" />
       </div>
 
-      <div className="calendar-week-days">
-        {weekdays.map(day => (
-          <div key={day} className="week-day">
+      {/* Weekdays */}
+      <div className="grid grid-cols-7 bg-muted border-b border-border">
+        {weekdays.map((day) => (
+          <div key={day} className="py-2 text-xs font-bold text-secondary text-center uppercase">
             {getTranslatedWeekday(day)}
           </div>
         ))}
       </div>
 
-      <div className="calendar-container">
-        {/* Only show one calendar at a time to prevent cutting off */}
-        {prevCalendarDays.length > 0 ? (
-          <div className={`calendar-content ${animationDirection === 'down' ? 'slide-out-down' : 'slide-out-up'}`}>
-            <div className="calendar-days">
-              {prevCalendarDays.map((day, idx) => (
-                <div key={idx} className={getDayClassNames(day)}>
-                  {day.date.getDate()}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className={`calendar-content ${animationDirection === 'down' ? 'slide-in-down' : animationDirection === 'up' ? 'slide-in-up' : ''}`}>
-            <div className="calendar-days">
-              {calendarDays.map((day, idx) => (
-                <div 
-                  key={idx} 
-                  className={getDayClassNames(day)}
-                  onClick={() => handleDateClick(day)}
-                >
-                  {day.date.getDate()}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+      {/* Calendar Days */}
+      <div className="relative overflow-hidden">
+        <div
+          className={`grid grid-cols-7 grid-rows-6 gap-0 
+  divide-x divide-y divide-gray-400 border border-gray-400
+  ${animationDirection === 'down'
+              ? 'animate-slide-up'
+              : animationDirection === 'up'
+                ? 'animate-slide-down'
+                : ''
+            }`}
+
+
+        >
+          {(prevCalendarDays.length > 0 ? prevCalendarDays : calendarDays).map((day, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleDateClick(day)}
+              disabled={day.isDisabled && !day.isAvailable}
+              className={`${getDayClasses(day, idx)} p-0`}
+            >
+              {day.date.getDate()}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="calendar-navigation">
-        <div className="current-month">
+      {/* Navigation */}
+      <div className="flex items-center justify-between p-4 bg-muted border-t border-border">
+        <span className="font-semibold text-primary">
           {months[currentDate.getMonth()]} {currentDate.getFullYear()}
-        </div>
-
-        <div className="nav-buttons-wrapper">
-          <button className="nav-button up-button" onClick={goToPreviousMonth} disabled={isAnimating}>
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(90deg)' }}>
-              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </span>
+        <div className="flex gap-2">
+          <button
+            className="p-2 w-10 h-10 border border-border rounded hover:bg-muted"
+            onClick={() => switchMonth('up')}
+            disabled={isAnimating}
+          >
+            <svg className="w-5 h-5 rotate-90" viewBox="0 0 24 24">
+              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" fill="none" />
             </svg>
           </button>
-          <button className="nav-button down-button" onClick={goToNextMonth} disabled={isAnimating}>
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ transform: 'rotate(90deg)' }}>
-              <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <button
+            className="p-2 w-10 h-10 border border-border rounded hover:bg-muted"
+            onClick={() => switchMonth('down')}
+            disabled={isAnimating}
+          >
+            <svg className="w-5 h-5 rotate-90" viewBox="0 0 24 24">
+              <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" fill="none" />
             </svg>
           </button>
         </div>

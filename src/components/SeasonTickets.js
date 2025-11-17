@@ -1,3 +1,4 @@
+// SeasonTickets.js
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -19,9 +20,25 @@ const SeasonTickets = () => {
   const [userId, setUserId] = useState(localStorage.getItem('userId'));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  
   const [seasonTickets, setSeasonTickets] = useState([
-    { entries: 5, price: 60 },
-    { entries: 10, price: 100 },
+    { 
+      id: 1, 
+      entries: 5, 
+      price: 60, 
+      popular: false,
+      savings: '0%',
+      perEntry: 12
+    },
+    { 
+      id: 2, 
+      entries: 10, 
+      price: 100, 
+      popular: true,
+      savings: '17%',
+      perEntry: 10
+    },
   ]);
 
   useEffect(() => {
@@ -32,6 +49,7 @@ const SeasonTickets = () => {
 
   const handlePurchase = async (ticket) => {
     setLoading(true);
+    setSelectedTicket(ticket.id);
     setError('');
 
     try {
@@ -53,63 +71,112 @@ const SeasonTickets = () => {
       console.error('Purchase error:', err);
       setError(t?.seasonTickets?.error || 'Failed to initiate purchase. Please try again.');
       setLoading(false);
+      setSelectedTicket(null);
     }
   };
 
   if (!isLoggedIn) {
-    return null; // Redirect handled by useEffect
+    return null;
   }
 
   return (
-    <div className="container mt-5 season-tickets-container">
-      <h2 className="text-center text-primary mb-4">
-        {t?.seasonTickets?.title || 'Purchase Season Tickets'}
-      </h2>
-      <div className="row justify-content-center">
-        {seasonTickets.map((ticket, index) => (
-          <div className="col-md-6 col-lg-4 mb-4" key={index}>
-            <div className="card ticket-card shadow-sm h-100">
-              <div className="card-body text-center">
-                <h3 className="card-title text-success">
-                  {t?.seasonTickets?.ticket || 'Season Ticket'} ({ticket.entries} {t?.seasonTickets?.entries || 'Entries'})
-                </h3>
-                <p className="card-text price-text">
-                  €{ticket.price}
-                </p>
-                <p className="card-text text-muted">
-                  {t?.seasonTickets?.description || 'Valid for one year from purchase date.'}
-                </p>
-                <button
-                  className="btn btn-primary w-100 buy-button"
-                  onClick={() => handlePurchase(ticket)}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm" aria-hidden="true"></span>
-                      <span className="ms-2">{t?.seasonTickets?.processing || 'Processing...'}</span>
-                    </>
-                  ) : (
-                    t?.seasonTickets?.buyNow || 'Buy Now'
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-      {error && (
-        <div className="alert alert-danger mt-3 text-center">
-          {error}
+    <div className="season-tickets-page">
+      <div className="season-tickets-container">
+        <div className="season-tickets-header">
+          <h1 className="season-tickets-title">
+            {t?.seasonTickets?.title || 'Season Tickets'}
+          </h1>
+          <p className="season-tickets-subtitle">
+            {t?.seasonTickets?.subtitle || 'Save money with our bundle packages'}
+          </p>
         </div>
-      )}
-      <div className="text-center mt-4">
-        <button
-          className="btn btn-secondary"
-          onClick={() => navigate('/booking')}
-        >
-          {t?.seasonTickets?.backToBooking || 'Back to Booking'}
-        </button>
+
+        <div className="season-tickets-grid">
+          {seasonTickets.map((ticket) => (
+            <div 
+              className={`ticket-card ${ticket.popular ? 'popular' : ''} ${selectedTicket === ticket.id ? 'selected' : ''}`}
+              key={ticket.id}
+            >
+              {ticket.popular && (
+                <div className="popular-badge">
+                  {t?.seasonTickets?.mostPopular || 'Most Popular'}
+                </div>
+              )}
+              
+              <div className="ticket-header">
+                <h3 className="ticket-entries">
+                  {ticket.entries} {t?.seasonTickets?.entries || 'Entries'}
+                </h3>
+                {ticket.savings && (
+                  <span className="savings-badge">
+                    Save {ticket.savings}
+                  </span>
+                )}
+              </div>
+
+              <div className="ticket-price">
+                <span className="price-currency">€</span>
+                <span className="price-amount">{ticket.price}</span>
+              </div>
+
+              <div className="ticket-details">
+                <div className="price-per-entry">
+                  <span className="per-entry-label">
+                    {t?.seasonTickets?.perEntry || 'Per entry'}: 
+                  </span>
+                  <span className="per-entry-price">€{ticket.perEntry}</span>
+                </div>
+                <p className="ticket-description">
+                  {t?.seasonTickets?.description || 'Valid for one year from purchase date. No hidden fees.'}
+                </p>
+                <ul className="ticket-features">
+                  <li>✓ {t?.seasonTickets?.feature1 || 'Flexible booking'}</li>
+                  <li>✓ {t?.seasonTickets?.feature2 || 'Transferable'}</li>
+                  <li>✓ {t?.seasonTickets?.feature3 || 'Priority support'}</li>
+                </ul>
+              </div>
+
+              <button
+                className={`btn btn-primary buy-button ${selectedTicket === ticket.id ? 'loading' : ''}`}
+                onClick={() => handlePurchase(ticket)}
+                disabled={loading}
+              >
+                {loading && selectedTicket === ticket.id ? (
+                  <>
+                    <span className="spinner" aria-hidden="true"></span>
+                    <span>{t?.seasonTickets?.processing || 'Processing...'}</span>
+                  </>
+                ) : (
+                  <>
+                    {t?.seasonTickets?.buyNow || 'Buy Now'}
+                    <span className="btn-arrow">→</span>
+                  </>
+                )}
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {error && (
+          <div className="error-message">
+            <span className="error-icon">⚠️</span>
+            {error}
+          </div>
+        )}
+
+        <div className="season-tickets-footer">
+          <button
+            className="btn btn-secondary back-button"
+            onClick={() => navigate('/booking')}
+          >
+            ← {t?.seasonTickets?.backToBooking || 'Back to Booking'}
+          </button>
+          
+          <div className="security-notice">
+            <span className="security-icon">🔒</span>
+            {t?.seasonTickets?.secureCheckout || 'Secure checkout guaranteed'}
+          </div>
+        </div>
       </div>
     </div>
   );

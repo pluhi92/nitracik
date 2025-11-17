@@ -1,125 +1,87 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, createContext, useContext, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import { useTranslation } from './contexts/LanguageContext';
 import { LanguageProvider } from './contexts/LanguageContext';
-import AboutUs from './components/AboutUs';
-import Booking from './components/Booking';
-import Photos from './components/Photos';
-import Contact from './components/Contact';
-import Login from './components/Login';
-import Register from './components/Register';
-import RegistrationSuccess from './components/RegistrationSuccess';
-import VerifyEmail from './components/VerifyEmail';
-import ThankYou from './components/ThankYou';
-import ForgotPassword from './components/ForgotPassword';
-import ResetPassword from './components/ResetPassword';
-import UserProfile from './components/UserProfile';
-import AccountDeleted from './components/AccountDeleted';
-import PaymentSuccess from './components/PaymentSuccess';
-import PaymentCancelled from './components/PaymentCancelled';
-import SeasonTickets from './components/SeasonTickets';
-import RefundOption from './components/RefundOption';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import './styles/components/App.css';
-import Foot from './components/Foot';
-import CookieConsent from "./components/CookieConsent";
-import GreetingBar from './components/GreetingBar';
-import Navbar from './components/Navbar';
+import { useTranslation } from './contexts/LanguageContext';
 
-// Theme context and provider
-const ThemeContext = React.createContext();
+import Navbar from './components/Navbar';
+import GreetingBar from './components/GreetingBar';
+import Foot from './components/Foot';
+import CookieConsent from './components/CookieConsent';
+
+// Lazy loaded components
+const AboutUs = lazy(() => import('./components/AboutUs'));
+const Booking = lazy(() => import('./components/Booking'));
+const Photos = lazy(() => import('./components/Photos'));
+const Contact = lazy(() => import('./components/Contact'));
+const Login = lazy(() => import('./components/Login'));
+const Register = lazy(() => import('./components/Register'));
+const RegistrationSuccess = lazy(() => import('./components/RegistrationSuccess'));
+const VerifyEmail = lazy(() => import('./components/VerifyEmail'));
+const ThankYou = lazy(() => import('./components/ThankYou'));
+const ForgotPassword = lazy(() => import('./components/ForgotPassword'));
+const ResetPassword = lazy(() => import('./components/ResetPassword'));
+const UserProfile = lazy(() => import('./components/UserProfile'));
+const AccountDeleted = lazy(() => import('./components/AccountDeleted'));
+const PaymentSuccess = lazy(() => import('./components/PaymentSuccess'));
+const PaymentCancelled = lazy(() => import('./components/PaymentCancelled'));
+const SeasonTickets = lazy(() => import('./components/SeasonTickets'));
+const RefundOption = lazy(() => import('./components/RefundOption'));
+
+// ------------------ Theme Context ------------------
+const ThemeContext = createContext();
+export const useTheme = () => useContext(ThemeContext);
 
 const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = React.useState('light');
+  const [theme, setTheme] = useState('light');
 
-  const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-  };
-
-  React.useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    setTheme(savedTheme);
-  }, []);
-
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
-};
-
-const useTheme = () => React.useContext(ThemeContext);
-
-// User context to manage user state globally
-const UserContext = React.createContext();
-
-const UserProvider = ({ children }) => {
-  const [user, setUser] = useState({
-    isLoggedIn: false,
-    firstName: '',
-    userId: null
-  });
-
-  // Initialize user state from localStorage on app start
-  useEffect(() => {
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    const firstName = localStorage.getItem('userFirstName') || 
-                     localStorage.getItem('userName')?.split(' ')[0] || 
-                     '';
-    const userId = localStorage.getItem('userId');
-
-    if (isLoggedIn) {
-      setUser({
-        isLoggedIn: true,
-        firstName,
-        userId
-      });
-    }
-  }, []);
-
-  const updateUser = (userData) => {
-    setUser(userData);
-  };
-
-  const logout = () => {
-    setUser({
-      isLoggedIn: false,
-      firstName: '',
-      userId: null
+  const toggleTheme = () =>
+    setTheme(prev => {
+      const newTheme = prev === 'light' ? 'dark' : 'light';
+      localStorage.setItem('theme', newTheme);
+      return newTheme;
     });
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('userName');
-    localStorage.removeItem('userFirstName');
-  };
 
-  return (
-    <UserContext.Provider value={{ user, updateUser, logout }}>
-      {children}
-    </UserContext.Provider>
-  );
-};
-
-const useUser = () => React.useContext(UserContext);
-
-// Main App component
-const AppContent = () => {
-  const { theme } = useTheme();
+  useEffect(() => {
+    const saved = localStorage.getItem('theme') || 'light';
+    setTheme(saved);
+    document.documentElement.setAttribute('data-theme', saved);
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    document.body.classList.add('transition-colors');
   }, [theme]);
 
-  return (
-    <Router>
-      <div className="d-flex flex-column min-vh-100">
-        <Navbar />
-        <GreetingBar />
-        <main className="flex-grow-1">
+  return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;
+};
+
+// ------------------ User Context ------------------
+const UserContext = createContext();
+export const useUser = () => useContext(UserContext);
+
+const UserProvider = ({ children }) => {
+  const savedName = localStorage.getItem('userFirstName') || localStorage.getItem('userName')?.split(' ')[0] || '';
+  const [user, setUser] = useState({ isLoggedIn: !!localStorage.getItem('isLoggedIn'), firstName: savedName, userId: localStorage.getItem('userId') });
+
+  const updateUser = data => setUser(data);
+  const logout = () => {
+    localStorage.clear();
+    setUser({ isLoggedIn: false, firstName: '', userId: null });
+  };
+
+  return <UserContext.Provider value={{ user, updateUser, logout }}>{children}</UserContext.Provider>;
+};
+
+// ------------------ Main App Content ------------------
+const AppContent = () => (
+  <Router>
+    <div className="min-h-screen bg-white bg-custom-flakes bg-fixed bg-cover">
+      <Navbar />
+      <GreetingBar />
+      <main className="main-content">
+        <Suspense fallback={<div className="loading">Načítavam...</div>}>
           <Routes>
-            <Route path="/" element={<AboutUs />} />
+            <Route index element={<AboutUs />} />
             <Route path="/about" element={<AboutUs />} />
             <Route path="/booking" element={<Booking />} />
             <Route path="/profile" element={<UserProfile />} />
@@ -138,15 +100,15 @@ const AppContent = () => {
             <Route path="/season-tickets" element={<SeasonTickets />} />
             <Route path="/refund-option" element={<RefundOption />} />
           </Routes>
-        </main>
-        <Foot />
-        <CookieConsent />
-      </div>
-    </Router>
-  );
-};
- 
-// Wrap the app with all providers
+        </Suspense>
+      </main>
+      <Foot />
+      <CookieConsent />
+    </div>
+  </Router>
+);
+
+// ------------------ Final App Wrapper ------------------
 const App = () => (
   <LanguageProvider>
     <ThemeProvider>
@@ -158,4 +120,3 @@ const App = () => (
 );
 
 export default App;
-export { useTheme, useUser };

@@ -895,5 +895,15 @@ body {
 [data-theme="dark"] .user-greeting-desktop {
   color: #E68A75 !important;
 }
+/* Plynulý prechod pri zmene témy */
+.transition-colors {
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Zabezpečí minimálnu výšku a padding pre obsah */
+.main-content {
+  flex: 1;
+  padding: 20px 0;
+}
 }
 
