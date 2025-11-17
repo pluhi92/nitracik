@@ -1,11 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Link, BrowserRouter as Router, Route, Routes, useNavigate } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser } from '@fortawesome/free-solid-svg-icons';
-import { FaSun, FaMoon } from 'react-icons/fa';
-import { useTranslation } from './contexts/LanguageContext'; // Import from context
-import { LanguageProvider } from './contexts/LanguageContext'; // Import provider
-import logo from './assets/logo.png';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { useTranslation } from './contexts/LanguageContext';
+import { LanguageProvider } from './contexts/LanguageContext';
 import AboutUs from './components/AboutUs';
 import Booking from './components/Booking';
 import Photos from './components/Photos';
@@ -22,10 +18,13 @@ import AccountDeleted from './components/AccountDeleted';
 import PaymentSuccess from './components/PaymentSuccess';
 import PaymentCancelled from './components/PaymentCancelled';
 import SeasonTickets from './components/SeasonTickets';
-import LanguageSwitcher from './components/LanguageSwitcher';
 import RefundOption from './components/RefundOption';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import './App.css';
+import './styles/components/App.css';
+import Foot from './components/Foot';
+import CookieConsent from "./components/CookieConsent";
+import GreetingBar from './components/GreetingBar';
+import Navbar from './components/Navbar';
 
 // Theme context and provider
 const ThemeContext = React.createContext();
@@ -53,166 +52,57 @@ const ThemeProvider = ({ children }) => {
 
 const useTheme = () => React.useContext(ThemeContext);
 
-// Theme toggle button
-const ThemeToggle = () => {
-  const { theme, toggleTheme } = useTheme();
+// User context to manage user state globally
+const UserContext = React.createContext();
 
-  return (
-    <button
-      onClick={toggleTheme}
-      className="theme-toggle btn btn-link"
-      aria-label="Toggle theme"
-    >
-      {theme === 'light' ? <FaMoon size={24} /> : <FaSun size={24} />}
-    </button>
-  );
-};
+const UserProvider = ({ children }) => {
+  const [user, setUser] = useState({
+    isLoggedIn: false,
+    firstName: '',
+    userId: null
+  });
 
-// Navbar component
-const Navbar = () => {
-  const { t } = useTranslation();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-  const navigate = useNavigate();
-  const { theme } = useTheme();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
-
-  const handleLogout = () => {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userId');
-    navigate('/');
-    window.location.reload();
-  };
-
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
-
-  const toggleDropdown = () => {
-    setIsDropdownOpen(!isDropdownOpen);
-  };
-
+  // Initialize user state from localStorage on app start
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsDropdownOpen(false);
-      }
-    };
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    const firstName = localStorage.getItem('userFirstName') || 
+                     localStorage.getItem('userName')?.split(' ')[0] || 
+                     '';
+    const userId = localStorage.getItem('userId');
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    if (isLoggedIn) {
+      setUser({
+        isLoggedIn: true,
+        firstName,
+        userId
+      });
+    }
   }, []);
 
+  const updateUser = (userData) => {
+    setUser(userData);
+  };
+
+  const logout = () => {
+    setUser({
+      isLoggedIn: false,
+      firstName: '',
+      userId: null
+    });
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userFirstName');
+  };
+
   return (
-    <nav className={`navbar navbar-expand-lg navbar-light shadow-sm py-3 ${theme === 'dark' ? 'navbar-dark bg-dark' : 'bg-white'}`}>
-      <div className="container">
-        <div className="navbar-header">
-          <Link className="navbar-brand" to="/">
-            <img src={logo} alt="Logo" className="logo-image" />
-          </Link>
-          <button
-            className="navbar-toggler"
-            onClick={toggleMenu}
-            aria-label="Toggle navigation"
-          >
-            {isMenuOpen ? <span>✕</span> : <span>☰</span>}
-          </button>
-        </div>
-        <div className={`collapse navbar-collapse ${isMenuOpen ? 'show' : ''}`} id="navbarNav">
-          <ul className="navbar-nav">
-            <li className="nav-item">
-              <Link className="nav-link nav-link-custom" to="/about">
-                {t?.navbar?.about || 'About Nitracik'}
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link nav-link-custom" to="/photos">
-                {t?.navbar?.photos || 'Gallery'}
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link nav-link-custom" to="/booking">
-                {t?.navbar?.booking || 'Book your session'}
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link nav-link-custom" to="/contact">
-                {t?.navbar?.contact || 'Contact'}
-              </Link>
-            </li>
-          </ul>
-          <div className="navbar-controls-wrapper">
-            <div className="navbar-controls-group">
-              <LanguageSwitcher />
-              <ThemeToggle />
-              <div className={`user-dropdown ${isDropdownOpen ? 'open' : ''}`} ref={dropdownRef}>
-                <button 
-                  className="user-dropdown-toggle" 
-                  onClick={toggleDropdown}
-                  aria-expanded={isDropdownOpen}
-                  aria-label="User menu"
-                >
-                  <FontAwesomeIcon icon={faUser} className="user-icon" />
-                </button>
-                <div className="user-dropdown-menu">
-                  {isLoggedIn ? (
-                    <>
-                      <Link
-                        to="/profile"
-                        className="dropdown-item"
-                        onClick={() => setIsDropdownOpen(false)}
-                      >
-                        <FontAwesomeIcon icon={faUser} className="me-2" />
-                        {t?.navbar?.profile || 'My Profile'}
-                      </Link>
-                      <div className="dropdown-divider"></div>
-                      <button
-                        className="dropdown-item"
-                        onClick={() => {
-                          handleLogout();
-                          setIsDropdownOpen(false);
-                        }}
-                      >
-                        {t?.navbar?.logout || 'Logout'}
-                      </button>
-                    </>
-                  ) : (
-                    <Link
-                      to="/login"
-                      className="dropdown-item"
-                      onClick={() => setIsDropdownOpen(false)}
-                    >
-                      {t?.navbar?.login || 'Login'}
-                    </Link>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </nav>
+    <UserContext.Provider value={{ user, updateUser, logout }}>
+      {children}
+    </UserContext.Provider>
   );
 };
 
-// Footer component
-const Footer = () => {
-  const { theme } = useTheme();
-  const { t } = useTranslation();
-
-  return (
-    <footer className={`py-4 mt-auto ${theme === 'dark' ? 'bg-dark text-white' : 'bg-light text-dark'}`}>
-      <div className="container text-center">
-        <p className="mb-0 fs-5">
-          {t?.footer?.copyright || '© 2025 Nitracik. All rights reserved.'}
-        </p>
-      </div>
-    </footer>
-  );
-};
+const useUser = () => React.useContext(UserContext);
 
 // Main App component
 const AppContent = () => {
@@ -226,6 +116,7 @@ const AppContent = () => {
     <Router>
       <div className="d-flex flex-column min-vh-100">
         <Navbar />
+        <GreetingBar />
         <main className="flex-grow-1">
           <Routes>
             <Route path="/" element={<AboutUs />} />
@@ -248,19 +139,23 @@ const AppContent = () => {
             <Route path="/refund-option" element={<RefundOption />} />
           </Routes>
         </main>
-        <Footer />
+        <Foot />
+        <CookieConsent />
       </div>
     </Router>
   );
 };
-
-// Wrap the app with both ThemeProvider and LanguageProvider
+ 
+// Wrap the app with all providers
 const App = () => (
   <LanguageProvider>
     <ThemeProvider>
-      <AppContent />
+      <UserProvider>
+        <AppContent />
+      </UserProvider>
     </ThemeProvider>
   </LanguageProvider>
 );
 
 export default App;
+export { useTheme, useUser };

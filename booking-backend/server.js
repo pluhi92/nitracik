@@ -1171,6 +1171,37 @@ app.post('/api/logout', (req, res) => {
   });
 });
 
+// Update user profile (address and mobile)
+app.put('/api/users/:id', isAuthenticated, async (req, res) => {
+  const { id } = req.params;
+  const { address, mobile } = req.body;
+
+  // Check if user is updating their own profile
+  if (parseInt(id) !== req.session.userId) {
+    return res.status(403).json({ error: 'Unauthorized to update this profile' });
+  }
+
+  try {
+    const result = await pool.query(
+      'UPDATE users SET address = $1, mobile = $2, updated_at = NOW() WHERE id = $3 RETURNING id, first_name, last_name, email, address, mobile',
+      [address, mobile, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Profile updated successfully',
+      user: result.rows[0] 
+    });
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
 app.get('/api/users/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -2474,6 +2505,65 @@ app.get('/api/get-session-id', async (req, res) => {
   } catch (error) {
     console.error('Error getting session ID:', error);
     res.status(500).json({ error: 'Failed to get session ID' });
+  }
+});
+
+// Contact form endpoint
+app.post('/api/contact', async (req, res) => {
+  try {
+    const { name, email, message } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !message) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    // Validate email format
+    if (!validateEmail(email)) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+
+    // Send email to admin
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: process.env.ADMIN_EMAIL,
+      subject: `New Contact Form Message from ${name}`,
+      text: `
+        Name: ${name}
+        Email: ${email}
+        Message: ${message}
+        
+        Sent from Nitracik contact form.
+      `.trim(),
+      replyTo: email
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    // Send confirmation email to user
+    const userMailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'Thank you for contacting Nitracik',
+      text: `
+        Dear ${name},
+        
+        Thank you for contacting Nitracik! We have received your message and will get back to you as soon as possible.
+        
+        Your message:
+        "${message}"
+        
+        Best regards,
+        Nitracik Team
+      `.trim()
+    };
+
+    await transporter.sendMail(userMailOptions);
+
+    res.status(200).json({ message: 'Message sent successfully' });
+  } catch (error) {
+    console.error('Contact form error:', error);
+    res.status(500).json({ message: 'Failed to send message. Please try again.' });
   }
 });
 

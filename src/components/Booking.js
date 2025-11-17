@@ -1,8 +1,7 @@
 // Booking.js
 import React, { useState, useEffect } from 'react';
-import './Booking.css';
-import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
+import '../styles/components/Booking.css';
+import CustomCalendar from './CustomCalendar';
 import axios from 'axios';
 import Login from './Login';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -420,17 +419,7 @@ const Booking = () => {
     }
   }, [location.search, navigate, t]);
 
-  const tileClassName = ({ date, view }) => {
-    if (!trainingType || view !== 'month') return null;
-    const formattedDate = date.toLocaleDateString('en-CA');
-    if (trainingDates[trainingType]?.[formattedDate]) {
-      return 'available-date';
-    }
-    return null;
-  };
-
-  const handleDateChange = (date) => {
-    const formattedDate = date.toLocaleDateString('en-CA');
+  const handleDateSelect = (formattedDate) => {
     setSelectedDate(formattedDate);
     setSelectedTime('');
   };
@@ -639,309 +628,440 @@ const Booking = () => {
       {isAdmin && <div className="alert alert-success mb-3">{t?.admin?.title || 'ADMIN MODE ACTIVE'}</div>}
 
       <Form onSubmit={handleSubmit} className="mt-4">
-        <Form.Group className="mb-3">
-          <Form.Label>{t?.booking?.trainingType?.label || 'Select Training Type'}</Form.Label>
-          <Form.Select
-            value={trainingType}
-            onChange={(e) => {
-              setTrainingType(e.target.value);
-              setSelectedDate('');
-              setSelectedTime('');
-            }}
-            disabled={isCreditMode}
-          >
-            <option value="">{t?.booking?.trainingType?.placeholder || 'Choose...'}</option>
-            <option value="MINI">{t?.booking?.trainingType?.mini || 'MINI'}</option>
-            <option value="MIDI">{t?.booking?.trainingType?.midi || 'MIDI'}</option>
-            <option value="MAXI">{t?.booking?.trainingType?.maxi || 'MAXI'}</option>
-          </Form.Select>
-        </Form.Group>
-
-        <Form.Group className="mb-3">
-          <Form.Label>{t?.booking?.name || 'Your Name'}</Form.Label>
-          <Form.Control
-            type="text"
-            value={userData ? `${userData.first_name} ${userData.last_name}` : ''}
-            readOnly
-          />
-        </Form.Group>
-
-        <Form.Group className="mb-3">
-          <Form.Label>{t?.booking?.email || 'Your Email'}</Form.Label>
-          <Form.Control
-            type="email"
-            value={userData ? userData.email : ''}
-            readOnly
-          />
-        </Form.Group>
-
-        <Form.Group className="mb-3">
-          <Form.Label>{t?.booking?.mobile || 'Your Mobile Number'}</Form.Label>
-          <IMaskInput
-            mask="+421 000 000 000"
-            definitions={{ '0': /[0-9]/ }}
-            className="form-control"
-            value={mobile}
-            onAccept={(value) => setMobile(value)}
-            placeholder={t?.booking?.mobile || '+421 xxx xxx xxx'}
-          // ✅ REMOVED: disabled={isCreditMode} - Keep mobile editable in credit mode
-          />
-        </Form.Group>
-
-        <Form.Group className="mb-3">
-          <Form.Label>{t?.booking?.address || 'Address'}</Form.Label>
-          <Form.Control
-            type="text"
-            value={userData ? userData.address : ''}
-            readOnly
-          />
-        </Form.Group>
-
-        <Form.Group className="mb-3">
-          <Form.Label>{t?.booking?.selectDate || 'Select Available Date'} <span className="text-danger">*</span></Form.Label>
-          <Calendar
-            onChange={handleDateChange}
-            value={selectedDate ? new Date(selectedDate) : null}
-            tileClassName={tileClassName}
-            tileDisabled={({ date, view }) => {
-              if (view !== 'month') return false;
-              const formattedDate = date.toLocaleDateString('en-CA');
-              return !trainingDates[trainingType]?.[formattedDate];
-            }}
-            minDate={new Date()}
-            className="custom-calendar"
-          />
-        </Form.Group>
-
-        {selectedDate && trainingType && trainingDates[trainingType]?.[selectedDate] && (
-          <Form.Group className="mb-3">
-            <Form.Label htmlFor="timeSlots">{t?.booking?.selectTime || 'Select Time'}:</Form.Label>
-            <Form.Select
-              id="timeSlots"
-              value={selectedTime}
-              onChange={(e) => setSelectedTime(e.target.value)}
-            >
-              <option value="">-- {t?.booking?.selectTime || 'Choose a Time Slot'} --</option>
-              {trainingDates[trainingType][selectedDate].map((time) => (
-                <option key={time} value={time}>
-                  {time}
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-        )}
-
-        {!availability.isAvailable && (
-          <div className="alert alert-danger mt-3">
-            {formatAvailabilityMessage()}
+        {/* Training Details Card */}
+        <div className="card mb-4 border-2">
+          <div className="card-header bg-light bg-opacity-50 border-bottom">
+            <h5 className="mb-0 fw-bold text-dark">{t?.booking?.trainingDetails || 'Training Details'}</h5>
           </div>
-        )}
+          <div className="card-body">
+            <Form.Group className="mb-4">
+              <Form.Label className="fw-bold">{t?.booking?.trainingType?.label || 'Select Training Type'} <span className="text-danger">*</span></Form.Label>
+              <Form.Select
+                value={trainingType}
+                onChange={(e) => {
+                  setTrainingType(e.target.value);
+                  setSelectedDate('');
+                  setSelectedTime('');
+                }}
+                disabled={isCreditMode}
+                className="form-select-lg"
+              >
+                <option value="">{t?.booking?.trainingType?.placeholder || 'Choose training type...'}</option>
+                <option value="MINI">{t?.booking?.trainingType?.mini || 'MINI'} (2-4 years)</option>
+                <option value="MIDI">{t?.booking?.trainingType?.midi || 'MIDI'} (4-6 years)</option>
+                <option value="MAXI">{t?.booking?.trainingType?.maxi || 'MAXI'} (6+ years)</option>
+              </Form.Select>
+            </Form.Group>
 
-        <Form.Group className="mb-3">
-          <Form.Label>{t?.booking?.childrenCount || 'Number of Children'} <span className="text-danger">*</span></Form.Label>
-          <Form.Select
-            value={childrenCount}
-            onChange={(e) => setChildrenCount(parseInt(e.target.value))}
-            required
-            disabled={isCreditMode}
-          >
-            <option value="1">1 {t?.booking?.childrenCount?.includes('Počet') ? 'dieťa' : 'Child'} (€15)</option>
-            <option value="2">2 {t?.booking?.childrenCount?.includes('Počet') ? 'deti' : 'Children'} (€28)</option>
-            <option value="3">3 {t?.booking?.childrenCount?.includes('Počet') ? 'deti' : 'Children'} (€39)</option>
-          </Form.Select>
-        </Form.Group>
-
-
-        <Form.Group className="mb-3">
-          <Form.Label>{t?.booking?.childrenAge || 'Age of Children'} <span className="text-danger">*</span></Form.Label>
-          <div className="row">
-            {childrenAges.map((age, index) => (
-              <div key={index} className="col-md-4 mb-2">
-                <Form.Label className="small">
-                  {t?.booking?.childAge?.replace('{number}', index + 1) || `Age of ${index + 1}${getOrdinalSuffix(index + 1)} child`}
-                </Form.Label>
-                <Form.Select
-                  value={age}
-                  onChange={(e) => handleAgeChange(index, e.target.value)}
-                  required
-                  // ✅ FIXED: Allow age selection in credit mode
-                  disabled={false} // Always enabled since we need to allow changes
-                >
-                  <option value="" disabled>
-                    {t?.booking?.chooseAge || 'Choose an age'}
-                  </option>
-                  {Array.from({ length: 10 }, (_, i) => i + 1).map((ageOption) => (
-                    <option key={ageOption} value={ageOption}>
-                      {ageOption} {getYearLabel(ageOption)}
-                    </option>
-                  ))}
-                </Form.Select>
+            <Form.Group className="mb-4">
+              <Form.Label className="fw-bold">{t?.booking?.selectDate || 'Select Available Date'} <span className="text-danger">*</span></Form.Label>
+              <div className="calendar-container d-flex justify-content-center">
+                <div style={{ maxWidth: '400px', width: '100%' }}>
+                  <CustomCalendar
+                    trainingDates={trainingDates}
+                    trainingType={trainingType}
+                    selectedDate={selectedDate}
+                    onDateSelect={handleDateSelect}
+                    minDate={new Date()}
+                    weekendClassName="bg-light" // Added for darker weekends
+                  />
+                </div>
               </div>
-            ))}
-          </div>
-        </Form.Group>
+            </Form.Group>
 
-        <Form.Group className="mb-3">
-          <Form.Label>{t?.booking?.notes || 'Additional Notes'}</Form.Label>
-          <Form.Control
-            as="textarea"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          // ✅ REMOVED: disabled={isCreditMode} - Keep notes editable in credit mode
-          />
-        </Form.Group>
-
-        <Form.Group className="mb-3">
-          <Form.Check
-            type="checkbox"
-            id="accompanyingPerson"
-            checked={accompanyingPerson}
-            onChange={
-              isCreditMode
-                ? undefined // ✅ No onChange in credit mode (read-only)
-                : () => setAccompanyingPerson(!accompanyingPerson) // ✅ Normal onChange in regular mode
-            }
-            disabled={isCreditMode || (useSeasonTicket && selectedSeasonTicket)} // ✅ Disable in credit mode or season ticket
-            label={
-              <>
-                {t?.booking?.accompanyingPerson || 'Participation of Accompanying Person (€3)'}
-                {isCreditMode && (
-                  <span className="text-muted ms-2">
-                    ({t?.booking?.creditModeReadOnly || 'Set from original booking - read only'})
-                  </span>
-                )}
-                {useSeasonTicket && selectedSeasonTicket && !isCreditMode && (
-                  <span className="text-muted ms-2">
-                    ({t?.booking?.notCoveredBySeasonTicket || 'Not covered by season ticket'})
-                  </span>
-                )}
-              </>
-            }
-          />
-        </Form.Group>
-
-        {!isCreditMode && seasonTickets.length > 0 && (
-          <Form.Group className="mb-3">
-            <Form.Check
-              type="checkbox"
-              id="useSeasonTicket"
-              checked={useSeasonTicket}
-              onChange={() => {
-                setUseSeasonTicket(!useSeasonTicket);
-                setSelectedSeasonTicket('');
-              }}
-              label={t?.booking?.useSeasonTicket || 'Use Season Ticket'}
-            />
-            {useSeasonTicket && (
-              <div className="mt-2">
-                <Form.Label>{t?.booking?.selectSeasonTicket || 'Select Season Ticket'}</Form.Label>
+            {selectedDate && trainingType && trainingDates[trainingType]?.[selectedDate] && (
+              <Form.Group className="mb-3">
+                <Form.Label className="fw-bold">{t?.booking?.selectTime || 'Select Time Slot'} <span className="text-danger">*</span></Form.Label>
                 <Form.Select
-                  value={selectedSeasonTicket}
-                  onChange={(e) => setSelectedSeasonTicket(e.target.value)}
-                  required={useSeasonTicket}
+                  value={selectedTime}
+                  onChange={(e) => setSelectedTime(e.target.value)}
+                  className="form-select-lg"
                 >
-                  <option value="">{t?.booking?.selectSeasonTicket || 'Choose a Season Ticket'}</option>
-                  {seasonTickets.map((ticket) => (
-                    <option key={ticket.id} value={ticket.id}>
-                      {t?.booking?.seasonTicketOption || 'Season Ticket'} (ID: {ticket.id}, {t?.booking?.seasonTicketEntries?.replace('{count}', ticket.entries_remaining) || `Remaining entries: ${ticket.entries_remaining}`})
-                      {ticket.entries_remaining < childrenCount && (
-                        <span className="text-danger"> - {t?.booking?.notEnoughEntries || 'Not enough entries'}</span>
-                      )}
+                  <option value="">-- {t?.booking?.selectTime || 'Choose a Time Slot'} --</option>
+                  {trainingDates[trainingType][selectedDate].map((time) => (
+                    <option key={time} value={time}>
+                      {time}
                     </option>
                   ))}
                 </Form.Select>
+              </Form.Group>
+            )}
+
+            {!availability.isAvailable && (
+              <div className="alert alert-warning mt-3 d-flex align-items-center">
+                <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                <div>
+                  <strong>{t?.booking?.availability?.warning || 'Availability Warning'}:</strong>
+                  <div className="mt-1">{formatAvailabilityMessage()}</div>
+                </div>
               </div>
             )}
-          </Form.Group>
-        )}
-
-        {warningMessage && (
-          <div className="alert alert-danger mt-3">
-            {warningMessage}
           </div>
-        )}
+        </div>
 
-        <Form.Group className="mb-3">
-          <Form.Label>{t?.booking?.photoConsent || 'Photo Publication Consent'} <span className="text-danger">*</span></Form.Label>
-          <div>
-            <Form.Check
-              type="radio"
-              name="photoConsent"
-              id="photoConsentAgree"
-              checked={photoConsent === true}
-              onChange={() => setPhotoConsent(true)}
-              required
-              // ✅ REMOVED: disabled={isCreditMode} - Keep photo consent editable in credit mode
-              label={t?.booking?.agree || 'AGREE to publish photos of my children'}
-            />
-            <Form.Check
-              type="radio"
-              name="photoConsent"
-              id="photoConsentDisagree"
-              checked={photoConsent === false}
-              onChange={() => setPhotoConsent(false)}
-              required
-              // ✅ REMOVED: disabled={isCreditMode} - Keep photo consent editable in credit mode
-              label={t?.booking?.disagree || 'DISAGREE to publish photos of my children'}
-            />
+        {/* Personal Information Card */}
+        <div className="card mb-4 border-2">
+          <div className="card-header bg-light bg-opacity-50 border-bottom">
+            <h5 className="mb-0 fw-bold text-dark">{t?.booking?.personalInfo || 'Personal Information'}</h5>
           </div>
-        </Form.Group>
+          <div className="card-body">
+            <div className="row">
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label className="fw-bold">{t?.booking?.name || 'Your Name'}</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={userData ? `${userData.first_name} ${userData.last_name}` : ''}
+                    readOnly
+                    className="bg-light"
+                  />
+                </Form.Group>
+              </div>
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label className="fw-bold">{t?.booking?.email || 'Your Email'}</Form.Label>
+                  <Form.Control
+                    type="email"
+                    value={userData ? userData.email : ''}
+                    readOnly
+                    className="bg-light"
+                  />
+                </Form.Group>
+              </div>
+            </div>
 
-        <Form.Group className="mb-3">
-          <Form.Check
-            type="checkbox"
-            id="consent"
-            checked={consent}
-            onChange={() => setConsent(!consent)}
-            required
-            label={
-              <>
-                {t?.booking?.consent || 'I agree to the rules (Required)'}
-                <span className="ms-2">
+            <div className="row">
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label className="fw-bold">{t?.booking?.mobile || 'Mobile Number'} <span className="text-danger">*</span></Form.Label>
+                  <IMaskInput
+                    mask="+421 000 000 000"
+                    definitions={{ '0': /[0-9]/ }}
+                    className="form-control form-control-lg"
+                    value={mobile}
+                    onAccept={(value) => setMobile(value)}
+                    placeholder={t?.booking?.mobilePlaceholder || '+421 xxx xxx xxx'}
+                    required
+                  />
+                </Form.Group>
+              </div>
+              <div className="col-md-6">
+                <Form.Group className="mb-3">
+                  <Form.Label className="fw-bold">{t?.booking?.address || 'Address'}</Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={userData ? userData.address : ''}
+                    readOnly
+                    className="bg-light"
+                  />
+                </Form.Group>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Children Information Card */}
+        <div className="card mb-4 border-2">
+          <div className="card-header bg-light bg-opacity-50 border-bottom">
+            <h5 className="mb-0 fw-bold text-dark">{t?.booking?.childrenInfo || 'Children Information'}</h5>
+          </div>
+          <div className="card-body">
+            <Form.Group className="mb-4">
+              <Form.Label className="fw-bold">{t?.booking?.childrenCount || 'Number of Children'} <span className="text-danger">*</span></Form.Label>
+              <Form.Select
+                value={childrenCount}
+                onChange={(e) => setChildrenCount(parseInt(e.target.value))}
+                required
+                disabled={isCreditMode}
+                className="form-select-lg"
+              >
+                <option value="1">1 {t?.booking?.child || 'Child'} - €15</option>
+                <option value="2">2 {t?.booking?.children || 'Children'} - €28</option>
+                <option value="3">3 {t?.booking?.children || 'Children'} - €39</option>
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label className="fw-bold">{t?.booking?.childrenAge || 'Age of Children'} <span className="text-danger">*</span></Form.Label>
+              <div className="row g-3">
+                {childrenAges.map((age, index) => (
+                  <div key={index} className="col-md-4">
+                    <div className="age-selector-card p-3 border rounded">
+                      <Form.Label className="fw-medium text-primary mb-2">
+                        {t?.booking?.childAge?.replace('{number}', index + 1) || `${index + 1}${getOrdinalSuffix(index + 1)} Child`}
+                      </Form.Label>
+                      <Form.Select
+                        value={age}
+                        onChange={(e) => handleAgeChange(index, e.target.value)}
+                        required
+                        className="form-select"
+                      >
+                        <option value="" disabled>
+                          {t?.booking?.chooseAge || 'Select age'}
+                        </option>
+                        {Array.from({ length: 10 }, (_, i) => i + 1).map((ageOption) => (
+                          <option key={ageOption} value={ageOption}>
+                            {ageOption} {getYearLabel(ageOption)}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Form.Group>
+          </div>
+        </div>
+
+        {/* Additional Options Card */}
+        <div className="card mb-4 border-2">
+          <div className="card-header bg-light bg-opacity-50 border-bottom">
+            <h5 className="mb-0 fw-bold text-dark">{t?.booking?.additionalOptions || 'Additional Options'}</h5>
+          </div>
+          <div className="card-body">
+            <Form.Group className="mb-3">
+              <Form.Label className="fw-bold">{t?.booking?.notes || 'Additional Notes'}</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder={t?.booking?.notesPlaceholder || 'Any special requirements, allergies, or additional information...'}
+                className="form-control-lg"
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <div className="accompanying-person-card p-3 border rounded bg-light">
+                <Form.Check
+                  type="checkbox"
+                  id="accompanyingPerson"
+                  checked={accompanyingPerson}
+                  onChange={
+                    isCreditMode
+                      ? undefined
+                      : () => setAccompanyingPerson(!accompanyingPerson)
+                  }
+                  disabled={isCreditMode || (useSeasonTicket && selectedSeasonTicket)}
+                  label={
+                    <div>
+                      <span className="fw-bold">{t?.booking?.accompanyingPerson || 'Participation of Accompanying Person'} (+€3)</span>
+                      {isCreditMode && (
+                        <div className="text-info small mt-1">
+                          <i className="bi bi-info-circle"></i> {t?.booking?.creditModeReadOnly || 'Set from original booking - read only'}
+                        </div>
+                      )}
+                      {useSeasonTicket && selectedSeasonTicket && !isCreditMode && (
+                        <div className="text-warning small mt-1">
+                          <i className="bi bi-exclamation-triangle"></i> {t?.booking?.notCoveredBySeasonTicket || 'Not covered by season ticket'}
+                        </div>
+                      )}
+                    </div>
+                  }
+                />
+              </div>
+            </Form.Group>
+
+            {/* Season Ticket Section */}
+            {!isCreditMode && seasonTickets.length > 0 && (
+              <Form.Group className="mb-3">
+                <div className="season-ticket-card p-3 border rounded bg-info bg-opacity-10">
+                  <Form.Check
+                    type="checkbox"
+                    id="useSeasonTicket"
+                    checked={useSeasonTicket}
+                    onChange={() => {
+                      setUseSeasonTicket(!useSeasonTicket);
+                      setSelectedSeasonTicket('');
+                    }}
+                    label={
+                      <span className="fw-bold">
+                        <i className="bi bi-ticket-perforated me-2"></i>
+                        {t?.booking?.useSeasonTicket || 'Use Season Ticket'}
+                      </span>
+                    }
+                  />
+                  {useSeasonTicket && (
+                    <div className="mt-3">
+                      <Form.Label className="fw-medium">{t?.booking?.selectSeasonTicket || 'Select Season Ticket'} <span className="text-danger">*</span></Form.Label>
+                      <Form.Select
+                        value={selectedSeasonTicket}
+                        onChange={(e) => setSelectedSeasonTicket(e.target.value)}
+                        required={useSeasonTicket}
+                        className="form-select-lg"
+                      >
+                        <option value="">{t?.booking?.selectSeasonTicket || 'Choose a Season Ticket'}</option>
+                        {seasonTickets.map((ticket) => (
+                          <option key={ticket.id} value={ticket.id}>
+                            {t?.booking?.seasonTicketOption || 'Season Ticket'} #{ticket.id} 
+                            ({t?.booking?.seasonTicketEntries?.replace('{count}', ticket.entries_remaining) || `Entries: ${ticket.entries_remaining}`})
+                            {ticket.entries_remaining < childrenCount && (
+                              <span className="text-danger"> - {t?.booking?.notEnoughEntries || 'Not enough entries'}</span>
+                            )}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </div>
+                  )}
+                </div>
+              </Form.Group>
+            )}
+          </div>
+        </div>
+
+        {/* Consents and Agreements Card */}
+        <div className="card mb-4 border-2">
+          <div className="card-header bg-light bg-opacity-50 border-bottom">
+            <h5 className="mb-0 fw-bold text-dark">{t?.booking?.consents || 'Consents and Agreements'}</h5>
+          </div>
+          <div className="card-body">
+            <Form.Group className="mb-4">
+              <Form.Label className="fw-bold">{t?.booking?.photoConsent || 'Photo Publication Consent'} <span className="text-danger">*</span></Form.Label>
+              <div className="row g-3">
+                <div className="col-md-6">
+                  <div className="consent-option p-3 border rounded h-100">
+                    <Form.Check
+                      type="radio"
+                      name="photoConsent"
+                      id="photoConsentAgree"
+                      checked={photoConsent === true}
+                      onChange={() => setPhotoConsent(true)}
+                      required
+                      label={
+                        <span className={photoConsent === true ? "fw-bold text-success" : ""}>
+                          <i className="bi bi-check-circle me-2"></i>
+                          {t?.booking?.agree || 'AGREE to publish photos of my children'}
+                        </span>
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="consent-option p-3 border rounded h-100">
+                    <Form.Check
+                      type="radio"
+                      name="photoConsent"
+                      id="photoConsentDisagree"
+                      checked={photoConsent === false}
+                      onChange={() => setPhotoConsent(false)}
+                      required
+                      label={
+                        <span className={photoConsent === false ? "fw-bold text-primary" : ""}>
+                          <i className="bi bi-x-circle me-2"></i>
+                          {t?.booking?.disagree || 'DISAGREE to publish photos of my children'}
+                        </span>
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <div className="terms-section">
+                <div className="mb-2">
                   <a
                     href="/terms-and-conditions.pdf"
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ color: '#007bff', textDecoration: 'underline' }}
+                    className="text-primary text-decoration-none fw-medium"
                   >
+                    <i className="bi bi-file-text me-1"></i>
                     {t?.booking?.terms || 'General Terms and Conditions'}
                   </a>
-                </span>
-              </>
-            }
-          />
-        </Form.Group>
+                </div>
+                <Form.Check
+                  type="checkbox"
+                  id="consent"
+                  checked={consent}
+                  onChange={() => setConsent(!consent)}
+                  required
+                  label={
+                    <span className="fw-bold">
+                      {t?.booking?.consent || 'I agree to the rules (Required)'}
+                    </span>
+                  }
+                />
+              </div>
+            </Form.Group>
+          </div>
+        </div>
 
-        {!useSeasonTicket && !isCreditMode && (
-          <h4>{t?.booking?.totalPrice || 'Total Price'}: €{pricing[childrenCount] + (accompanyingPerson ? 3 : 0)}</h4>
-        )}
+        {/* Pricing and Submission Card */}
+        <div className="card mb-4 border-2">
+          <div className="card-body text-center">
+            {!useSeasonTicket && !isCreditMode && (
+              <div className="pricing-display mb-4">
+                <h4 className="text-primary">
+                  {t?.booking?.totalPrice || 'Total Price'}: 
+                  <span className="ms-2">€{pricing[childrenCount] + (accompanyingPerson ? 3 : 0)}</span>
+                </h4>
+                <div className="text-muted small">
+                  {childrenCount} {childrenCount === 1 ? t?.booking?.child || 'child' : t?.booking?.children || 'children'} 
+                  {accompanyingPerson ? ` + ${t?.booking?.accompanyingPersonShort || 'accompanying person'}` : ''}
+                </div>
+              </div>
+            )}
 
-        <Button
-          type="submit"
-          className="w-100"
-          variant="success"
-          disabled={!consent || loading || !availability.isAvailable || (useSeasonTicket && !selectedSeasonTicket) || (isCreditMode && (!selectedDate || !selectedTime))}
-          data-tooltip-id="booking-tooltip"
-          data-tooltip-content={
-            !availability.isAvailable
-              ? formatAvailabilityMessage()
-              : !consent
-                ? t?.booking?.consent || 'You must agree to the rules to complete the booking.'
-                : useSeasonTicket && !selectedSeasonTicket
-                  ? t?.booking?.selectSeasonTicket || 'Please select a season ticket.'
-                  : ''
-          }
-        >
-          {loading ? (
-            <>
-              <span className="spinner-border spinner-border-sm" aria-hidden="true"></span>
-              <span className="ms-2">{t?.booking?.redirecting || 'Processing...'}</span>
-            </>
-          ) : (
-            isCreditMode ? (t?.booking?.bookWithCredit || 'Book with Credit') : (t?.booking?.bookButton || (useSeasonTicket ? 'Book with Season Ticket' : 'Book Training with Payment Obligation'))
-          )}
-        </Button>
-        <Tooltip id="booking-tooltip" />
+            {warningMessage && (
+              <div className="alert alert-danger mb-4">
+                <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                {warningMessage}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              size="lg"
+              className="w-100 py-3 fw-bold"
+              variant="success"
+              disabled={!consent || loading || !availability.isAvailable || (useSeasonTicket && !selectedSeasonTicket) || (isCreditMode && (!selectedDate || !selectedTime))}
+              data-tooltip-id="booking-tooltip"
+              data-tooltip-content={
+                !availability.isAvailable
+                  ? formatAvailabilityMessage()
+                  : !consent
+                    ? t?.booking?.consentRequired || 'You must agree to the rules to complete the booking.'
+                    : useSeasonTicket && !selectedSeasonTicket
+                      ? t?.booking?.selectSeasonTicketRequired || 'Please select a season ticket.'
+                      : isCreditMode && (!selectedDate || !selectedTime)
+                        ? t?.booking?.selectDateTimeRequired || 'Please select date and time for your credit booking.'
+                        : ''
+              }
+            >
+              {loading ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                  {t?.booking?.processing || 'Processing...'}
+                </>
+              ) : (
+                <div>
+                  {isCreditMode ? (
+                    <>
+                      <i className="bi bi-ticket-perforated me-2"></i>
+                      {t?.booking?.bookWithCredit || 'Book with Credit'}
+                    </>
+                  ) : useSeasonTicket ? (
+                    <>
+                      <i className="bi bi-check-circle me-2"></i>
+                      {t?.booking?.bookWithSeasonTicket || 'Book with Season Ticket'}
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-credit-card me-2"></i>
+                      {t?.booking?.bookWithPayment || 'Book Training with Payment Obligation'}
+                    </>
+                  )}
+                </div>
+              )}
+            </Button>
+            <Tooltip id="booking-tooltip" />
+
+            <div className="mt-3 text-muted small">
+              {t?.booking?.secureBooking || 'Your booking is secure and protected'}
+            </div>
+          </div>
+        </div>
       </Form>
 
       {/* Credit Selection Modal */}

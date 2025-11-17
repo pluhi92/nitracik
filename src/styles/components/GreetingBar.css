@@ -1,0 +1,96 @@
+/* src/styles/components/GreetingBar.css */
+/* GREETING BAR — UPDATED VERSION */
+.greeting-bar {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  padding: 8px 20px;
+  width: 100%;
+  box-sizing: border-box;
+  /* border-bottom: 1px solid rgba(0, 0, 0, 0.1); */
+  z-index: 998;
+  position: relative;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  justify-content: center;
+}
+
+.greeting-container {
+  max-width: 1200px;
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0 20px;
+}
+
+.greeting-text {
+  color: var(--text-color) !important;
+  margin: 0;
+  text-align: right;
+  font-size: 12px;
+}
+
+.greeting-text strong {
+  color: var(--secondary-color) !important;
+  font-weight: 600;
+}
+
+/* Dark mode */
+[data-theme="dark"] .greeting-bar {
+  background-color: var(--background-color);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .greeting-text {
+  color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .greeting-text strong {
+  color: var(--secondary-color) !important;
+}
+
+/* Desktop - Right aligned */
+@media (min-width: 992px) {
+  .greeting-bar {
+    justify-content: center;
+  }
+  
+  .greeting-container {
+    justify-content: flex-end;
+  }
+  
+  .greeting-text {
+    text-align: right;
+  }
+}
+
+/* Mobile - Center aligned */
+@media (max-width: 991px) {
+  .greeting-bar {
+    padding: 6px 15px;
+    font-size: 11px;
+    justify-content: center;
+  }
+  
+  .greeting-container {
+    padding: 0 15px;
+    justify-content: center;
+  }
+  
+  .greeting-text {
+    font-size: 11px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 576px) {
+  .greeting-text {
+    font-size: 10px;
+  }
+}
+
+/* CRITICAL: Prevent .navbar * rules from affecting greeting bar */
+.greeting-bar * {
+  color: inherit !important;
+}

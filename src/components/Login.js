@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from '../contexts/LanguageContext';
+import { useUser } from '../App';
 
 const Login = ({ onLoginSuccess }) => {
   const { t } = useTranslation();
@@ -11,6 +12,7 @@ const Login = ({ onLoginSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const navigate = useNavigate();
+  const { updateUser, logout } = useUser();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,6 +50,14 @@ const Login = ({ onLoginSuccess }) => {
       localStorage.setItem('userName', response.data.userName || 'Unknown User'); // Combine first_name and last_name
       localStorage.setItem('isLoggedIn', 'true');
 
+
+      // Update the global user context immediately
+      updateUser({
+        isLoggedIn: true,
+        firstName: response.data.userName?.split(' ')[0] || 'User',
+        userId: response.data.userId
+      });
+
       // Show success alert
       alert('You are successfully logged in!');
 
@@ -68,33 +78,32 @@ const Login = ({ onLoginSuccess }) => {
   };
 
   // If the user is already logged in, show a message
-  if (localStorage.getItem('isLoggedIn') === 'true') {
-    return (
-      <div className="container mt-5">
-        <div className="row justify-content-center">
-          <div className="col-md-6">
-            <div className="card shadow-sm">
-              <div className="card-body text-center">
-                <h2 className="card-title">{t.login.alreadyLoggedIn.title}</h2>
-                <p>{t.login.alreadyLoggedIn.message}</p>
-                <button
-                  className="btn btn-danger"
-                  onClick={() => {
-                    localStorage.removeItem('isLoggedIn');
-                    localStorage.removeItem('userId');
-                    localStorage.removeItem('userName'); // Clear userName on logout
-                    window.location.reload(); // Refresh the page
-                  }}
-                >
-                  {t.login.alreadyLoggedIn.logout}
-                </button>
-              </div>
+if (localStorage.getItem('isLoggedIn') === 'true') {
+  return (
+    <div className="container mt-5">
+      <div className="row justify-content-center">
+        <div className="col-md-6">
+          <div className="card shadow-sm">
+            <div className="card-body text-center">
+              <h2 className="card-title">{t.login.alreadyLoggedIn.title}</h2>
+              <p>{t.login.alreadyLoggedIn.message}</p>
+              <button
+                className="btn btn-danger"
+                onClick={() => {
+                  logout();
+                  navigate('/');
+                }}
+              >
+                {t.login.alreadyLoggedIn.logout}
+              </button>
             </div>
           </div>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
+
 
   // If the user is not logged in, show the login form
   return (

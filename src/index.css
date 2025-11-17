@@ -1,9 +1,15 @@
 /* index.css */
+
+/* src/index.css */
+@import './styles/_tokens.css';
+@import './styles/global.css';
+
 body {
   font-family: 'Arial', sans-serif;
   margin: 0;
   padding: 0;
-  background-color: #f4f4f4;  /* Light background */
+  background-color: #f4f4f4;
+  /* Light background */
 }
 
 .App {
@@ -13,59 +19,78 @@ body {
 }
 
 header.menu {
-  background-color: #333;  /* Dark background for the header */
-  padding: 20px 40px;  /* Adequate padding for the header */
+  background-color: #333;
+  /* Dark background for the header */
+  padding: 20px 40px;
+  /* Adequate padding for the header */
   display: flex;
-  justify-content: space-between;  /* Space between logo and navigation */
-  align-items: center;  /* Vertically center the content */
+  justify-content: space-between;
+  /* Space between logo and navigation */
+  align-items: center;
+  /* Vertically center the content */
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);  /* Soft shadow for the header */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  /* Soft shadow for the header */
 }
 
 header.menu .logo {
-  height: 120px;  /* Set logo height */
-  width: auto;   /* Ensure logo maintains aspect ratio */
+  height: 120px;
+  /* Set logo height */
+  width: auto;
+  /* Ensure logo maintains aspect ratio */
 }
 
 header.menu nav {
   display: flex;
-  gap: 20px;  /* Space between buttons */
+  gap: 20px;
+  /* Space between buttons */
 }
 
 header.menu button {
   background-color: transparent;
   color: white;
   border: 2px solid transparent;
-  border-radius: 5px;  /* Rounded buttons */
+  border-radius: 5px;
+  /* Rounded buttons */
   padding: 10px 20px;
   cursor: pointer;
   font-size: 16px;
-  transition: all 0.3s ease;  /* Smooth transition for hover effects */
+  transition: all 0.3s ease;
+  /* Smooth transition for hover effects */
 }
 
 header.menu button:hover {
-  background-color: #4CAF50;  /* Highlight color */
-  border-color: #4CAF50;  /* Border color on hover */
+  background-color: #4CAF50;
+  /* Highlight color */
+  border-color: #4CAF50;
+  /* Border color on hover */
 }
 
 header.menu button:focus {
-  outline: none;  /* Remove default focus outline */
-  box-shadow: 0 0 5px 2px rgba(72, 180, 72, 0.6);  /* Green focus shadow */
+  outline: none;
+  /* Remove default focus outline */
+  box-shadow: 0 0 5px 2px rgba(72, 180, 72, 0.6);
+  /* Green focus shadow */
 }
 
 .content {
-  margin-top: 80px;  /* Give space for the fixed header */
+  margin-top: 80px;
+  /* Give space for the fixed header */
   flex: 1;
   padding: 20px;
-  background-color: #fff;  /* White background for content */
-  border-radius: 10px;  /* Rounded corners for content */
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);  /* Soft shadow around the content */
+  background-color: #fff;
+  /* White background for content */
+  border-radius: 10px;
+  /* Rounded corners for content */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  /* Soft shadow around the content */
   max-width: 1200px;
-  margin: 0 auto;  /* Center the content horizontally */
+  margin: 0 auto;
+  /* Center the content horizontally */
 }
 
 /* Mobile responsiveness */
@@ -88,12 +113,14 @@ header.menu button:focus {
   }
 
   .content {
-    margin-top: 100px;  /* Adjust content space for mobile */
+    margin-top: 100px;
+    /* Adjust content space for mobile */
     padding: 15px;
   }
 
   header.menu .logo {
-    height: 35px;  /* Smaller logo on mobile */
+    height: 35px;
+    /* Smaller logo on mobile */
   }
 }
 
@@ -109,19 +136,22 @@ header.menu button:focus {
   }
 
   .content {
-    margin-top: 90px;  /* Slightly adjust content space */
+    margin-top: 90px;
+    /* Slightly adjust content space */
     padding: 18px;
   }
 
   header.menu .logo {
-    height: 40px;  /* Maintain logo size for tablet */
+    height: 40px;
+    /* Maintain logo size for tablet */
   }
 }
 
 /* Large Screens (Desktops) */
 @media (min-width: 1025px) {
   .content {
-    margin-top: 80px;  /* Default space for large screens */
+    margin-top: 80px;
+    /* Default space for large screens */
     padding: 20px;
   }
 
@@ -130,11 +160,25 @@ header.menu button:focus {
   }
 
   header.menu .logo {
-    height: 50px;  /* Larger logo for desktops */
+    height: 50px;
+    /* Larger logo for desktops */
   }
 
   header.menu button {
     padding: 10px 20px;
     font-size: 16px;
   }
+
+  /* Component overrides – order matters */
+  @import './styles/components/App.css';
+  @import './styles/components/LanguageSwitcher.css';
+  @import './styles/components/AboutUs.css';
+  @import './styles/components/Contact.css';
+  @import './styles/components/Photos.css';
+  @import './styles/components/SeasonTickets.css';
+  @import './styles/components/Booking.css';
+  @import './styles/components/UserProfile.css';
+  @import './styles/components/CustomCalendar.css';
+  @import './styles/components/Foot.css';
+
 }
