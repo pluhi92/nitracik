@@ -1,40 +1,46 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import "../styles/components/Foot.css";
 import logo from "../assets/logo.png";
-import stripeLogo from "../assets/stripe-logo.png";
+import stripeLogo from "../assets/stripe-logo_black.png";
 import { FaInstagram, FaFacebookF } from "react-icons/fa";
 import { SiVisa, SiMastercard, SiApplepay, SiGooglepay } from "react-icons/si";
 
 const Foot = () => {
-
   const handleCookiePreferences = (e) => {
     e.preventDefault();
-    // Check if the CookieConsent component is available and call its function
     if (window.openCookieSettings) {
       window.openCookieSettings();
     }
   };
 
   return (
-    <footer className="footer">
-      <div className="footer-content">
-        {/* Left column */}
-        <div className="footer-col footer-brand">
-          <img src={logo} alt="Nitracik Logo" className="footer-logo" />
-          <p className="footer-text">Tešíme sa na Vás!</p>
-          <span className="footer-phone">+421 949 584 576</span>
-          <a href="mailto:info@nitracik.sk" className="footer-email">
+    <footer className="bg-white text-secondary-500 py-7 px-8 pb-3 font-sans text-sm leading-relatives shadow-md">
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 justify-items-center items-start gap-16">
+        
+        {/* Left Column - Brand */}
+        <div className="flex flex-col items-center md:items-start text-center md:text-left">
+          <img 
+            src={logo} 
+            alt="Nitracik Logo" 
+            className="w-44 lg:w-50 mb-4 object-contain hover:scale-105 transition-transform duration-300" 
+          />
+          <p className="mb-2 text-secondary-500 font-medium text-sm">Tešíme sa na Vás!</p>
+          <span className="text-secondary-500 mb-3 block font-medium text-sm">+421 949 584 576</span>
+          <a 
+            href="mailto:info@nitracik.sk" 
+            className="text-secondary-500 mb-4 block font-medium text-sm hover:text-secondary-600 hover:underline transition-all duration-300"
+          >
             info@nitracik.sk
           </a>
-          <div className="footer-socials">
+          <div className="flex gap-3 mt-auto">
             <a
               href="https://www.facebook.com/people/Nitr%C3%A1%C4%8Dik/61558994166250/"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Facebook"
             >
-              <FaFacebookF className="social-icon" />
+              <FaFacebookF className="text-2xl text-secondary-500 hover:text-secondary-600 hover:scale-110 transition-all duration-300" />
             </a>
             <a
               href="https://www.instagram.com/nitracik"
@@ -42,70 +48,102 @@ const Foot = () => {
               rel="noopener noreferrer"
               aria-label="Instagram"
             >
-              <FaInstagram className="social-icon" />
+              <FaInstagram className="text-2xl text-secondary-500 hover:text-secondary-600 hover:scale-110 transition-all duration-300" />
             </a>
           </div>
         </div>
 
-        {/* Middle column */}
-        <div className="footer-col footer-nav-col">
-          <h3>Obchod</h3>
-          <ul>
+        {/* Middle Column - Navigation */}
+        <div className="flex flex-col items-center text-center pt-2">
+          <h3 className="text-gray-900 mb-4 text-sm font-semibold">Obchod</h3>
+          <ul className="flex flex-col gap-2">
             <li>
-              <Link to="/about">O nás</Link>
+              <Link to="/about" className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm">
+                O nás
+              </Link>
             </li>
             <li>
-              <Link to="/contact">Kontakt</Link>
+              <Link to="/contact" className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm">
+                Kontakt
+              </Link>
             </li>
             <li>
-              <Link to="/terms">Všeobecné obchodné podmienky</Link>
+              <Link to="/terms" className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm">
+                Všeobecné obchodné podmienky
+              </Link>
             </li>
             <li>
-              <Link to="/partners">Partneri</Link>
+              <Link to="/partners" className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm">
+                Partneri
+              </Link>
             </li>
           </ul>
         </div>
 
-        {/* Right column */}
-        <div className="footer-col footer-nav-col">
-          <h3>Dôležité informácie</h3>
-          <ul>
+        {/* Right Column - Important Info & Payments */}
+        <div className="flex flex-col items-center text-center pt-2">
+          <h3 className="text-gray-900 mb-4 text-sm font-semibold">Dôležité informácie</h3>
+          <ul className="flex flex-col gap-2 mb-6">
             <li>
-              <Link to="/privacy">Ochrana osobných údajov</Link>
+              <Link to="/privacy" className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm">
+                Ochrana osobných údajov
+              </Link>
             </li>
             <li>
-              <Link to="/payments">Platby</Link>
+              <Link to="/payments" className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm">
+                Platby
+              </Link>
             </li>
-            {/* NEW: Cookie Preferences link */}
             <li>
-              <a href="#" onClick={handleCookiePreferences}>
+              <a 
+                href="#" 
+                onClick={handleCookiePreferences}
+                className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm"
+              >
                 Nastavenia cookies
               </a>
             </li>
           </ul>
 
-          {/* NEW: Payment Methods Section */}
-          <div className="payment-methods">
-            <div className="stripe-logo">
-              <img src={stripeLogo} alt="Stripe" className="stripe-logo-img" />
+          {/* Payment Methods */}
+          <div className="mt-6 pt-4 border-t border-gray-300 w-full">
+            <div className="mb-3">
+              <img 
+                src={stripeLogo} 
+                alt="Stripe" 
+                className="h-6 mx-auto mb-3 opacity-90" 
+              />
             </div>
-            <div className="payment-icons">
-              <SiVisa className="payment-icon visa" title="Visa" />
-              <SiMastercard className="payment-icon mastercard" title="MasterCard" />
-              <SiApplepay className="payment-icon applepay" title="Apple Pay" />
-              <SiGooglepay className="payment-icon googlepay" title="Google Pay" />
+            <div className="flex gap-3 flex-wrap justify-center items-center">
+              <SiVisa 
+                className="text-3xl opacity-80 hover:opacity-100 hover:scale-105 transition-all duration-300 text-secondary-500 hover:text-secondary-600" 
+                title="Visa" 
+              />
+              <SiMastercard 
+                className="text-3xl opacity-80 hover:opacity-100 hover:scale-105 transition-all duration-300 text-secondary-500 hover:text-secondary-600" 
+                title="MasterCard" 
+              />
+              <SiApplepay 
+                className="text-3xl opacity-80 hover:opacity-100 hover:scale-105 transition-all duration-300 text-secondary-500 hover:text-secondary-600" 
+                title="Apple Pay" 
+              />
+              <SiGooglepay 
+                className="text-3xl opacity-80 hover:opacity-100 hover:scale-105 transition-all duration-300 text-secondary-500 hover:text-secondary-600" 
+                title="Google Pay" 
+              />
             </div>
           </div>
         </div>
       </div>
 
-      <div className="footer-bottom">
-        <div className="footer-main-line">
+      {/* Bottom Section */}
+      <div className="mt-6 pt-2 border-t border-gray-300 text-center text-secondary-500 text-xs flex flex-col items-center gap-1">
+        <div className="flex gap-3 items-center justify-center flex-wrap">
           <span>©2025 Nitracik.sk</span>
           <span>|</span>
           <span>All rights reserved</span>
         </div>
-        <p className="footer-designer">Designed by Pluhi</p>
+        <p className="text-secondary-500 text-xs">Designed by Pluhi</p>
       </div>
     </footer>
   );

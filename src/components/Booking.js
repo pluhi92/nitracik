@@ -1028,7 +1028,7 @@ const Booking = () => {
         </div>
 
         {/* Pricing and Submission Card */}
-        <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200">
+        <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200 mb-8">
           <div className="p-6 text-center">
             {!useSeasonTicket && !isCreditMode && (
               <div className="mb-6">

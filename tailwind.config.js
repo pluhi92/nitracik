@@ -36,9 +36,12 @@ module.exports = {
         },
         secondary: {
           50: '#fff3e0',
+          400: '#555362',
           500: '#f8b2b2',
           600: '#ef3f3f',
-          700: '#eabd64',
+          700: '#9c0101ff',
+          800: '#eabd64',
+          900: '#af8226ff',
         },
         gray: {
           50: '#f8f9fa',

@@ -4,7 +4,6 @@ import axios from 'axios';
 import { Modal, Button, Form, Table } from 'react-bootstrap';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Tooltip } from 'react-tooltip';
-import '../styles/components/UserProfile.css';
 
 const UserProfile = () => {
   const { t } = useTranslation();
@@ -24,7 +23,7 @@ const UserProfile = () => {
   const [cancellationType, setCancellationType] = useState('');
   const [replacementSessions, setReplacementSessions] = useState([]);
   const [selectedReplacement, setSelectedReplacement] = useState('');
-  const [bookingType, setBookingType] = useState(''); // New state for booking type
+  const [bookingType, setBookingType] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const [alertVariant, setAlertVariant] = useState('success');
   const navigate = useNavigate();
@@ -36,7 +35,6 @@ const UserProfile = () => {
   const [reason, setReason] = useState('');
   const [forceCancel, setForceCancel] = useState(false);
 
-  // Add these new state variables for profile editing
   const [isEditing, setIsEditing] = useState(false);
   const [editedAddress, setEditedAddress] = useState('');
   const [editedMobile, setEditedMobile] = useState('');
@@ -118,7 +116,6 @@ const UserProfile = () => {
     }
   }, [endDate, t]);
 
-  // Add this useEffect to load current user data
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -127,7 +124,7 @@ const UserProfile = () => {
         });
         const userData = response.data;
         setEditedAddress(userData.address || '');
-        setEditedMobile(userData.mobile || ''); // This will now work after adding the column
+        setEditedMobile(userData.mobile || '');
       } catch (error) {
         console.error('Error fetching user data:', error);
       }
@@ -155,7 +152,7 @@ const UserProfile = () => {
           max_participants: session.max_participants,
           total_children: session.total_children || 0,
           available_spots: session.available_spots || session.max_participants,
-          cancelled: session.cancelled, // ✅ Include cancelled status
+          cancelled: session.cancelled,
           participants: [],
         };
       }
@@ -187,7 +184,6 @@ const UserProfile = () => {
     }
   };
 
-  // Add this function to handle profile updates
   const handleUpdateProfile = async () => {
     if (!editedAddress.trim()) {
       setUpdateMessage(t?.profile?.update?.error?.required || 'Address is required');
@@ -209,15 +205,14 @@ const UserProfile = () => {
       setUpdateMessage(t?.profile?.update?.success || 'Profile updated successfully!');
       setUpdateVariant('success');
       setIsEditing(false);
-      
-      // Update local storage if needed
+
       localStorage.setItem('userAddress', editedAddress.trim());
-      
+
     } catch (error) {
       console.error('Error updating profile:', error);
       setUpdateMessage(
-        error.response?.data?.error || 
-        t?.profile?.update?.error?.generic || 
+        error.response?.data?.error ||
+        t?.profile?.update?.error?.generic ||
         'Failed to update profile'
       );
       setUpdateVariant('danger');
@@ -226,220 +221,241 @@ const UserProfile = () => {
     }
   };
 
-  // Slovak date formatter
-const formatSlovakDate = (dateString) => {
-  const date = new Date(dateString);
-  const day = date.getDate();
-  const month = date.getMonth() + 1;
-  const year = date.getFullYear();
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  
-  return `${day}. ${month}. ${year} - ${hours}:${minutes}`;
-};
+  const formatSlovakDate = (dateString) => {
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
 
-// In the renderSessionTable function, replace the table structure:
-const renderSessionTable = (type) => {
-  const filtered = processSessions(bookedSessions)
-    .filter((session) => session.training_type === type)
-    .sort((a, b) => new Date(b.training_date) - new Date(a.training_date));
+    // Získanie dňa týždňa
+    const dayOfWeek = date.getDay();
+    const daysSK = ['NE', 'PO', 'UT', 'ST', 'ŠT', 'PI', 'SO'];
+    const daysEN = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
-  if (filtered.length === 0) return null;
+    const dayName = t?.calendar ? t.calendar[daysEN[dayOfWeek].toLowerCase()] : daysSK[dayOfWeek];
 
-  return (
-    <div className="admin-sessions mb-5">
-      <h4 className="section-header">
-        {t?.profile?.sessionType?.[type.toLowerCase()] || `${type} Sessions`}
-      </h4>
-      <div className="table-responsive">
-        <Table striped hover className="mb-0">
-          <thead>
-            <tr>
-              <th>{t?.profile?.table?.date || 'Date'}</th>
-              <th>{t?.profile?.table?.type || 'Type'}</th>
-              <th>{t?.profile?.table?.availableSpots || 'Available Spots'}</th>
-              <th>{t?.profile?.table?.participants || 'Participants'}</th>
-              <th>{t?.profile?.table?.children || 'Children'}</th>
-              <th>{t?.profile?.table?.actions || 'Actions'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((session) => {
-              const sessionTime = new Date(session.training_date);
-              const currentTime = new Date();
-              const hoursDifference = (sessionTime - currentTime) / (1000 * 60 * 60);
-              const isWithin10Hours = hoursDifference <= 10;
-              const isCancelled = session.cancelled === true;
-              const remainingBookings = session.participants.length;
-              const totalChildren = session.participants.reduce((sum, participant) => sum + participant.children, 0);
+    return `${day}. ${month}. ${year} - ${hours}:${minutes} (${dayName})`;
+  };
 
-              return (
-                <tr
-                  key={`${session.training_date}-${session.training_type}`}
-                  className={`
-                    ${isCancelled ? 'session-cancelled' : ''}
-                    ${isWithin10Hours && !isCancelled ? 'session-warning' : ''}
-                  `}
-                >
-                  <td>
-                    <div className="fw-semibold">
-                      {formatSlovakDate(session.training_date)}
-                    </div>
-                    {isCancelled && (
-                      <div className="status-indicator status-cancelled mt-1">
-                        ❌ {t?.profile?.cancelled || 'CANCELLED'}
+  const renderSessionTable = (type) => {
+    const filtered = processSessions(bookedSessions)
+      .filter((session) => session.training_type === type)
+      .sort((a, b) => new Date(b.training_date) - new Date(a.training_date));
+
+    if (filtered.length === 0) return null;
+
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 mb-8">
+        <h4 className="text-xl font-bold text-gray-800 dark:text-white px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          {t?.profile?.sessionType?.[type.toLowerCase()] || `${type} Sessions`}
+        </h4>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b border-gray-200 dark:border-gray-700">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  {t?.profile?.table?.date || 'Dátum'}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  {t?.profile?.table?.type || 'Typ'}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  {t?.profile?.table?.availableSpots || 'Dostupné miesta'}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  {t?.profile?.table?.participants || 'Účastníci (deti)'}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  {t?.profile?.table?.children || 'Deti'}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  {t?.profile?.table?.actions || 'Akcie'}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {filtered.map((session) => {
+                const sessionTime = new Date(session.training_date);
+                const currentTime = new Date();
+                const hoursDifference = (sessionTime - currentTime) / (1000 * 60 * 60);
+                const isWithin10Hours = hoursDifference <= 10;
+                const isCancelled = session.cancelled === true;
+                const remainingBookings = session.participants.length;
+                const totalChildren = session.participants.reduce((sum, participant) => sum + participant.children, 0);
+
+                return (
+                  <tr
+                    key={`${session.training_date}-${session.training_type}`}
+                    className={`
+                      ${isCancelled ? 'bg-gray-100 dark:bg-gray-700 text-gray-400' : ''}
+                      ${isWithin10Hours && !isCancelled ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}
+                      hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors
+                    `}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="font-semibold text-gray-900 dark:text-white">
+                        {formatSlovakDate(session.training_date)}
                       </div>
-                    )}
-                    {isWithin10Hours && !isCancelled && (
-                      <div className="time-warning">
-                        ⏳ {Math.round(hoursDifference)} {t?.profile?.hoursUntilSession || 'hours'}
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <span className="badge bg-primary">{session.training_type}</span>
-                  </td>
-                  <td>
-                    <div className="text-center">
-                      <span className={`fw-bold ${session.available_spots === 0 ? 'text-danger' : 'text-success'}`}>
-                        {session.available_spots}
+                      {isCancelled && (
+                        <div className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 mt-1">
+                          ❌ {t?.profile?.cancelled || 'CANCELLED'}
+                        </div>
+                      )}
+                      {isWithin10Hours && !isCancelled && (
+                        <div className="text-orange-600 dark:text-orange-400 text-xs font-medium mt-1 flex items-center">
+                          ⏳ {Math.round(hoursDifference)} {t?.profile?.hoursUntilSession || 'hours'}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                        {session.training_type}
                       </span>
-                      <div className="small text-muted">of {session.max_participants}</div>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="participants-container">
-                      {session.participants.map((participant, index) => (
-                        <div
-                          key={`${participant.email}-${index}`}
-                          className="participant-badge"
-                        >
-                          <div className="participant-info">
-                            <div className="participant-name">
-                              {participant.first_name} {participant.last_name}
-                            </div>
-                            <div className="participant-email">
-                              {participant.email}
-                            </div>
-                            <div className="booking-details">
-                              <span className={`booking-method ${
-                                participant.booking_type === 'credit'
-                                  ? 'booking-credit'
-                                  : participant.booking_type === 'season_ticket'
-                                  ? 'booking-season-ticket'
-                                  : participant.booking_type === 'paid' && participant.active === false
-                                  ? 'booking-cancelled'
-                                  : 'booking-paid'
-                              }`}>
-                                {participant.booking_type === 'credit'
-                                  ? '💳 Credit'
-                                  : participant.booking_type === 'season_ticket'
-                                  ? '🎫 Season Ticket'
-                                  : participant.booking_type === 'paid' && participant.active === false
-                                  ? '❌ Cancelled'
-                                  : '💰 Paid'}
-                              </span>
-                              
-                              {participant.amount_paid > 0 && (
-                                <span className="amount-badge">
-                                  €{participant.amount_paid}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-center">
+                        <span className={`font-bold ${session.available_spots === 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                          {session.available_spots}
+                        </span>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">of {session.max_participants}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="space-y-2 max-w-xs">
+                        {session.participants.map((participant, index) => (
+                          <div
+                            key={`${participant.email}-${index}`}
+                            className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3"
+                          >
+                            <div className="space-y-1">
+                              <div className="font-medium text-gray-900 dark:text-white">
+                                {participant.first_name} {participant.last_name}
+                              </div>
+                              <div className="text-sm text-gray-600 dark:text-gray-300">
+                                {participant.email}
+                              </div>
+                              <div className="flex flex-wrap gap-2 items-center">
+                                <span className={`
+                                  inline-flex items-center px-2 py-1 rounded text-xs font-medium
+                                  ${participant.booking_type === 'credit'
+                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                    : participant.booking_type === 'season_ticket'
+                                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                      : participant.booking_type === 'paid' && participant.active === false
+                                        ? 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200'
+                                        : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                  }
+                                `}>
+                                  {participant.booking_type === 'credit'
+                                    ? '💳 Credit'
+                                    : participant.booking_type === 'season_ticket'
+                                      ? '🎫 Season Ticket'
+                                      : participant.booking_type === 'paid' && participant.active === false
+                                        ? '❌ Cancelled'
+                                        : '💰 Paid'}
                                 </span>
-                              )}
+
+                                {participant.amount_paid > 0 && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                    €{participant.amount_paid}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                      {session.participants.length === 0 && (
-                        <div className="text-muted small">No participants</div>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    <div className="text-center">
-                      <span className="fw-bold text-primary">{totalChildren}</span>
-                      <div className="small text-muted">total</div>
-                      {session.participants.map((participant, index) => (
-                        <div key={index} className="small">
-                          {participant.children} {participant.children === 1 ? 'child' : 'children'}
-                        </div>
-                      ))}
-                    </div>
-                  </td>
-                  <td>
-                    <div className="session-actions">
-                      {isCancelled ? (
-                        <div className="d-flex flex-column gap-2">
-                          {remainingBookings === 0 ? (
-                            <>
-                              <span className="status-indicator status-ready">
-                                ✅ Ready to delete
+                        ))}
+                        {session.participants.length === 0 && (
+                          <div className="text-sm text-gray-500 dark:text-gray-400 italic">No participants</div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-center">
+                        <span className="font-bold text-blue-600 dark:text-blue-400">{totalChildren}</span>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">total</div>
+                        {session.participants.map((participant, index) => (
+                          <div key={index} className="text-sm text-gray-600 dark:text-gray-300">
+                            {participant.children} {participant.children === 1 ? 'child' : 'children'}
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="space-y-2">
+                        {isCancelled ? (
+                          <div className="flex flex-col gap-2">
+                            {remainingBookings === 0 ? (
+                              <>
+                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                  ✅ Ready to delete
+                                </span>
+                                <button
+                                  className="inline-flex items-center px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                                  onClick={() => handleDeleteSession(
+                                    session.training_id,
+                                    session.training_type,
+                                    session.training_date
+                                  )}
+                                  title="Permanently delete this cancelled session"
+                                >
+                                  🗑️ Delete Session
+                                </button>
+                              </>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                ⏳ {remainingBookings} pending
                               </span>
-                              <button
-                                className="btn-delete-session"
-                                onClick={() => handleDeleteSession(
-                                  session.training_id,
-                                  session.training_type,
-                                  session.training_date
-                                )}
-                                title="Permanently delete this cancelled session"
-                              >
-                                🗑️ Delete Session
-                              </button>
-                            </>
-                          ) : (
-                            <span className="status-indicator status-pending">
-                              ⏳ {remainingBookings} pending
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <>
-                          <button
-                            className="btn-cancel"
-                            onClick={() =>
-                              handleAdminCancelSession(
-                                session.training_id,
-                                session.training_type,
-                                session.training_date,
-                                false
-                              )
-                            }
-                            title="Cancel this session"
-                          >
-                            🚫 {t?.profile?.cancelSession || 'Cancel Session'}
-                          </button>
-
-                          {isWithin10Hours && (
+                            )}
+                          </div>
+                        ) : (
+                          <>
                             <button
-                              className="btn-force-cancel"
+                              className="w-full inline-flex items-center justify-center px-3 py-2 border border-red-300 dark:border-red-600 rounded text-sm font-medium text-red-700 dark:text-red-300 bg-white dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                               onClick={() =>
                                 handleAdminCancelSession(
                                   session.training_id,
                                   session.training_type,
                                   session.training_date,
-                                  true
+                                  false
                                 )
                               }
-                              title="Force cancel within 10 hours"
+                              title="Cancel this session"
                             >
-                              ⚡ {t?.profile?.forceCancel || 'Force Cancel'}
+                              🚫 {t?.profile?.cancelSession || 'Cancel Session'}
                             </button>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </Table>
-      </div>
-    </div>
-  );
-};
 
-  // UPDATED: Admin cancellation with timing check
+                            {isWithin10Hours && (
+                              <button
+                                className="w-full inline-flex items-center justify-center px-3 py-2 border border-orange-300 dark:border-orange-600 rounded text-sm font-medium text-orange-700 dark:text-orange-300 bg-white dark:bg-gray-700 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+                                onClick={() =>
+                                  handleAdminCancelSession(
+                                    session.training_id,
+                                    session.training_type,
+                                    session.training_date,
+                                    true
+                                  )
+                                }
+                                title="Force cancel within 10 hours"
+                              >
+                                ⚡ {t?.profile?.forceCancel || 'Force Cancel'}
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
   const handleAdminCancelSession = (id, type, date, useForceCancel = false) => {
     setSelectedSession({ id, type, date });
     setReason('');
@@ -448,7 +464,6 @@ const renderSessionTable = (type) => {
     if (useForceCancel) {
       setShowAdminCancelModal(true);
     } else {
-      // Check timing for regular cancellation
       const sessionTime = new Date(date);
       const currentTime = new Date();
       const hoursDifference = (sessionTime - currentTime) / (1000 * 60 * 60);
@@ -464,7 +479,6 @@ const renderSessionTable = (type) => {
     }
   };
 
-  // UPDATED: Admin cancellation confirmation
   const confirmAdminCancel = async () => {
     try {
       const response = await axios.post('http://localhost:5000/api/admin/cancel-session', {
@@ -475,7 +489,6 @@ const renderSessionTable = (type) => {
 
       showAlert(`Session canceled successfully! ${response.data.canceledBookings} bookings affected.${response.data.forceCancelUsed ? ' (Force Cancel)' : ''}`, 'success');
 
-      // ✅ Refresh bookings immediately after cancellation
       await refreshBookings();
 
     } catch (error) {
@@ -506,7 +519,6 @@ const renderSessionTable = (type) => {
     return hoursBeforeSession > 10;
   };
 
-  // UPDATED: User cancellation with 10-hour check
   const handleCancelSession = async (bookingId, trainingDate) => {
     if (!canCancelSession(trainingDate)) {
       showAlert(t?.profile?.cancel?.alert || 'Cancellation is not allowed within 10 hours of the session.', 'danger');
@@ -515,7 +527,6 @@ const renderSessionTable = (type) => {
 
     setSelectedBooking({ bookingId, trainingDate });
 
-    // Fetch booking type
     try {
       const response = await axios.get(`http://localhost:5000/api/bookings/${bookingId}/type`, {
         withCredentials: true,
@@ -537,7 +548,6 @@ const renderSessionTable = (type) => {
       return;
     }
 
-    // Fetch replacement sessions
     try {
       const response = await axios.get(`http://localhost:5000/api/replacement-sessions/${bookingId}`, {
         withCredentials: true,
@@ -551,7 +561,6 @@ const renderSessionTable = (type) => {
     setShowCancelModal(true);
   };
 
-  // UPDATED: User cancellation confirmation with proper error handling
   const confirmCancellation = async () => {
     if (!selectedBooking) return;
 
@@ -589,7 +598,6 @@ const renderSessionTable = (type) => {
         showAlert(t?.profile?.cancel?.replacementSuccess || 'Session successfully replaced.', 'success');
       }
 
-      // Refresh bookings
       const bookingsResponse = await axios.get(`http://localhost:5000/api/bookings/user/${userId}`, {
         withCredentials: true,
       });
@@ -597,7 +605,6 @@ const renderSessionTable = (type) => {
     } catch (error) {
       console.error('Error processing cancellation:', error);
 
-      // Handle 10-hour restriction error
       if (error.response?.data?.error?.includes('10 hours')) {
         showAlert('Cancellation is not allowed within 10 hours of the session.', 'danger');
       } else {
@@ -629,7 +636,6 @@ const renderSessionTable = (type) => {
 
       showAlert(response.data.message || 'Session deleted successfully!', 'success');
 
-      // Refresh the bookings list
       await refreshBookings();
 
     } catch (error) {
@@ -704,340 +710,432 @@ const renderSessionTable = (type) => {
   };
 
   return (
-    <div className="container mt-5">
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
       {alertMessage && (
-        <div className={`alert alert-${alertVariant} mt-3`} role="alert">
+        <div className={`alert alert-${alertVariant} rounded-lg p-4 mb-6 ${alertVariant === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
+          alertVariant === 'danger' ? 'bg-red-100 text-red-800 border border-red-200' :
+            'bg-blue-100 text-blue-800 border border-blue-200'
+          }`} role="alert">
           {alertMessage}
         </div>
       )}
-      <h2 className="text-center text-primary">{t?.profile?.title || 'Account Settings'}</h2>
+
+      <h2 className="text-3xl font-bold text-center text-gray-800 dark:text-white mb-8">
+        {t?.profile?.title || 'Account Settings'}
+      </h2>
 
       {isAdmin && (
-        <div className="payment-report mt-4">
-          <h4>{t?.profile?.report?.title || 'Generate Payment Report'}</h4>
-          <Form onSubmit={handleGenerateReport}>
-            <div className="row">
-              <div className="col-md-5 mb-3">
-                <Form.Label>{t?.profile?.report?.startDate || 'Start Date'}</Form.Label>
-                <Form.Control
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
+          <h4 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+            {t?.profile?.report?.title || 'Generate Payment Report'}
+          </h4>
+          <form onSubmit={handleGenerateReport}>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+              <div className="md:col-span-5">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t?.profile?.report?.startDate || 'Start Date'}
+                </label>
+                <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   required
                 />
               </div>
-              <div className="col-md-5 mb-3">
-                <Form.Label>{t?.profile?.report?.endDate || 'End Date'}</Form.Label>
-                <Form.Control
+              <div className="md:col-span-5">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t?.profile?.report?.endDate || 'End Date'}
+                </label>
+                <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   required
                 />
               </div>
-              <div className="col-md-2 mb-3">
-                <Button
+              <div className="md:col-span-2">
+                <button
                   type="submit"
-                  className="btn btn-primary w-100 mt-4"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={isButtonDisabled}
                   data-tooltip-id="generate-tooltip"
                   data-tooltip-content={tooltipMessage}
-                  data-tooltip-place="top"
-                  style={{ cursor: isButtonDisabled ? 'not-allowed' : 'pointer' }}
                 >
                   {t?.profile?.report?.generate || 'Generate PDF'}
-                </Button>
+                </button>
               </div>
             </div>
-          </Form>
+          </form>
         </div>
       )}
 
       {isAdmin ? (
-        <div className="admin-sessions">
+        <div className="space-y-8">
           {renderSessionTable('MIDI')}
           {renderSessionTable('MINI')}
           {renderSessionTable('MAXI')}
-          <div className="season-tickets mt-5">
-            <h3>{t?.profile?.seasonTickets?.title || 'Season Ticket Holders'}</h3>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-200 dark:border-gray-700">
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
+              {t?.profile?.seasonTickets?.title || 'Season Ticket Holders'}
+            </h3>
             {adminSeasonTickets.length === 0 ? (
-              <p>{t?.profile?.seasonTickets?.noTickets || 'No users have purchased season tickets.'}</p>
+              <p className="text-gray-600 dark:text-gray-400 text-center py-8">
+                {t?.profile?.seasonTickets?.noTickets || 'No users have purchased season tickets.'}
+              </p>
             ) : (
-              <Table striped bordered hover responsive>
-                <thead>
-                  <tr>
-                    <th>{t?.profile?.seasonTickets?.name || 'Name'}</th>
-                    <th>{t?.profile?.seasonTickets?.email || 'Email'}</th>
-                    <th>{t?.profile?.seasonTickets?.totalEntries || 'Total Entries'}</th>
-                    <th>{t?.profile?.seasonTickets?.remainingEntries || 'Remaining Entries'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {adminSeasonTickets.map((ticket) => (
-                    <tr key={ticket.user_id}>
-                      <td>
-                        {ticket.first_name} {ticket.last_name}
-                      </td>
-                      <td>{ticket.email}</td>
-                      <td>{ticket.entries_total}</td>
-                      <td>{ticket.entries_remaining}</td>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead>
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        {t?.profile?.seasonTickets?.name || 'Name'}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        {t?.profile?.seasonTickets?.email || 'Email'}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        {t?.profile?.seasonTickets?.totalEntries || 'Total Entries'}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        {t?.profile?.seasonTickets?.remainingEntries || 'Remaining Entries'}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </Table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {adminSeasonTickets.map((ticket) => (
+                      <tr key={ticket.user_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {ticket.first_name} {ticket.last_name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                          {ticket.email}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                          {ticket.entries_total}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                          {ticket.entries_remaining}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
       ) : (
         <>
-          <div className="season-tickets mt-5">
-            <h3>{t?.profile?.mySeasonTickets?.title || 'My Season Tickets'}</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
+              {t?.profile?.mySeasonTickets?.title || 'Vaše permanentky'}
+            </h3>
             {seasonTickets.length === 0 ? (
-              <p>{t?.profile?.mySeasonTickets?.noTickets || 'You have no active season tickets.'}</p>
+              <p className="text-gray-600 dark:text-gray-400 text-center py-8">
+                {t?.profile?.mySeasonTickets?.noTickets || 'Nemáte žiadne aktívne permanentky.'}
+              </p>
             ) : (
-              <Table striped bordered hover responsive>
-                <thead>
-                  <tr>
-                    <th>{t?.profile?.mySeasonTickets?.ticketId || 'Ticket ID'}</th>
-                    <th>{t?.profile?.mySeasonTickets?.entriesTotal || 'Total Entries'}</th>
-                    <th>{t?.profile?.mySeasonTickets?.entriesRemaining || 'Remaining Entries'}</th>
-                    <th>{t?.profile?.mySeasonTickets?.purchaseDate || 'Purchase Date'}</th>
-                    <th>{t?.profile?.mySeasonTickets?.expiryDate || 'Expiry Date'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {seasonTickets.map((ticket) => (
-                    <tr key={ticket.id}>
-                      <td>{ticket.id}</td>
-                      <td>{ticket.entries_total}</td>
-                      <td>{ticket.entries_remaining}</td>
-                      <td>{new Date(ticket.purchase_date).toLocaleDateString()}</td>
-                      <td>{new Date(ticket.expiry_date).toLocaleDateString()}</td>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead>
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        {t?.profile?.mySeasonTickets?.ticketId || 'ID permanentky'}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        {t?.profile?.mySeasonTickets?.entriesTotal || 'Celkový počet vstupov'}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        {t?.profile?.mySeasonTickets?.entriesRemaining || 'Zostávajúce vstupy'}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        {t?.profile?.mySeasonTickets?.purchaseDate || 'Dátum nákupu'}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        {t?.profile?.mySeasonTickets?.expiryDate || 'Dátum expirácie'}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </Table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {seasonTickets.map((ticket) => (
+                      <tr key={ticket.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td className="px-6 py-4 whitespace-nowrap text-base text-gray-900 dark:text-white font-medium">
+                          {ticket.id}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-base text-gray-600 dark:text-gray-300 font-medium">
+                          {ticket.entries_total}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-base text-gray-600 dark:text-gray-300 font-medium">
+                          {ticket.entries_remaining}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-base text-gray-600 dark:text-gray-300 font-medium">
+                          {formatSlovakDate(ticket.purchase_date).split(' - ')[0]}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-base text-gray-600 dark:text-gray-300 font-medium">
+                          {formatSlovakDate(ticket.expiry_date).split(' - ')[0]}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 
-          <div className="booked-sessions mt-5">
-            <h3>{t?.profile?.bookedSessions?.title || 'Your Booked Sessions'}</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
+              {t?.profile?.bookedSessions?.title || 'Vaše rezervované relácie'}
+            </h3>
             {bookedSessions.length === 0 ? (
-              <p>{t?.profile?.bookedSessions?.noSessions || 'You have no booked sessions.'}</p>
+              <p className="text-gray-600 dark:text-gray-400 text-center py-8">
+                {t?.profile?.bookedSessions?.noSessions || 'Nemáte žiadne rezervované relácie.'}
+              </p>
             ) : (
-              <ul className="list-group">
+              <div className="space-y-4">
                 {bookedSessions.map((session) => {
                   const isCancelled = session.cancelled === true;
                   const canCancel = !isCancelled && canCancelSession(session.training_date);
 
-                  // ✅ NEW: Determine booking type and styling
                   const getBookingTypeInfo = () => {
                     if (session.credit_id) {
-                      return { type: 'credit', label: 'Credit Booking', badgeClass: 'bg-info' };
+                      return {
+                        type: 'credit',
+                        label: t?.profile?.bookingMethods?.credit || '💳 Kredit',
+                        badgeClass: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                      };
                     }
                     if (session.booking_type === 'season_ticket') {
-                      return { type: 'season_ticket', label: 'Season Ticket', badgeClass: 'bg-warning' };
+                      return {
+                        type: 'season_ticket',
+                        label: t?.profile?.bookingMethods?.season_ticket || '🎫 Permanentka',
+                        badgeClass: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                      };
                     }
                     if (session.amount_paid > 0) {
-                      return { type: 'paid', label: 'Paid Booking', badgeClass: 'bg-success' };
+                      return {
+                        type: 'paid',
+                        label: t?.profile?.bookingMethods?.paid || '💰 Zaplatené',
+                        badgeClass: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      };
                     }
-                    return { type: 'unknown', label: 'Booking', badgeClass: 'bg-secondary' };
+                    return {
+                      type: 'unknown',
+                      label: 'Rezervácia',
+                      badgeClass: 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200'
+                    };
                   };
 
                   const bookingTypeInfo = getBookingTypeInfo();
 
                   return (
-                    <li key={session.booking_id} className={`list-group-item d-flex justify-content-between align-items-center ${isCancelled ? 'list-group-item-secondary' : ''}`}>
-                      <div className="d-flex flex-column">
-                        <div className="d-flex align-items-center mb-2">
-                          <strong>{session.training_type}</strong>
-                          <span className="mx-2">-</span>
-                          {new Date(session.training_date).toLocaleString()}
-                        </div>
-                        <div className="d-flex flex-wrap gap-2">
-                          {/* ✅ NEW: Booking Type Badge */}
-                          <span className={`badge ${bookingTypeInfo.badgeClass}`}>
-                            {bookingTypeInfo.label}
+                    <div
+                      key={session.booking_id}
+                      className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border ${isCancelled
+                        ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                        } transition-colors`}
+                    >
+                      <div className="flex-1 mb-3 sm:mb-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+                          <strong className="text-lg text-gray-900 dark:text-white font-semibold">
+                            {session.training_type}
+                          </strong>
+                          <span className="text-base text-gray-700 dark:text-gray-300 font-medium">
+                            {formatSlovakDate(session.training_date)}
                           </span>
-
-                          {/* ✅ NEW: Amount Display for Paid Bookings */}
-                          {session.amount_paid > 0 && (
-                            <span className="badge bg-primary">
-                              €{session.amount_paid}
+                          <div className="flex-shrink-0">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${bookingTypeInfo.badgeClass}`}>
+                              {bookingTypeInfo.label}
                             </span>
-                          )}
-
-                          {/* Children Count */}
-                          <span className="badge bg-light text-dark">
-                            {session.number_of_children} {session.number_of_children === 1 ? 'child' : 'children'}
-                          </span>
-
-                          {/* Cancelled Badge */}
-                          {isCancelled && <span className="badge bg-danger">CANCELLED</span>}
+                          </div>
                         </div>
                       </div>
                       <div
                         data-tooltip-id="cancel-tooltip"
                         data-tooltip-content={
                           isCancelled
-                            ? 'This session has been cancelled by admin. Check your email for refund/credit options.'
+                            ? 'Táto relácia bola zrušená administrátorom. Skontrolujte svoj email pre informácie o vrátení platby/kreditu.'
                             : !canCancel
-                              ? t?.profile?.cancel?.tooltip || 'Cancellation is no longer possible as less than 10 hours remain until the training.'
+                              ? t?.profile?.cancel?.tooltip || 'Zrušenie už nie je možné, do relácie zostáva menej ako 10 hodín.'
                               : ''
                         }
+                        className="flex-shrink-0 w-auto"
                       >
                         <button
-                          className="btn btn-danger btn-sm"
+                          className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${isCancelled || !canCancel
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-600 dark:text-gray-400'
+                            : 'bg-red-600 hover:bg-red-700 text-white'
+                            }`}
                           onClick={() => handleCancelSession(session.booking_id, session.training_date, session.training_type)}
                           disabled={isCancelled || !canCancel}
                         >
-                          {isCancelled ? 'Cancelled' : t?.profile?.cancel?.button || 'Cancel Session'}
+                          {isCancelled ? t?.profile?.cancelled || 'Zrušené' : t?.profile?.cancel?.button || 'Zrušiť reláciu'}
                         </button>
                       </div>
-                    </li>
+                    </div>
                   );
                 })}
-              </ul>
+              </div>
             )}
             <Tooltip id="cancel-tooltip" place="top" effect="solid" />
           </div>
 
-          {/* Profile Information Section - ADDED */}
-          <div className="profile-info mt-5">
-            <h3>{t?.profile?.info?.title || 'Your Profile Information'}</h3>
-            
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
+              {t?.profile?.info?.title || 'Your Profile Information'}
+            </h3>
+
             {updateMessage && (
-              <div className={`alert alert-${updateVariant} mt-3`} role="alert">
+              <div className={`rounded-lg p-4 mb-6 ${updateVariant === 'success'
+                ? 'bg-green-100 text-green-800 border border-green-200'
+                : 'bg-red-100 text-red-800 border border-red-200'
+                }`}>
                 {updateMessage}
               </div>
             )}
-            
-            <div className="card">
-              <div className="card-body">
-                {!isEditing ? (
-                  // Display mode
-                  <div className="row">
-                    <div className="col-md-6">
-                      <h5>{t?.profile?.info?.address || 'Address'}</h5>
-                      <p className="text-muted">{editedAddress || t?.profile?.info?.noAddress || 'No address provided'}</p>
-                    </div>
-                    <div className="col-md-6">
-                      <h5>{t?.profile?.info?.mobile || 'Mobile Number'}</h5>
-                      <p className="text-muted">
-                        {editedMobile || t?.profile?.info?.noMobile || 'No mobile number provided'}
-                      </p>
-                    </div>
-                    <div className="col-12 mt-3">
-                      <button
-                        className="btn btn-primary"
-                        onClick={() => setIsEditing(true)}
-                      >
-                        {t?.profile?.info?.editButton || 'Edit Profile Information'}
-                      </button>
-                    </div>
+
+            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
+              {!isEditing ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h5 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+                      {t?.profile?.info?.address || 'Address'}
+                    </h5>
+                    <p className="text-gray-600 dark:text-gray-300">
+                      {editedAddress || t?.profile?.info?.noAddress || 'No address provided'}
+                    </p>
                   </div>
-                ) : (
-                  // Edit mode
-                  <div className="row">
-                    <div className="col-md-6 mb-3">
-                      <Form.Group>
-                        <Form.Label>{t?.profile?.info?.address || 'Address'} *</Form.Label>
-                        <Form.Control
-                          type="text"
-                          value={editedAddress}
-                          onChange={(e) => setEditedAddress(e.target.value)}
-                          placeholder={t?.profile?.info?.addressPlaceholder || 'Enter your full address'}
-                          required
-                        />
-                      </Form.Group>
-                    </div>
-                    <div className="col-md-6 mb-3">
-                      <Form.Group>
-                        <Form.Label>{t?.profile?.info?.mobile || 'Mobile Number'}</Form.Label>
-                        <Form.Control
-                          type="tel"
-                          value={editedMobile}
-                          onChange={(e) => setEditedMobile(e.target.value)}
-                          placeholder={t?.profile?.info?.mobilePlaceholder || 'Enter your mobile number (optional)'}
-                        />
-                        <Form.Text className="text-muted">
-                          {t?.profile?.info?.mobileHelp || 'Optional: Add your mobile number for important updates'}
-                        </Form.Text>
-                      </Form.Group>
-                    </div>
-                    <div className="col-12 mt-3">
-                      <button
-                        className="btn btn-success me-2"
-                        onClick={handleUpdateProfile}
-                        disabled={isUpdating || !editedAddress.trim()}
-                      >
-                        {isUpdating 
-                          ? (t?.profile?.update?.updating || 'Updating...') 
-                          : (t?.profile?.update?.save || 'Save Changes')
-                        }
-                      </button>
-                      <button
-                        className="btn btn-secondary"
-                        onClick={() => {
-                          setIsEditing(false);
-                          setUpdateMessage('');
-                          // Reload original data
-                          axios.get(`http://localhost:5000/api/users/${userId}`, {
-                            withCredentials: true,
-                          })
+                  <div>
+                    <h5 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+                      {t?.profile?.info?.mobile || 'Mobile Number'}
+                    </h5>
+                    <p className="text-gray-600 dark:text-gray-300">
+                      {editedMobile || t?.profile?.info?.noMobile || 'No mobile number provided'}
+                    </p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <button
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+                      onClick={() => setIsEditing(true)}
+                    >
+                      {t?.profile?.info?.editButton || 'Edit Profile Information'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {t?.profile?.info?.address || 'Address'} *
+                    </label>
+                    <input
+                      type="text"
+                      value={editedAddress}
+                      onChange={(e) => setEditedAddress(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-600 dark:text-white"
+                      placeholder={t?.profile?.info?.addressPlaceholder || 'Enter your full address'}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {t?.profile?.info?.mobile || 'Mobile Number'}
+                    </label>
+                    <input
+                      type="tel"
+                      value={editedMobile}
+                      onChange={(e) => setEditedMobile(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-600 dark:text-white"
+                      placeholder={t?.profile?.info?.mobilePlaceholder || 'Enter your mobile number (optional)'}
+                    />
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      {t?.profile?.info?.mobileHelp || 'Optional: Add your mobile number for important updates'}
+                    </p>
+                  </div>
+                  <div className="md:col-span-2 flex gap-3">
+                    <button
+                      className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={handleUpdateProfile}
+                      disabled={isUpdating || !editedAddress.trim()}
+                    >
+                      {isUpdating
+                        ? (t?.profile?.update?.updating || 'Updating...')
+                        : (t?.profile?.update?.save || 'Save Changes')
+                      }
+                    </button>
+                    <button
+                      className="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-6 rounded-lg transition-colors disabled:opacity-50"
+                      onClick={() => {
+                        setIsEditing(false);
+                        setUpdateMessage('');
+                        axios.get(`http://localhost:5000/api/users/${userId}`, {
+                          withCredentials: true,
+                        })
                           .then(response => {
                             const userData = response.data;
                             setEditedAddress(userData.address || '');
                             setEditedMobile(userData.mobile || '');
                           })
                           .catch(error => console.error('Error fetching user data:', error));
-                        }}
-                        disabled={isUpdating}
-                      >
-                        {t?.profile?.update?.cancel || 'Cancel'}
-                      </button>
-                    </div>
+                      }}
+                      disabled={isUpdating}
+                    >
+                      {t?.profile?.update?.cancel || 'Cancel'}
+                    </button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </>
       )}
 
-      <div className="danger-zone mt-5">
-        <h5 className="text-danger">{t?.profile?.dangerZone?.title || 'Danger Zone'}</h5>
-        <p className="text-muted">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-red-200 dark:border-red-800 relative overflow-hidden mt-8 mb-8">
+        <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-red-500 to-orange-500"></div>
+        <h5 className="text-xl font-bold text-red-600 dark:text-red-400 mb-4 flex items-center gap-2">
+          <span>⚠️</span>
+          {t?.profile?.dangerZone?.title || 'Danger Zone'}
+        </h5>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
           {t?.profile?.dangerZone?.description || 'Deleting your account will permanently remove all your data from our system. This action is irreversible.'}
         </p>
         <button
           onClick={handleDeleteAccount}
-          className="btn btn-danger"
+          className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-lg transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={isDeleting}
         >
-          {isDeleting ? t?.profile?.dangerZone?.deleting || 'Deleting...' : t?.profile?.dangerZone?.delete || 'Delete My Account'}
+          {isDeleting
+            ? t?.profile?.dangerZone?.deleting || 'Deleting...'
+            : t?.profile?.dangerZone?.delete || 'Delete My Account'
+          }
         </button>
-        {error && <div className="alert alert-danger mt-3">{error}</div>}
+        {error && <div className="bg-red-100 text-red-800 rounded-lg p-3 mt-4 border border-red-200">{error}</div>}
       </div>
 
       <Modal show={showPasswordModal} onHide={() => setShowPasswordModal(false)}>
         <Modal.Header closeButton>
-          <Modal.Title>
+          <Modal.Title className="text-xl font-semibold text-gray-800">
             {t?.profile?.deleteModal?.title || 'Confirm Account Deletion'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Form>
-            <Form.Group controlId="password">
-              <Form.Label>{t?.profile?.deleteModal?.label || 'Enter your password to confirm deletion:'}</Form.Label>
-              <Form.Control
+          <form>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t?.profile?.deleteModal?.label || 'Enter your password to confirm deletion:'}
+              </label>
+              <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 placeholder={t?.profile?.deleteModal?.placeholder || 'Password'}
               />
-            </Form.Group>
-          </Form>
+            </div>
+          </form>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowPasswordModal(false)}>
@@ -1051,38 +1149,55 @@ const renderSessionTable = (type) => {
 
       <Modal show={showCancelModal} onHide={() => setShowCancelModal(false)} size="lg">
         <Modal.Header closeButton>
-          <Modal.Title>{t?.profile?.cancelModal?.title || 'Cancel Session'}</Modal.Title>
+          <Modal.Title className="text-xl font-semibold text-gray-800">
+            {t?.profile?.cancelModal?.title || 'Cancel Session'}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <h5>{t?.profile?.cancelModal?.chooseOption || 'Choose cancellation option:'}</h5>
+          <h5 className="text-lg font-semibold text-gray-800 mb-4">
+            {t?.profile?.cancelModal?.chooseOption || 'Choose cancellation option:'}
+          </h5>
 
-          <Form.Group className="mb-3">
+          <div className="space-y-4 mb-4">
             {bookingType === 'paid' && (
-              <Form.Check
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  name="cancellationType"
+                  id="refundOption"
+                  checked={cancellationType === 'refund'}
+                  onChange={() => setCancellationType('refund')}
+                  className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="refundOption" className="ml-2 text-gray-700">
+                  {t?.profile?.cancelModal?.refundOption || 'Cancel session and request refund'}
+                </label>
+              </div>
+            )}
+            <div className="flex items-center">
+              <input
                 type="radio"
                 name="cancellationType"
-                id="refundOption"
-                label={t?.profile?.cancelModal?.refundOption || 'Cancel session and request refund'}
-                checked={cancellationType === 'refund'}
-                onChange={() => setCancellationType('refund')}
+                id="replacementOption"
+                checked={cancellationType === 'replacement'}
+                onChange={() => setCancellationType('replacement')}
+                className="w-4 h-4 text-blue-600 focus:ring-blue-500"
               />
-            )}
-            <Form.Check
-              type="radio"
-              name="cancellationType"
-              id="replacementOption"
-              label={t?.profile?.cancelModal?.replacementOption || 'Replace with another session'}
-              checked={cancellationType === 'replacement'}
-              onChange={() => setCancellationType('replacement')}
-            />
-          </Form.Group>
+              <label htmlFor="replacementOption" className="ml-2 text-gray-700">
+                {t?.profile?.cancelModal?.replacementOption || 'Replace with another session'}
+              </label>
+            </div>
+          </div>
 
           {cancellationType === 'replacement' && (
-            <Form.Group className="mb-3">
-              <Form.Label>{t?.profile?.cancelModal?.selectReplacement || 'Select replacement session:'}</Form.Label>
-              <Form.Select
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t?.profile?.cancelModal?.selectReplacement || 'Select replacement session:'}
+              </label>
+              <select
                 value={selectedReplacement}
                 onChange={(e) => setSelectedReplacement(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">{t?.profile?.cancelModal?.chooseSession || 'Choose a session...'}</option>
                 {replacementSessions.map((session) => (
@@ -1091,30 +1206,37 @@ const renderSessionTable = (type) => {
                     ({session.available_spots} spots available)
                   </option>
                 ))}
-              </Form.Select>
+              </select>
               {replacementSessions.length === 0 && (
-                <Form.Text className="text-muted">
+                <p className="text-sm text-gray-500 mt-1">
                   {t?.profile?.cancelModal?.noReplacements || 'No available replacement sessions found.'}
-                </Form.Text>
+                </p>
               )}
-            </Form.Group>
+            </div>
           )}
 
           {cancellationType === 'refund' && bookingType === 'paid' && (
-            <div className="alert alert-info">
-              <strong>{t?.profile?.cancelModal?.refundInfo || 'Refund Information:'}</strong>
-              <br />
-              {t?.profile?.cancelModal?.refundDetails || 'Your refund will be processed automatically and may take 5-10 business days to appear in your account.'}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <strong className="text-blue-800">
+                {t?.profile?.cancelModal?.refundInfo || 'Refund Information:'}
+              </strong>
+              <p className="text-blue-700 mt-1">
+                {t?.profile?.cancelModal?.refundDetails || 'Your refund will be processed automatically and may take 5-10 business days to appear in your account.'}
+              </p>
             </div>
           )}
           {cancellationType === 'refund' && bookingType === 'season_ticket' && (
-            <div className="alert alert-warning">
-              {t?.profile?.cancelModal?.seasonTicketInfo || 'This booking was made with a season ticket. No refund is applicable; entries will be returned to your season ticket.'}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+              <p className="text-yellow-800">
+                {t?.profile?.cancelModal?.seasonTicketInfo || 'This booking was made with a season ticket. No refund is applicable; entries will be returned to your season ticket.'}
+              </p>
             </div>
           )}
           {cancellationType === 'refund' && bookingType === 'credit' && (
-            <div className="alert alert-success">
-              {t?.profile?.cancelModal?.creditInfo || 'This booking was made with a credit. Your credit will be returned to your account for future use.'}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+              <p className="text-green-800">
+                {t?.profile?.cancelModal?.creditInfo || 'This booking was made with a credit. Your credit will be returned to your account for future use.'}
+              </p>
             </div>
           )}
         </Modal.Body>
@@ -1135,29 +1257,28 @@ const renderSessionTable = (type) => {
         </Modal.Footer>
       </Modal>
 
-      {/* Admin Cancel Session Modal */}
       <Modal show={showAdminCancelModal} onHide={() => setShowAdminCancelModal(false)}>
         <Modal.Header closeButton>
-          <Modal.Title>
+          <Modal.Title className="text-xl font-semibold text-gray-800">
             {forceCancel ? 'Force Cancel Session' : 'Cancel Session'}
-            {forceCancel && <span className="text-warning ms-2">(Within 10 Hours)</span>}
+            {forceCancel && <span className="text-orange-600 ml-2">(Within 10 Hours)</span>}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>
+          <p className="text-gray-700 mb-4">
             {forceCancel ? 'FORCE CANCEL:' : 'Cancel'} {selectedSession?.type} session on {selectedSession?.date ? new Date(selectedSession.date).toLocaleString() : ''}?
-            {forceCancel && <div className="alert alert-warning mt-2">This session is within 10 hours. Force cancel will proceed despite timing restrictions.</div>}
+            {forceCancel && <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mt-2 text-orange-800">This session is within 10 hours. Force cancel will proceed despite timing restrictions.</div>}
           </p>
-          <Form.Group controlId="reason">
-            <Form.Label>Reason for cancellation:</Form.Label>
-            <Form.Control
-              as="textarea"
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Reason for cancellation:</label>
+            <textarea
               rows={3}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
               required
             />
-          </Form.Group>
+          </div>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowAdminCancelModal(false)}>

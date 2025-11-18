@@ -27,6 +27,7 @@ const PaymentCancelled = lazy(() => import('./components/PaymentCancelled'));
 const SeasonTickets = lazy(() => import('./components/SeasonTickets'));
 const RefundOption = lazy(() => import('./components/RefundOption'));
 
+
 // ------------------ Theme Context ------------------
 const ThemeContext = createContext();
 export const useTheme = () => useContext(ThemeContext);
@@ -65,9 +66,12 @@ const UserProvider = ({ children }) => {
 
   const updateUser = data => setUser(data);
   const logout = () => {
-    localStorage.clear();
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('userFirstName');
+    localStorage.removeItem('userId');
     setUser({ isLoggedIn: false, firstName: '', userId: null });
   };
+
 
   return <UserContext.Provider value={{ user, updateUser, logout }}>{children}</UserContext.Provider>;
 };
