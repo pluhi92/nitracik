@@ -2,26 +2,12 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser } from '@fortawesome/free-solid-svg-icons';
-import { FaSun, FaMoon } from 'react-icons/fa';
 import { useTranslation } from '../contexts/LanguageContext';
-import { useTheme } from '../App';
-import { useUser } from '../App';
+import { useUser } from '../contexts/UserContext';
+
 import LanguageSwitcher from './LanguageSwitcher';
 import logo from '../assets/logo.png';
 
-const ThemeToggle = () => {
-  const { theme, toggleTheme } = useTheme();
-
-  return (
-    <button
-      onClick={toggleTheme}
-      className="w-10 h-10 flex items-center justify-center border-2 border-secondary-500 text-secondary-500 rounded-full hover:border-secondary-600 hover:text-secondary-600 hover:bg-[rgba(230,138,117,0.15)] transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-      aria-label="Toggle theme"
-    >
-      {theme === 'light' ? <FaMoon size={20} /> : <FaSun size={20} />}
-    </button>
-  );
-};
 
 const Navbar = () => {
   const { t } = useTranslation();
@@ -81,8 +67,7 @@ const Navbar = () => {
             <div className="absolute inset-0 rounded hover:bg-[rgba(230,138,117,0.15)] pointer-events-none"></div>
           </div>
 
-          <ThemeToggle />
-
+          {/* User Dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -159,7 +144,7 @@ const Navbar = () => {
 
             {/* Controls: ThemeToggle | LanguageSwitcher | User Dropdown */}
             <div className="flex justify-center items-center gap-4 w-full mt-2">
-              <ThemeToggle />
+            
               <LanguageSwitcher />
               <div className="relative" ref={dropdownRef}>
                 <button

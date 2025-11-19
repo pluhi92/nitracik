@@ -21,7 +21,7 @@ const Register = () => {
   const [repeatPasswordError, setRepeatPasswordError] = useState('');
   const [apiError, setApiError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate(); // Initialize useNavigate
+  const navigate = useNavigate();
 
   const validateField = (name, value) => {
     const errorMessages = t.login.register.errors;
@@ -53,7 +53,7 @@ const Register = () => {
     e.preventDefault();
     setLoading(true);
     setApiError('');
-  
+
     const newErrors = {
       firstName: validateField('firstName', firstName),
       lastName: validateField('lastName', lastName),
@@ -62,7 +62,7 @@ const Register = () => {
       address: validateField('address', address),
     };
     setErrors(newErrors);
-  
+
     if (password !== repeatPassword) {
       setRepeatPasswordError(t.login.register.errors.passwordMatch);
       setLoading(false);
@@ -70,12 +70,12 @@ const Register = () => {
     } else {
       setRepeatPasswordError('');
     }
-  
+
     if (Object.values(newErrors).some((error) => error)) {
       setLoading(false);
       return;
     }
-  
+
     try {
       const response = await axios.post('http://localhost:5000/api/register', {
         firstName,
@@ -85,11 +85,10 @@ const Register = () => {
         address,
       });
       console.log('Registration successful:', response.data);
-  
-      // Show message instead of redirecting
+
       setApiError(t.login.register.success);
       setTimeout(() => {
-        navigate('/'); // Change '/' to your desired path
+        navigate('/');
       }, 4000);
     } catch (error) {
       if (error.response?.status === 400) {
@@ -104,141 +103,214 @@ const Register = () => {
     }
   };
 
+  const isFormValid = !loading && 
+    firstName && 
+    lastName && 
+    email && 
+    password && 
+    repeatPassword && 
+    address && 
+    !Object.values(errors).some(error => error) && 
+    !repeatPasswordError;
+
   return (
-    <div className="container mt-5">
-      <div className="row justify-content-center">
-        <div className="col-md-6">
-          <div className="card shadow-sm">
-            <div className="card-body">
-              <h2 className="card-title text-center">{t.login.register.title}</h2>
-              <form onSubmit={handleSubmit}>
-                <div className="mb-3">
-                  <label htmlFor="firstName" className="form-label">{t.login.register.firstName}</label>
-                  <input
-                    type="text"
-                    className={`form-control ${errors.firstName ? 'is-invalid' : ''}`}
-                    id="firstName"
-                    value={firstName}
-                    onChange={(e) => {
-                      setFirstName(e.target.value);
-                      setErrors({ ...errors, firstName: validateField('firstName', e.target.value) });
-                    }}
-                    required
-                  />
-                  {errors.firstName && <div className="invalid-feedback">{errors.firstName}</div>}
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="lastName" className="form-label">{t.login.register.lastName}</label>
-                  <input
-                    type="text"
-                    className={`form-control ${errors.lastName ? 'is-invalid' : ''}`}
-                    id="lastName"
-                    value={lastName}
-                    onChange={(e) => {
-                      setLastName(e.target.value);
-                      setErrors({ ...errors, lastName: validateField('lastName', e.target.value) });
-                    }}
-                    required
-                  />
-                  {errors.lastName && <div className="invalid-feedback">{errors.lastName}</div>}
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="email" className="form-label">{t.login.register.email}</label>
-                  <input
-                    type="email"
-                    className={`form-control ${errors.email || apiError ? 'is-invalid' : ''}`}
-                    id="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      setErrors({ ...errors, email: validateField('email', e.target.value) });
-                      setApiError('');
-                    }}
-                    required
-                  />
-                  {errors.email && <div className="invalid-feedback">{errors.email}</div>}
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="password" className="form-label">{t.login.register.password}</label>
-                  <input
-                    type="password"
-                    className={`form-control ${errors.password ? 'is-invalid' : ''}`}
-                    id="password"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setErrors({ ...errors, password: validateField('password', e.target.value) });
-                    }}
-                    required
-                  />
-                  {errors.password && <div className="invalid-feedback">{errors.password}</div>}
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="repeatPassword" className="form-label">{t.login.register.repeatPassword}</label>
-                  <input
-                    type="password"
-                    className={`form-control ${repeatPasswordError ? 'is-invalid' : ''}`}
-                    id="repeatPassword"
-                    value={repeatPassword}
-                    onChange={(e) => {
-                      setRepeatPassword(e.target.value);
-                      setRepeatPasswordError('');
-                    }}
-                    required
-                  />
-                  {repeatPasswordError && <div className="invalid-feedback">{repeatPasswordError}</div>}
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="address" className="form-label">{t.login.register.address}</label>
-                  <input
-                    type="text"
-                    className={`form-control ${errors.address ? 'is-invalid' : ''}`}
-                    id="address"
-                    value={address}
-                    onChange={(e) => {
-                      setAddress(e.target.value);
-                      setErrors({ ...errors, address: validateField('address', e.target.value) });
-                    }}
-                    required
-                  />
-                  {errors.address && <div className="invalid-feedback">{errors.address}</div>}
-                </div>
-                <button
-                  type="submit"
-                  className="btn btn-primary w-100"
-                  disabled={
-                    loading ||
-                    !firstName ||
-                    !lastName ||
-                    !email ||
-                    !password ||
-                    !repeatPassword ||
-                    !address ||
-                    Object.values(errors).some((error) => error) ||
-                    repeatPasswordError
-                  }
-                >
-                  {loading ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                      <span className="ms-2">{t.login.register.loading}</span>
-                    </>
-                  ) : (
-                    t.login.register.submit
-                  )}
-                </button>
-                {apiError && <div className={`mt-2 text-center ${apiError.includes('success') ? 'text-success' : 'text-danger'}`}>{apiError}</div>}
-              </form>
-              <div className="mt-3 text-center">
-              <p>{t.login.register.loginPrompt} <Link to="/login">{t.login.register.loginLink}</Link></p>
-              </div>
+    <div className="min-h-screen bg-custom-flakes pt-0 pb-4 px-4 flex items-center justify-center">
+      <div className="max-w-lg w-full">
+        <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-10 border border-gray-200">
+          <h2 className="text-3xl font-bold text-center text-gray-900 mb-8">
+            {t.login.register.title}
+          </h2>
+          
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* First Name */}
+            <div>
+              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                {t.login.register.firstName}
+              </label>
+              <input
+                type="text"
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${
+                  errors.firstName ? 'border-red-500' : 'border-gray-300'
+                }`}
+                id="firstName"
+                value={firstName}
+                onChange={(e) => {
+                  setFirstName(e.target.value);
+                  setErrors({ ...errors, firstName: validateField('firstName', e.target.value) });
+                }}
+                required
+              />
+              {errors.firstName && (
+                <div className="text-red-500 text-xs mt-1">{errors.firstName}</div>
+              )}
             </div>
+
+            {/* Last Name */}
+            <div>
+              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                {t.login.register.lastName}
+              </label>
+              <input
+                type="text"
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${
+                  errors.lastName ? 'border-red-500' : 'border-gray-300'
+                }`}
+                id="lastName"
+                value={lastName}
+                onChange={(e) => {
+                  setLastName(e.target.value);
+                  setErrors({ ...errors, lastName: validateField('lastName', e.target.value) });
+                }}
+                required
+              />
+              {errors.lastName && (
+                <div className="text-red-500 text-xs mt-1">{errors.lastName}</div>
+              )}
+            </div>
+
+            {/* Email */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                {t.login.register.email}
+              </label>
+              <input
+                type="email"
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${
+                  errors.email || apiError ? 'border-red-500' : 'border-gray-300'
+                }`}
+                id="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setErrors({ ...errors, email: validateField('email', e.target.value) });
+                  setApiError('');
+                }}
+                required
+              />
+              {errors.email && (
+                <div className="text-red-500 text-xs mt-1">{errors.email}</div>
+              )}
+            </div>
+
+            {/* Password */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                {t.login.register.password}
+              </label>
+              <input
+                type="password"
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${
+                  errors.password ? 'border-red-500' : 'border-gray-300'
+                }`}
+                id="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setErrors({ ...errors, password: validateField('password', e.target.value) });
+                }}
+                required
+              />
+              {errors.password && (
+                <div className="text-red-500 text-xs mt-1">{errors.password}</div>
+              )}
+            </div>
+
+            {/* Repeat Password */}
+            <div>
+              <label htmlFor="repeatPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                {t.login.register.repeatPassword}
+              </label>
+              <input
+                type="password"
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${
+                  repeatPasswordError ? 'border-red-500' : 'border-gray-300'
+                }`}
+                id="repeatPassword"
+                value={repeatPassword}
+                onChange={(e) => {
+                  setRepeatPassword(e.target.value);
+                  setRepeatPasswordError('');
+                }}
+                required
+              />
+              {repeatPasswordError && (
+                <div className="text-red-500 text-xs mt-1">{repeatPasswordError}</div>
+              )}
+            </div>
+
+            {/* Address */}
+            <div>
+              <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
+                {t.login.register.address}
+              </label>
+              <input
+                type="text"
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${
+                  errors.address ? 'border-red-500' : 'border-gray-300'
+                }`}
+                id="address"
+                value={address}
+                onChange={(e) => {
+                  setAddress(e.target.value);
+                  setErrors({ ...errors, address: validateField('address', e.target.value) });
+                }}
+                required
+              />
+              {errors.address && (
+                <div className="text-red-500 text-xs mt-1">{errors.address}</div>
+              )}
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              className={`w-full py-4 px-4 rounded-lg font-semibold text-lg transition-all duration-300 ${
+                isFormValid
+                  ? 'bg-secondary-500 hover:bg-secondary-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+              disabled={!isFormValid}
+            >
+              {loading ? (
+                <div className="flex items-center justify-center gap-3">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>{t.login.register.loading}</span>
+                </div>
+              ) : (
+                t.login.register.submit
+              )}
+            </button>
+
+            {/* API Error/Success Message */}
+            {apiError && (
+              <div
+                className={`text-center text-sm font-medium py-3 px-4 rounded-lg ${
+                  apiError.includes('success')
+                    ? 'bg-green-100 text-green-700 border border-green-200'
+                    : 'bg-red-100 text-red-700 border border-red-200'
+                }`}
+              >
+                {apiError}
+              </div>
+            )}
+          </form>
+
+          {/* Login Prompt */}
+          <div className="mt-8 text-center">
+            <p className="text-gray-600">
+              {t.login.register.loginPrompt}{' '}
+              <Link
+                to="/login"
+                className="text-secondary-500 hover:text-secondary-600 font-semibold transition-colors"
+              >
+                {t.login.register.loginLink}
+              </Link>
+            </p>
           </div>
         </div>
       </div>
     </div>
   );
 };
-
 
 export default Register;

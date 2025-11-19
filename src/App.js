@@ -1,7 +1,7 @@
-import React, { useEffect, useState, createContext, useContext, Suspense, lazy } from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { LanguageProvider } from './contexts/LanguageContext';
-import { useTranslation } from './contexts/LanguageContext';
+import { UserProvider } from './contexts/UserContext';
 
 import Navbar from './components/Navbar';
 import GreetingBar from './components/GreetingBar';
@@ -26,55 +26,6 @@ const PaymentSuccess = lazy(() => import('./components/PaymentSuccess'));
 const PaymentCancelled = lazy(() => import('./components/PaymentCancelled'));
 const SeasonTickets = lazy(() => import('./components/SeasonTickets'));
 const RefundOption = lazy(() => import('./components/RefundOption'));
-
-
-// ------------------ Theme Context ------------------
-const ThemeContext = createContext();
-export const useTheme = () => useContext(ThemeContext);
-
-const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState('light');
-
-  const toggleTheme = () =>
-    setTheme(prev => {
-      const newTheme = prev === 'light' ? 'dark' : 'light';
-      localStorage.setItem('theme', newTheme);
-      return newTheme;
-    });
-
-  useEffect(() => {
-    const saved = localStorage.getItem('theme') || 'light';
-    setTheme(saved);
-    document.documentElement.setAttribute('data-theme', saved);
-  }, []);
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    document.body.classList.add('transition-colors');
-  }, [theme]);
-
-  return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;
-};
-
-// ------------------ User Context ------------------
-const UserContext = createContext();
-export const useUser = () => useContext(UserContext);
-
-const UserProvider = ({ children }) => {
-  const savedName = localStorage.getItem('userFirstName') || localStorage.getItem('userName')?.split(' ')[0] || '';
-  const [user, setUser] = useState({ isLoggedIn: !!localStorage.getItem('isLoggedIn'), firstName: savedName, userId: localStorage.getItem('userId') });
-
-  const updateUser = data => setUser(data);
-  const logout = () => {
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userFirstName');
-    localStorage.removeItem('userId');
-    setUser({ isLoggedIn: false, firstName: '', userId: null });
-  };
-
-
-  return <UserContext.Provider value={{ user, updateUser, logout }}>{children}</UserContext.Provider>;
-};
 
 // ------------------ Main App Content ------------------
 const AppContent = () => (
@@ -115,11 +66,9 @@ const AppContent = () => (
 // ------------------ Final App Wrapper ------------------
 const App = () => (
   <LanguageProvider>
-    <ThemeProvider>
-      <UserProvider>
-        <AppContent />
-      </UserProvider>
-    </ThemeProvider>
+    <UserProvider>
+      <AppContent />
+    </UserProvider>
   </LanguageProvider>
 );
 

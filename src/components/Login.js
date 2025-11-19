@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from '../contexts/LanguageContext';
-import { useUser } from '../App';
+import { useUser } from '../contexts/UserContext';
 
 const Login = ({ onLoginSuccess }) => {
   const { t } = useTranslation();

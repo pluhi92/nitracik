@@ -1,5 +1,5 @@
 import React from "react";
-import { useUser } from "../App";
+import { useUser } from '../contexts/UserContext';
 
 const GreetingBar = () => {
   const { user } = useUser();

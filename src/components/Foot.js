@@ -3,7 +3,13 @@ import { Link } from "react-router-dom";
 import logo from "../assets/logo.png";
 import stripeLogo from "../assets/stripe-logo_black.png";
 import { FaInstagram, FaFacebookF } from "react-icons/fa";
-import { SiVisa, SiMastercard, SiApplepay, SiGooglepay } from "react-icons/si";
+// Odstránené importy z react-icons/si
+
+// Import vlastných ikon platobných metód
+import visaLogo from "../assets/visa.png";
+import mastercardLogo from "../assets/mastercard.png";
+import applepayLogo from "../assets/applePay.png";
+import googlepayLogo from "../assets/googlePay.png";
 
 const Foot = () => {
   const handleCookiePreferences = (e) => {
@@ -17,18 +23,18 @@ const Foot = () => {
     <footer className="bg-white text-secondary-500 py-7 px-8 pb-3 font-sans text-sm leading-relatives shadow-md">
       {/* Main Content */}
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 justify-items-center items-start gap-16">
-        
+
         {/* Left Column - Brand */}
         <div className="flex flex-col items-center md:items-start text-center md:text-left">
-          <img 
-            src={logo} 
-            alt="Nitracik Logo" 
-            className="w-44 lg:w-50 mb-4 object-contain hover:scale-105 transition-transform duration-300" 
+          <img
+            src={logo}
+            alt="Nitracik Logo"
+            className="w-44 lg:w-50 mb-4 object-contain hover:scale-105 transition-transform duration-300"
           />
           <p className="mb-2 text-secondary-500 font-medium text-sm">Tešíme sa na Vás!</p>
           <span className="text-secondary-500 mb-3 block font-medium text-sm">+421 949 584 576</span>
-          <a 
-            href="mailto:info@nitracik.sk" 
+          <a
+            href="mailto:info@nitracik.sk"
             className="text-secondary-500 mb-4 block font-medium text-sm hover:text-secondary-600 hover:underline transition-all duration-300"
           >
             info@nitracik.sk
@@ -95,8 +101,8 @@ const Foot = () => {
               </Link>
             </li>
             <li>
-              <a 
-                href="#" 
+              <a
+                href="#"
                 onClick={handleCookiePreferences}
                 className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm"
               >
@@ -108,28 +114,36 @@ const Foot = () => {
           {/* Payment Methods */}
           <div className="mt-6 pt-4 border-t border-gray-300 w-full">
             <div className="mb-3">
-              <img 
-                src={stripeLogo} 
-                alt="Stripe" 
-                className="h-6 mx-auto mb-3 opacity-90" 
+              <img
+                src={stripeLogo}
+                alt="Stripe"
+                className="h-6 mx-auto mb-3 opacity-90"
               />
             </div>
             <div className="flex gap-3 flex-wrap justify-center items-center">
-              <SiVisa 
-                className="text-3xl opacity-80 hover:opacity-100 hover:scale-105 transition-all duration-300 text-secondary-500 hover:text-secondary-600" 
-                title="Visa" 
+              <img
+                src={visaLogo}
+                alt="Visa"
+                className="h-7 opacity-80 hover:opacity-100 hover:scale-105 hover:brightness-75 transition-all duration-300"
+                title="Visa"
               />
-              <SiMastercard 
-                className="text-3xl opacity-80 hover:opacity-100 hover:scale-105 transition-all duration-300 text-secondary-500 hover:text-secondary-600" 
-                title="MasterCard" 
+              <img
+                src={mastercardLogo}
+                alt="MasterCard"
+                className="h-7 opacity-80 hover:opacity-100 hover:scale-105 hover:brightness-75 transition-all duration-300"
+                title="MasterCard"
               />
-              <SiApplepay 
-                className="text-3xl opacity-80 hover:opacity-100 hover:scale-105 transition-all duration-300 text-secondary-500 hover:text-secondary-600" 
-                title="Apple Pay" 
+              <img
+                src={applepayLogo}
+                alt="Apple Pay"
+                className="h-7 opacity-80 hover:opacity-100 hover:scale-105 hover:brightness-75 transition-all duration-300"
+                title="Apple Pay"
               />
-              <SiGooglepay 
-                className="text-3xl opacity-80 hover:opacity-100 hover:scale-105 transition-all duration-300 text-secondary-500 hover:text-secondary-600" 
-                title="Google Pay" 
+              <img
+                src={googlepayLogo}
+                alt="Google Pay"
+                className="h-7 opacity-80 hover:opacity-100 hover:scale-105 hover:brightness-75 transition-all duration-300"
+                title="Google Pay"
               />
             </div>
           </div>
