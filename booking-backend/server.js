@@ -9,7 +9,7 @@ console.log('DB_USER:', process.env.DB_USER);
 const express = require('express');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
