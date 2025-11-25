@@ -8,7 +8,6 @@ import { useUser } from '../contexts/UserContext';
 import LanguageSwitcher from './LanguageSwitcher';
 import logo from '../assets/logo.png';
 
-
 const Navbar = () => {
   const { t } = useTranslation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -45,14 +44,15 @@ const Navbar = () => {
         <ul className="hidden lg:flex gap-8 mx-auto">
           {[
             { path: '/about', label: t?.navbar?.about || 'About Nitracik' },
-            { path: '/photos', label: t?.navbar?.photos || 'Gallery' },
+            { path: '/schedule', label: t?.navbar?.schedule || 'Schedule' },
             { path: '/booking', label: t?.navbar?.booking || 'Book your session' },
             { path: '/contact', label: t?.navbar?.contact || 'Contact' },
           ].map(({ path, label }) => (
             <li key={path}>
               <Link
                 to={path}
-                className="text-secondary-500 font-semibold px-3 py-3 rounded-lg hover:text-secondary-600 hover:bg-[rgba(230,138,117,0.15)] transition text-lg"              >
+                className="text-secondary-500 font-semibold px-3 py-3 rounded-lg hover:text-secondary-600 hover:bg-[rgba(230,138,117,0.15)] transition text-lg"
+              >
                 {label}
               </Link>
             </li>
@@ -124,7 +124,7 @@ const Navbar = () => {
             {/* Navigation Links */}
             {[
               { path: '/about', label: t?.navbar?.about || 'O Nitračikovi' },
-              { path: '/photos', label: t?.navbar?.photos || 'Galéria' },
+              { path: '/schedule', label: t?.navbar?.schedule || 'Rozvrh' },
               { path: '/booking', label: t?.navbar?.booking || 'Rezervuj si termín' },
               { path: '/contact', label: t?.navbar?.contact || 'Kontakt' },
             ].map(({ path, label }, index) => (

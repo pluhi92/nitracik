@@ -49,6 +49,11 @@ const Login = ({ onLoginSuccess }) => {
       localStorage.setItem('userId', response.data.userId);
       localStorage.setItem('userName', response.data.userName || 'Unknown User');
       localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('authToken', response.data.token || 'dummy');
+      localStorage.setItem('user', JSON.stringify({
+        userId: response.data.userId,
+        userName: response.data.userName
+      }));
 
       // Update the global user context immediately
       updateUser({
@@ -153,7 +158,7 @@ const Login = ({ onLoginSuccess }) => {
                 )}
                 <button
                   type="submit"
-                  className="w-full bg-secondary-500 hover:bg-secondary-600 text-white px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-secony-500 hover:bg-secondary-600 text-white px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={loading}
                 >
                   {loading ? (

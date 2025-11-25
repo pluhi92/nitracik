@@ -5,6 +5,24 @@ import { Link } from 'react-router-dom';
 const AboutUs = () => {
   const { t } = useTranslation();
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    const user = localStorage.getItem('user');
+
+    const loggedIn = !!(token && user);
+    setIsLoggedIn(loggedIn);
+    setLoading(false);
+
+    console.log("DEBUG authToken:", token);
+    console.log("DEBUG user:", user);
+    console.log("DEBUG isLoggedIn:", loggedIn);
+  }, []);
+
 
   const carouselItems = [
     {
@@ -43,10 +61,22 @@ const AboutUs = () => {
   const prevSlide = () => setCurrentSlide((prev) => (prev === 0 ? carouselItems.length - 1 : prev - 1));
   const goToSlide = (index) => setCurrentSlide(index);
 
+  const handleJoinClick = (e) => {
+    if (isLoggedIn) {
+      e.preventDefault();
+      e.stopPropagation(); // 💥 toto zabráni prepnutiu Link-u
+      setShowTooltip(true);
+      setTimeout(() => setShowTooltip(false), 2000);
+    }
+  };
+
+
   useEffect(() => {
     const timer = setInterval(nextSlide, 5000);
     return () => clearInterval(timer);
   }, [currentSlide]);
+
+  if (loading) return null;
 
   return (
     <section className="px-6 py-12 text-center bg-inherit rounded-xl shadow-xl transition-colors duration-300 text-secondary">
@@ -94,9 +124,8 @@ const AboutUs = () => {
             <button
               key={index}
               onClick={() => goToSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all ${
-                index === currentSlide ? 'bg-white scale-125' : 'bg-white/50 hover:bg-white/70'
-              }`}
+              className={`w-3 h-3 rounded-full transition-all ${index === currentSlide ? 'bg-white scale-125' : 'bg-white/50 hover:bg-white/70'
+                }`}
             ></button>
           ))}
         </div>
@@ -114,46 +143,100 @@ const AboutUs = () => {
       </div>
 
       {/* Join Us Section */}
-      <div className="flex flex-col md:flex-row gap-12 items-center justify-between max-w-6xl mx-auto mt-20 px-6 py-12 rounded-xl shadow-xl bg-overlay-90 backdrop-blur-sm dark:bg-neutral-800/80">
-        <div className="flex-1 text-left">
-          <h2 className="text-3xl font-bold mb-4">Start Your Journey Today!</h2>
-          <p className="mb-6 text-neutral-700 dark:text-neutral-300">
-            Join thousands of satisfied members who have transformed their skills with our
-            professional training programs. Whether you're a beginner or looking to advance
-            your expertise, we have the perfect path for you.
-          </p>
-          <ul className="space-y-3 mb-6 text-neutral-700 dark:text-neutral-300">
-            {[
-              'Access to all training sessions',
-              'Expert instructors and modern facilities',
-              'Flexible scheduling options',
-              'Supportive community environment',
-              'Affordable pricing plans',
-            ].map((item, i) => (
-              <li key={i} className="flex items-center">
-                <span className="bg-secondary-500 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3">
-                  ✓
-                </span>
-                {item}
-              </li>
-            ))}
-          </ul>
-          <Link
-            to="/register"
-            className="inline-block bg-secondary-500 text-white py-3 px-8 rounded-full text-lg font-semibold shadow-md hover:bg-secondary-700 transition-transform hover:-translate-y-1"
-          >
-            Join Us Today!
-          </Link>
-        </div>
-        <div className="flex-1 rounded-lg shadow-lg overflow-hidden">
-          <img
-            src="/images/nitracik_join_us.jpg"
-            alt="Children enjoying messy sensory play at Nitracik"
-            className="w-full h-[350px] object-cover"
-            onError={(e) => {
-              e.target.src = 'https://picsum.photos/500/500?random=6';
-            }}
-          />
+      <div className="max-w-6xl mx-auto mt-20 px-6 py-12 rounded-xl shadow-xl bg-overlay-90 backdrop-blur-sm dark:bg-neutral-800/80">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          {/* Left side - Content */}
+          <div className="text-left">
+            <h2 className="text-3xl font-bold mb-6 text-secondary">Start Your Journey Today!</h2>
+            <p className="mb-8 text-neutral-700 dark:text-neutral-300 text-lg leading-relaxed">
+              Join thousands of satisfied members who have transformed their skills with our
+              professional training programs. Whether you're a beginner or looking to advance
+              your expertise, we have the perfect path for you.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+              {[
+                'Access to all training sessions',
+                'Expert instructors and modern facilities',
+                'Flexible scheduling options',
+                'Supportive community environment',
+                'Affordable pricing plans',
+                'Personalized learning paths',
+              ].map((item, i) => (
+                <div key={i} className="flex items-start">
+                  <span className="bg-secondary-500 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 mt-1 flex-shrink-0">
+                    ✓
+                  </span>
+                  <span className="text-neutral-700 dark:text-neutral-300">{item}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="relative inline-block">
+              {isLoggedIn ? (
+                <>
+                  <button
+                    onClick={handleJoinClick}
+                    className="inline-block bg-gray-500 text-white py-3 px-8 rounded-full text-lg font-semibold hover:bg-gray-600 transition-all"
+                  >
+                    Ste už prihlásený
+                  </button>
+                  {/* Tooltip */}
+                  {showTooltip && (
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg whitespace-nowrap z-50">
+                      <div className="flex items-center">
+                        <span className="mr-1">ℹ️</span>
+                        Ste už prihlásený!
+                      </div>
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Link
+                  to="/register"
+                  className="inline-block bg-secondary-500 text-white py-3 px-8 rounded-full text-lg font-semibold shadow-md hover:bg-secondary-700 transition-all hover:-translate-y-1 hover:shadow-lg"
+                >
+                  Join Us Today!
+                </Link>
+              )}
+            </div>
+
+            {/* Alternatívne akcie pre prihlásených používateľov */}
+            {isLoggedIn && (
+              <div className="mt-4">
+                <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
+                  Chcete si pozrieť svoj profil alebo náš rozvrh?
+                </p>
+                <div className="flex gap-3">
+                  <Link
+                    to="/profile"
+                    className="inline-block bg-primary-500 text-white py-2 px-6 rounded-full text-sm font-semibold shadow-md hover:bg-primary-700 transition-all"
+                  >
+                    Môj profil
+                  </Link>
+                  <Link
+                    to="/schedule"
+                    className="inline-block border border-secondary-500 text-secondary-500 py-2 px-6 rounded-full text-sm font-semibold hover:bg-secondary-500 hover:text-white transition-all"
+                  >
+                    Rozvrh
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right side - Image - MENŠIA */}
+          <div className="rounded-lg shadow-lg overflow-hidden">
+            <img
+              src="/images/nitracik_join_us.jpg"
+              alt="Children enjoying messy sensory play at Nitracik"
+              className="w-full h-[350px] object-cover"
+              onError={(e) => {
+                e.target.src = 'https://picsum.photos/500/350?random=6';
+              }}
+            />
+          </div>
         </div>
       </div>
     </section>

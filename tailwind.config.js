@@ -4,7 +4,7 @@ module.exports = {
     "./src/**/*.{js,jsx,ts,tsx}",
     "./public/index.html",
   ],
-  darkMode: 'class',
+ darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -13,7 +13,7 @@ module.exports = {
         current: 'currentColor',
         white: '#ffffff',
         black: '#000000',
-        
+
         // Semi-transparent white colors
         overlay: {
           10: 'rgba(255, 255, 255, 0.1)',
@@ -26,7 +26,7 @@ module.exports = {
           80: 'rgba(255, 255, 255, 0.8)',
           90: 'rgba(255, 255, 255, 0.9)',
         },
-        
+
         primary: {
           50: '#e8f5e9',
           100: '#c8e6c9',
@@ -122,8 +122,9 @@ module.exports = {
       animation: {
         'slide-up': 'slideUp 0.3s ease-in-out',
         'slide-down': 'slideDown 0.3s ease-in-out',
+        'fade-in': 'fadeIn 0.3s ease-in-out',
       },
- backgroundImage: {
+      backgroundImage: {
         'custom-flakes': `
           radial-gradient(circle at 10% 20%, rgba(234, 189, 100, 0.4) 0%, transparent 20%),
           radial-gradient(circle at 90% 80%, rgba(239, 63, 63, 0.4) 0%, transparent 20%),
@@ -135,15 +136,52 @@ module.exports = {
 
       keyframes: {
         slideUp: {
-          from: { transform: 'translateY(100%)' },
-          to: { transform: 'translateY(0)' },
+          from: { transform: 'translateY(100%)', opacity: '0' },
+          to: { transform: 'translateY(0)', opacity: '1' },
         },
         slideDown: {
-          from: { transform: 'translateY(-100%)' },
-          to: { transform: 'translateY(0)' },
+          from: { transform: 'translateY(-100%)', opacity: '0' },
+          to: { transform: 'translateY(0)', opacity: '1' },
         },
+        fadeIn: {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+      },
+      scrollSnapType: {
+        x: 'x var(--scroll-snap-strictness)',
+      },
+      scrollSnapAlign: {
+        start: 'start',
+        end: 'end',
+        center: 'center',
       },
     },
   },
-  plugins: [],
+  plugins: [
+    function ({ addUtilities }) {
+      addUtilities({
+        '.scroll-smooth': {
+          'scroll-behavior': 'smooth',
+          '-webkit-overflow-scrolling': 'touch',
+        },
+        '.snap-x': {
+          'scroll-snap-type': 'x var(--scroll-snap-strictness)',
+        },
+        '.snap-mandatory': {
+          '--scroll-snap-strictness': 'mandatory',
+        },
+        '.snap-center': {
+          'scroll-snap-align': 'center',
+        },
+        '.scrollbar-hide': {
+          '-ms-overflow-style': 'none',
+          'scrollbar-width': 'none',
+          '&::-webkit-scrollbar': {
+            display: 'none',
+          },
+        },
+      })
+    },
+  ],
 }

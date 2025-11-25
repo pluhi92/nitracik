@@ -980,11 +980,19 @@ validateEnvVariables();
 let transporter;
 try {
   transporter = nodemailer.createTransport({
-    service: 'gmail',
+    // ZMENA: Nepoužívame service: 'gmail', ale explicitné nastavenie
+    host: 'smtp.gmail.com', // Explicitne nastavíme host
+    port: 465,               // ZMENA: Port 465 pre priamy SSL/TLS
+    secure: true,            // ZMENA: Nastavte na 'true'
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
+    // Pridajte túto možnosť pre prípad problémov s certifikátom
+    // Ak by pri 465 náhodou nefungovalo, skúste nastaviť false
+    // tls: {
+    //    rejectUnauthorized: false
+    // }
   });
 
   transporter.verify(function (error, success) {
@@ -2569,36 +2577,5 @@ app.post('/api/contact', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-
-  // ---------- SMTP TEST (Render SMTP block diagnosis) ----------
-  const dns = require("dns");
-  const net = require("net");
-
-  // MX lookup test (DNS check)
-  dns.resolveMx("gmail.com", (err, addresses) => {
-    if (err) {
-      console.log("MX lookup failed:", err);
-    } else {
-      console.log("MX lookup OK:", addresses);
-    }
-  });
-
-  // Try to open a TCP connection to smtp.gmail.com:587
-  const socket = net.createConnection(587, "smtp.gmail.com");
-  socket.setTimeout(5000);
-
-  socket.on("connect", () => {
-    console.log("SMTP port test: Able to connect to smtp.gmail.com:587");
-    socket.destroy();
-  });
-
-  socket.on("timeout", () => {
-    console.log("SMTP port test: TIMEOUT — Render is blocking SMTP");
-    socket.destroy();
-  });
-
-  socket.on("error", (err) => {
-    console.log("SMTP port test error:", err.message);
-  });
-  // -------------------------------------------------------------
+  
 });

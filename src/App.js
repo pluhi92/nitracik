@@ -26,50 +26,54 @@ const PaymentSuccess = lazy(() => import('./components/PaymentSuccess'));
 const PaymentCancelled = lazy(() => import('./components/PaymentCancelled'));
 const SeasonTickets = lazy(() => import('./components/SeasonTickets'));
 const RefundOption = lazy(() => import('./components/RefundOption'));
+const Schedule = lazy(() => import('./components/Schedule'));
 
 // ------------------ Main App Content ------------------
 const AppContent = () => (
-  <Router>
-    <div className="min-h-screen bg-white bg-custom-flakes bg-fixed bg-cover">
-      <Navbar />
-      <GreetingBar />
-      <main className="main-content">
-        <Suspense fallback={<div className="loading">Načítavam...</div>}>
-          <Routes>
-            <Route index element={<AboutUs />} />
-            <Route path="/about" element={<AboutUs />} />
-            <Route path="/booking" element={<Booking />} />
-            <Route path="/profile" element={<UserProfile />} />
-            <Route path="/photos" element={<Photos />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/registration-success" element={<RegistrationSuccess />} />
-            <Route path="/verify-email" element={<VerifyEmail />} />
-            <Route path="/thank-you" element={<ThankYou />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/account-deleted" element={<AccountDeleted />} />
-            <Route path="/payment-success" element={<PaymentSuccess />} />
-            <Route path="/payment-cancelled" element={<PaymentCancelled />} />
-            <Route path="/season-tickets" element={<SeasonTickets />} />
-            <Route path="/refund-option" element={<RefundOption />} />
-          </Routes>
-        </Suspense>
-      </main>
-      <Foot />
-      <CookieConsent />
-    </div>
-  </Router>
+  <div className="min-h-screen flex flex-col overflow-x-hidden bg-white bg-custom-flakes bg-cover">
+    <Navbar />
+    <GreetingBar />
+
+    <main className="flex-grow">
+      <Suspense fallback={<div className="loading">Načítavam...</div>}>
+        <Routes>
+          <Route index element={<AboutUs />} />
+          <Route path="/about" element={<AboutUs />} />
+          <Route path="/booking" element={<Booking />} />
+          <Route path="/profile" element={<UserProfile />} />
+          <Route path="/photos" element={<Photos />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/registration-success" element={<RegistrationSuccess />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/thank-you" element={<ThankYou />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/account-deleted" element={<AccountDeleted />} />
+          <Route path="/payment-success" element={<PaymentSuccess />} />
+          <Route path="/payment-cancelled" element={<PaymentCancelled />} />
+          <Route path="/season-tickets" element={<SeasonTickets />} />
+          <Route path="/refund-option" element={<RefundOption />} />
+          <Route path="/schedule" element={<Schedule />} />
+        </Routes>
+      </Suspense>
+    </main>
+
+    <Foot />
+    <CookieConsent />
+  </div>
 );
 
 // ------------------ Final App Wrapper ------------------
 const App = () => (
-  <LanguageProvider>
-    <UserProvider>
-      <AppContent />
-    </UserProvider>
-  </LanguageProvider>
+  <Router>
+    <LanguageProvider>
+      <UserProvider>
+        <AppContent />
+      </UserProvider>
+    </LanguageProvider>
+  </Router>
 );
 
 export default App;
