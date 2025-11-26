@@ -980,19 +980,17 @@ validateEnvVariables();
 let transporter;
 try {
   transporter = nodemailer.createTransport({
-    // ZMENA: Nepoužívame service: 'gmail', ale explicitné nastavenie
-    host: 'smtp.gmail.com', // Explicitne nastavíme host
-    port: 465,               // ZMENA: Port 465 pre priamy SSL/TLS
-    secure: true,            // ZMENA: Nastavte na 'true'
+    host: 'smtp.gmail.com', 
+    port: 465,              
+    secure: true,           
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
-    // Pridajte túto možnosť pre prípad problémov s certifikátom
-    // Ak by pri 465 náhodou nefungovalo, skúste nastaviť false
-    // tls: {
-    //    rejectUnauthorized: false
-    // }
+    // KĽÚČOVÁ ZMENA: PRIDAŤ TLS OBJEKT
+    tls: {
+      rejectUnauthorized: false // Ignoruje problémy s certifikátom
+    }
   });
 
   transporter.verify(function (error, success) {
