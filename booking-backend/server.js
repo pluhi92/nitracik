@@ -980,29 +980,36 @@ validateEnvVariables();
 let transporter;
 try {
   transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com', 
-    port: 465,              
-    secure: true,           
+    host: 'smtp.gmail.com',
+    port: 587,               // ✅ Odporúčam 587 namiesto 465
+    secure: false,           // ✅ Pre port 587 musí byť false
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
-    // KĽÚČOVÁ ZMENA: PRIDAŤ TLS OBJEKT
+    // ✅ Pridané podľa Gemini
     tls: {
       rejectUnauthorized: false // Ignoruje problémy s certifikátom
-    }
+    },
+    // ✅ Pridané pre lepšiu diagnostiku
+    debug: true,
+    logger: true
   });
 
   transporter.verify(function (error, success) {
     if (error) {
-      console.error("❌ Email server connection failed:", error);
+      console.log('❌ Email server connection failed:', error.message);
+      console.log('💡 Debug info:', {
+        host: 'smtp.gmail.com',
+        port: 587,
+        user: process.env.EMAIL_USER ? '***' + process.env.EMAIL_USER.slice(-10) : 'missing'
+      });
     } else {
-      console.log("✅ Email server is ready to send messages");
+      console.log('✅ Email server is ready to send messages');
     }
   });
 } catch (error) {
-  console.error('Error setting up email transporter:', error);
-  process.exit(1);
+  console.error('Nodemailer Initialization Error:', error.message);
 }
 
 app.get('/api/test-email', async (req, res) => {
