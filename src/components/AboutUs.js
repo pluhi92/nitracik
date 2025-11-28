@@ -1,28 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../contexts/LanguageContext';
+import { useUser } from '../contexts/UserContext';
 import { Link } from 'react-router-dom';
 
 const AboutUs = () => {
   const { t } = useTranslation();
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-
-  useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    const user = localStorage.getItem('user');
-
-    const loggedIn = !!(token && user);
-    setIsLoggedIn(loggedIn);
-    setLoading(false);
-
-    console.log("DEBUG authToken:", token);
-    console.log("DEBUG user:", user);
-    console.log("DEBUG isLoggedIn:", loggedIn);
-  }, []);
-
+  const { user } = useUser();
+  const isLoggedIn = user.isLoggedIn;
 
   const carouselItems = [
     {
@@ -57,26 +43,28 @@ const AboutUs = () => {
     },
   ];
 
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % carouselItems.length);
-  const prevSlide = () => setCurrentSlide((prev) => (prev === 0 ? carouselItems.length - 1 : prev - 1));
+  const nextSlide = () =>
+    setCurrentSlide((prev) => (prev + 1) % carouselItems.length);
+  const prevSlide = () =>
+    setCurrentSlide(
+      (prev) => (prev === 0 ? carouselItems.length - 1 : prev - 1)
+    );
   const goToSlide = (index) => setCurrentSlide(index);
 
   const handleJoinClick = (e) => {
-    if (isLoggedIn) {
+    if (user.isLoggedIn) {
       e.preventDefault();
-      e.stopPropagation(); // 💥 toto zabráni prepnutiu Link-u
+      e.stopPropagation();
       setShowTooltip(true);
       setTimeout(() => setShowTooltip(false), 2000);
     }
   };
-
 
   useEffect(() => {
     const timer = setInterval(nextSlide, 5000);
     return () => clearInterval(timer);
   }, [currentSlide]);
 
-  if (loading) return null;
 
   return (
     <section className="px-6 py-12 text-center bg-inherit rounded-xl shadow-xl transition-colors duration-300 text-secondary">
@@ -104,7 +92,7 @@ const AboutUs = () => {
           ))}
         </div>
 
-        {/* Navigation controls */}
+        {/* Navigation */}
         <button
           onClick={prevSlide}
           className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-3 shadow-lg transition-transform hover:scale-110"
@@ -124,8 +112,11 @@ const AboutUs = () => {
             <button
               key={index}
               onClick={() => goToSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all ${index === currentSlide ? 'bg-white scale-125' : 'bg-white/50 hover:bg-white/70'
-                }`}
+              className={`w-3 h-3 rounded-full transition-all ${
+                index === currentSlide
+                  ? 'bg-white scale-125'
+                  : 'bg-white/50 hover:bg-white/70'
+              }`}
             ></button>
           ))}
         </div>
@@ -145,32 +136,14 @@ const AboutUs = () => {
       {/* Join Us Section */}
       <div className="max-w-6xl mx-auto mt-20 px-6 py-12 rounded-xl shadow-xl bg-overlay-90 backdrop-blur-sm dark:bg-neutral-800/80">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          {/* Left side - Content */}
           <div className="text-left">
-            <h2 className="text-3xl font-bold mb-6 text-secondary">Start Your Journey Today!</h2>
+            <h2 className="text-3xl font-bold mb-6 text-secondary">
+              Start Your Journey Today!
+            </h2>
             <p className="mb-8 text-neutral-700 dark:text-neutral-300 text-lg leading-relaxed">
-              Join thousands of satisfied members who have transformed their skills with our
-              professional training programs. Whether you're a beginner or looking to advance
-              your expertise, we have the perfect path for you.
+              Join thousands of satisfied members who have transformed their skills
+              with our professional training programs.
             </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-              {[
-                'Access to all training sessions',
-                'Expert instructors and modern facilities',
-                'Flexible scheduling options',
-                'Supportive community environment',
-                'Affordable pricing plans',
-                'Personalized learning paths',
-              ].map((item, i) => (
-                <div key={i} className="flex items-start">
-                  <span className="bg-secondary-500 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 mt-1 flex-shrink-0">
-                    ✓
-                  </span>
-                  <span className="text-neutral-700 dark:text-neutral-300">{item}</span>
-                </div>
-              ))}
-            </div>
 
             <div className="relative inline-block">
               {isLoggedIn ? (
@@ -181,7 +154,6 @@ const AboutUs = () => {
                   >
                     Ste už prihlásený
                   </button>
-                  {/* Tooltip */}
                   {showTooltip && (
                     <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg whitespace-nowrap z-50">
                       <div className="flex items-center">
@@ -202,7 +174,7 @@ const AboutUs = () => {
               )}
             </div>
 
-            {/* Alternatívne akcie pre prihlásených používateľov */}
+            {/* Extra options pre prihlásených */}
             {isLoggedIn && (
               <div className="mt-4">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
@@ -226,7 +198,6 @@ const AboutUs = () => {
             )}
           </div>
 
-          {/* Right side - Image - MENŠIA */}
           <div className="rounded-lg shadow-lg overflow-hidden">
             <img
               src="/images/nitracik_join_us.jpg"

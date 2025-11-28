@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useTranslation } from "../contexts/LanguageContext";
+import api from '../api/api';
 
 function Contact() {
   const { t } = useTranslation();
@@ -21,23 +22,18 @@ function Contact() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/contact", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(data.message);
-        setFormData({ name: "", email: "", message: "" }); // Reset form
-      } else {
-        setMessage(data.message || "Failed to send message.");
-      }
+      // NOVÉ: Použitie api.post namiesto fetch()
+      // Axios automaticky použije baseURL, Content-Type a withCredentials
+      const response = await api.post("/api/contact", formData); 
+      
+      // Axios automaticky spracuje JSON a hádže chybu pre ne-2xx status
+      setMessage(response.data.message);
+      setFormData({ name: "", email: "", message: "" }); // Reset formulára
+      
     } catch (error) {
-      setMessage("An error occurred. Please try again.");
+      // Spracovanie chyby z Axios (vrátenej z backendu alebo sieťovej)
+      const errorMessage = error.response?.data?.message || t?.contact?.form?.errorGeneric || "An error occurred. Please try again.";
+      setMessage(errorMessage);
     } finally {
       setIsLoading(false);
     }

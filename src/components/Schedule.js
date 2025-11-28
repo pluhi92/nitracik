@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../contexts/LanguageContext';
 import InfiniteDays from './InfiniteDays';
+import api from '../api/api';
 
 const Schedule = () => {
   const { t } = useTranslation();
@@ -15,15 +16,10 @@ const Schedule = () => {
     try {
       setLoading(true);
       setError(null);
-      const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${API_BASE_URL}/api/training-dates`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      setTrainingSessions(data);
+      const response = await api.get('/api/training-dates');
+
+      // Axios automaticky parsuje JSON do response.data
+      setTrainingSessions(response.data);
     } catch (err) {
       console.error('Error fetching training sessions:', err);
       setError(t?.schedule?.fetchError || 'Failed to load training schedule.');

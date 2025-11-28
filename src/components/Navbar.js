@@ -33,7 +33,7 @@ const Navbar = () => {
   }, []);
 
   return (
-    <nav className="bg-white dark:bg-gray-900 shadow-md sticky top-0 z-50">
+    <nav className="bg-white dark:bg-gray-900 shadow-md sticky top-0 z-[1000]">
       <div className="container mx-auto flex items-center justify-between px-4 lg:px-8 h-[90px]">
         {/* Logo */}
         <Link to="/" className="flex items-center">

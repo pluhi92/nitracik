@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { Modal, Button } from 'react-bootstrap';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Tooltip } from 'react-tooltip';
+import api from '../api/api';
 
 const UserProfile = () => {
   const { t } = useTranslation();
@@ -51,9 +51,7 @@ const UserProfile = () => {
   useEffect(() => {
     const checkAdmin = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/users/${userId}`, {
-          withCredentials: true,
-        });
+        const response = await api.get(`/api/users/${userId}`);
         setIsAdmin(response.data.email === process.env.REACT_APP_ADMIN_EMAIL);
       } catch (error) {
         console.error('Admin check failed:', error);
@@ -62,9 +60,7 @@ const UserProfile = () => {
 
     const fetchSeasonTickets = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/season-tickets/${userId}`, {
-          withCredentials: true,
-        });
+        const response = await api.get(`/api/season-tickets/${userId}`);
         setSeasonTickets(response.data);
       } catch (error) {
         console.error('Error fetching season tickets:', error);
@@ -73,9 +69,7 @@ const UserProfile = () => {
 
     const fetchAdminSeasonTickets = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/admin/season-tickets`, {
-          withCredentials: true,
-        });
+        const response = await api.get(`/api/admin/season-tickets`);
         setAdminSeasonTickets(response.data);
       } catch (error) {
         console.error('Error fetching admin season tickets:', error);
@@ -93,9 +87,7 @@ const UserProfile = () => {
     const fetchBookings = async () => {
       try {
         const endpoint = isAdmin ? '/api/admin/bookings' : `/api/bookings/user/${userId}`;
-        const response = await axios.get(`http://localhost:5000${endpoint}`, {
-          withCredentials: true,
-        });
+        const response = await api.get(endpoint);
         setBookedSessions(isAdmin ? response.data : response.data);
       } catch (error) {
         console.error('Error fetching sessions:', error);
@@ -119,9 +111,7 @@ const UserProfile = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/users/${userId}`, {
-          withCredentials: true,
-        });
+        const response = await api.get(`/api/users/${userId}`);
         const userData = response.data;
         setEditedAddress(userData.address || '');
         setEditedMobile(userData.mobile || '');
@@ -174,9 +164,7 @@ const UserProfile = () => {
   const refreshBookings = async () => {
     try {
       const endpoint = isAdmin ? '/api/admin/bookings' : `/api/bookings/user/${userId}`;
-      const response = await axios.get(`http://localhost:5000${endpoint}`, {
-        withCredentials: true,
-      });
+      const response = await api.get(endpoint);
       setBookedSessions(response.data);
       console.log('[DEBUG] Bookings refreshed after cancellation');
     } catch (error) {
@@ -193,13 +181,12 @@ const UserProfile = () => {
 
     setIsUpdating(true);
     try {
-      const response = await axios.put(
-        `http://localhost:5000/api/users/${userId}`,
+      const response = await api.put(
+        `/api/users/${userId}`,
         {
           address: editedAddress.trim(),
           mobile: editedMobile.trim() || null,
-        },
-        { withCredentials: true }
+        }
       );
 
       setUpdateMessage(t?.profile?.update?.success || 'Profile updated successfully!');
@@ -481,11 +468,11 @@ const UserProfile = () => {
 
   const confirmAdminCancel = async () => {
     try {
-      const response = await axios.post('http://localhost:5000/api/admin/cancel-session', {
+      const response = await api.post('/api/admin/cancel-session', {
         trainingId: selectedSession.id,
         reason,
         forceCancel
-      }, { withCredentials: true });
+      });
 
       showAlert(`Session canceled successfully! ${response.data.canceledBookings} bookings affected.${response.data.forceCancelUsed ? ' (Force Cancel)' : ''}`, 'success');
 
@@ -528,9 +515,7 @@ const UserProfile = () => {
     setSelectedBooking({ bookingId, trainingDate });
 
     try {
-      const response = await axios.get(`http://localhost:5000/api/bookings/${bookingId}/type`, {
-        withCredentials: true,
-      });
+      const response = await api.get(`/api/bookings/${bookingId}/type`);
       if (response.data.error) {
         throw new Error(response.data.error);
       }
@@ -549,9 +534,7 @@ const UserProfile = () => {
     }
 
     try {
-      const response = await axios.get(`http://localhost:5000/api/replacement-sessions/${bookingId}`, {
-        withCredentials: true,
-      });
+      const response = await api.get(`/api/replacement-sessions/${bookingId}`);
       setReplacementSessions(response.data);
     } catch (error) {
       console.error('Error fetching replacement sessions:', error);
@@ -566,9 +549,8 @@ const UserProfile = () => {
 
     try {
       if (cancellationType === 'refund') {
-        const response = await axios.delete(
-          `http://localhost:5000/api/bookings/${selectedBooking.bookingId}`,
-          { withCredentials: true }
+        const response = await api.delete(
+          `/api/bookings/${selectedBooking.bookingId}`
         );
 
         if (response.data.error) {
@@ -590,17 +572,15 @@ const UserProfile = () => {
           showAlert(message, response.data.refundError ? 'danger' : 'success');
         }
       } else if (cancellationType === 'replacement' && selectedReplacement) {
-        const response = await axios.post(
-          `http://localhost:5000/api/replace-booking/${selectedBooking.bookingId}`,
-          { newTrainingId: selectedReplacement },
-          { withCredentials: true }
+
+        const response = await api.post(
+          `/api/replace-booking/${selectedBooking.bookingId}`,
+          { newTrainingId: selectedReplacement }
         );
         showAlert(t?.profile?.cancel?.replacementSuccess || 'Session successfully replaced.', 'success');
       }
 
-      const bookingsResponse = await axios.get(`http://localhost:5000/api/bookings/user/${userId}`, {
-        withCredentials: true,
-      });
+      const bookingsResponse = await api.get(`/api/bookings/user/${userId}`);
       setBookedSessions(bookingsResponse.data);
     } catch (error) {
       console.error('Error processing cancellation:', error);
@@ -629,9 +609,8 @@ const UserProfile = () => {
     }
 
     try {
-      const response = await axios.delete(
-        `http://localhost:5000/api/admin/training-sessions/${trainingId}`,
-        { withCredentials: true }
+      const response = await api.delete(
+        `/api/admin/training-sessions/${trainingId}`
       );
 
       showAlert(response.data.message || 'Session deleted successfully!', 'success');
@@ -657,16 +636,13 @@ const UserProfile = () => {
 
     setIsDeleting(true);
     try {
-      const verifyResponse = await axios.post(
-        'http://localhost:5000/api/verify-password',
-        { password },
-        { withCredentials: true }
+      const verifyResponse = await api.post(
+        '/api/verify-password',
+        { password }
       );
 
       if (verifyResponse.data.success) {
-        await axios.delete(`http://localhost:5000/api/users/${userId}`, {
-          withCredentials: true,
-        });
+        await api.delete(`/api/users/${userId}`);
 
         localStorage.removeItem('userId');
         localStorage.removeItem('isLoggedIn');
@@ -690,10 +666,10 @@ const UserProfile = () => {
     }
 
     try {
-      const response = await axios.post(
-        'http://localhost:5000/api/admin/payment-report',
+      const response = await api.post(
+        '/api/admin/payment-report',
         { startDate, endDate },
-        { withCredentials: true, responseType: 'arraybuffer' }
+        { responseType: 'arraybuffer' }
       );
 
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
@@ -1071,9 +1047,7 @@ const UserProfile = () => {
                       onClick={() => {
                         setIsEditing(false);
                         setUpdateMessage('');
-                        axios.get(`http://localhost:5000/api/users/${userId}`, {
-                          withCredentials: true,
-                        })
+                        api.get(`/api/users/${userId}`)
                           .then(response => {
                             const userData = response.data;
                             setEditedAddress(userData.address || '');

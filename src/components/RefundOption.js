@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import axios from 'axios';
 import { useSearchParams } from 'react-router-dom';
+import api from '../api/api';
 
 export default function RefundOption() {
   const [params] = useSearchParams();
@@ -9,8 +9,8 @@ export default function RefundOption() {
 
   useEffect(() => {
     if (bookingId && action) {
-      axios
-        .get(`http://localhost:5000/api/booking/${action}`, { params: { bookingId } })
+      api 
+        .get(`/api/booking/${action}`, { params: { bookingId } }) 
         .then((res) => {
           // display the HTML content returned from the backend directly
           document.body.innerHTML = res.data;

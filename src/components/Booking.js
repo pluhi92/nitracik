@@ -1,6 +1,5 @@
 // Booking.js
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
 import Login from './Login';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IMaskInput } from 'react-imask';
@@ -9,11 +8,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Modal, Button, Form } from 'react-bootstrap';
 import CustomCalendar from './CustomCalendar';
-
-const api = axios.create({
-  baseURL: 'http://localhost:5000',
-  withCredentials: true,
-});
+import api from '../api/api';
 
 const Booking = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(localStorage.getItem('isLoggedIn') === 'true');
@@ -592,17 +587,41 @@ const Booking = () => {
                   <option value="MAXI">{t?.booking?.trainingType?.maxi || 'MAXI'}</option>
                 </Form.Select>
               </div>
-              <div className="md:col-span-1">
+              {/* Date */}
+              <div>
                 <Form.Label className="font-medium text-gray-700">
-                  {t?.admin?.dateTime || 'Date & Time'}
+                  {t?.admin?.date || "Date"}
                 </Form.Label>
                 <Form.Control
-                  type="datetime-local"
-                  value={newTrainingDate}
-                  onChange={(e) => setNewTrainingDate(e.target.value)}
+                  type="date"
+                  value={newTrainingDate.split("T")[0] || ""}
+                  onChange={(e) => {
+                    const date = e.target.value;
+                    const time = newTrainingDate.split("T")[1]?.substring(0, 5) || "00:00";
+                    setNewTrainingDate(`${date}T${time}`);
+                  }}
                   className="w-full"
                 />
               </div>
+
+              {/* Time */}
+              <div>
+                <Form.Label className="font-medium text-gray-700">
+                  {t?.admin?.time || "Time"}
+                </Form.Label>
+                <Form.Control
+                  type="time"
+                  value={newTrainingDate.split("T")[1]?.substring(0, 5) || ""}
+                  onChange={(e) => {
+                    const time = e.target.value;
+                    const date = newTrainingDate.split("T")[0] || "";
+                    setNewTrainingDate(`${date}T${time}`);
+                  }}
+                  className="w-full"
+                />
+              </div>
+
+              
               <div className="md:col-span-1">
                 <Form.Label className="font-medium text-gray-700">
                   {t?.admin?.maxParticipants || 'Max Participants'}

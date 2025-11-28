@@ -11,7 +11,6 @@ import CookieConsent from './components/CookieConsent';
 // Lazy loaded components
 const AboutUs = lazy(() => import('./components/AboutUs'));
 const Booking = lazy(() => import('./components/Booking'));
-const Photos = lazy(() => import('./components/Photos'));
 const Contact = lazy(() => import('./components/Contact'));
 const Login = lazy(() => import('./components/Login'));
 const Register = lazy(() => import('./components/Register'));
@@ -41,7 +40,6 @@ const AppContent = () => (
           <Route path="/about" element={<AboutUs />} />
           <Route path="/booking" element={<Booking />} />
           <Route path="/profile" element={<UserProfile />} />
-          <Route path="/photos" element={<Photos />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />

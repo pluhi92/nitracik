@@ -86,7 +86,8 @@
     "title": "Admin Controls",
     "addSession": "Add Session",
     "trainingType": "Training Type",
-    "dateTime": "Date & Time",
+    "date": "Date",
+    "time": "Time",
     "maxParticipants": "Max Participants"
   },
   "navbar": {

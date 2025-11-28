@@ -29,7 +29,7 @@ app.use((req, res, next) => {
 });
 
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
 }));
@@ -169,9 +169,6 @@ app.get('/api/admin/season-tickets', async (req, res) => {
   }
 });
 
-
-
-// ... (previous code remains unchanged until /api/admin/payment-report)
 
 // Update /api/admin/payment-report endpoint
 app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
@@ -413,8 +410,8 @@ app.post('/api/create-season-ticket-payment', isAuthenticated, async (req, res) 
         quantity: 1,
       }],
       mode: 'payment',
-      success_url: `${process.env.CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.CLIENT_URL}/payment-canceled`,
+      success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/payment-canceled`,
       metadata: {
         userId,
         entries: entries.toString(),
@@ -664,8 +661,8 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
           quantity: 1,
         }],
         mode: 'payment',
-        success_url: `${process.env.CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}&booking_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.CLIENT_URL}/payment-canceled`,
+        success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}&booking_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.FRONTEND_URL}/payment-canceled`,
         metadata: {
           userId: userId.toString(),
           trainingType,
@@ -966,7 +963,7 @@ app.use((req, res, next) => {
 });
 
 function validateEnvVariables() {
-  const requiredEnvVars = ['EMAIL_USER', 'EMAIL_PASS', 'DB_USER', 'DB_HOST', 'DB_NAME', 'DB_PASSWORD', 'DB_PORT', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'CLIENT_URL', 'SESSION_SECRET'];
+  const requiredEnvVars = ['EMAIL_USER', 'EMAIL_PASS', 'DB_USER', 'DB_HOST', 'DB_NAME', 'DB_PASSWORD', 'DB_PORT', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'FRONTEND_URL', 'SESSION_SECRET'];
   for (const envVar of requiredEnvVars) {
     if (!process.env[envVar]) {
       console.error(`Missing ${envVar} in environment variables.`);
@@ -1064,7 +1061,8 @@ app.post('/api/register', async (req, res) => {
       [firstName, lastName, email, hashedPassword, address, verificationToken, false]
     );
 
-    const verificationLink = `http://localhost:3000/verify-email?token=${verificationToken}`;
+    const clientUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const verificationLink = `${clientUrl}/verify-email?token=${verificationToken}`;
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
@@ -1092,7 +1090,8 @@ app.post('/api/forgot-password', async (req, res) => {
     const resetToken = uuidv4();
     await pool.query('UPDATE users SET reset_token = $1 WHERE id = $2', [resetToken, user.rows[0].id]);
 
-    const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
+    const clientUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetLink = `${clientUrl}/reset-password?token=${resetToken}`;
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
@@ -1204,10 +1203,10 @@ app.put('/api/users/:id', isAuthenticated, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Profile updated successfully',
-      user: result.rows[0] 
+      user: result.rows[0]
     });
   } catch (error) {
     console.error('Error updating user profile:', error);
@@ -1899,11 +1898,11 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
     console.log('[DEBUG] Affected bookings:', bookings.length);
 
     // 5. Send cancellation emails to all affected users
-    const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
     for (const booking of bookings) {
-      const refundUrl = `${CLIENT_URL}/refund-option?bookingId=${booking.booking_id}&action=refund`;
-      const creditUrl = `${CLIENT_URL}/refund-option?bookingId=${booking.booking_id}&action=credit`;
+      const refundUrl = `${FRONTEND_URL}/refund-option?bookingId=${booking.booking_id}&action=refund`;
+      const creditUrl = `${FRONTEND_URL}/refund-option?bookingId=${booking.booking_id}&action=credit`;
 
       const sessionDate = new Date(booking.training_date).toLocaleString('en-GB', {
         dateStyle: 'full',
@@ -2019,7 +2018,7 @@ app.get('/api/booking/refund', async (req, res) => {
         <html>
         <head>
             <title>Refund Processed Successfully</title>
-            <meta http-equiv="refresh" content="4;url=${process.env.CLIENT_URL}/booking" />
+            <meta http-equiv="refresh" content="4;url=${process.env.FRONTEND_URL}/booking" />
             <style>
                 body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
                 .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
@@ -2034,7 +2033,7 @@ app.get('/api/booking/refund', async (req, res) => {
                 <p>Your refund (ID: <strong>${refundRecord.id}</strong>) was successfully processed.</p>
                 <p>You'll be automatically redirected in <span id="countdown">4</span> seconds...</p>
                 <div class="countdown">
-                    <a href="${process.env.CLIENT_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
+                    <a href="${process.env.FRONTEND_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
                 </div>
             </div>
             <script>
@@ -2056,7 +2055,7 @@ app.get('/api/booking/refund', async (req, res) => {
       <html>
       <head>
           <title>Refund Already Processed</title>
-          <meta http-equiv="refresh" content="4;url=${process.env.CLIENT_URL}/booking" />
+          <meta http-equiv="refresh" content="4;url=${process.env.FRONTEND_URL}/booking" />
           <style>
               body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
               .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
@@ -2071,7 +2070,7 @@ app.get('/api/booking/refund', async (req, res) => {
               <p>Your refund has already been handled successfully.</p>
               <p>You'll be redirected in <span id="countdown">4</span> seconds...</p>
               <div class="countdown">
-                  <a href="${process.env.CLIENT_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
+                  <a href="${process.env.FRONTEND_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
               </div>
           </div>
           <script>
@@ -2089,7 +2088,7 @@ app.get('/api/booking/refund', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Refund error:', err);
-    res.redirect(`${process.env.CLIENT_URL}/error?reason=refund_failed`);
+    res.redirect(`${process.env.FRONTEND_URL}/error?reason=refund_failed`);
   } finally {
     client.release();
   }
@@ -2175,7 +2174,7 @@ app.get('/api/booking/credit', async (req, res) => {
         <html>
         <head>
             <title>Credit Added Successfully</title>
-            <meta http-equiv="refresh" content="4;url=${process.env.CLIENT_URL}/booking" />
+            <meta http-equiv="refresh" content="4;url=${process.env.FRONTEND_URL}/booking" />
             <style>
                 body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
                 .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
@@ -2190,7 +2189,7 @@ app.get('/api/booking/credit', async (req, res) => {
                 <p>Your credit has been added to your account and is ready to use.</p>
                 <p>You'll be automatically redirected in <span id="countdown">4</span> seconds...</p>
                 <div class="countdown">
-                    <a href="${process.env.CLIENT_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
+                    <a href="${process.env.FRONTEND_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
                 </div>
             </div>
             <script>
@@ -2212,7 +2211,7 @@ app.get('/api/booking/credit', async (req, res) => {
       <html>
       <head>
           <title>Credit Already Processed</title>
-          <meta http-equiv="refresh" content="4;url=${process.env.CLIENT_URL}/booking" />
+          <meta http-equiv="refresh" content="4;url=${process.env.FRONTEND_URL}/booking" />
           <style>
               body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
               .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
@@ -2227,7 +2226,7 @@ app.get('/api/booking/credit', async (req, res) => {
               <p>Your credit was already added earlier and is ready to use.</p>
               <p>You'll be redirected in <span id="countdown">4</span> seconds...</p>
               <div class="countdown">
-                  <a href="${process.env.CLIENT_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
+                  <a href="${process.env.FRONTEND_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
               </div>
           </div>
           <script>
@@ -2245,7 +2244,7 @@ app.get('/api/booking/credit', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Credit error:', err);
-    res.redirect(`${process.env.CLIENT_URL}/error?reason=credit_failed`);
+    res.redirect(`${process.env.FRONTEND_URL}/error?reason=credit_failed`);
   } finally {
     client.release();
   }
@@ -2582,5 +2581,5 @@ app.post('/api/contact', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  
+
 });

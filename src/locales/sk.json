@@ -87,7 +87,8 @@
     "title": "Admin Panel",
     "addSession": "Pridať reláciu",
     "trainingType": "Typ tréningu",
-    "dateTime": "Dátum a čas",
+    "date": "Dátum",
+    "time": "Čas",
     "maxParticipants": "Maximálny počet účastníkov"
   },
   "navbar": {
