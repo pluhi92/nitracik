@@ -29,7 +29,7 @@ const Schedule = lazy(() => import('./components/Schedule'));
 
 // ------------------ Main App Content ------------------
 const AppContent = () => (
-  <div className="min-h-screen flex flex-col overflow-x-hidden bg-white bg-custom-flakes bg-cover">
+  <div className="min-h-screen flex flex-col overflow-x-clip bg-white bg-custom-flakes bg-cover">
     <Navbar />
     <GreetingBar />
 

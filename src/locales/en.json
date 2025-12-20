@@ -45,14 +45,14 @@
     "totalPrice": "Total Price",
     "child": "child",
     "children": "children",
-    "bookWithPayment": "Book Training with Payment Obligation",
+    "bookWithPayment": "Confirm & Pay",
     "bookWithSeasonTicket": "Book with Season Ticket",
     "bookWithCredit": "Book with Credit",
     "redirecting": "Redirecting to Payment...",
     "availability": {
       "warning": "Availability Warning",
       "available": "{count} spots available",
-      "unavailable": "Only {count} spot{count !== 1 ? 's' : ''} remain (needed {needed})",
+      "unavailable": "Only {count} spot(s) remain (needed {needed})",
       "full": "All places are already occupied for this session. Please choose another date or time."
     },
     "paymentSuccess": "Payment successful! Booking confirmed.",
@@ -80,7 +80,8 @@
     "creditModeReadOnly": "Set from original booking - read only",
     "selectDateTimeRequired": "Please select date and time for your credit booking.",
     "secureBooking": "Your booking is secure and protected",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "alreadyBooked": "You are already booked for this session. Please check your profile."
   },
   "admin": {
     "title": "Admin Controls",

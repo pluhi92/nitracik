@@ -685,6 +685,13 @@ const UserProfile = () => {
     }
   };
 
+  const now = new Date();
+  const visibleSessions = bookedSessions.filter(session => {
+    const sessionStart = new Date(session.training_date);
+    const hideAfter = new Date(sessionStart.getTime() + 1 * 60 * 60 * 1000);
+    return now < hideAfter;
+  });
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       {alertMessage && (
@@ -871,7 +878,7 @@ const UserProfile = () => {
               </p>
             ) : (
               <div className="space-y-4">
-                {bookedSessions.map((session) => {
+                {visibleSessions.map((session) => {
                   const isCancelled = session.cancelled === true;
                   const canCancel = !isCancelled && canCancelSession(session.training_date);
 

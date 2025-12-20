@@ -4,7 +4,7 @@ module.exports = {
     "./src/**/*.{js,jsx,ts,tsx}",
     "./public/index.html",
   ],
- darkMode: 'class',
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -119,11 +119,6 @@ module.exports = {
         'container': '1240px',
         'container-wide': '1400px',
       },
-      animation: {
-        'slide-up': 'slideUp 0.3s ease-in-out',
-        'slide-down': 'slideDown 0.3s ease-in-out',
-        'fade-in': 'fadeIn 0.3s ease-in-out',
-      },
       backgroundImage: {
         'custom-flakes': `
           radial-gradient(circle at 10% 20%, rgba(234, 189, 100, 0.4) 0%, transparent 20%),
@@ -135,28 +130,36 @@ module.exports = {
       },
 
       keyframes: {
-        slideUp: {
-          from: { transform: 'translateY(100%)', opacity: '0' },
-          to: { transform: 'translateY(0)', opacity: '1' },
+        dropdownIn: {
+          '0%': { opacity: '0', transform: 'translateY(-10px) scale(0.97)' },
+          '100%': { opacity: '1', transform: 'translateY(0px) scale(1)' },
         },
-        slideDown: {
-          from: { transform: 'translateY(-100%)', opacity: '0' },
-          to: { transform: 'translateY(0)', opacity: '1' },
+        dropdownOut: {
+          '0%': { opacity: '1', transform: 'translateY(0px) scale(1)' },
+          '100%': { opacity: '0', transform: 'translateY(-10px) scale(0.97)' },
+        },
+        mobileMenuIn: {
+          '0%': { opacity: '0', transform: 'translateY(-15px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        mobileMenuOut: {
+          '0%': { opacity: '1', transform: 'translateY(0)' },
+          '100%': { opacity: '0', transform: 'translateY(-15px)' },
         },
         fadeIn: {
-          from: { opacity: '0' },
-          to: { opacity: '1' },
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
         },
       },
-      scrollSnapType: {
-        x: 'x var(--scroll-snap-strictness)',
-      },
-      scrollSnapAlign: {
-        start: 'start',
-        end: 'end',
-        center: 'center',
-      },
-    },
+      animation: {
+        dropdownIn: 'dropdownIn 0.18s ease-out forwards',
+        dropdownOut: 'dropdownOut 0.14s ease-in forwards',
+        mobileMenuIn: 'mobileMenuIn 0.22s ease-out forwards',
+        mobileMenuOut: 'mobileMenuOut 0.18s ease-in forwards',
+        fadeIn: 'fadeIn 0.2s ease-out forwards',
+      }
+
+    }
   },
   plugins: [
     function ({ addUtilities }) {

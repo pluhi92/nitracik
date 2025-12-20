@@ -47,6 +47,8 @@ const Booking = () => {
   const [selectedCredit, setSelectedCredit] = useState(null);
   const [isCreditMode, setIsCreditMode] = useState(false);
   const [fillFormPreference, setFillFormPreference] = useState({});
+  const [userBookings, setUserBookings] = useState([]);
+  const [isAlreadyBooked, setIsAlreadyBooked] = useState(false);
 
   const pricing = {
     1: 15,
@@ -83,12 +85,15 @@ const Booking = () => {
   }, [useSeasonTicket, selectedSeasonTicket]);
 
   useEffect(() => {
+    if (childrenAges.length === childrenCount) {
+        return; // Zastavíme vykonávanie efektu, ak nie je potrebné nič meniť
+    }
     const newAges = [];
     for (let i = 0; i < childrenCount; i++) {
       newAges.push(childrenAges[i] || '');
     }
     setChildrenAges(newAges);
-  }, [childrenCount]);
+  }, [childrenCount, childrenAges]);
 
   useEffect(() => {
     const fetchTrainingDates = async () => {
@@ -137,10 +142,23 @@ const Booking = () => {
       }
     };
 
+    const fetchUserBookings = async () => {
+      try {
+        const userId = localStorage.getItem('userId');
+        if (!userId) return;
+        // Použijeme existujúci endpoint pre user bookings
+        const response = await api.get(`/api/bookings/user/${userId}`);
+        setUserBookings(response.data);
+      } catch (error) {
+        console.error('Error fetching user bookings:', error);
+      }
+    };
+
     if (isLoggedIn) {
       fetchTrainingDates();
       fetchSeasonTickets();
       fetchCredits();
+      fetchUserBookings();
     }
   }, [isLoggedIn]);
 
@@ -217,6 +235,40 @@ const Booking = () => {
       return acc;
     }, {});
   };
+
+  useEffect(() => {
+    // Resetujeme stav pri zmene
+    setIsAlreadyBooked(false);
+
+    // Ak je zobrazená hláška o duplicite, vymažeme ju
+    if (warningMessage === (t?.booking?.alreadyBooked || 'You are already booked for this session. Please check your profile.')) {
+      setWarningMessage('');
+    }
+
+    if (trainingType && selectedDate && selectedTime && userBookings.length > 0) {
+      const alreadyBooked = userBookings.some(booking => {
+        if (booking.active === false) return false;
+
+        const bookingDateObj = new Date(booking.training_date);
+        const bDate = bookingDateObj.toLocaleDateString('en-CA');
+        const bTime = bookingDateObj.toLocaleTimeString('sk-SK', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+
+        return booking.training_type === trainingType &&
+          bDate === selectedDate &&
+          bTime === selectedTime;
+      });
+
+      if (alreadyBooked) {
+        setIsAlreadyBooked(true);
+        setWarningMessage(t?.booking?.alreadyBooked || 'You are already booked for this session. Please check your profile.');
+      }
+    }
+    // eslint-disable-next-line
+  }, [trainingType, selectedDate, selectedTime, userBookings, t]);
 
   useEffect(() => {
     const checkAvailability = async () => {
@@ -621,7 +673,7 @@ const Booking = () => {
                 />
               </div>
 
-              
+
               <div className="md:col-span-1">
                 <Form.Label className="font-medium text-gray-700">
                   {t?.admin?.maxParticipants || 'Max Participants'}
@@ -1072,7 +1124,7 @@ const Booking = () => {
             <Button
               type="submit"
               className="w-full py-4 font-bold text-lg bg-green-500 border-green-500 hover:bg-green-600"
-              disabled={!consent || loading || !availability.isAvailable || (useSeasonTicket && !selectedSeasonTicket) || (isCreditMode && (!selectedDate || !selectedTime))}
+              disabled={!consent || loading || !availability.isAvailable || isAlreadyBooked || (useSeasonTicket && !selectedSeasonTicket) || (isCreditMode && (!selectedDate || !selectedTime))}
               data-tooltip-id="booking-tooltip"
               data-tooltip-content={
                 !availability.isAvailable
@@ -1106,7 +1158,7 @@ const Booking = () => {
                   ) : (
                     <>
                       <i className="bi bi-credit-card me-2"></i>
-                      {t?.booking?.bookWithPayment || 'Book Training with Payment Obligation'}
+                      {t?.booking?.bookWithPayment || 'Confirm & Pay'}
                     </>
                   )}
                 </div>

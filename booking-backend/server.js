@@ -978,8 +978,8 @@ let transporter;
 try {
   transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 587,               // ✅ Odporúčam 587 namiesto 465
-    secure: false,           // ✅ Pre port 587 musí byť false
+    port: 587,               
+    secure: false,           
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
@@ -989,8 +989,8 @@ try {
       rejectUnauthorized: false // Ignoruje problémy s certifikátom
     },
     // ✅ Pridané pre lepšiu diagnostiku
-    debug: true,
-    logger: true
+    debug: false,
+    logger: false
   });
 
   transporter.verify(function (error, success) {
@@ -1953,146 +1953,97 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
 });
 
 
-// Update refund endpoint to remove booking AFTER processing
 app.get('/api/booking/refund', async (req, res) => {
+  console.log("🔥 REFUND ENDPOINT CALLED", new Date().toISOString(), "bookingId:", req.query.bookingId);
   const { bookingId } = req.query;
-  if (!bookingId) return res.status(400).send('Missing bookingId.');
+  if (!bookingId) return res.status(400).json({ status: 'error', message: 'Missing bookingId.' });
 
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock($1)', [parseInt(bookingId, 10)]);
 
-    // Try to find the active booking first
-    const bookingRes = await client.query(
-      'SELECT user_id, training_id, payment_intent_id, amount_paid FROM bookings WHERE id = $1 AND active = true',
+    const existingRefundRes = await client.query(
+      'SELECT refund_id, status FROM refunds WHERE booking_id = $1',
       [bookingId]
     );
 
-    let firstTimeRefund = false;
-    let refundRecord = null;
-
-    // ✅ CASE 1: Active booking found → process refund and deactivate booking
-    if (bookingRes.rows.length > 0) {
-      const { user_id, payment_intent_id, amount_paid } = bookingRes.rows[0];
-
-      // Double-check if refund already exists for this booking
-      const existingRefund = await client.query(
-        'SELECT refund_id, status FROM refunds WHERE booking_id = $1',
-        [bookingId]
-      );
-
-      if (existingRefund.rows.length === 0) {
-        // Create Stripe refund
-        const refund = await stripe.refunds.create({
-          payment_intent: payment_intent_id,
-        });
-
-        refundRecord = refund;
-
-        // Store refund record
-        await client.query(
-          `INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at)
-           VALUES ($1, $2, $3, $4, $5, NOW())`,
-          [bookingId, refund.id, amount_paid, refund.status, 'User selected refund']
-        );
-
-        // ✅ NEW: Deactivate booking instead of deleting it
-        await client.query(
-          'UPDATE bookings SET active = false WHERE id = $1 AND user_id = $2',
-          [bookingId, user_id]
-        );
-
-        firstTimeRefund = true;
-      } else {
-        refundRecord = existingRefund.rows[0];
-      }
+    if (existingRefundRes.rows.length > 0) {
+      await client.query('COMMIT');
+      return res.json({
+        status: 'already',
+        message: 'Your refund has already been processed',
+        refundId: existingRefundRes.rows[0].refund_id,
+      });
     }
 
+    const bookingRes = await client.query(
+      'SELECT user_id, payment_intent_id, amount_paid FROM bookings WHERE id = $1 AND active = true FOR UPDATE',
+      [bookingId]
+    );
+
+    if (bookingRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ status: 'error', message: 'Booking not active or not found.' });
+    }
+
+    const { user_id, payment_intent_id, amount_paid } = bookingRes.rows[0];
+
+    const idempotencyKey = `refund-${bookingId}-${payment_intent_id}`;
+    let refund;
+
+    try {
+      refund = await stripe.refunds.create({ payment_intent: payment_intent_id }, { idempotencyKey });
+    } catch (stripeErr) {
+      console.error('Stripe refund create error:', stripeErr);
+
+      if (stripeErr.code === 'charge_already_refunded') {
+        const dbFind = await client.query(
+          'SELECT refund_id, status FROM refunds WHERE booking_id = $1',
+          [bookingId]
+        );
+
+        if (dbFind.rows.length > 0) {
+          await client.query('COMMIT');
+          return res.json({
+            status: 'already',
+            message: 'Your refund has already been processed',
+            refundId: dbFind.rows[0].refund_id,
+          });
+        }
+
+        await client.query('ROLLBACK');
+        return res.status(400).json({ status: 'error', message: 'Refund already refunded in Stripe but not in DB' });
+      }
+
+      await client.query('ROLLBACK');
+      return res.status(500).json({ status: 'error', message: 'Stripe error' });
+    }
+
+    await client.query(
+      'INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at) VALUES ($1,$2,$3,$4,$5,NOW())',
+      [bookingId, refund.id, amount_paid, refund.status, 'User selected refund']
+    );
+
+    await client.query('UPDATE bookings SET active = false WHERE id = $1 AND user_id = $2', [bookingId, user_id]);
     await client.query('COMMIT');
 
-    // ✅ Success response (same as before)
-    if (firstTimeRefund && refundRecord) {
-      return res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Refund Processed Successfully</title>
-            <meta http-equiv="refresh" content="4;url=${process.env.FRONTEND_URL}/booking" />
-            <style>
-                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-                .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
-                .success-icon { font-size: 60px; margin-bottom: 20px; }
-                .countdown { margin-top: 20px; font-size: 14px; color: #666; }
-            </style>
-        </head>
-        <body>
-            <div class="success-container">
-                <div class="success-icon">💳</div>
-                <h2>Refund Processed Successfully!</h2>
-                <p>Your refund (ID: <strong>${refundRecord.id}</strong>) was successfully processed.</p>
-                <p>You'll be automatically redirected in <span id="countdown">4</span> seconds...</p>
-                <div class="countdown">
-                    <a href="${process.env.FRONTEND_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
-                </div>
-            </div>
-            <script>
-                let seconds = 4;
-                const el = document.getElementById('countdown');
-                const timer = setInterval(() => {
-                    seconds--; el.textContent = seconds;
-                    if (seconds <= 0) clearInterval(timer);
-                }, 1000);
-            </script>
-        </body>
-        </html>
-      `);
-    }
-
-    // ✅ Already processed response
-    return res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-          <title>Refund Already Processed</title>
-          <meta http-equiv="refresh" content="4;url=${process.env.FRONTEND_URL}/booking" />
-          <style>
-              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-              .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
-              .success-icon { font-size: 60px; margin-bottom: 20px; }
-              .countdown { margin-top: 20px; font-size: 14px; color: #666; }
-          </style>
-      </head>
-      <body>
-          <div class="success-container">
-              <div class="success-icon">✅</div>
-              <h2>Refund Already Processed</h2>
-              <p>Your refund has already been handled successfully.</p>
-              <p>You'll be redirected in <span id="countdown">4</span> seconds...</p>
-              <div class="countdown">
-                  <a href="${process.env.FRONTEND_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
-              </div>
-          </div>
-          <script>
-              let seconds = 4;
-              const el = document.getElementById('countdown');
-              const timer = setInterval(() => {
-                  seconds--; el.textContent = seconds;
-                  if (seconds <= 0) clearInterval(timer);
-              }, 1000);
-          </script>
-      </body>
-      </html>
-    `);
-
+    return res.json({
+      status: 'processed',
+      message: 'Refund Processed Successfully!',
+      refundId: refund.id,
+    });
   } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Refund error:', err);
-    res.redirect(`${process.env.FRONTEND_URL}/error?reason=refund_failed`);
+    try { await client.query('ROLLBACK'); } catch (e) { console.error('Rollback failed', e); }
+    console.error('Refund endpoint unexpected error:', err);
+    return res.status(500).json({ status: 'error', message: 'Refund failed' });
   } finally {
     client.release();
   }
 });
+
+
 
 // Alternative credit processing endpoint that doesn't depend on training_availability
 app.get('/api/booking/credit', async (req, res) => {
