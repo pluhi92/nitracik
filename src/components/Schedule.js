@@ -1,7 +1,6 @@
-// Schedule.js – FINÁLNA VERZIA
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useTranslation } from '../contexts/LanguageContext';
-import InfiniteDays from './InfiniteDays';
+import MobileSchedule from './MobileSchedule'; // Nový import pre mobil
 import api from '../api/api';
 
 const Schedule = () => {
@@ -12,13 +11,14 @@ const Schedule = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const scrollRef = useRef(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
   const fetchTrainingSessions = async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await api.get('/api/training-dates');
-
-      // Axios automaticky parsuje JSON do response.data
       setTrainingSessions(response.data);
     } catch (err) {
       console.error('Error fetching training sessions:', err);
@@ -30,9 +30,10 @@ const Schedule = () => {
 
   useEffect(() => {
     fetchTrainingSessions();
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
   }, [t]);
 
-  // Navigácia týždňov
   const goToPreviousWeek = () => {
     const prev = new Date(currentWeek);
     prev.setDate(prev.getDate() - 7);
@@ -59,7 +60,8 @@ const Schedule = () => {
     return days;
   };
 
-  const getMainMonthYear = () => {
+  const getMainMonthYear = (weekDays) => {
+    if (!weekDays || weekDays.length < 4) return '';
     const middleDay = weekDays[3];
     return middleDay.toLocaleDateString('sk-SK', {
       month: 'long',
@@ -69,31 +71,28 @@ const Schedule = () => {
 
   const getTimeSlots = () => {
     const slots = [];
-    for (let h = 7; h <= 20; h++) slots.push(`${h.toString().padStart(2, '0')}:00`);
+    for (let h = 0; h < 24; h++) {
+      slots.push(`${h.toString().padStart(2, '0')}:00`);
+      slots.push(`${h.toString().padStart(2, '0')}:30`);
+    }
     return slots;
   };
 
-  const getTrainingForTimeSlot = (day, timeSlot) => {
-    const [hour] = timeSlot.split(':');
-    const start = new Date(day);
-    start.setHours(parseInt(hour), 0, 0, 0);
-    const end = new Date(start);
-    end.setHours(end.getHours() + 1);
-    return trainingSessions.filter(s => {
-      const d = new Date(s.training_date);
-      return d >= start && d < end && !s.cancelled;
-    });
-  };
+  const getTrainingsForSlot = (day, timeSlot) => {
+    const [hourStr, minuteStr] = timeSlot.split(':');
+    const slotHour = parseInt(hourStr);
+    const slotMinute = parseInt(minuteStr);
 
-  const getTrainingsForDay = (day) => {
-    const start = new Date(day); start.setHours(0, 0, 0, 0);
-    const end = new Date(day); end.setHours(23, 59, 59, 999);
-    return trainingSessions
-      .filter(s => {
-        const d = new Date(s.training_date);
-        return d >= start && d <= end && !s.cancelled;
-      })
-      .sort((a, b) => new Date(a.training_date) - new Date(b.training_date));
+    const startOfSlot = new Date(day);
+    startOfSlot.setHours(slotHour, slotMinute, 0, 0);
+
+    const endOfSlot = new Date(startOfSlot);
+    endOfSlot.setMinutes(endOfSlot.getMinutes() + 30);
+
+    return trainingSessions.filter(s => {
+      const trainingDate = new Date(s.training_date);
+      return trainingDate >= startOfSlot && trainingDate < endOfSlot && !s.cancelled;
+    });
   };
 
   const formatDate = (d) => d.toLocaleDateString('sk-SK', { day: 'numeric', month: 'numeric' });
@@ -103,140 +102,213 @@ const Schedule = () => {
 
   const getTrainingStyle = (type) => {
     switch (type?.toLowerCase()) {
-      case 'mini': return 'bg-yellow-400 text-gray-900 border-yellow-500';
-      case 'midi': return 'bg-green-500 text-white border-green-600';
-      case 'maxi': return 'bg-blue-500 text-white border-blue-600';
-      default: return 'bg-gray-500 text-white border-gray-600';
+      case 'mini': return 'bg-yellow-100 text-yellow-900 border-l-4 border-yellow-500';
+      case 'midi': return 'bg-green-100 text-green-900 border-l-4 border-green-500';
+      case 'maxi': return 'bg-blue-100 text-blue-900 border-l-4 border-blue-500';
+      default: return 'bg-gray-100 text-gray-900 border-l-4 border-gray-500';
     }
   };
 
   const isToday = (d) => d.toDateString() === new Date().toDateString();
+  const isWeekend = (d) => d.getDay() === 0 || d.getDay() === 6;
+
+  const getCurrentTimePosition = () => {
+    const now = currentTime;
+    const minutes = now.getHours() * 60 + now.getMinutes();
+    const totalMinutes = 24 * 60;
+    return (minutes / totalMinutes) * 100;
+  };
+
+  useLayoutEffect(() => {
+    if (scrollRef.current && !loading) {
+      const now = new Date();
+      const totalMinutes = 24 * 60;
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+      const container = scrollRef.current;
+      const clientHeight = container.clientHeight;
+
+      const headerOffset = 60;
+      const timeOffset = (currentMinutes / totalMinutes) * 1440;
+
+      const targetScroll = timeOffset + headerOffset - (clientHeight / 2);
+
+      container.scrollTop = targetScroll > 0 ? targetScroll : 0;
+    }
+  }, [loading]);
+
+  // Helper pre mobil - musí byť definovaný pred prvým použitím
+  const getTrainingsForDay = (day) => {
+    const start = new Date(day);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(day);
+    end.setHours(23, 59, 59, 999);
+
+    return trainingSessions
+      .filter(s => {
+        const d = new Date(s.training_date);
+        return d >= start && d <= end && !s.cancelled;
+      })
+      .sort((a, b) => new Date(a.training_date) - new Date(b.training_date))
+      .map(session => ({
+        ...session,
+        startTime: new Date(session.training_date),
+        endTime: new Date(new Date(session.training_date).getTime() + 60 * 60 * 1000), // 1 hour default
+      }));
+  };
+
+  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="text-lg text-gray-600">{t?.schedule?.loading || 'Načítavam...'}</div></div>;
+  if (error) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="text-center py-10 text-red-600">{error}<button onClick={fetchTrainingSessions} className="block mx-auto mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg">Skúsiť znova</button></div></div>;
 
   const weekDays = getWeekDays(currentWeek);
   const timeSlots = getTimeSlots();
-
-  if (loading) return <div className="flex-grow flex items-center justify-center"><div className="text-lg text-gray-600">{t?.schedule?.loading || 'Načítavam...'}</div></div>;
-  if (error) return <div className="text-center py-10 text-red-600">{error}<button onClick={fetchTrainingSessions} className="block mx-auto mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg">Skúsiť znova</button></div>;
+  const mainMonthYear = getMainMonthYear(weekDays);
 
   return (
-    <div className="flex-grow bg-inherit py-6 px-4">
-      <div className="max-w-6xl mx-auto">
+    <section className="min-h-screen bg-background py-8 md:py-12 flex flex-col">
+      <div className="max-w-7xl mx-auto px-4 w-full flex-grow flex flex-col">
 
-        {/* Hlavný nadpis */}
-        <h1 className="text-center text-3xl font-bold text-secondary mb-6">
-          {t?.schedule?.title || 'Tréningový rozvrh'}
-        </h1>
+        {/* HEADER SECTION - len pre desktop */}
+        <div className="mb-6 hidden lg:block">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">
+              {t?.schedule?.title || 'Tréningový rozvrh'}
+            </h1>
 
-        {/* Legenda */}
-        <div className="flex flex-wrap justify-center gap-6 mb-4 p-4 bg-overlay-90 backdrop-blur-sm rounded-2xl shadow-sm">
-          <div className="flex items-center gap-2"><div className="w-6 h-6 bg-yellow-400 rounded border-2 border-yellow-600"></div><span className="font-bold text-base">MINI</span></div>
-          <div className="flex items-center gap-2"><div className="w-6 h-6 bg-green-500 rounded border-2 border-green-700"></div><span className="font-bold text-base">MIDI</span></div>
-          <div className="flex items-center gap-2"><div className="w-6 h-6 bg-blue-500 rounded border-2 border-blue-700"></div><span className="font-bold text-base">MAXI</span></div>
-        </div>
-
-        {/* Šípky + mesiac/rok (mobile + desktop) */}
-        <div className="flex items-center justify-center gap-6 mb-4">
-          <button
-            onClick={goToPreviousWeek}
-            className="p-3 rounded-full bg-white shadow-lg hover:shadow-xl transition-all hover:scale-105 border border-gray-200"
-            aria-label="Predchádzajúci týždeň"
-          >
-            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-
-          <div className="text-center">
-            <h2 className="text-2xl font-extrabold text-secondary">{getMainMonthYear()}</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              {weekDays[0].toLocaleDateString('sk-SK', { day: 'numeric', month: 'numeric' })} –{' '}
-              {weekDays[6].toLocaleDateString('sk-SK', { day: 'numeric', month: 'numeric', year: 'numeric' })}
-            </p>
+            <div className="hidden md:flex gap-4 text-sm">
+              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-yellow-400 rounded-full border border-yellow-600"></span> <span className="font-medium text-gray-700">MINI</span></span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded-full border border-green-700"></span> <span className="font-medium text-gray-700">MIDI</span></span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-blue-500 rounded-full border border-blue-700"></span> <span className="font-medium text-gray-700">MAXI</span></span>
+            </div>
           </div>
 
-          <button
-            onClick={goToNextWeek}
-            className="p-3 rounded-full bg-white shadow-lg hover:shadow-xl transition-all hover:scale-105 border border-gray-200"
-            aria-label="Nasledujúci týždeň"
-          >
-            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
+          {/* Navigation Controls - len pre desktop */}
+          <div className="flex items-center justify-between md:justify-center gap-6 py-2">
+            <button onClick={goToPreviousWeek} className="p-3 bg-white rounded-full shadow-md hover:shadow-lg hover:scale-105 transition border border-gray-100">
+              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            </button>
+
+            <div className="text-center min-w-[200px]">
+              <h2 className="text-2xl font-bold text-gray-800">{mainMonthYear}</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                {weekDays[0].getDate()}. – {weekDays[6].getDate()}. {weekDays[6].toLocaleDateString('sk-SK', { month: 'long' })}
+              </p>
+            </div>
+
+            <button onClick={goToNextWeek} className="p-3 bg-white rounded-full shadow-md hover:shadow-lg hover:scale-105 transition border border-gray-100">
+              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </button>
+          </div>
         </div>
 
-        {/* InfiniteDays – len na mobile */}
-        <div className="lg:hidden mb-6">
-          <InfiniteDays
-            selectedDay={selectedDay}
-            onSelect={(d) => setSelectedDay(selectedDay?.toDateString() === d.toDateString() ? null : d)}
-            targetWeek={weekDays[3]} // Posielame celý týždeň
+        {/* MOBILE CONTENT - použi nový MobileSchedule */}
+        <div className="lg:hidden flex-grow">
+          <MobileSchedule
+            trainingSessions={trainingSessions}
+            getTrainingsForDay={getTrainingsForDay}
           />
         </div>
 
-        {/* MOBILE: Detail vybraného dňa */}
-        <div className="lg:hidden">
-          {selectedDay ? (
-            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-              <div className="bg-gradient-to-br from-blue-600 to-blue-800 text-white p-5 flex justify-between items-center">
-                <h2 className="text-xl font-bold">{formatFullDate(selectedDay)}</h2>
-                <button onClick={() => setSelectedDay(null)} className="text-3xl font-light">×</button>
-              </div>
-              <div className="p-5 space-y-4">
-                {getTrainingsForDay(selectedDay).length === 0 ? (
-                  <p className="text-center py-10 text-gray-500 text-base italic">Žiadne tréningy na tento deň</p>
-                ) : (
-                  getTrainingsForDay(selectedDay).map(t => (
-                    <div key={t.id} className={`p-5 rounded-2xl border-4 text-white font-bold ${getTrainingStyle(t.training_type)}`}>
-                      <div className="text-xl">{t.training_type.toUpperCase()}</div>
-                      <div className="text-3xl mt-1">{formatTime(t.training_date)}</div>
-                      {t.location && <div className="mt-2 opacity-90">{t.location}</div>}
-                      {t.description && <div className="mt-2 text-sm opacity-80">{t.description}</div>}
-                    </div>
-                  ))
-                )}
-              </div>
+        {/* DESKTOP CONTENT - zostáva rovnaké */}
+        <div className="hidden lg:block bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200 overflow-hidden flex-grow-0">
+          <div
+            ref={scrollRef}
+            className="overflow-y-auto relative scroll-smooth"
+            style={{ height: '600px' }}
+          >
+            {/* Sticky Days Header */}
+            <div className="sticky top-0 z-30 bg-gray-50 grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-300 shadow-sm">
+              <div className="p-3 border-r border-gray-300 bg-gray-50"></div>
+              {weekDays.map(day => (
+                <div
+                  key={day.toISOString()}
+                  className={`p-3 text-center border-r border-gray-200 last:border-r-0 
+                        ${isToday(day) ? 'bg-blue-50/50' : isWeekend(day) ? 'bg-gray-100' : 'bg-gray-50'}`}
+                >
+                  <div className={`text-xs uppercase font-bold tracking-wider ${isToday(day) ? 'text-blue-700' : 'text-gray-500'}`}>
+                    {formatDayName(day)}
+                  </div>
+                  <div className={`text-xl font-extrabold leading-none mt-1 ${isToday(day) ? 'text-blue-700' : 'text-gray-800'}`}>
+                    {day.getDate()}
+                  </div>
+                </div>
+              ))}
             </div>
-          ) : (
-            <div className="text-center py-12 text-gray-500">
-              <p className="text-lg">Ťuknite na deň v kalendári vyššie ↑</p>
-            </div>
-          )}
-        </div>
 
-        {/* DESKTOP: Pôvodný týždenný grid */}
-        <div className="hidden lg:block bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-          <div className="grid grid-cols-[80px_repeat(7,1fr)] auto-rows-[60px] text-sm">
-            <div className="bg-gray-50 border-r border-b border-gray-200"></div>
-            {weekDays.map(day => (
-              <div key={day.toISOString()} className={`bg-gray-50 border-r border-b last:border-r-0 p-2 text-center ${isToday(day) ? 'bg-blue-100' : ''}`}>
-                <div className="text-xs uppercase text-gray-600 font-medium">{formatDayName(day)}</div>
-                <div className={`text-lg font-bold ${isToday(day) ? 'text-blue-700' : 'text-gray-900'}`}>{formatDate(day)}</div>
-              </div>
-            ))}
-            {timeSlots.map(slot => (
-              <React.Fragment key={slot}>
-                <div className="bg-gray-50 border-r border-b p-2 flex items-center justify-center text-xs font-medium text-gray-600">{slot}</div>
-                {weekDays.map(day => {
-                  const trainings = getTrainingForTimeSlot(day, slot);
+            {/* Calendar Grid Body */}
+            <div className="relative min-h-[1440px] bg-white">
+
+              {/* Grid Lines & Time Labels */}
+              <div className="grid grid-cols-[60px_repeat(7,1fr)]">
+                {timeSlots.map((slot, index) => {
+                  const isHour = slot.endsWith(':00');
+                  const isHalfHour = slot.endsWith(':30');
+                  const borderClass = isHalfHour ? 'border-b border-gray-300' : 'border-b border-gray-100';
+
                   return (
-                    <div key={day.toISOString()} className={`border-r border-b last:border-r-0 p-1 min-h-[60px] ${isToday(day) ? 'bg-blue-50' : ''}`}>
-                      {trainings.map(t => (
-                        <div key={t.id} className={`h-full rounded-lg p-2 flex flex-col justify-center items-center text-center text-xs font-bold text-white border-2 ${getTrainingStyle(t.training_type)} hover:scale-105 transition`}>
-                          <div>{t.training_type}</div>
-                          <div className="text-xs opacity-90">{formatTime(t.training_date)}</div>
-                        </div>
+                    <React.Fragment key={slot}>
+                      {/* Time Label */}
+                      <div className={`border-r border-gray-300 text-right pr-3 py-1 text-xs font-bold text-gray-900 h-[30px] -mt-2.5 bg-gray-50 z-20`}>
+                        {isHour ? slot : ''}
+                      </div>
+
+                      {/* Day Columns */}
+                      {weekDays.map(day => (
+                        <div
+                          key={`${day.toISOString()}-${slot}`}
+                          className={`border-r border-gray-100 last:border-r-0 h-[30px] 
+                                ${borderClass}
+                                ${isToday(day) ? 'bg-blue-50/10' : isWeekend(day) ? 'bg-gray-50' : ''}`}
+                        ></div>
                       ))}
-                    </div>
+                    </React.Fragment>
                   );
                 })}
-              </React.Fragment>
-            ))}
+              </div>
+
+              {/* Events Layer */}
+              <div className="absolute top-0 left-0 w-full h-full pointer-events-none grid grid-cols-[60px_repeat(7,1fr)]">
+                <div></div>
+                {weekDays.map(day => (
+                  <div key={`events-${day.toISOString()}`} className="relative h-full">
+                    {timeSlots.map(slot => {
+                      const trainings = getTrainingsForSlot(day, slot);
+                      if (!trainings.length) return null;
+                      return trainings.map(t => (
+                        <div
+                          key={t.id}
+                          className={`absolute w-[92%] left-[4%] z-10 p-1.5 rounded-md text-xs pointer-events-auto cursor-pointer hover:scale-[1.02] transition-all shadow-md border-l-[5px] overflow-hidden flex flex-col justify-start ${getTrainingStyle(t.training_type)}`}
+                          style={{
+                            top: (() => {
+                              const [h, m] = slot.split(':').map(Number);
+                              return `${(h * 60) + (m === 30 ? 30 : 0)}px`;
+                            })(),
+                            height: '58px'
+                          }}
+                        >
+                          <div className="font-extrabold text-[11px] uppercase tracking-wide opacity-80">
+                            {t.training_type}
+                          </div>
+                          <div className="font-bold text-sm mt-auto">
+                            {formatTime(t.training_date)}
+                          </div>
+                        </div>
+                      ));
+                    })}
+                  </div>
+                ))}
+              </div>
+
+              {/* Current Time Line */}
+              <div className="absolute left-[60px] right-0 border-t-2 border-red-500 z-20 pointer-events-none flex items-center" style={{ top: `${getCurrentTimePosition()}%` }}>
+                <div className="w-2 h-2 bg-red-500 rounded-full -ml-1"></div>
+              </div>
+            </div>
           </div>
         </div>
 
       </div>
-    </div>
+    </section>
   );
 };
 

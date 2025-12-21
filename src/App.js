@@ -1,7 +1,9 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { UserProvider } from './contexts/UserContext';
+import dayjs from 'dayjs';
+import 'dayjs/locale/sk';
 
 import Navbar from './components/Navbar';
 import GreetingBar from './components/GreetingBar';
@@ -27,41 +29,57 @@ const SeasonTickets = lazy(() => import('./components/SeasonTickets'));
 const RefundOption = lazy(() => import('./components/RefundOption'));
 const Schedule = lazy(() => import('./components/Schedule'));
 
+// Inicializácia dayjs s lokálnym nastavením
+const initializeDayJS = () => {
+  dayjs.locale('sk');
+};
+
 // ------------------ Main App Content ------------------
-const AppContent = () => (
-  <div className="min-h-screen flex flex-col overflow-x-clip bg-white bg-custom-flakes bg-cover">
-    <Navbar />
-    <GreetingBar />
+const AppContent = () => {
+  // Inicializácia pri načítaní komponentu
+  useEffect(() => {
+    initializeDayJS();
+  }, []);
 
-    <main className="flex-grow">
-      <Suspense fallback={<div className="loading">Načítavam...</div>}>
-        <Routes>
-          <Route index element={<AboutUs />} />
-          <Route path="/about" element={<AboutUs />} />
-          <Route path="/booking" element={<Booking />} />
-          <Route path="/profile" element={<UserProfile />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/registration-success" element={<RegistrationSuccess />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/thank-you" element={<ThankYou />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/account-deleted" element={<AccountDeleted />} />
-          <Route path="/payment-success" element={<PaymentSuccess />} />
-          <Route path="/payment-cancelled" element={<PaymentCancelled />} />
-          <Route path="/season-tickets" element={<SeasonTickets />} />
-          <Route path="/refund-option" element={<RefundOption />} />
-          <Route path="/schedule" element={<Schedule />} />
-        </Routes>
-      </Suspense>
-    </main>
+  return (
+    <div className="min-h-screen flex flex-col overflow-x-clip bg-white bg-custom-flakes bg-cover">
+      <Navbar />
+      <GreetingBar />
 
-    <Foot />
-    <CookieConsent />
-  </div>
-);
+      <main className="flex-grow">
+        <Suspense fallback={
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-lg text-gray-600">Načítavam...</div>
+          </div>
+        }>
+          <Routes>
+            <Route index element={<AboutUs />} />
+            <Route path="/about" element={<AboutUs />} />
+            <Route path="/booking" element={<Booking />} />
+            <Route path="/profile" element={<UserProfile />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/registration-success" element={<RegistrationSuccess />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/thank-you" element={<ThankYou />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/account-deleted" element={<AccountDeleted />} />
+            <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/payment-cancelled" element={<PaymentCancelled />} />
+            <Route path="/season-tickets" element={<SeasonTickets />} />
+            <Route path="/refund-option" element={<RefundOption />} />
+            <Route path="/schedule" element={<Schedule />} />
+          </Routes>
+        </Suspense>
+      </main>
+
+      <Foot />
+      <CookieConsent />
+    </div>
+  );
+};
 
 // ------------------ Final App Wrapper ------------------
 const App = () => (
