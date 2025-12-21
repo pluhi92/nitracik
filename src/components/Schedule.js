@@ -1,18 +1,23 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react'; // PRIDANÉ: useLayoutEffect
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../contexts/LanguageContext';
-import MobileSchedule from './MobileSchedule'; // Nový import pre mobil
+import MobileSchedule from './MobileSchedule';
 import api from '../api/api';
+import dayjs from 'dayjs';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Schedule = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [trainingSessions, setTrainingSessions] = useState([]);
   const [currentWeek, setCurrentWeek] = useState(new Date());
-  const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [selectedDay, setSelectedDay] = useState(null); // PRIDANÉ: Chýbajúca deklarácia
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const scrollRef = useRef(null);
+  
   const [currentTime, setCurrentTime] = useState(new Date());
+  const scrollRef = useRef(null); // PRIDANÉ: Chýbajúci ref
 
   const fetchTrainingSessions = async () => {
     try {
@@ -157,6 +162,26 @@ const Schedule = () => {
       }));
   };
 
+  const handleBookingRedirect = () => { 
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    if (isLoggedIn) {
+      navigate('/booking', { 
+        state: { 
+          // ZMENA: Premenované na 'incoming...', aby to sedelo s MobileSchedule a Booking logikou
+          incomingDate: dayjs(selectedSession.training_date).format('YYYY-MM-DD'),
+          incomingTime: dayjs(selectedSession.training_date).format('HH:mm'),
+          incomingType: selectedSession.training_type
+        } 
+      });
+    } else {
+      navigate('/login');
+    }
+  };
+
+  const handleSessionClick = (session) => {
+    setSelectedSession(session);
+  };
+
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="text-lg text-gray-600">{t?.schedule?.loading || 'Načítavam...'}</div></div>;
   if (error) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="text-center py-10 text-red-600">{error}<button onClick={fetchTrainingSessions} className="block mx-auto mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg">Skúsiť znova</button></div></div>;
 
@@ -201,7 +226,7 @@ const Schedule = () => {
           </div>
         </div>
 
-        {/* MOBILE CONTENT - použi nový MobileSchedule */}
+        {/* MOBILE CONTENT - používa tvoj nový MobileSchedule */}
         <div className="lg:hidden flex-grow">
           <MobileSchedule
             trainingSessions={trainingSessions}
@@ -209,7 +234,7 @@ const Schedule = () => {
           />
         </div>
 
-        {/* DESKTOP CONTENT - zostáva rovnaké */}
+        {/* DESKTOP CONTENT */}
         <div className="hidden lg:block bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200 overflow-hidden flex-grow-0">
           <div
             ref={scrollRef}
@@ -247,12 +272,10 @@ const Schedule = () => {
 
                   return (
                     <React.Fragment key={slot}>
-                      {/* Time Label */}
                       <div className={`border-r border-gray-300 text-right pr-3 py-1 text-xs font-bold text-gray-900 h-[30px] -mt-2.5 bg-gray-50 z-20`}>
                         {isHour ? slot : ''}
                       </div>
 
-                      {/* Day Columns */}
                       {weekDays.map(day => (
                         <div
                           key={`${day.toISOString()}-${slot}`}
@@ -277,7 +300,10 @@ const Schedule = () => {
                       return trainings.map(t => (
                         <div
                           key={t.id}
-                          className={`absolute w-[92%] left-[4%] z-10 p-1.5 rounded-md text-xs pointer-events-auto cursor-pointer hover:scale-[1.02] transition-all shadow-md border-l-[5px] overflow-hidden flex flex-col justify-start ${getTrainingStyle(t.training_type)}`}
+                          onClick={() => handleSessionClick(t)}
+                          className={`absolute w-[92%] left-[4%] z-10 p-1.5 rounded-md text-xs pointer-events-auto cursor-pointer hover:scale-[1.02] transition-all shadow-md border-l-[5px] overflow-hidden flex flex-col justify-start 
+                            ${getTrainingStyle(t.training_type)} 
+                            ${selectedSession?.id === t.id ? 'ring-2 ring-blue-600 scale-[1.02]' : ''}`}
                           style={{
                             top: (() => {
                               const [h, m] = slot.split(':').map(Number);
@@ -306,8 +332,43 @@ const Schedule = () => {
             </div>
           </div>
         </div>
-
       </div>
+
+      {/* PRIDANÉ: DESKTOP ACTION BAR - Zobrazí sa naspodu po vybraní tréningu */}
+      <AnimatePresence>
+        {selectedSession && (
+          <motion.div 
+            initial={{ y: 100, x: '-50%', opacity: 0 }}
+            animate={{ y: 0, x: '-50%', opacity: 1 }}
+            exit={{ y: 100, x: '-50%', opacity: 0 }}
+            className="fixed bottom-10 left-1/2 z-[100] bg-white shadow-2xl rounded-2xl p-6 border-2 border-secondary-500 flex items-center gap-10 min-w-[600px] hidden lg:flex"
+          >
+            <div className="flex-1">
+              <h4 className="font-black text-secondary-800 text-xl uppercase italic leading-none">
+                {selectedSession.training_type} Tréning
+              </h4>
+              <p className="text-gray-600 font-bold mt-2">
+                {dayjs(selectedSession.training_date).format('dddd | D. M. YYYY | HH:mm')}
+              </p>
+            </div>
+            
+            <div className="flex gap-4 items-center">
+              <button 
+                onClick={() => setSelectedSession(null)}
+                className="px-4 py-2 text-gray-400 font-bold hover:text-gray-800 transition-colors uppercase text-xs tracking-widest"
+              >
+                Zavrieť
+              </button>
+              <button 
+                onClick={handleBookingRedirect}
+                className="bg-secondary-800 text-white px-8 py-4 rounded-xl font-black uppercase tracking-[0.15em] hover:bg-black transition-all shadow-lg text-sm"
+              >
+                Prihlásiť sa na hodinu
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 };

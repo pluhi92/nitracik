@@ -298,6 +298,21 @@ const Booking = () => {
     checkAvailability();
   }, [trainingType, selectedDate, selectedTime, childrenCount]);
 
+  useEffect(() => {
+    // Skontrolujeme, či nám prišli dáta z rozvrhu cez 'state'
+    if (location.state) {
+      const { incomingDate, incomingTime, incomingType } = location.state;
+      
+      if (incomingDate) setSelectedDate(incomingDate);
+      if (incomingTime) setSelectedTime(incomingTime);
+      if (incomingType) setTrainingType(incomingType);
+      
+      // Vyčistíme state histórie, aby pri REFRESHI stránky 
+      // nezostali staré dáta "visieť" v pamäti prehliadača
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
+
   const handleAgeChange = (index, age) => {
     const newAges = [...childrenAges];
     newAges[index] = age === '' ? '' : parseInt(age);
