@@ -589,6 +589,7 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
   try {
     const {
       userId,
+      trainingId, // PRIDANÉ: Budeme posielať ID z frontendu
       trainingType,
       selectedDate,
       selectedTime,
@@ -601,8 +602,9 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
       accompanyingPerson,
     } = req.body;
 
-    if (!userId || !trainingType || !selectedDate || !selectedTime || !childrenCount || !totalPrice) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    // Validácia povinných polí (teraz vyžadujeme trainingId)
+    if (!userId || !trainingId || !childrenCount || !totalPrice) {
+      return res.status(400).json({ error: 'Missing required fields (userId, trainingId, etc.)' });
     }
 
     const pricing = { 1: 15, 2: 28, 3: 39 };
@@ -618,43 +620,42 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      // Convert time format
-      const [time, modifier] = selectedTime.split(' ');
-      let [hours, minutes] = time.split(':');
-      if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
-      if (modifier === 'AM' && hours === '12') hours = '00';
-      const trainingDateTimeUTC = new Date(`${selectedDate}T${hours}:${minutes}`);
-      const trainingDateTimeLocal = new Date(trainingDateTimeUTC.toLocaleString('en-US', { timeZone: 'Europe/Budapest' }));
-
-      // Find training session
+      // 1. Nájdeme tréning priamo podľa ID
       const trainingResult = await client.query(
-        `SELECT id, max_participants, training_type, training_date FROM training_availability WHERE training_type = $1 AND training_date = $2`,
-        [trainingType, trainingDateTimeLocal]
+        `SELECT id, max_participants, training_type, training_date 
+         FROM training_availability WHERE id = $1`,
+        [trainingId]
       );
+
       if (trainingResult.rows.length === 0) {
-        throw new Error('Training session not found');
+        throw new Error('Tréningový termín už neexistuje.');
       }
       const training = trainingResult.rows[0];
 
-      // Check availability
+      // 2. Skontrolujeme aktuálnu kapacitu
       const bookingsResult = await client.query(
-        `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1`,
+        `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children 
+         FROM bookings WHERE training_id = $1 AND active = true`,
         [training.id]
       );
       const bookedChildren = parseInt(bookingsResult.rows[0].booked_children, 10);
+
       if (bookedChildren + childrenCount > training.max_participants) {
-        throw new Error('Not enough available spots');
+        throw new Error('Kapacita tréningu bola práve naplnená.');
       }
 
-      // Create Stripe checkout session
+      // 3. Formátovanie popisu pre Stripe
+      const sessionDate = new Date(training.training_date).toLocaleDateString('sk-SK');
+
+      // 4. Create Stripe checkout session
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [{
           price_data: {
             currency: 'eur',
             product_data: {
-              name: `${trainingType} Training Session`,
-              description: `Training on ${trainingDateTimeLocal.toLocaleString('en-US', { timeZone: 'Europe/Budapest' })}`
+              name: `${training.training_type} Tréning`,
+              description: `Termín: ${sessionDate} | Počet detí: ${childrenCount}`
             },
             unit_amount: Math.round(totalPrice * 100),
           },
@@ -665,7 +666,8 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         cancel_url: `${process.env.FRONTEND_URL}/payment-canceled`,
         metadata: {
           userId: userId.toString(),
-          trainingType,
+          trainingId: training.id.toString(),
+          trainingType: training.training_type,
           selectedDate,
           selectedTime,
           childrenCount: childrenCount.toString(),
@@ -679,13 +681,13 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         },
       });
 
-      // Create booking with all fields
+      // 5. Vytvorenie záznamu o rezervácii (active=true, booking_type='paid')
       const bookingResult = await client.query(
         `INSERT INTO bookings (
-    user_id, training_id, number_of_children, amount_paid, payment_time, 
-    session_id, booked_at, children_ages, photo_consent, mobile, note, accompanying_person, active, booking_type
-  ) VALUES ($1, $2, $3, $4, NULL, $5, NOW(), $6, $7, $8, $9, $10, true, 'paid')
-  RETURNING id`,
+          user_id, training_id, number_of_children, amount_paid, payment_time, 
+          session_id, booked_at, children_ages, photo_consent, mobile, note, accompanying_person, active, booking_type
+        ) VALUES ($1, $2, $3, $4, NULL, $5, NOW(), $6, $7, $8, $9, $10, true, 'paid')
+        RETURNING id`,
         [
           userId,
           training.id,
@@ -699,36 +701,20 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
           accompanyingPerson || false,
         ]
       );
-      const bookingId = bookingResult.rows[0].id;
-
-      console.log('[DEBUG] Booking created:', {
-        bookingId,
-        sessionId: session.id,
-        amountPaid: totalPrice,
-        userId,
-        trainingId: training.id,
-        numberOfChildren: childrenCount,
-        childrenAges: childrenAge || '',
-        photoConsent: photoConsent !== null ? photoConsent : false,
-        mobile: mobile || '',
-        note: note || '',
-        accompanyingPerson: accompanyingPerson || false,
-        trainingType,
-        trainingDate: trainingDateTimeLocal.toISOString()
-      });
 
       await client.query('COMMIT');
-      res.json({ sessionId: session.id, bookingId });
+      res.json({ sessionId: session.id, bookingId: bookingResult.rows[0].id });
+
     } catch (error) {
       await client.query('ROLLBACK');
-      console.error('[DEBUG] Payment session error:', error.message);
-      res.status(500).json({ error: `Failed to create payment session: ${error.message}` });
+      console.error('[DEBUG] Transaction error:', error.message);
+      res.status(500).json({ error: error.message });
     } finally {
       client.release();
     }
   } catch (error) {
     console.error('[DEBUG] Payment session error:', error.message);
-    res.status(500).json({ error: `Failed to create payment session: ${error.message}` });
+    res.status(500).json({ error: `Chyba pri vytváraní platby: ${error.message}` });
   }
 });
 
@@ -978,8 +964,8 @@ let transporter;
 try {
   transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 587,               
-    secure: false,           
+    port: 587,
+    secure: false,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
@@ -1231,28 +1217,40 @@ app.get('/api/users/:id', async (req, res) => {
 
 app.get('/api/check-availability', async (req, res) => {
   try {
-    const { trainingType, selectedDate, selectedTime, childrenCount } = req.query;
+    const { trainingId, trainingType, selectedDate, selectedTime, childrenCount } = req.query;
 
-    const [time, modifier] = selectedTime.split(' ');
-    let [hours, minutes] = time.split(':');
-    if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
-    if (modifier === 'AM' && hours === '12') hours = '00';
-    const trainingDateTime = new Date(`${selectedDate}T${hours}:${minutes}`);
+    let trainingResult;
 
-    const trainingResult = await pool.query(
-      `SELECT id, max_participants FROM training_availability
-       WHERE training_type = $1 AND training_date = $2`,
-      [trainingType, trainingDateTime]
-    );
+    if (trainingId) {
+      // NAJLEPŠIE RIEŠENIE: Hľadáme priamo podľa unikátneho ID
+      trainingResult = await pool.query(
+        `SELECT id, max_participants FROM training_availability WHERE id = $1`,
+        [trainingId]
+      );
+    } else {
+      // FALLBACK: Ak ID chýba, použijeme stringy (odolné voči timezone)
+      const timePart = selectedTime ? selectedTime.split(' ')[0] : null;
+      trainingResult = await pool.query(
+        `SELECT id, max_participants FROM training_availability
+         WHERE training_type = $1 
+         AND to_char(training_date, 'YYYY-MM-DD') = $2 
+         AND to_char(training_date, 'HH24:MI') = $3`,
+        [trainingType, selectedDate, timePart]
+      );
+    }
 
     if (trainingResult.rows.length === 0) {
-      return res.json({ available: false, reason: 'Session not found' });
+      return res.json({
+        available: false,
+        reason: 'Session not found',
+        remainingSpots: 0
+      });
     }
 
     const training = trainingResult.rows[0];
     const bookingsResult = await pool.query(
       `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children
-   FROM bookings WHERE training_id = $1 AND active = true`,
+       FROM bookings WHERE training_id = $1 AND active = true`,
       [training.id]
     );
 
@@ -1260,10 +1258,8 @@ app.get('/api/check-availability', async (req, res) => {
     const requestedChildren = parseInt(childrenCount, 10);
     const remainingSpots = training.max_participants - bookedChildren;
 
-    const canBook = remainingSpots >= requestedChildren;
-
     res.json({
-      available: canBook,
+      available: remainingSpots >= requestedChildren,
       remainingSpots,
       maxParticipants: training.max_participants,
       bookedChildren,

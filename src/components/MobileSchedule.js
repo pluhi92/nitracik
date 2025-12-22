@@ -58,19 +58,22 @@ const MobileSchedule = ({ trainingSessions, getTrainingsForDay }) => {
   };
 
   const handleBookingRedirect = (session) => {
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    if (isLoggedIn) {
-      navigate('/booking', { 
-        state: { 
-          incomingDate: dayjs(session.training_date).format('YYYY-MM-DD'),
-          incomingTime: dayjs(session.training_date).format('HH:mm'),
-          incomingType: session.training_type
-        } 
-      });
-    } else {
-      navigate('/login');
-    }
-  };
+  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  
+  if (isLoggedIn && session) {
+    navigate('/booking', { 
+      state: { 
+        incomingId: session.id, // PRIDANÉ: Posielame ID tréningu
+        incomingType: session.training_type,
+        incomingDate: dayjs(session.training_date).format('YYYY-MM-DD'),
+        incomingTime: dayjs(session.training_date).format('HH:mm')
+      } 
+    });
+  } else {
+    // Ak nie je prihlásený, presmerujeme na login a uložíme si cieľ
+    navigate('/login', { state: { from: '/booking' } });
+  }
+};
 
   useEffect(() => {
     if (trainingSessions && selectedDate) {

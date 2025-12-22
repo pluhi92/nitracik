@@ -15,7 +15,7 @@ const Schedule = () => {
   const [selectedDay, setSelectedDay] = useState(null); // PRIDANÉ: Chýbajúca deklarácia
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   const [currentTime, setCurrentTime] = useState(new Date());
   const scrollRef = useRef(null); // PRIDANÉ: Chýbajúci ref
 
@@ -162,21 +162,25 @@ const Schedule = () => {
       }));
   };
 
-  const handleBookingRedirect = () => { 
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    if (isLoggedIn) {
-      navigate('/booking', { 
-        state: { 
-          // ZMENA: Premenované na 'incoming...', aby to sedelo s MobileSchedule a Booking logikou
-          incomingDate: dayjs(selectedSession.training_date).format('YYYY-MM-DD'),
-          incomingTime: dayjs(selectedSession.training_date).format('HH:mm'),
-          incomingType: selectedSession.training_type
-        } 
-      });
-    } else {
-      navigate('/login');
-    }
-  };
+  const handleBookingRedirect = () => {
+  // PRIDANÉ: Definujeme premennú isLoggedIn načítaním z localStorage
+  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+
+  if (isLoggedIn && selectedSession) {
+    navigate('/booking', {
+      state: {
+        incomingId: selectedSession.id,
+        incomingType: selectedSession.training_type,
+        incomingDate: dayjs(selectedSession.training_date).format('YYYY-MM-DD'),
+        incomingTime: dayjs(selectedSession.training_date).format('HH:mm')
+      }
+    });
+  } else {
+    // Ak nie je prihlásený, pošleme ho na login a povieme aplikácii, 
+    // že po prihlásení sa má vrátiť na booking
+    navigate('/login', { state: { from: '/booking' } });
+  }
+};
 
   const handleSessionClick = (session) => {
     setSelectedSession(session);
@@ -337,7 +341,7 @@ const Schedule = () => {
       {/* PRIDANÉ: DESKTOP ACTION BAR - Zobrazí sa naspodu po vybraní tréningu */}
       <AnimatePresence>
         {selectedSession && (
-          <motion.div 
+          <motion.div
             initial={{ y: 100, x: '-50%', opacity: 0 }}
             animate={{ y: 0, x: '-50%', opacity: 1 }}
             exit={{ y: 100, x: '-50%', opacity: 0 }}
@@ -351,15 +355,15 @@ const Schedule = () => {
                 {dayjs(selectedSession.training_date).format('dddd | D. M. YYYY | HH:mm')}
               </p>
             </div>
-            
+
             <div className="flex gap-4 items-center">
-              <button 
+              <button
                 onClick={() => setSelectedSession(null)}
                 className="px-4 py-2 text-gray-400 font-bold hover:text-gray-800 transition-colors uppercase text-xs tracking-widest"
               >
                 Zavrieť
               </button>
-              <button 
+              <button
                 onClick={handleBookingRedirect}
                 className="bg-secondary-800 text-white px-8 py-4 rounded-xl font-black uppercase tracking-[0.15em] hover:bg-black transition-all shadow-lg text-sm"
               >

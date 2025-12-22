@@ -49,6 +49,7 @@ const Booking = () => {
   const [fillFormPreference, setFillFormPreference] = useState({});
   const [userBookings, setUserBookings] = useState([]);
   const [isAlreadyBooked, setIsAlreadyBooked] = useState(false);
+  const [trainingId, setTrainingId] = useState(null);
 
   const pricing = {
     1: 15,
@@ -86,7 +87,7 @@ const Booking = () => {
 
   useEffect(() => {
     if (childrenAges.length === childrenCount) {
-        return; // Zastavíme vykonávanie efektu, ak nie je potrebné nič meniť
+      return; // Zastavíme vykonávanie efektu, ak nie je potrebné nič meniť
     }
     const newAges = [];
     for (let i = 0; i < childrenCount; i++) {
@@ -272,10 +273,17 @@ const Booking = () => {
 
   useEffect(() => {
     const checkAvailability = async () => {
-      if (trainingType && selectedDate && selectedTime && childrenCount) {
+      // Pridali sme trainingId do podmienky (ak ho máme, je to super)
+      if ((trainingId || (trainingType && selectedDate && selectedTime)) && childrenCount) {
         try {
           const response = await api.get('/api/check-availability', {
-            params: { trainingType, selectedDate, selectedTime, childrenCount },
+            params: {
+              trainingId, // POSIELAME ID
+              trainingType,
+              selectedDate,
+              selectedTime,
+              childrenCount
+            },
           });
 
           setAvailability({
@@ -296,17 +304,23 @@ const Booking = () => {
     };
 
     checkAvailability();
-  }, [trainingType, selectedDate, selectedTime, childrenCount]);
+    // Pridali sme trainingId do poľa závislostí
+  }, [trainingId, trainingType, selectedDate, selectedTime, childrenCount]);
 
   useEffect(() => {
-    // Skontrolujeme, či nám prišli dáta z rozvrhu cez 'state'
     if (location.state) {
-      const { incomingDate, incomingTime, incomingType } = location.state;
-      
+      const {
+        incomingId, // Toto budeme posielať zo Schedule.js
+        incomingType,
+        incomingDate,
+        incomingTime
+      } = location.state;
+
       if (incomingDate) setSelectedDate(incomingDate);
       if (incomingTime) setSelectedTime(incomingTime);
       if (incomingType) setTrainingType(incomingType);
-      
+      if (incomingId) setTrainingId(incomingId);
+
       // Vyčistíme state histórie, aby pri REFRESHI stránky 
       // nezostali staré dáta "visieť" v pamäti prehliadača
       window.history.replaceState({}, document.title);
@@ -403,6 +417,7 @@ const Booking = () => {
         const response = await api.post('/api/use-season-ticket', {
           userId: userData.id,
           seasonTicketId: selectedSeasonTicket,
+          trainingId,
           trainingType,
           selectedDate,
           selectedTime,
@@ -421,6 +436,7 @@ const Booking = () => {
       } else {
         const paymentSession = await api.post('/api/create-payment-session', {
           userId: userData.id,
+          trainingId,
           trainingType,
           selectedDate,
           selectedTime,
