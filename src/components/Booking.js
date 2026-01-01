@@ -102,18 +102,22 @@ const Booking = () => {
         const response = await api.get('/api/training-dates');
         const dates = response.data.reduce((acc, training) => {
           const date = new Date(training.training_date).toLocaleDateString('en-CA');
-          const time = new Date(training.training_date).toLocaleTimeString('sk-SK', { // ← Zmena na sk-SK
+          const time = new Date(training.training_date).toLocaleTimeString('sk-SK', {
             hour: '2-digit',
             minute: '2-digit',
-            hour12: false // ← Pridané pre 24-hodinový formát
+            hour12: false
           });
+
           if (!acc[training.training_type]) {
             acc[training.training_type] = {};
           }
           if (!acc[training.training_type][date]) {
             acc[training.training_type][date] = [];
           }
-          acc[training.training_type][date].push(time);
+
+          // ZMENA: Namiesto push(time) ukladáme objekt s ID
+          acc[training.training_type][date].push({ time, id: training.id });
+
           return acc;
         }, {});
         setTrainingDates(dates);
@@ -232,7 +236,8 @@ const Booking = () => {
       if (!acc[training.training_type][date]) {
         acc[training.training_type][date] = [];
       }
-      acc[training.training_type][date].push(time);
+      // TU JE KĽÚČOVÁ ZMENA (rovnako ako vyššie):
+      acc[training.training_type][date].push({ time, id: training.id });
       return acc;
     }, {});
   };
@@ -273,39 +278,33 @@ const Booking = () => {
 
   useEffect(() => {
     const checkAvailability = async () => {
-      // Pridali sme trainingId do podmienky (ak ho máme, je to super)
-      if ((trainingId || (trainingType && selectedDate && selectedTime)) && childrenCount) {
-        try {
-          const response = await api.get('/api/check-availability', {
-            params: {
-              trainingId, // POSIELAME ID
-              trainingType,
-              selectedDate,
-              selectedTime,
-              childrenCount
-            },
-          });
+      // Ak nemáme ID alebo počet detí, kontrolu nerobíme
+      if (!trainingId || !childrenCount) {
+        setAvailability({ isAvailable: true, remainingSpots: 0, requestedChildren: 0 });
+        return;
+      }
 
-          setAvailability({
-            isAvailable: response.data.available,
-            remainingSpots: response.data.remainingSpots,
-            requestedChildren: childrenCount,
-          });
-        } catch (error) {
-          console.error('Error checking availability:', error);
-        }
-      } else {
-        setAvailability({
-          isAvailable: true,
-          remainingSpots: 0,
-          requestedChildren: 0,
+      try {
+        const response = await api.get('/api/check-availability', {
+          params: {
+            trainingId, // Posielame len to podstatné
+            childrenCount
+          },
         });
+
+        setAvailability({
+          isAvailable: response.data.available,
+          remainingSpots: response.data.remainingSpots,
+          requestedChildren: childrenCount,
+        });
+      } catch (error) {
+        console.error('Error checking availability:', error);
       }
     };
 
     checkAvailability();
-    // Pridali sme trainingId do poľa závislostí
-  }, [trainingId, trainingType, selectedDate, selectedTime, childrenCount]);
+    // Sledujeme primárne trainingId a childrenCount
+  }, [trainingId, childrenCount]);
 
   useEffect(() => {
     if (location.state) {
@@ -787,14 +786,22 @@ const Booking = () => {
                   {t?.booking?.selectTime || 'Select Time Slot'} <span className="text-red-500">*</span>
                 </Form.Label>
                 <Form.Select
-                  value={selectedTime}
-                  onChange={(e) => setSelectedTime(e.target.value)}
+                  value={trainingId || ""} // Value je teraz ID
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setTrainingId(id); // Nastavíme ID okamžite
+
+                    // Čas si dohľadáme len kvôli vizuálnemu zobrazeniu (napr. do sumáru objednávky)
+                    const sessionObj = trainingDates[trainingType][selectedDate]
+                      .find(s => String(s.id) === String(id));
+                    setSelectedTime(sessionObj?.time || '');
+                  }}
                   className="w-full text-lg py-3"
                 >
                   <option value="">-- {t?.booking?.selectTime || 'Choose a Time Slot'} --</option>
-                  {trainingDates[trainingType][selectedDate].map((time) => (
-                    <option key={time} value={time}>
-                      {time}
+                  {trainingDates[trainingType][selectedDate].map((session) => (
+                    <option key={session.id} value={session.id}> {/* Value je ID */}
+                      {session.time} {/* User vidí ČAS */}
                     </option>
                   ))}
                 </Form.Select>
