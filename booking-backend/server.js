@@ -1735,7 +1735,7 @@ app.delete('/api/admin/training-sessions/:trainingId', isAdmin, async (req, res)
 
     // 2. ✅ UPDATED: Check if there are any remaining bookings for this session
     const bookingsCheck = await client.query(
-      'SELECT COUNT(*) as booking_count, ARRAY_AGG(user_id) as user_ids FROM bookings WHERE training_id = $1',
+      'SELECT COUNT(*) as booking_count, ARRAY_AGG(user_id) as user_ids FROM bookings WHERE training_id = $1 AND active = true',
       [trainingId]
     );
 
@@ -1751,6 +1751,11 @@ app.delete('/api/admin/training-sessions/:trainingId', isAdmin, async (req, res)
         message: 'All users must process their refunds or credits before deletion.'
       });
     }
+
+    await client.query(
+      'DELETE FROM bookings WHERE training_id = $1',
+      [trainingId]
+    );
 
     // 3. Delete the session (only if no bookings remain)
     const deleteResult = await client.query(

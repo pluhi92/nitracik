@@ -269,7 +269,7 @@ const UserProfile = () => {
                 const hoursDifference = (sessionTime - currentTime) / (1000 * 60 * 60);
                 const isWithin10Hours = hoursDifference <= 10;
                 const isCancelled = session.cancelled === true;
-                const remainingBookings = session.participants.length;
+                const remainingBookings = session.participants.filter(p => p.active === true).length;
                 const totalChildren = session.participants.reduce((sum, participant) => sum + participant.children, 0);
 
                 return (
@@ -714,37 +714,49 @@ const UserProfile = () => {
           </h4>
           <form onSubmit={handleGenerateReport}>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-              <div className="md:col-span-5">
+              <div className="md:col-span-5 w-full min-w-0"> {/* Pridané min-w-0 aj sem */}
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t?.profile?.report?.startDate || 'Start Date'}
                 </label>
+                {/* Začiatočný dátum */}
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  // block zabezpečí riadkovanie, min-h vynúti výšku aj keď je input prázdny
+                  className="w-full min-w-0 block min-h-[42px] px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  style={{
+                    WebkitAppearance: 'none', // Odstráni iOS sivý gradient
+                    appearance: 'none',
+                    MozAppearance: 'none'
+                  }}
                   required
                 />
               </div>
-              <div className="md:col-span-5">
+              <div className="md:col-span-5 w-full min-w-0">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t?.profile?.report?.endDate || 'End Date'}
                 </label>
+                {/* Koncový dátum */}
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  className="w-full min-w-0 block min-h-[42px] px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  style={{
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    MozAppearance: 'none'
+                  }}
                   required
                 />
               </div>
               <div className="md:col-span-2">
+                {/* Tlačidlo môže zostať ako máš */}
                 <button
                   type="submit"
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={isButtonDisabled}
-                  data-tooltip-id="generate-tooltip"
-                  data-tooltip-content={tooltipMessage}
                 >
                   {t?.profile?.report?.generate || 'Generate PDF'}
                 </button>
