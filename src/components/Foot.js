@@ -90,7 +90,7 @@ const Foot = () => {
           <h3 className="text-gray-900 mb-4 text-sm font-semibold">Dôležité informácie</h3>
           <ul className="flex flex-col gap-2 mb-6">
             <li>
-              <Link to="/privacy" className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm">
+              <Link to="/gdpr" className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm">
                 Ochrana osobných údajov
               </Link>
             </li>
