@@ -2557,6 +2557,71 @@ app.get('/api/get-session-id', async (req, res) => {
   }
 });
 
+// --- FAQ ENDPOINTS ---
+
+// 1. GET všetkých FAQ (Verejné - vidí každý)
+app.get('/api/faqs', async (req, res) => {
+  try {
+    // Zoradíme podľa display_order, aby si mohol meniť poradie (ak by si to v budúcnosti implementoval)
+    const result = await pool.query('SELECT * FROM faqs ORDER BY display_order ASC, id ASC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching FAQs:', error);
+    res.status(500).json({ error: 'Failed to fetch FAQs' });
+  }
+});
+
+// 2. POST nový FAQ (Iba Admin)
+app.post('/api/admin/faqs', isAdmin, async (req, res) => {
+  const { question, answer } = req.body;
+  try {
+    // Zistíme max order, aby sme novú otázku dali na koniec
+    const orderRes = await pool.query('SELECT MAX(display_order) as max_order FROM faqs');
+    const newOrder = (orderRes.rows[0].max_order || 0) + 1;
+
+    const result = await pool.query(
+      'INSERT INTO faqs (question, answer, display_order) VALUES ($1, $2, $3) RETURNING *',
+      [question, answer, newOrder]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating FAQ:', error);
+    res.status(500).json({ error: 'Failed to create FAQ' });
+  }
+});
+
+// 3. PUT upraviť FAQ (Iba Admin)
+app.put('/api/admin/faqs/:id', isAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { question, answer } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE faqs SET question = $1, answer = $2 WHERE id = $3 RETURNING *',
+      [question, answer, id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'FAQ not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating FAQ:', error);
+    res.status(500).json({ error: 'Failed to update FAQ' });
+  }
+});
+
+// 4. DELETE zmazať FAQ (Iba Admin)
+app.delete('/api/admin/faqs/:id', isAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM faqs WHERE id = $1', [id]);
+    res.json({ message: 'FAQ deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting FAQ:', error);
+    res.status(500).json({ error: 'Failed to delete FAQ' });
+  }
+});
+
 // Contact form endpoint
 app.post('/api/contact', async (req, res) => {
   try {

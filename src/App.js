@@ -28,6 +28,7 @@ const PaymentCancelled = lazy(() => import('./components/PaymentCancelled'));
 const SeasonTickets = lazy(() => import('./components/SeasonTickets'));
 const RefundOption = lazy(() => import('./components/RefundOption'));
 const Schedule = lazy(() => import('./components/Schedule'));
+const FAQ = lazy(() => import('./components/FAQ'));
 
 // Inicializácia dayjs s lokálnym nastavením
 const initializeDayJS = () => {
@@ -71,6 +72,7 @@ const AppContent = () => {
             <Route path="/season-tickets" element={<SeasonTickets />} />
             <Route path="/refund-option" element={<RefundOption />} />
             <Route path="/schedule" element={<Schedule />} />
+            <Route path="/faq" element={<FAQ />} />
           </Routes>
         </Suspense>
       </main>

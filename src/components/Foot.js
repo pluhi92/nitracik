@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import logo from "../assets/logo.png";
 import stripeLogo from "../assets/stripe-logo_black.png";
 import { FaInstagram, FaFacebookF } from "react-icons/fa";
-// Odstránené importy z react-icons/si
 
 // Import vlastných ikon platobných metód
 import visaLogo from "../assets/visa.png";
@@ -93,6 +92,11 @@ const Foot = () => {
             <li>
               <Link to="/privacy" className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm">
                 Ochrana osobných údajov
+              </Link>
+            </li>
+            <li>
+              <Link to="/faq" className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm">
+                Často kladené otázky (FAQ)
               </Link>
             </li>
             <li>
