@@ -335,6 +335,92 @@ app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
   }
 });
 
+app.get('/api/admin/archived-sessions-report', isAdmin, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    // SQL query, ktorá vytiahne archivované bookingy a zistí ich stav
+    const query = `
+      SELECT 
+        b.id,
+        u.first_name, u.last_name, u.email,
+        b.amount_paid,
+        b.archived_training_date,
+        b.archived_training_type,
+        b.payment_time,
+        CASE 
+          WHEN c.id IS NOT NULL THEN 'CREDIT'
+          WHEN r.id IS NOT NULL THEN 'REFUNDED'
+          ELSE 'RESOLVED'
+        END as resolution_status
+      FROM bookings b
+      JOIN users u ON b.user_id = u.id
+      LEFT JOIN credits c ON b.id = c.session_id
+      LEFT JOIN refunds r ON b.id = r.booking_id
+      WHERE b.training_id IS NULL 
+        AND b.archived_training_date IS NOT NULL
+      ORDER BY b.archived_training_date DESC;
+    `;
+
+    const result = await client.query(query);
+    const doc = new PDFDocument({ margin: 30, size: 'A4' });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=archived_sessions_report.pdf');
+    doc.pipe(res);
+
+    // Hlavička PDF
+    doc.fontSize(20).text('Report zrušených a archivovaných hodín', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(10).text(`Vygenerované: ${new Date().toLocaleString('sk-SK', {
+      day: 'numeric',
+      month: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })}`, { align: 'right' });
+    doc.moveDown();
+
+    // Tabuľka
+    const tableTop = 150;
+    doc.fontSize(10).font('Helvetica-Bold');
+    doc.text('Dátum hodiny', 30, tableTop);
+    doc.text('Typ', 130, tableTop);
+    doc.text('Užívateľ', 200, tableTop);
+    doc.text('Suma', 380, tableTop);
+    doc.text('Riešenie', 450, tableTop);
+
+    doc.moveTo(30, tableTop + 15).lineTo(550, tableTop + 15).stroke();
+
+    let y = tableTop + 25;
+    doc.font('Helvetica');
+
+    result.rows.forEach(row => {
+      if (y > 750) { doc.addPage(); y = 50; } // Nová strana ak je plno
+
+      const dateStr = new Date(row.archived_training_date).toLocaleDateString('sk-SK', {
+        day: 'numeric',
+        month: 'numeric',
+        year: 'numeric'
+      });
+      doc.text(dateStr, 30, y);
+      doc.text(row.archived_training_type || '-', 130, y);
+      doc.text(`${row.first_name} ${row.last_name}`, 200, y);
+      doc.text(`${parseFloat(row.amount_paid).toFixed(2)} EUR`, 380, y);
+      doc.text(row.resolution_status, 450, y);
+
+      y += 20;
+    });
+
+    doc.end();
+  } catch (error) {
+    console.error('Archived report error:', error);
+    res.status(500).json({ error: 'Failed to generate PDF' });
+  } finally {
+    client.release();
+  }
+});
+
 
 app.get('/api/training-dates', async (req, res) => {
   try {
@@ -1710,12 +1796,12 @@ app.delete('/api/admin/training-sessions/:trainingId', isAdmin, async (req, res)
   const { trainingId } = req.params;
   const client = await pool.connect();
 
-  console.log('[DEBUG] Deleting training session:', trainingId);
+  console.log('[DEBUG] Archiving bookings and deleting session:', trainingId);
 
   try {
     await client.query('BEGIN');
 
-    // 1. Verify the session exists and is cancelled
+    // 1. Overíme existenciu a získame dáta pre snapshot (pôvodný date a type)
     const sessionCheck = await client.query(
       'SELECT id, training_type, training_date, cancelled FROM training_availability WHERE id = $1',
       [trainingId]
@@ -1730,57 +1816,56 @@ app.delete('/api/admin/training-sessions/:trainingId', isAdmin, async (req, res)
 
     if (!session.cancelled) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Only cancelled sessions can be deleted' });
+      return res.status(400).json({ error: 'Only cancelled sessions can be deleted from view' });
     }
 
-    // 2. ✅ UPDATED: Check if there are any remaining bookings for this session
+    // 2. Skontrolujeme, či sú všetci vybavení (active = true znamená, že ešte čakajú)
     const bookingsCheck = await client.query(
-      'SELECT COUNT(*) as booking_count, ARRAY_AGG(user_id) as user_ids FROM bookings WHERE training_id = $1 AND active = true',
+      'SELECT COUNT(*) as active_count FROM bookings WHERE training_id = $1 AND active = true',
       [trainingId]
     );
 
-    const bookingCount = parseInt(bookingsCheck.rows[0].booking_count);
+    const activeCount = parseInt(bookingsCheck.rows[0].active_count);
 
-    if (bookingCount > 0) {
-      const userIds = bookingsCheck.rows[0].user_ids;
+    if (activeCount > 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({
-        error: `Cannot delete session. ${bookingCount} booking(s) still remain.`,
-        remainingBookings: bookingCount,
-        userIds: userIds,
-        message: 'All users must process their refunds or credits before deletion.'
+        error: `Cannot delete. ${activeCount} user(s) still haven't chosen refund/credit.`,
+        message: 'All users must process their choices before deletion.'
       });
     }
 
+    // 3. ZLATÁ STREDNÁ CESTA: Nemažeme bookings, ale odpojíme ich a uložíme snapshot
+    // Nastavíme training_id na NULL, čím zrušíme Foreign Key väzbu
     await client.query(
-      'DELETE FROM bookings WHERE training_id = $1',
-      [trainingId]
+      `UPDATE bookings 
+       SET 
+         training_id = NULL, 
+         archived_training_date = $2, 
+         archived_training_type = $3 
+       WHERE training_id = $1`,
+      [trainingId, session.training_date, session.training_type]
     );
 
-    // 3. Delete the session (only if no bookings remain)
+    // 4. Teraz už môžeme bezpečne zmazať záznam z kalendára
     const deleteResult = await client.query(
       'DELETE FROM training_availability WHERE id = $1 RETURNING *',
       [trainingId]
     );
 
-    if (deleteResult.rowCount === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Failed to delete training session' });
-    }
-
     await client.query('COMMIT');
 
-    console.log('[DEBUG] Training session deleted successfully:', trainingId);
+    console.log('[DEBUG] Session removed from view, bookings archived:', trainingId);
     res.json({
       success: true,
-      message: 'Training session deleted permanently',
+      message: 'Session deleted from calendar. Bookings were archived for history.',
       deletedSession: deleteResult.rows[0]
     });
 
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Delete training session error:', error);
-    res.status(500).json({ error: 'Failed to delete training session: ' + error.message });
+    console.error('Archive and delete error:', error);
+    res.status(500).json({ error: 'Failed to process: ' + error.message });
   } finally {
     client.release();
   }

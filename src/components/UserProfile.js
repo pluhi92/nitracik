@@ -693,7 +693,7 @@ const UserProfile = () => {
   });
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="container mx-auto px-4 py-8 max-w-7xl mt-8 space-y-10">
       {alertMessage && (
         <div className={`alert alert-${alertVariant} rounded-lg p-4 mb-6 ${alertVariant === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
           alertVariant === 'danger' ? 'bg-red-100 text-red-800 border border-red-200' :
@@ -706,65 +706,6 @@ const UserProfile = () => {
       <h2 className="text-3xl font-bold text-center text-gray-800 dark:text-white mb-8">
         {t?.profile?.title || 'Account Settings'}
       </h2>
-
-      {isAdmin && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
-          <h4 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-            {t?.profile?.report?.title || 'Generate Payment Report'}
-          </h4>
-          <form onSubmit={handleGenerateReport}>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-              <div className="md:col-span-5 w-full min-w-0"> {/* Pridané min-w-0 aj sem */}
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {t?.profile?.report?.startDate || 'Start Date'}
-                </label>
-                {/* Začiatočný dátum */}
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  // block zabezpečí riadkovanie, min-h vynúti výšku aj keď je input prázdny
-                  className="w-full min-w-0 block min-h-[42px] px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  style={{
-                    WebkitAppearance: 'none', // Odstráni iOS sivý gradient
-                    appearance: 'none',
-                    MozAppearance: 'none'
-                  }}
-                  required
-                />
-              </div>
-              <div className="md:col-span-5 w-full min-w-0">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {t?.profile?.report?.endDate || 'End Date'}
-                </label>
-                {/* Koncový dátum */}
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full min-w-0 block min-h-[42px] px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  style={{
-                    WebkitAppearance: 'none',
-                    appearance: 'none',
-                    MozAppearance: 'none'
-                  }}
-                  required
-                />
-              </div>
-              <div className="md:col-span-2">
-                {/* Tlačidlo môže zostať ako máš */}
-                <button
-                  type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={isButtonDisabled}
-                >
-                  {t?.profile?.report?.generate || 'Generate PDF'}
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-      )}
 
       {isAdmin ? (
         <div className="space-y-8">
@@ -1084,6 +1025,108 @@ const UserProfile = () => {
             </div>
           </div>
         </>
+      )}
+
+      {/* --- GENERATE PAYMENT REPORT--- */}
+      {isAdmin && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700 mt-8">
+          <h4 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+            {t?.profile?.report?.title || 'Generate Payment Report'}
+          </h4>
+          <form onSubmit={handleGenerateReport}>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+              <div className="md:col-span-5 w-full min-w-0"> {/* Pridané min-w-0 aj sem */}
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t?.profile?.report?.startDate || 'Start Date'}
+                </label>
+                {/* Začiatočný dátum */}
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  // block zabezpečí riadkovanie, min-h vynúti výšku aj keď je input prázdny
+                  className="w-full min-w-0 block min-h-[42px] px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  style={{
+                    WebkitAppearance: 'none', // Odstráni iOS sivý gradient
+                    appearance: 'none',
+                    MozAppearance: 'none'
+                  }}
+                  required
+                />
+              </div>
+              <div className="md:col-span-5 w-full min-w-0">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t?.profile?.report?.endDate || 'End Date'}
+                </label>
+                {/* Koncový dátum */}
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full min-w-0 block min-h-[42px] px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  style={{
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    MozAppearance: 'none'
+                  }}
+                  required
+                />
+              </div>
+              <div className="md:col-span-2">
+                {/* Tlačidlo môže zostať ako máš */}
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isButtonDisabled}
+                >
+                  {t?.profile?.report?.generate || 'Generate PDF'}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* --- ARCHÍV ZRUŠENÝCH HODÍN --- */}
+      {isAdmin && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700 mt-8">
+          <h4 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+            Archív zrušených hodín
+          </h4>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end"> {/* Zmenené na items-end pre zarovnanie s buttonom */}
+            <div className="md:col-span-10 w-full min-w-0">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Informačný prehľad
+              </label>
+              <div className="w-full min-h-[42px] px-3 py-2 border border-transparent bg-gray-50 dark:bg-gray-700/50 rounded-lg text-sm text-gray-600 dark:text-gray-400 flex items-center">
+                Stiahnite si prehľad všetkých zrušených hodín, ktoré už boli vymazané z kalendára, ale zostali v databáze pre účely auditu.
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <button
+                onClick={async () => {
+                  try {
+                    const response = await api.get('/api/admin/archived-sessions-report', { responseType: 'blob' });
+                    const url = window.URL.createObjectURL(new Blob([response.data]));
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.setAttribute('download', `archiv_zrusenych_hodin_${new Date().toISOString().split('T')[0]}.pdf`);
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                  } catch (err) {
+                    alert('Nepodarilo sa vygenerovať PDF: ' + err.message);
+                  }
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {t?.profile?.report?.generate || 'Generate PDF'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-red-200 dark:border-red-800 relative overflow-hidden mt-8 mb-8">
