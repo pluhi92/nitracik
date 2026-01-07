@@ -17,8 +17,131 @@ const { v4: uuidv4 } = require('uuid');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
-
 const app = express();
+const path = require('path');
+const dayjs = require('dayjs');
+require('dayjs/locale/sk');
+dayjs.locale('sk');
+
+// Pridal som parameter 'userName', aby sme mohli osloviť zákazníka menom
+const sendUserBookingEmail = async (userEmail, sessionDetails) => {
+  // 1. Získame dáta z objektu (userName je teraz vnútri)
+  const userName = sessionDetails.userName || 'Osôbka';
+  const bookingDate = dayjs(sessionDetails.date).format('DD.MM.YYYY');
+  const bookingDay = dayjs(sessionDetails.date).format('dddd');
+  const formattedDateString = `${bookingDate} (${bookingDay})`;
+
+  const SUBJECTS = {
+    credit: 'Rezervácia – uhradená kreditom | Nitráčik',
+    season_ticket: 'Rezervácia – uplatnený permanentný vstup | Nitráčik',
+    payment: 'Potvrdenie rezervácie | Nitráčik'
+  };
+
+  const PAYMENT_TEXT = {
+    credit: 'rezervácia bola uhradená z vášho kreditu',
+    season_ticket: 'rezervácia bola odpočítaná z permanentného vstupu',
+    payment: 'platba prebehla úspešne'
+  };
+
+  // Default hodnota pre paymentType, ak by chýbala
+  const pType = sessionDetails.paymentType || 'payment';
+
+  const subject = SUBJECTS[pType];
+  const paymentInfo = PAYMENT_TEXT[pType];
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: userEmail,
+    subject,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+          .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+          .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #eab308; }
+          .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
+          .highlight-box { background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 15px; margin: 20px 0; text-align: left; }
+          .highlight-item { margin-bottom: 5px; font-size: 15px; }
+          .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+          p { margin-bottom: 15px; }
+        </style>
+      </head>
+      <body>
+        <div style="background-color: #f4f4f4; padding: 40px 0;">
+          <div class="container">
+            <div class="header">
+              <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+            </div>
+            <div class="content">
+              <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName}.</p>
+
+              <p>Prinášam dobrú správu, že vaša ${paymentInfo} za <strong>MESSY&SENSORY play NITRÁČIK - ${sessionDetails.trainingType || 'Tréning'}</strong>.</p>
+
+              <div class="highlight-box">
+                <div class="highlight-item">📅 <strong>Dátum:</strong> ${formattedDateString}</div>
+                <div class="highlight-item">⏰ <strong>Čas:</strong> ${sessionDetails.start_time || sessionDetails.time}</div>
+                <div class="highlight-item">📍 <strong>Miesto:</strong> 
+                        <a href="https://www.google.com/maps/search/?api=1&query=Štefánikova+trieda+148,+Nitra" 
+                          style="color: #2563eb; text-decoration: underline;">
+                          Štefánikova trieda 148, Nitra</a>
+                  </div>
+              </div>
+
+              <p>Teším sa na kopu krásnych ufúľaných momentov.</p> 
+              <p>Skvelé bude, ak so sebou prinesiete náhradné oblečenie, ktoré možno ušpiniť a malý uteráčik.</p>
+              <p>Odporúčam vziať gumené šľapky aj pre sprevádzajúcu osobu, ktoré zvládnu aj klzký terén, nakoľko vodné a podobné aktivity sú a budú pevnou súčasťou hodín 😉.</p>
+              <p>Prosím o dochvíľnosť, aby Vám neušla ani jedna zaujímavá chvíľa 🙃. Herný priestor sa sprístupní až v momente dohodnutého času, aby mali všetky detičky rovnaký “štart” a naplno si mohli vychutnať pekne pripravené stanovištia.</p>
+              <p>Vstup je cez vnútorné átrium, takže neklopkajte na prvé dvere, ale pokračujte cez bráničku, na ktorej vás bude vítať tabuľka <strong>“VITAJTE U NITRÁČIKA”</strong>.</p>
+              <p>Parkovanie je zadarmo pred budovou alebo zboku v areáli železníc.</p>
+              <p>Ďakujem za dôveru a podporu a teším sa na osobné stretnutie.</p>
+
+              <div style="margin-top: 30px;">
+                <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
+                <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
+                <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
+                <p style="font-size: 13px; color: #666; margin: 0;">+421 949 584 576</p>
+              </div>
+            </div>
+            <div class="footer">
+              <div style="margin-bottom: 15px;">
+                <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
+                  <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                </a>
+                <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
+                  <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                </a>
+              </div>
+              <p style="margin: 0;">© 2026 O.z. Nitráčik. Všetky práva vyhradené.</p>
+              <p style="margin: 5px 0 0 0;">oznitracik@gmail.com</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+    attachments: [
+      {
+        filename: 'logo_bez.PNG',
+        path: path.join(__dirname, '..', 'public', 'logo_bez.PNG'),
+        cid: 'nitracikLogo'
+      },
+      {
+        filename: 'instagram.png',
+        path: path.join(__dirname, '..', 'public', 'instagram.png'),
+        cid: 'igIcon'
+      },
+      {
+        filename: 'facebook.png',
+        path: path.join(__dirname, '..', 'public', 'facebook.png'),
+        cid: 'fbIcon'
+      }
+    ]
+  };
+  return transporter.sendMail(mailOptions);
+};
+
 
 app.use((req, res, next) => {
   if (req.originalUrl === '/stripe-webhook') {
@@ -625,25 +748,16 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
       `.trim(),
     };
 
-    const userMailOptions = {
-      from: process.env.EMAIL_USER,
-      to: user.email,
-      subject: 'Booking Confirmation (Season Ticket)',
-      text: `
-        Hello ${user.first_name},
-        Your ${trainingType} training on ${selectedDate} at ${selectedTime} has been confirmed using your season ticket (ID: ${seasonTicketId})!
-        Details:
-        - Address: ${user.address}
-        - Mobile: ${mobile || 'Not provided'}
-        - Children: ${childrenCount} (${childrenAge} years old)
-        Thank you!
-        Nitracik Team
-      `.trim(),
-    };
+    await sendUserBookingEmail(user.email, {
+      date: selectedDate,
+      start_time: selectedTime,
+      trainingType: trainingType,
+      userName: user.first_name,
+      paymentType: user.season_ticket_id ? 'season_ticket' : 'credit' // Dôležité pre správny predmet mailu
+    });
 
     await Promise.all([
       transporter.sendMail(adminMailOptions),
-      transporter.sendMail(userMailOptions),
     ]);
 
     await client.query('COMMIT');
@@ -960,28 +1074,30 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           `.trim(),
         };
 
-        const userMailOptions = {
-          from: process.env.EMAIL_USER,
-          to: user.email,
-          subject: 'Booking Confirmation',
-          text: `
-            Hello ${user.first_name},
-            Your ${trainingType} training on ${selectedDate} at ${selectedTime} has been confirmed!
-            Details:
-            - Address: ${user.address}
-            - Mobile: ${mobile || 'Not provided'}
-            - Children: ${childrenCount} (${childrenAge} years old)
-            - Price: €${totalPrice}
-            Thank you!
-            Nitracik Team
-          `.trim(),
-        };
+        // 1. ZÍSKANIE EMAILU A MENA
+        // Email berieme primárne z účtu v DB, ak by tam nebol, záložne zo Stripe
+        const targetEmail = user.email || session.customer_details?.email;
+        // MENO berieme VŽDY z databázy (krstné meno), aby to bolo osobné
+        const firstName = user.first_name || 'Osôbka';
 
-        await Promise.all([
-          transporter.sendMail(adminMailOptions),
-          transporter.sendMail(userMailOptions),
-        ]);
-        console.log('[DEBUG] Booking confirmation emails sent to:', user.email, process.env.ADMIN_EMAIL);
+        // 2. ODOSLANIE EMAILU
+        try {
+          await sendUserBookingEmail(targetEmail, {
+            date: selectedDate,
+            start_time: selectedTime,
+            trainingType: trainingType,
+            userName: firstName, // Tu posielame krstné meno z konta
+            paymentType: 'payment'
+          });
+          console.log(`[DEBUG] Email odoslaný na meno: ${firstName} (${targetEmail})`);
+        } catch (emailError) {
+          console.error('[DEBUG] Chyba pri odosielaní užívateľského emailu:', emailError.message);
+        }
+
+        // 3. ODOSLANIE EMAILU ADMINOVI (pôvodný kód)
+        await transporter.sendMail(adminMailOptions);
+
+        console.log('[DEBUG] Booking confirmation emails sent to admin and user');
       }
 
       await client.query('COMMIT');
@@ -2472,34 +2588,16 @@ app.post('/api/bookings/use-credit', async (req, res) => {
         };
 
         // User email
-        const userMailOptions = {
-          from: process.env.EMAIL_USER,
-          to: user.email,
-          subject: 'Booking Confirmation (Credit)',
-          text: `
-            Hello ${user.first_name},
-            
-            Your booking has been confirmed using your credit!
-            
-            Details:
-            - Training: ${training.training_type}
-            - Date: ${new Date(training.training_date).toLocaleString()}
-            - Children: ${credit.child_count}
-            - Children Ages: ${finalChildrenAges}
-            - Mobile: ${finalMobile || 'Not provided'}
-            
-            Your original cancelled session has been cleared.
-            
-            Thank you for using your credit!
-            
-            Best regards,
-            Nitracik Team
-          `.trim(),
-        };
+        await sendUserBookingEmail(user.email, {
+          date: selectedDate,
+          start_time: selectedTime,
+          trainingType: trainingType,
+          userName: user.first_name,
+          paymentType: user.season_ticket_id ? 'season_ticket' : 'credit' // Dôležité pre správny predmet mailu
+        });
 
         await Promise.all([
           transporter.sendMail(adminMailOptions),
-          transporter.sendMail(userMailOptions),
         ]);
 
         console.log('[DEBUG] Confirmation emails sent successfully');
@@ -2599,7 +2697,7 @@ app.put('/api/admin/faqs/:id', isAdmin, async (req, res) => {
       'UPDATE faqs SET question = $1, answer = $2 WHERE id = $3 RETURNING *',
       [question, answer, id]
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'FAQ not found' });
     }
