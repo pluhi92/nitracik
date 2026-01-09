@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useTranslation } from '../contexts/LanguageContext';
 import { useUser } from '../contexts/UserContext';
+import api from '../api/api';
 
 const Login = ({ onLoginSuccess }) => {
   const { t } = useTranslation();
@@ -13,6 +13,7 @@ const Login = ({ onLoginSuccess }) => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const navigate = useNavigate();
   const { updateUser, logout } = useUser();
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,10 +38,9 @@ const Login = ({ onLoginSuccess }) => {
 
     try {
       // Send login request to the backend
-      const response = await axios.post(
-        'http://localhost:5000/api/login',
-        { email, password },
-        { withCredentials: true }
+      const response = await api.post(
+        '/api/login',
+        { email, password }
       );
 
       console.log('Login successful:', response.data);
@@ -49,6 +49,11 @@ const Login = ({ onLoginSuccess }) => {
       localStorage.setItem('userId', response.data.userId);
       localStorage.setItem('userName', response.data.userName || 'Unknown User');
       localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('authToken', response.data.token || 'dummy');
+      localStorage.setItem('user', JSON.stringify({
+        userId: response.data.userId,
+        userName: response.data.userName
+      }));
 
       // Update the global user context immediately
       updateUser({
@@ -153,7 +158,7 @@ const Login = ({ onLoginSuccess }) => {
                 )}
                 <button
                   type="submit"
-                  className="w-full bg-secondary-500 hover:bg-secondary-600 text-white px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-secondary-800 hover:bg-secondary-600 text-white px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={loading}
                 >
                   {loading ? (

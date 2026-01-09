@@ -45,14 +45,14 @@
     "totalPrice": "Celková cena",
     "child": "dieťa",
     "children": "deti",
-    "bookWithPayment": "Rezervovať tréning s platobnou povinnosťou",
+    "bookWithPayment": "Záväzne rezervovať",
     "bookWithSeasonTicket": "Rezervovať s permanentkou",
     "bookWithCredit": "Rezervovať s kreditom",
     "redirecting": "Presmerovanie na platbu...",
     "availability": {
-      "warning": "Varovanie o dostupnosti",
+      "warning": "Upozornenie na dostupnosť",
       "available": "Dostupných {count} miest",
-      "unavailable": "Zostáva len {count} miest{count !== 1 ? '' : 'o'} (potrebujete {needed})",
+      "unavailable": "Zostáva len {count} voľné miesto (potrebné {needed}).",
       "full": "Všetky miesta sú už obsadené pre tento termín. Vyberte si prosím iný dátum alebo čas."
     },
     "paymentSuccess": "Platba úspešná! Rezervácia potvrdená.",
@@ -81,18 +81,20 @@
     "creditModeReadOnly": "Nastavené z pôvodnej rezervácie - len na čítanie",
     "selectDateTimeRequired": "Prosím, vyberte dátum a čas pre rezerváciu s kreditom.",
     "secureBooking": "Vaša rezervácia je zabezpečená a chránená",
-    "processing": "Spracovávam..."
+    "processing": "Spracovávam...",
+    "alreadyBooked": "Na tento termín ste už prihlásený. Skontrolujte si svoj profil."
   },
   "admin": {
     "title": "Admin Panel",
     "addSession": "Pridať reláciu",
     "trainingType": "Typ tréningu",
-    "dateTime": "Dátum a čas",
+    "date": "Dátum",
+    "time": "Čas",
     "maxParticipants": "Maximálny počet účastníkov"
   },
   "navbar": {
     "about": "O Nitračikovi",
-    "photos": "Galéria",
+    "schedule": "Rozvrh",
     "booking": "Rezervuj si termín",
     "contact": "Kontakt",
     "profile": "Profil",

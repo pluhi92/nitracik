@@ -1,6 +1,5 @@
 // Booking.js
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
 import Login from './Login';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IMaskInput } from 'react-imask';
@@ -9,11 +8,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Modal, Button, Form } from 'react-bootstrap';
 import CustomCalendar from './CustomCalendar';
-
-const api = axios.create({
-  baseURL: 'http://localhost:5000',
-  withCredentials: true,
-});
+import api from '../api/api';
 
 const Booking = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(localStorage.getItem('isLoggedIn') === 'true');
@@ -52,6 +47,9 @@ const Booking = () => {
   const [selectedCredit, setSelectedCredit] = useState(null);
   const [isCreditMode, setIsCreditMode] = useState(false);
   const [fillFormPreference, setFillFormPreference] = useState({});
+  const [userBookings, setUserBookings] = useState([]);
+  const [isAlreadyBooked, setIsAlreadyBooked] = useState(false);
+  const [trainingId, setTrainingId] = useState(null);
 
   const pricing = {
     1: 15,
@@ -88,12 +86,15 @@ const Booking = () => {
   }, [useSeasonTicket, selectedSeasonTicket]);
 
   useEffect(() => {
+    if (childrenAges.length === childrenCount) {
+      return; // Zastavíme vykonávanie efektu, ak nie je potrebné nič meniť
+    }
     const newAges = [];
     for (let i = 0; i < childrenCount; i++) {
       newAges.push(childrenAges[i] || '');
     }
     setChildrenAges(newAges);
-  }, [childrenCount]);
+  }, [childrenCount, childrenAges]);
 
   useEffect(() => {
     const fetchTrainingDates = async () => {
@@ -101,18 +102,22 @@ const Booking = () => {
         const response = await api.get('/api/training-dates');
         const dates = response.data.reduce((acc, training) => {
           const date = new Date(training.training_date).toLocaleDateString('en-CA');
-          const time = new Date(training.training_date).toLocaleTimeString('sk-SK', { // ← Zmena na sk-SK
+          const time = new Date(training.training_date).toLocaleTimeString('sk-SK', {
             hour: '2-digit',
             minute: '2-digit',
-            hour12: false // ← Pridané pre 24-hodinový formát
+            hour12: false
           });
+
           if (!acc[training.training_type]) {
             acc[training.training_type] = {};
           }
           if (!acc[training.training_type][date]) {
             acc[training.training_type][date] = [];
           }
-          acc[training.training_type][date].push(time);
+
+          // ZMENA: Namiesto push(time) ukladáme objekt s ID
+          acc[training.training_type][date].push({ time, id: training.id });
+
           return acc;
         }, {});
         setTrainingDates(dates);
@@ -142,10 +147,23 @@ const Booking = () => {
       }
     };
 
+    const fetchUserBookings = async () => {
+      try {
+        const userId = localStorage.getItem('userId');
+        if (!userId) return;
+        // Použijeme existujúci endpoint pre user bookings
+        const response = await api.get(`/api/bookings/user/${userId}`);
+        setUserBookings(response.data);
+      } catch (error) {
+        console.error('Error fetching user bookings:', error);
+      }
+    };
+
     if (isLoggedIn) {
       fetchTrainingDates();
       fetchSeasonTickets();
       fetchCredits();
+      fetchUserBookings();
     }
   }, [isLoggedIn]);
 
@@ -218,38 +236,95 @@ const Booking = () => {
       if (!acc[training.training_type][date]) {
         acc[training.training_type][date] = [];
       }
-      acc[training.training_type][date].push(time);
+      // TU JE KĽÚČOVÁ ZMENA (rovnako ako vyššie):
+      acc[training.training_type][date].push({ time, id: training.id });
       return acc;
     }, {});
   };
 
   useEffect(() => {
-    const checkAvailability = async () => {
-      if (trainingType && selectedDate && selectedTime && childrenCount) {
-        try {
-          const response = await api.get('/api/check-availability', {
-            params: { trainingType, selectedDate, selectedTime, childrenCount },
-          });
+    // Resetujeme stav pri zmene
+    setIsAlreadyBooked(false);
 
-          setAvailability({
-            isAvailable: response.data.available,
-            remainingSpots: response.data.remainingSpots,
-            requestedChildren: childrenCount,
-          });
-        } catch (error) {
-          console.error('Error checking availability:', error);
-        }
-      } else {
-        setAvailability({
-          isAvailable: true,
-          remainingSpots: 0,
-          requestedChildren: 0,
+    // Ak je zobrazená hláška o duplicite, vymažeme ju
+    if (warningMessage === (t?.booking?.alreadyBooked || 'You are already booked for this session. Please check your profile.')) {
+      setWarningMessage('');
+    }
+
+    if (trainingType && selectedDate && selectedTime && userBookings.length > 0) {
+      const alreadyBooked = userBookings.some(booking => {
+        if (booking.active === false) return false;
+
+        const bookingDateObj = new Date(booking.training_date);
+        const bDate = bookingDateObj.toLocaleDateString('en-CA');
+        const bTime = bookingDateObj.toLocaleTimeString('sk-SK', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
         });
+
+        return booking.training_type === trainingType &&
+          bDate === selectedDate &&
+          bTime === selectedTime;
+      });
+
+      if (alreadyBooked) {
+        setIsAlreadyBooked(true);
+        setWarningMessage(t?.booking?.alreadyBooked || 'You are already booked for this session. Please check your profile.');
+      }
+    }
+    // eslint-disable-next-line
+  }, [trainingType, selectedDate, selectedTime, userBookings, t]);
+
+  useEffect(() => {
+    const checkAvailability = async () => {
+      // Ak nemáme ID alebo počet detí, kontrolu nerobíme
+      if (!trainingId || !childrenCount) {
+        setAvailability({ isAvailable: true, remainingSpots: 0, requestedChildren: 0 });
+        return;
+      }
+
+      try {
+        const response = await api.get('/api/check-availability', {
+          params: {
+            trainingId, // Posielame len to podstatné
+            childrenCount
+          },
+        });
+
+        setAvailability({
+          isAvailable: response.data.available,
+          remainingSpots: response.data.remainingSpots,
+          requestedChildren: childrenCount,
+        });
+      } catch (error) {
+        console.error('Error checking availability:', error);
       }
     };
 
     checkAvailability();
-  }, [trainingType, selectedDate, selectedTime, childrenCount]);
+    // Sledujeme primárne trainingId a childrenCount
+  }, [trainingId, childrenCount]);
+
+  useEffect(() => {
+    if (location.state) {
+      const {
+        incomingId, // Toto budeme posielať zo Schedule.js
+        incomingType,
+        incomingDate,
+        incomingTime
+      } = location.state;
+
+      if (incomingDate) setSelectedDate(incomingDate);
+      if (incomingTime) setSelectedTime(incomingTime);
+      if (incomingType) setTrainingType(incomingType);
+      if (incomingId) setTrainingId(incomingId);
+
+      // Vyčistíme state histórie, aby pri REFRESHI stránky 
+      // nezostali staré dáta "visieť" v pamäti prehliadača
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   const handleAgeChange = (index, age) => {
     const newAges = [...childrenAges];
@@ -341,6 +416,7 @@ const Booking = () => {
         const response = await api.post('/api/use-season-ticket', {
           userId: userData.id,
           seasonTicketId: selectedSeasonTicket,
+          trainingId,
           trainingType,
           selectedDate,
           selectedTime,
@@ -359,6 +435,7 @@ const Booking = () => {
       } else {
         const paymentSession = await api.post('/api/create-payment-session', {
           userId: userData.id,
+          trainingId,
           trainingType,
           selectedDate,
           selectedTime,
@@ -592,17 +669,41 @@ const Booking = () => {
                   <option value="MAXI">{t?.booking?.trainingType?.maxi || 'MAXI'}</option>
                 </Form.Select>
               </div>
-              <div className="md:col-span-1">
+              {/* Date */}
+              <div>
                 <Form.Label className="font-medium text-gray-700">
-                  {t?.admin?.dateTime || 'Date & Time'}
+                  {t?.admin?.date || "Date"}
                 </Form.Label>
                 <Form.Control
-                  type="datetime-local"
-                  value={newTrainingDate}
-                  onChange={(e) => setNewTrainingDate(e.target.value)}
+                  type="date"
+                  value={newTrainingDate.split("T")[0] || ""}
+                  onChange={(e) => {
+                    const date = e.target.value;
+                    const time = newTrainingDate.split("T")[1]?.substring(0, 5) || "00:00";
+                    setNewTrainingDate(`${date}T${time}`);
+                  }}
                   className="w-full"
                 />
               </div>
+
+              {/* Time */}
+              <div>
+                <Form.Label className="font-medium text-gray-700">
+                  {t?.admin?.time || "Time"}
+                </Form.Label>
+                <Form.Control
+                  type="time"
+                  value={newTrainingDate.split("T")[1]?.substring(0, 5) || ""}
+                  onChange={(e) => {
+                    const time = e.target.value;
+                    const date = newTrainingDate.split("T")[0] || "";
+                    setNewTrainingDate(`${date}T${time}`);
+                  }}
+                  className="w-full"
+                />
+              </div>
+
+
               <div className="md:col-span-1">
                 <Form.Label className="font-medium text-gray-700">
                   {t?.admin?.maxParticipants || 'Max Participants'}
@@ -685,14 +786,22 @@ const Booking = () => {
                   {t?.booking?.selectTime || 'Select Time Slot'} <span className="text-red-500">*</span>
                 </Form.Label>
                 <Form.Select
-                  value={selectedTime}
-                  onChange={(e) => setSelectedTime(e.target.value)}
+                  value={trainingId || ""} // Value je teraz ID
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setTrainingId(id); // Nastavíme ID okamžite
+
+                    // Čas si dohľadáme len kvôli vizuálnemu zobrazeniu (napr. do sumáru objednávky)
+                    const sessionObj = trainingDates[trainingType][selectedDate]
+                      .find(s => String(s.id) === String(id));
+                    setSelectedTime(sessionObj?.time || '');
+                  }}
                   className="w-full text-lg py-3"
                 >
                   <option value="">-- {t?.booking?.selectTime || 'Choose a Time Slot'} --</option>
-                  {trainingDates[trainingType][selectedDate].map((time) => (
-                    <option key={time} value={time}>
-                      {time}
+                  {trainingDates[trainingType][selectedDate].map((session) => (
+                    <option key={session.id} value={session.id}> {/* Value je ID */}
+                      {session.time} {/* User vidí ČAS */}
                     </option>
                   ))}
                 </Form.Select>
@@ -1053,7 +1162,7 @@ const Booking = () => {
             <Button
               type="submit"
               className="w-full py-4 font-bold text-lg bg-green-500 border-green-500 hover:bg-green-600"
-              disabled={!consent || loading || !availability.isAvailable || (useSeasonTicket && !selectedSeasonTicket) || (isCreditMode && (!selectedDate || !selectedTime))}
+              disabled={!consent || loading || !availability.isAvailable || isAlreadyBooked || (useSeasonTicket && !selectedSeasonTicket) || (isCreditMode && (!selectedDate || !selectedTime))}
               data-tooltip-id="booking-tooltip"
               data-tooltip-content={
                 !availability.isAvailable
@@ -1087,7 +1196,7 @@ const Booking = () => {
                   ) : (
                     <>
                       <i className="bi bi-credit-card me-2"></i>
-                      {t?.booking?.bookWithPayment || 'Book Training with Payment Obligation'}
+                      {t?.booking?.bookWithPayment || 'Confirm & Pay'}
                     </>
                   )}
                 </div>

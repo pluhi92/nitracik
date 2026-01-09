@@ -5,6 +5,7 @@
   "dependencies": {
     "@fortawesome/free-solid-svg-icons": "^6.7.2",
     "@fortawesome/react-fontawesome": "^0.2.2",
+    "@heroicons/react": "^2.2.0",
     "@stripe/stripe-js": "^5.8.0",
     "axios": "^1.7.9",
     "bcrypt": "^5.1.1",
@@ -12,7 +13,9 @@
     "bootstrap-icons": "^1.13.1",
     "connect-pg-simple": "^10.0.0",
     "cra-template": "1.2.0",
+    "dayjs": "^1.11.19",
     "firebase-admin": "^13.1.0",
+    "framer-motion": "^12.23.26",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^6.10.0",
     "pdfkit": "^0.17.1",

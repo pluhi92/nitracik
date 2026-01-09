@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useTranslation } from '../contexts/LanguageContext';
+import api from '../api/api';
 
 const Register = () => {
   const { t } = useTranslation();
@@ -77,7 +77,8 @@ const Register = () => {
     }
 
     try {
-      const response = await axios.post('http://localhost:5000/api/register', {
+      // UPRAVENÉ: Použitie api.post
+      const response = await api.post('/api/register', {
         firstName,
         lastName,
         email,
@@ -103,24 +104,24 @@ const Register = () => {
     }
   };
 
-  const isFormValid = !loading && 
-    firstName && 
-    lastName && 
-    email && 
-    password && 
-    repeatPassword && 
-    address && 
-    !Object.values(errors).some(error => error) && 
+  const isFormValid = !loading &&
+    firstName &&
+    lastName &&
+    email &&
+    password &&
+    repeatPassword &&
+    address &&
+    !Object.values(errors).some(error => error) &&
     !repeatPasswordError;
 
   return (
-    <div className="min-h-screen bg-custom-flakes pt-0 pb-4 px-4 flex items-center justify-center">
+    <div className="min-h-screen bg-custom-flakes pt-16 pb-4 px-4 flex items-center justify-center lg:pt-0">
       <div className="max-w-lg w-full">
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-10 border border-gray-200">
           <h2 className="text-3xl font-bold text-center text-gray-900 mb-8">
             {t.login.register.title}
           </h2>
-          
+
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* First Name */}
             <div>
@@ -129,9 +130,8 @@ const Register = () => {
               </label>
               <input
                 type="text"
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${
-                  errors.firstName ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${errors.firstName ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 id="firstName"
                 value={firstName}
                 onChange={(e) => {
@@ -152,9 +152,8 @@ const Register = () => {
               </label>
               <input
                 type="text"
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${
-                  errors.lastName ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${errors.lastName ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 id="lastName"
                 value={lastName}
                 onChange={(e) => {
@@ -175,9 +174,8 @@ const Register = () => {
               </label>
               <input
                 type="email"
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${
-                  errors.email || apiError ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${errors.email || apiError ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 id="email"
                 value={email}
                 onChange={(e) => {
@@ -199,9 +197,8 @@ const Register = () => {
               </label>
               <input
                 type="password"
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${
-                  errors.password ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${errors.password ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 id="password"
                 value={password}
                 onChange={(e) => {
@@ -222,9 +219,8 @@ const Register = () => {
               </label>
               <input
                 type="password"
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${
-                  repeatPasswordError ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${repeatPasswordError ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 id="repeatPassword"
                 value={repeatPassword}
                 onChange={(e) => {
@@ -245,9 +241,8 @@ const Register = () => {
               </label>
               <input
                 type="text"
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${
-                  errors.address ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500 transition-colors ${errors.address ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 id="address"
                 value={address}
                 onChange={(e) => {
@@ -264,11 +259,10 @@ const Register = () => {
             {/* Submit Button */}
             <button
               type="submit"
-              className={`w-full py-4 px-4 rounded-lg font-semibold text-lg transition-all duration-300 ${
-                isFormValid
-                  ? 'bg-secondary-500 hover:bg-secondary-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
+              className={`w-full py-4 px-4 rounded-lg font-semibold text-lg transition-all duration-300 ${isFormValid
+                ? 'bg-secondary-500 hover:bg-secondary-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
               disabled={!isFormValid}
             >
               {loading ? (
@@ -284,11 +278,10 @@ const Register = () => {
             {/* API Error/Success Message */}
             {apiError && (
               <div
-                className={`text-center text-sm font-medium py-3 px-4 rounded-lg ${
-                  apiError.includes('success')
-                    ? 'bg-green-100 text-green-700 border border-green-200'
-                    : 'bg-red-100 text-red-700 border border-red-200'
-                }`}
+                className={`text-center text-sm font-medium py-3 px-4 rounded-lg ${apiError.includes('success')
+                  ? 'bg-green-100 text-green-700 border border-green-200'
+                  : 'bg-red-100 text-red-700 border border-red-200'
+                  }`}
               >
                 {apiError}
               </div>

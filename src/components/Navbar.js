@@ -8,14 +8,17 @@ import { useUser } from '../contexts/UserContext';
 import LanguageSwitcher from './LanguageSwitcher';
 import logo from '../assets/logo.png';
 
-
 const Navbar = () => {
   const { t } = useTranslation();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, logout } = useUser();
   const navigate = useNavigate();
+
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
   const dropdownRef = useRef(null);
+  const lastScrollY = useRef(0);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024); // lg breakpoint
 
   const handleLogout = () => {
     logout();
@@ -23,6 +26,33 @@ const Navbar = () => {
     window.location.reload();
   };
 
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Scroll detection pre automatické skrytie/objavenie navbaru
+  useEffect(() => {
+    if (!isMobile) return; // desktop → ignoruj scroll
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
+        setIsHidden(true); // scroll dole → skry navbar
+      } else {
+        setIsHidden(false); // scroll hore → ukáž navbar
+      }
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isMobile]);
+
+  // Klik mimo dropdownu
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -33,26 +63,36 @@ const Navbar = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const navLinks = [
+    { path: '/about', label: t?.navbar?.about || 'About Nitracik' },
+    { path: '/schedule', label: t?.navbar?.schedule || 'Schedule' },
+    { path: '/booking', label: t?.navbar?.booking || 'Book your session' },
+    { path: '/contact', label: t?.navbar?.contact || 'Contact' },
+  ];
+
   return (
-    <nav className="bg-white dark:bg-gray-900 shadow-md sticky top-0 z-50">
+    <nav
+      className={`bg-white dark:bg-gray-900 shadow-md sticky top-0 z-[1000] transition-transform duration-300 ${isMobile && isHidden ? '-translate-y-full' : 'translate-y-0'
+        }`}
+    >
       <div className="container mx-auto flex items-center justify-between px-4 lg:px-8 h-[90px]">
         {/* Logo */}
         <Link to="/" className="flex items-center">
-          <img src={logo} alt="Logo" className="h-14 w-auto object-contain transition-transform duration-300 hover:scale-105" />
+          <img
+            src={logo}
+            alt="Logo"
+            className="h-14 w-auto object-contain transition-transform duration-300 hover:scale-105"
+          />
         </Link>
 
         {/* Desktop Links */}
         <ul className="hidden lg:flex gap-8 mx-auto">
-          {[
-            { path: '/about', label: t?.navbar?.about || 'About Nitracik' },
-            { path: '/photos', label: t?.navbar?.photos || 'Gallery' },
-            { path: '/booking', label: t?.navbar?.booking || 'Book your session' },
-            { path: '/contact', label: t?.navbar?.contact || 'Contact' },
-          ].map(({ path, label }) => (
+          {navLinks.map(({ path, label }) => (
             <li key={path}>
               <Link
                 to={path}
-                className="text-secondary-500 font-semibold px-3 py-3 rounded-lg hover:text-secondary-600 hover:bg-[rgba(230,138,117,0.15)] transition text-lg"              >
+                className="text-secondary-500 font-semibold px-3 py-3 rounded-lg hover:text-secondary-600 hover:bg-[rgba(230,138,117,0.15)] transition text-lg"
+              >
                 {label}
               </Link>
             </li>
@@ -61,7 +101,6 @@ const Navbar = () => {
 
         {/* Desktop Controls */}
         <div className="hidden lg:flex items-center gap-4">
-          {/* LanguageSwitcher with hover/active highlight */}
           <div className="relative">
             <LanguageSwitcher />
             <div className="absolute inset-0 rounded hover:bg-[rgba(230,138,117,0.15)] pointer-events-none"></div>
@@ -76,7 +115,11 @@ const Navbar = () => {
             >
               <FontAwesomeIcon icon={faUser} />
             </button>
-            <div className={`absolute right-0 mt-2 w-44 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 transition-all duration-200 ease-in-out ${isDropdownOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'}`}>
+
+            <div
+              className={`absolute right-0 mt-2 w-44 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 transition-all
+                ${isDropdownOpen ? 'animate-dropdownIn opacity-100 visible' : 'animate-dropdownOut opacity-0 invisible'}`}
+            >
               {user.isLoggedIn ? (
                 <>
                   <Link
@@ -119,15 +162,12 @@ const Navbar = () => {
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="lg:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+        <div
+          className={`lg:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700
+            ${isMenuOpen ? 'animate-mobileMenuIn' : 'animate-mobileMenuOut'}`}
+        >
           <ul className="flex flex-col gap-1 p-4 items-center">
-            {/* Navigation Links */}
-            {[
-              { path: '/about', label: t?.navbar?.about || 'O Nitračikovi' },
-              { path: '/photos', label: t?.navbar?.photos || 'Galéria' },
-              { path: '/booking', label: t?.navbar?.booking || 'Rezervuj si termín' },
-              { path: '/contact', label: t?.navbar?.contact || 'Kontakt' },
-            ].map(({ path, label }, index) => (
+            {navLinks.map(({ path, label }, index) => (
               <li key={path} className="w-full">
                 <Link
                   to={path}
@@ -136,15 +176,13 @@ const Navbar = () => {
                 >
                   {label}
                 </Link>
-
-                {/* Separator iba po poslednom linku */}
-                {index === 3 && <hr className="border-black-400 dark:border-gray-700 w-full my-2" />}
+                {index === navLinks.length - 1 && (
+                  <hr className="border-black-400 dark:border-gray-700 w-full my-2" />
+                )}
               </li>
             ))}
 
-            {/* Controls: ThemeToggle | LanguageSwitcher | User Dropdown */}
             <div className="flex justify-center items-center gap-4 w-full mt-2">
-            
               <LanguageSwitcher />
               <div className="relative" ref={dropdownRef}>
                 <button
@@ -154,7 +192,10 @@ const Navbar = () => {
                 >
                   <FontAwesomeIcon icon={faUser} />
                 </button>
-                <div className={`absolute right-0 mt-2 w-44 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 transition-all duration-200 ease-in-out ${isDropdownOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'}`}>
+                <div
+                  className={`absolute right-0 mt-2 w-44 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 transition-all
+                    ${isDropdownOpen ? 'animate-dropdownIn opacity-100 visible' : 'animate-dropdownOut opacity-0 invisible'}`}
+                >
                   {user.isLoggedIn ? (
                     <>
                       <Link

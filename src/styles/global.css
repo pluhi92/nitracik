@@ -440,3 +440,88 @@ p {
   
   .section { padding: var(--space-8) 0; }
 }
+
+/* ── Mobile Schedule Specific Styles ────────────────── */
+
+/* Safe area for mobile bottom nav */
+.safe-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+}
+
+/* Swipe gestures for mobile */
+.swipeable {
+  touch-action: pan-y;
+  user-select: none;
+}
+
+/* Smooth transitions for schedule items */
+.schedule-item {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Today indicator */
+.today-indicator {
+  position: relative;
+}
+
+.today-indicator::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  background-color: var(--color-primary-500);
+  border-radius: 50%;
+}
+
+/* Mobile bottom nav active state */
+.nav-item-active {
+  background-color: var(--color-primary-50);
+  color: var(--color-primary-600);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Scrollbar hide for mobile */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Touch-friendly buttons */
+.touch-button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Responsive typography for mobile */
+@media (max-width: 768px) {
+  .mobile-text-sm {
+    font-size: var(--text-sm);
+  }
+  
+  .mobile-text-xs {
+    font-size: 0.75rem;
+  }
+  
+  .mobile-padding {
+    padding: var(--space-3);
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .mobile-schedule-dark {
+    background-color: var(--bg-body-dark, #1a1a1a);
+    color: var(--text-primary-dark, #f3f4f6);
+  }
+  
+  .mobile-card-dark {
+    background-color: var(--bg-card-dark, #2d2d2d);
+    border-color: var(--border-dark, #404040);
+  }
+}

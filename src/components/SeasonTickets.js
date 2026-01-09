@@ -1,14 +1,9 @@
 // SeasonTickets.js
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { loadStripe } from '@stripe/stripe-js';
 import { useTranslation } from '../contexts/LanguageContext';
-
-const api = axios.create({
-  baseURL: 'http://localhost:5000',
-  withCredentials: true,
-});
+import api from '../api/api';
 
 const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
 

@@ -1,27 +1,53 @@
-import { useEffect } from 'react';
-import axios from 'axios';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import api from '../api/api';
 
 export default function RefundOption() {
   const [params] = useSearchParams();
   const bookingId = params.get('bookingId');
   const action = params.get('action');
+  const [message, setMessage] = useState('Processing your request...');
+  const [refundId, setRefundId] = useState(null);
+  const [isProcessed, setIsProcessed] = useState(false);
 
   useEffect(() => {
     if (bookingId && action) {
-      axios
-        .get(`http://localhost:5000/api/booking/${action}`, { params: { bookingId } })
+      api
+        .get(`/api/booking/${action}`, { params: { bookingId } })
         .then((res) => {
-          // display the HTML content returned from the backend directly
-          document.body.innerHTML = res.data;
+          const { status, message, refundId } = res.data;
+
+          setRefundId(refundId);
+
+          if (status === 'processed') {
+            setMessage(`Refund Processed Successfully! Refund ID: ${refundId}`);
+            setIsProcessed(true);
+          } else if (status === 'already') {
+            setMessage(`Your refund has already been processed. Refund ID: ${refundId}`);
+            setIsProcessed(true);
+          } else {
+            setMessage(message || 'Unexpected response from server.');
+            setIsProcessed(false);
+          }
         })
         .catch((err) => {
-          document.body.innerHTML = `<h2>Error</h2><p>${
-            err.response?.data || 'Unexpected error'
-          }</p>`;
+          setMessage(`Error: ${err.response?.data?.message || err.message || 'Unexpected error'}`);
+          setIsProcessed(false);
         });
     }
   }, [bookingId, action]);
 
-  return <h2 style={{ textAlign: 'center' }}>Processing your request...</h2>;
+  return (
+    <div style={{ textAlign: 'center', padding: '50px', fontFamily: 'Arial, sans-serif' }}>
+      <h2>{message}</h2>
+      {isProcessed && (
+        <p>
+          <a href="/booking" style={{ color: '#667eea' }}>
+            Go back to your bookings
+          </a>
+        </p>
+      )}
+      {!isProcessed && <p>Please wait or try again later.</p>}
+    </div>
+  );
 }

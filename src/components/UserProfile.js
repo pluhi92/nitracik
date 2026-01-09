@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { Modal, Button } from 'react-bootstrap';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Tooltip } from 'react-tooltip';
+import api from '../api/api';
 
 const UserProfile = () => {
   const { t } = useTranslation();
@@ -51,9 +51,7 @@ const UserProfile = () => {
   useEffect(() => {
     const checkAdmin = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/users/${userId}`, {
-          withCredentials: true,
-        });
+        const response = await api.get(`/api/users/${userId}`);
         setIsAdmin(response.data.email === process.env.REACT_APP_ADMIN_EMAIL);
       } catch (error) {
         console.error('Admin check failed:', error);
@@ -62,9 +60,7 @@ const UserProfile = () => {
 
     const fetchSeasonTickets = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/season-tickets/${userId}`, {
-          withCredentials: true,
-        });
+        const response = await api.get(`/api/season-tickets/${userId}`);
         setSeasonTickets(response.data);
       } catch (error) {
         console.error('Error fetching season tickets:', error);
@@ -73,9 +69,7 @@ const UserProfile = () => {
 
     const fetchAdminSeasonTickets = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/admin/season-tickets`, {
-          withCredentials: true,
-        });
+        const response = await api.get(`/api/admin/season-tickets`);
         setAdminSeasonTickets(response.data);
       } catch (error) {
         console.error('Error fetching admin season tickets:', error);
@@ -93,9 +87,7 @@ const UserProfile = () => {
     const fetchBookings = async () => {
       try {
         const endpoint = isAdmin ? '/api/admin/bookings' : `/api/bookings/user/${userId}`;
-        const response = await axios.get(`http://localhost:5000${endpoint}`, {
-          withCredentials: true,
-        });
+        const response = await api.get(endpoint);
         setBookedSessions(isAdmin ? response.data : response.data);
       } catch (error) {
         console.error('Error fetching sessions:', error);
@@ -119,9 +111,7 @@ const UserProfile = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/users/${userId}`, {
-          withCredentials: true,
-        });
+        const response = await api.get(`/api/users/${userId}`);
         const userData = response.data;
         setEditedAddress(userData.address || '');
         setEditedMobile(userData.mobile || '');
@@ -174,9 +164,7 @@ const UserProfile = () => {
   const refreshBookings = async () => {
     try {
       const endpoint = isAdmin ? '/api/admin/bookings' : `/api/bookings/user/${userId}`;
-      const response = await axios.get(`http://localhost:5000${endpoint}`, {
-        withCredentials: true,
-      });
+      const response = await api.get(endpoint);
       setBookedSessions(response.data);
       console.log('[DEBUG] Bookings refreshed after cancellation');
     } catch (error) {
@@ -193,13 +181,12 @@ const UserProfile = () => {
 
     setIsUpdating(true);
     try {
-      const response = await axios.put(
-        `http://localhost:5000/api/users/${userId}`,
+      const response = await api.put(
+        `/api/users/${userId}`,
         {
           address: editedAddress.trim(),
           mobile: editedMobile.trim() || null,
-        },
-        { withCredentials: true }
+        }
       );
 
       setUpdateMessage(t?.profile?.update?.success || 'Profile updated successfully!');
@@ -282,7 +269,7 @@ const UserProfile = () => {
                 const hoursDifference = (sessionTime - currentTime) / (1000 * 60 * 60);
                 const isWithin10Hours = hoursDifference <= 10;
                 const isCancelled = session.cancelled === true;
-                const remainingBookings = session.participants.length;
+                const remainingBookings = session.participants.filter(p => p.active === true).length;
                 const totalChildren = session.participants.reduce((sum, participant) => sum + participant.children, 0);
 
                 return (
@@ -481,11 +468,11 @@ const UserProfile = () => {
 
   const confirmAdminCancel = async () => {
     try {
-      const response = await axios.post('http://localhost:5000/api/admin/cancel-session', {
+      const response = await api.post('/api/admin/cancel-session', {
         trainingId: selectedSession.id,
         reason,
         forceCancel
-      }, { withCredentials: true });
+      });
 
       showAlert(`Session canceled successfully! ${response.data.canceledBookings} bookings affected.${response.data.forceCancelUsed ? ' (Force Cancel)' : ''}`, 'success');
 
@@ -528,9 +515,7 @@ const UserProfile = () => {
     setSelectedBooking({ bookingId, trainingDate });
 
     try {
-      const response = await axios.get(`http://localhost:5000/api/bookings/${bookingId}/type`, {
-        withCredentials: true,
-      });
+      const response = await api.get(`/api/bookings/${bookingId}/type`);
       if (response.data.error) {
         throw new Error(response.data.error);
       }
@@ -549,9 +534,7 @@ const UserProfile = () => {
     }
 
     try {
-      const response = await axios.get(`http://localhost:5000/api/replacement-sessions/${bookingId}`, {
-        withCredentials: true,
-      });
+      const response = await api.get(`/api/replacement-sessions/${bookingId}`);
       setReplacementSessions(response.data);
     } catch (error) {
       console.error('Error fetching replacement sessions:', error);
@@ -566,9 +549,8 @@ const UserProfile = () => {
 
     try {
       if (cancellationType === 'refund') {
-        const response = await axios.delete(
-          `http://localhost:5000/api/bookings/${selectedBooking.bookingId}`,
-          { withCredentials: true }
+        const response = await api.delete(
+          `/api/bookings/${selectedBooking.bookingId}`
         );
 
         if (response.data.error) {
@@ -590,17 +572,15 @@ const UserProfile = () => {
           showAlert(message, response.data.refundError ? 'danger' : 'success');
         }
       } else if (cancellationType === 'replacement' && selectedReplacement) {
-        const response = await axios.post(
-          `http://localhost:5000/api/replace-booking/${selectedBooking.bookingId}`,
-          { newTrainingId: selectedReplacement },
-          { withCredentials: true }
+
+        const response = await api.post(
+          `/api/replace-booking/${selectedBooking.bookingId}`,
+          { newTrainingId: selectedReplacement }
         );
         showAlert(t?.profile?.cancel?.replacementSuccess || 'Session successfully replaced.', 'success');
       }
 
-      const bookingsResponse = await axios.get(`http://localhost:5000/api/bookings/user/${userId}`, {
-        withCredentials: true,
-      });
+      const bookingsResponse = await api.get(`/api/bookings/user/${userId}`);
       setBookedSessions(bookingsResponse.data);
     } catch (error) {
       console.error('Error processing cancellation:', error);
@@ -629,9 +609,8 @@ const UserProfile = () => {
     }
 
     try {
-      const response = await axios.delete(
-        `http://localhost:5000/api/admin/training-sessions/${trainingId}`,
-        { withCredentials: true }
+      const response = await api.delete(
+        `/api/admin/training-sessions/${trainingId}`
       );
 
       showAlert(response.data.message || 'Session deleted successfully!', 'success');
@@ -657,16 +636,13 @@ const UserProfile = () => {
 
     setIsDeleting(true);
     try {
-      const verifyResponse = await axios.post(
-        'http://localhost:5000/api/verify-password',
-        { password },
-        { withCredentials: true }
+      const verifyResponse = await api.post(
+        '/api/verify-password',
+        { password }
       );
 
       if (verifyResponse.data.success) {
-        await axios.delete(`http://localhost:5000/api/users/${userId}`, {
-          withCredentials: true,
-        });
+        await api.delete(`/api/users/${userId}`);
 
         localStorage.removeItem('userId');
         localStorage.removeItem('isLoggedIn');
@@ -690,10 +666,10 @@ const UserProfile = () => {
     }
 
     try {
-      const response = await axios.post(
-        'http://localhost:5000/api/admin/payment-report',
+      const response = await api.post(
+        '/api/admin/payment-report',
         { startDate, endDate },
-        { withCredentials: true, responseType: 'arraybuffer' }
+        { responseType: 'arraybuffer' }
       );
 
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
@@ -709,8 +685,15 @@ const UserProfile = () => {
     }
   };
 
+  const now = new Date();
+  const visibleSessions = bookedSessions.filter(session => {
+    const sessionStart = new Date(session.training_date);
+    const hideAfter = new Date(sessionStart.getTime() + 1 * 60 * 60 * 1000);
+    return now < hideAfter;
+  });
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="container mx-auto px-4 py-8 max-w-7xl mt-8 space-y-10">
       {alertMessage && (
         <div className={`alert alert-${alertVariant} rounded-lg p-4 mb-6 ${alertVariant === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
           alertVariant === 'danger' ? 'bg-red-100 text-red-800 border border-red-200' :
@@ -723,53 +706,6 @@ const UserProfile = () => {
       <h2 className="text-3xl font-bold text-center text-gray-800 dark:text-white mb-8">
         {t?.profile?.title || 'Account Settings'}
       </h2>
-
-      {isAdmin && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
-          <h4 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-            {t?.profile?.report?.title || 'Generate Payment Report'}
-          </h4>
-          <form onSubmit={handleGenerateReport}>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-              <div className="md:col-span-5">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {t?.profile?.report?.startDate || 'Start Date'}
-                </label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  required
-                />
-              </div>
-              <div className="md:col-span-5">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  {t?.profile?.report?.endDate || 'End Date'}
-                </label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  required
-                />
-              </div>
-              <div className="md:col-span-2">
-                <button
-                  type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={isButtonDisabled}
-                  data-tooltip-id="generate-tooltip"
-                  data-tooltip-content={tooltipMessage}
-                >
-                  {t?.profile?.report?.generate || 'Generate PDF'}
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-      )}
 
       {isAdmin ? (
         <div className="space-y-8">
@@ -895,7 +831,7 @@ const UserProfile = () => {
               </p>
             ) : (
               <div className="space-y-4">
-                {bookedSessions.map((session) => {
+                {visibleSessions.map((session) => {
                   const isCancelled = session.cancelled === true;
                   const canCancel = !isCancelled && canCancelSession(session.training_date);
 
@@ -1071,9 +1007,7 @@ const UserProfile = () => {
                       onClick={() => {
                         setIsEditing(false);
                         setUpdateMessage('');
-                        axios.get(`http://localhost:5000/api/users/${userId}`, {
-                          withCredentials: true,
-                        })
+                        api.get(`/api/users/${userId}`)
                           .then(response => {
                             const userData = response.data;
                             setEditedAddress(userData.address || '');
@@ -1091,6 +1025,108 @@ const UserProfile = () => {
             </div>
           </div>
         </>
+      )}
+
+      {/* --- GENERATE PAYMENT REPORT--- */}
+      {isAdmin && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700 mt-8">
+          <h4 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+            {t?.profile?.report?.title || 'Generate Payment Report'}
+          </h4>
+          <form onSubmit={handleGenerateReport}>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+              <div className="md:col-span-5 w-full min-w-0"> {/* Pridané min-w-0 aj sem */}
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t?.profile?.report?.startDate || 'Start Date'}
+                </label>
+                {/* Začiatočný dátum */}
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  // block zabezpečí riadkovanie, min-h vynúti výšku aj keď je input prázdny
+                  className="w-full min-w-0 block min-h-[42px] px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  style={{
+                    WebkitAppearance: 'none', // Odstráni iOS sivý gradient
+                    appearance: 'none',
+                    MozAppearance: 'none'
+                  }}
+                  required
+                />
+              </div>
+              <div className="md:col-span-5 w-full min-w-0">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t?.profile?.report?.endDate || 'End Date'}
+                </label>
+                {/* Koncový dátum */}
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full min-w-0 block min-h-[42px] px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  style={{
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    MozAppearance: 'none'
+                  }}
+                  required
+                />
+              </div>
+              <div className="md:col-span-2">
+                {/* Tlačidlo môže zostať ako máš */}
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isButtonDisabled}
+                >
+                  {t?.profile?.report?.generate || 'Generate PDF'}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* --- ARCHÍV ZRUŠENÝCH HODÍN --- */}
+      {isAdmin && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700 mt-8">
+          <h4 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+            Archív zrušených hodín
+          </h4>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end"> {/* Zmenené na items-end pre zarovnanie s buttonom */}
+            <div className="md:col-span-10 w-full min-w-0">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Informačný prehľad
+              </label>
+              <div className="w-full min-h-[42px] px-3 py-2 border border-transparent bg-gray-50 dark:bg-gray-700/50 rounded-lg text-sm text-gray-600 dark:text-gray-400 flex items-center">
+                Stiahnite si prehľad všetkých zrušených hodín, ktoré už boli vymazané z kalendára, ale zostali v databáze pre účely auditu.
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <button
+                onClick={async () => {
+                  try {
+                    const response = await api.get('/api/admin/archived-sessions-report', { responseType: 'blob' });
+                    const url = window.URL.createObjectURL(new Blob([response.data]));
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.setAttribute('download', `archiv_zrusenych_hodin_${new Date().toISOString().split('T')[0]}.pdf`);
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                  } catch (err) {
+                    alert('Nepodarilo sa vygenerovať PDF: ' + err.message);
+                  }
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {t?.profile?.report?.generate || 'Generate PDF'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-red-200 dark:border-red-800 relative overflow-hidden mt-8 mb-8">

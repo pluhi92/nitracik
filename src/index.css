@@ -4,6 +4,7 @@
 
 /* Custom base styles that extend Tailwind */
 @layer base {
+
   *,
   *::before,
   *::after {
@@ -25,7 +26,8 @@
   }
 
   body {
-    @apply bg-gray-50 text-gray-800;
+    @apply text-gray-800;
+    background-color: transparent !important;
     font-size: 1rem;
     line-height: 1.5;
     font-weight: 400;
@@ -35,27 +37,33 @@
   }
 
   /* Typography scale */
-  h1, .h1 {
+  h1,
+  .h1 {
     @apply text-4xl font-bold leading-tight mb-4;
   }
 
-  h2, .h2 {
+  h2,
+  .h2 {
     @apply text-3xl font-bold leading-tight mb-4;
   }
 
-  h3, .h3 {
+  h3,
+  .h3 {
     @apply text-2xl font-semibold leading-snug mb-3;
   }
 
-  h4, .h4 {
+  h4,
+  .h4 {
     @apply text-xl font-semibold leading-snug mb-3;
   }
 
-  h5, .h5 {
+  h5,
+  .h5 {
     @apply text-lg font-semibold mb-2;
   }
 
-  h6, .h6 {
+  h6,
+  .h6 {
     @apply text-base font-semibold mb-2;
   }
 
@@ -65,6 +73,7 @@
 }
 
 @layer components {
+
   /* Container utilities */
   .container-custom {
     @apply max-w-container mx-auto px-4;
@@ -133,20 +142,23 @@
   .section {
     @apply py-12;
   }
-  
+
   .section-lg {
     @apply py-16;
   }
-  
-  h1, .h1 {
+
+  h1,
+  .h1 {
     @apply text-3xl;
   }
-  
-  h2, .h2 {
+
+  h2,
+  .h2 {
     @apply text-2xl;
   }
-  
-  h3, .h3 {
+
+  h3,
+  .h3 {
     @apply text-xl;
   }
 }
