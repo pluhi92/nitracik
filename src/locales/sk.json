@@ -86,7 +86,7 @@
   },
   "admin": {
     "title": "Admin Panel",
-    "addSession": "Pridať reláciu",
+    "addSession": "Pridať",
     "trainingType": "Typ tréningu",
     "date": "Dátum",
     "time": "Čas",

@@ -9,6 +9,7 @@ import { useTranslation } from '../contexts/LanguageContext';
 import { Modal, Button, Form } from 'react-bootstrap';
 import CustomCalendar from './CustomCalendar';
 import api from '../api/api';
+import { HexColorPicker } from "react-colorful";
 
 const Booking = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(localStorage.getItem('isLoggedIn') === 'true');
@@ -33,6 +34,16 @@ const Booking = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [newTrainingDate, setNewTrainingDate] = useState('');
   const [newTrainingType, setNewTrainingType] = useState('MIDI');
+  const [trainingTypeId, setTrainingTypeId] = useState('');
+  const [trainingTypes, setTrainingTypes] = useState([]);
+  const [selectedTypeObj, setSelectedTypeObj] = useState(null);
+  const [showCreateTypeModal, setShowCreateTypeModal] = useState(false);
+  const [newTypeName, setNewTypeName] = useState('');
+  const [newTypeDesc, setNewTypeDesc] = useState('');
+  const [newTypePrice1, setNewTypePrice1] = useState(15);
+  const [newTypePrice2, setNewTypePrice2] = useState(28);
+  const [newTypePrice3, setNewTypePrice3] = useState(39);
+  const [newAccompanyingPrice, setNewAccompanyingPrice] = useState(3);
   const [maxParticipants, setMaxParticipants] = useState(10);
   const [warningMessage, setWarningMessage] = useState('');
   const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
@@ -41,6 +52,8 @@ const Booking = () => {
     remainingSpots: 0,
     requestedChildren: 0,
   });
+  const [newTypeColor, setNewTypeColor] = useState('#3b82f6');
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const { t } = useTranslation();
   const [credits, setCredits] = useState([]);
   const [showCreditModal, setShowCreditModal] = useState(false);
@@ -50,11 +63,22 @@ const Booking = () => {
   const [userBookings, setUserBookings] = useState([]);
   const [isAlreadyBooked, setIsAlreadyBooked] = useState(false);
   const [trainingId, setTrainingId] = useState(null);
+  const [newTypeDuration, setNewTypeDuration] = useState(60); // Default 60 min
+  const [pricingMode, setPricingMode] = useState('tiered'); // 'fixed' alebo 'tiered'
+  const [fixedPricePerChild, setFixedPricePerChild] = useState(15); // Pre fixný režim
 
-  const pricing = {
-    1: 15,
-    2: 28,
-    3: 39,
+  const calculateTotalPrice = () => {
+    if (!selectedTypeObj || !childrenCount) return 0;
+
+    const priceObj = selectedTypeObj.prices.find(p => p.child_count === childrenCount);
+    let basePrice = priceObj ? parseFloat(priceObj.price) : 0;
+
+    if (accompanyingPerson) {
+      const accPrice = selectedTypeObj.accompanying_person_price ? parseFloat(selectedTypeObj.accompanying_person_price) : 3;
+      basePrice += accPrice;
+    }
+
+    return basePrice;
   };
 
   const getOrdinalSuffix = (number) => {
@@ -115,9 +139,7 @@ const Booking = () => {
             acc[training.training_type][date] = [];
           }
 
-          // ZMENA: Namiesto push(time) ukladáme objekt s ID
           acc[training.training_type][date].push({ time, id: training.id });
-
           return acc;
         }, {});
         setTrainingDates(dates);
@@ -129,8 +151,16 @@ const Booking = () => {
     const fetchSeasonTickets = async () => {
       try {
         const userId = localStorage.getItem('userId');
+        if (!userId) return;
+
         const response = await api.get(`/api/season-tickets/${userId}`);
-        setSeasonTickets(response.data.filter(ticket => ticket.entries_remaining > 0 && new Date(ticket.expiry_date) > new Date()));
+        setSeasonTickets(
+          response.data.filter(
+            ticket =>
+              ticket.entries_remaining > 0 &&
+              new Date(ticket.expiry_date) > new Date()
+          )
+        );
       } catch (error) {
         console.error('Error fetching season tickets:', error);
       }
@@ -140,6 +170,7 @@ const Booking = () => {
       try {
         const userId = localStorage.getItem('userId');
         if (!userId) return;
+
         const response = await api.get(`/api/credits/${userId}`);
         setCredits(response.data);
       } catch (error) {
@@ -151,7 +182,7 @@ const Booking = () => {
       try {
         const userId = localStorage.getItem('userId');
         if (!userId) return;
-        // Použijeme existujúci endpoint pre user bookings
+
         const response = await api.get(`/api/bookings/user/${userId}`);
         setUserBookings(response.data);
       } catch (error) {
@@ -159,13 +190,38 @@ const Booking = () => {
       }
     };
 
+    const fetchTypes = async () => {
+      const response = await api.get(
+        `/api/training-types?admin=${isAdmin}`
+      );
+      setTrainingTypes(response.data);
+    };
+
     if (isLoggedIn) {
       fetchTrainingDates();
       fetchSeasonTickets();
       fetchCredits();
       fetchUserBookings();
+      fetchTypes();
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, isAdmin]);
+
+  useEffect(() => {
+      // Ak nemáme ID alebo dáta, končíme
+      if (!trainingTypeId || trainingTypes.length === 0) return;
+
+      // 1. Nájdi objekt podľa ID
+      const typeObj = trainingTypes.find(t => t.id === Number(trainingTypeId));
+
+      // 2. Nastav ho do state-u (tým sa spustí výpočet ceny)
+      setSelectedTypeObj(typeObj || null);
+
+      // 3. Synchronizuj aj názov (pretože CustomCalendar filtruje podľa názvu stringu)
+      if (typeObj) {
+        setTrainingType(typeObj.name);
+      }
+    }, [trainingTypeId, trainingTypes]);
+
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -242,6 +298,77 @@ const Booking = () => {
     }, {});
   };
 
+  const handleCreateType = async (e) => {
+    e.preventDefault();
+
+    // Príprava cien podľa zvoleného režimu
+    let calculatedPrices = [];
+
+    if (pricingMode === 'fixed') {
+      // Ak je fixná cena, vypočítame násobky
+      const price = parseFloat(fixedPricePerChild);
+      calculatedPrices = [
+        { child_count: 1, price: price },
+        { child_count: 2, price: price * 2 },
+        { child_count: 3, price: price * 3 },
+      ];
+    } else {
+      // Ak sú množstevné zľavy, berieme manuálne vstupy
+      calculatedPrices = [
+        { child_count: 1, price: newTypePrice1 },
+        { child_count: 2, price: newTypePrice2 },
+        { child_count: 3, price: newTypePrice3 },
+      ];
+    }
+
+    try {
+      await api.post('/api/admin/training-types', {
+        name: newTypeName,
+        description: newTypeDesc,
+        durationMinutes: parseInt(newTypeDuration), // Posielame dĺžku trvania
+        accompanyingPrice: parseFloat(newAccompanyingPrice),
+        colorHex: newTypeColor,
+        prices: calculatedPrices
+      });
+
+      alert("New Training Type Created!");
+      setShowCreateTypeModal(false);
+
+      // Reset formulára na defaulty
+      setNewTypeName('');
+      setNewTypeDesc('');
+      setNewTypeDuration(60);
+      setNewTypeColor('#3b82f6');
+      setPricingMode('tiered');
+
+      const response = await api.get(`/api/training-types?admin=true`);
+      setTrainingTypes(response.data);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to create type");
+    }
+  };
+
+  const toggleTypeStatus = async (typeId, currentStatus) => {
+    try {
+      await api.put(`/api/admin/training-types/${typeId}/toggle`, { active: !currentStatus });
+      const response = await api.get(`/api/training-types?admin=true`);
+
+      setTrainingTypes(response.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleTypeChange = (e) => {
+    const newId = e.target.value; // Teraz to bude ID (číslo/string)
+    setTrainingTypeId(newId);     // Nastavíme ID -> useEffect hore sa postará o zvyšok
+
+    // Reset výberov
+    setSelectedDate('');
+    setSelectedTime('');
+  };
+
   useEffect(() => {
     // Resetujeme stav pri zmene
     setIsAlreadyBooked(false);
@@ -309,7 +436,8 @@ const Booking = () => {
   useEffect(() => {
     if (location.state) {
       const {
-        incomingId, // Toto budeme posielať zo Schedule.js
+        incomingId,
+        incomingTypeId, // NOVÉ
         incomingType,
         incomingDate,
         incomingTime
@@ -317,14 +445,22 @@ const Booking = () => {
 
       if (incomingDate) setSelectedDate(incomingDate);
       if (incomingTime) setSelectedTime(incomingTime);
-      if (incomingType) setTrainingType(incomingType);
       if (incomingId) setTrainingId(incomingId);
 
-      // Vyčistíme state histórie, aby pri REFRESHI stránky 
-      // nezostali staré dáta "visieť" v pamäti prehliadača
+      // LOGIKA PRE TYP TRÉNINGU
+      if (incomingTypeId) {
+        // Ak máme ID (ideálna situácia), nastavíme ID
+        setTrainingTypeId(incomingTypeId);
+      } else if (incomingType && trainingTypes.length > 0) {
+        // Fallback: Ak máme len názov (napr. starý odkaz), nájdeme ID
+        const found = trainingTypes.find(t => t.name === incomingType);
+        if (found) setTrainingTypeId(found.id);
+      }
+
+      // Vyčistenie history
       window.history.replaceState({}, document.title);
     }
-  }, [location]);
+  }, [location, trainingTypes]); // Pridané trainingTypes do závislosti
 
   const handleAgeChange = (index, age) => {
     const newAges = [...childrenAges];
@@ -441,7 +577,7 @@ const Booking = () => {
           selectedTime,
           childrenCount,
           childrenAge: childrenAgeString,
-          totalPrice: pricing[childrenCount] + (accompanyingPerson ? 3 : 0),
+          totalPrice: calculateTotalPrice(),
           photoConsent,
           mobile,
           note,
@@ -510,6 +646,8 @@ const Booking = () => {
     }
     return null;
   };
+
+  const currentType = trainingTypes.find(t => t.name === trainingType);
 
   const selectCredit = (credit, fillForm = false) => {
     setSelectedCredit(credit);
@@ -648,11 +786,19 @@ const Booking = () => {
         </div>
       )}
 
+      {/* 1. ADMIN PANEL - PRIDÁVANIE TERMÍNOV (SESSION) */}
       {isAdmin && (
         <div className="bg-primary-50 border-2 border-primary-100 rounded-xl p-6 mb-8">
-          <h3 className="text-xl font-semibold text-primary-600 border-b-2 border-primary-500 pb-2 mb-4">
-            {t?.admin?.title || 'Admin Controls'}
-          </h3>
+          <div className="flex justify-between items-center border-b-2 border-primary-500 pb-2 mb-4">
+            <h3 className="text-xl font-semibold text-primary-600 mb-0">
+              {t?.admin?.title || 'Admin Controls'}
+            </h3>
+            {/* Tlačidlo na otvorenie modalu pre ÚPLNE NOVÝ TYP (napr. Maľovanie) */}
+            <Button variant="outline-primary" size="sm" onClick={() => setShowCreateTypeModal(true)}>
+              + Vytvoriť nový typ tréningu
+            </Button>
+          </div>
+
           <Form onSubmit={handleAddTrainingDate}>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="md:col-span-1">
@@ -664,16 +810,20 @@ const Booking = () => {
                   onChange={(e) => setNewTrainingType(e.target.value)}
                   className="w-full"
                 >
-                  <option value="MIDI">{t?.booking?.trainingType?.midi || 'MIDI'}</option>
-                  <option value="MINI">{t?.booking?.trainingType?.mini || 'MINI'}</option>
-                  <option value="MAXI">{t?.booking?.trainingType?.maxi || 'MAXI'}</option>
+                  <option value="">-- Select Type --</option>
+                  {trainingTypes
+                    .filter(type => type.active) // PRIDAŤ TENTO FILTER
+                    .map(type => (
+                      <option key={type.id} value={type.id}> {/* ZMENA: value je teraz type.id */}
+                        {type.name}
+                      </option>
+                    ))}
                 </Form.Select>
               </div>
-              {/* Date */}
+
+              {/* Date Input */}
               <div>
-                <Form.Label className="font-medium text-gray-700">
-                  {t?.admin?.date || "Date"}
-                </Form.Label>
+                <Form.Label className="font-medium text-gray-700">{t?.admin?.date || "Date"}</Form.Label>
                 <Form.Control
                   type="date"
                   value={newTrainingDate.split("T")[0] || ""}
@@ -682,15 +832,12 @@ const Booking = () => {
                     const time = newTrainingDate.split("T")[1]?.substring(0, 5) || "00:00";
                     setNewTrainingDate(`${date}T${time}`);
                   }}
-                  className="w-full"
                 />
               </div>
 
-              {/* Time */}
+              {/* Time Input */}
               <div>
-                <Form.Label className="font-medium text-gray-700">
-                  {t?.admin?.time || "Time"}
-                </Form.Label>
+                <Form.Label className="font-medium text-gray-700">{t?.admin?.time || "Time"}</Form.Label>
                 <Form.Control
                   type="time"
                   value={newTrainingDate.split("T")[1]?.substring(0, 5) || ""}
@@ -699,26 +846,21 @@ const Booking = () => {
                     const date = newTrainingDate.split("T")[0] || "";
                     setNewTrainingDate(`${date}T${time}`);
                   }}
-                  className="w-full"
                 />
               </div>
 
-
-              <div className="md:col-span-1">
-                <Form.Label className="font-medium text-gray-700">
-                  {t?.admin?.maxParticipants || 'Max Participants'}
-                </Form.Label>
-                <Form.Control
-                  type="number"
-                  min="1"
-                  value={maxParticipants}
-                  onChange={(e) => setMaxParticipants(e.target.value)}
-                  className="w-full"
-                />
-              </div>
-              <div className="md:col-span-1 flex items-end">
-                <Button type="submit" className="w-full bg-primary-500 border-primary-500">
-                  {t?.admin?.addSession || 'Add Session'}
+              <div className="md:col-span-1 flex items-end gap-2">
+                <div className="flex-grow">
+                  <Form.Label className="font-medium text-gray-700 text-xs">Max Part.</Form.Label>
+                  <Form.Control
+                    type="number"
+                    min="1"
+                    value={maxParticipants}
+                    onChange={(e) => setMaxParticipants(e.target.value)}
+                  />
+                </div>
+                <Button type="submit" className="bg-primary-500 border-primary-500">
+                  {t?.admin?.addSession || 'Add'}
                 </Button>
               </div>
             </div>
@@ -726,39 +868,250 @@ const Booking = () => {
         </div>
       )}
 
+      {/* ZOZNAM TYPOV NA ZAPNUTIE/VYPNUTIE - teraz obalené v isAdmin podmienke */}
       {isAdmin && (
-        <div className="bg-green-100 border border-green-400 text-green-800 px-4 py-3 rounded mb-6">
-          {t?.admin?.title || 'ADMIN MODE ACTIVE'}
+        <div className="mt-8 border-t pt-6">
+          <h4 className="text-lg font-semibold mb-4 text-gray-700">Manage Training Types (Active/Inactive)</h4>
+          <div className="space-y-2">
+            {trainingTypes.map(type => (
+              <div key={type.id} className="flex items-center justify-between bg-white p-3 rounded-lg border">
+                <span>{type.name}</span>
+                <Form.Check
+                  type="switch"
+                  id={`active-switch-${type.id}`}
+                  checked={type.active}
+                  onChange={() => toggleTypeStatus(type.id, type.active)}
+                  label={type.active ? "Active" : "Inactive"}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
+      {isAdmin && (
+        <div className="bg-green-100 border border-green-400 text-green-800 px-4 py-3 rounded mb-6 font-bold text-center">
+          {t?.admin?.adminModeActive || 'ADMIN MODE ACTIVE'}
+        </div>
+      )}
+
+      <Modal show={showCreateTypeModal} onHide={() => setShowCreateTypeModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Create New Training Type</Modal.Title>
+        </Modal.Header>
+
+        <Form onSubmit={handleCreateType}>
+          <Modal.Body>
+            {/* 1. Základné info */}
+            <div className="grid grid-cols-2 gap-4 mb-3">
+              <Form.Group className="col-span-2">
+                <Form.Label>Name</Form.Label>
+                <Form.Control
+                  required
+                  value={newTypeName}
+                  onChange={e => setNewTypeName(e.target.value)}
+                  placeholder="e.g. Painting, MIDI, Yoga"
+                />
+              </Form.Group>
+
+              <Form.Group>
+                <Form.Label>Duration (min)</Form.Label>
+                <Form.Control
+                  type="number"
+                  required
+                  value={newTypeDuration}
+                  onChange={e => setNewTypeDuration(e.target.value)}
+                />
+              </Form.Group>
+
+              <Form.Group>
+                <Form.Label>Accompanying Person (€)</Form.Label>
+                <Form.Control
+                  type="number"
+                  step="0.01"
+                  value={newAccompanyingPrice}
+                  onChange={e => setNewAccompanyingPrice(e.target.value)}
+                />
+              </Form.Group>
+            </div>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Description</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={2}
+                value={newTypeDesc}
+                onChange={e => setNewTypeDesc(e.target.value)}
+              />
+            </Form.Group>
+
+            {/* --- NOVO PRIDANÁ ČASŤ: COLOR PICKER --- */}
+            <Form.Group className="mb-4 relative">
+              <Form.Label className="block font-bold mb-2 text-gray-700">Calendar Color</Form.Label>
+              <div className="flex items-center gap-4">
+                <div
+                  onClick={() => setShowColorPicker(!showColorPicker)}
+                  className="w-12 h-12 rounded-lg border-2 border-gray-200 cursor-pointer shadow-sm hover:scale-105 transition-transform"
+                  style={{ backgroundColor: newTypeColor }}
+                />
+                <div className="flex flex-col">
+                  <span className="font-mono text-sm font-bold uppercase">{newTypeColor}</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowColorPicker(!showColorPicker)}
+                    className="text-xs text-blue-600 font-semibold hover:underline text-left"
+                  >
+                    {showColorPicker ? 'Close Picker' : 'Choose Color'}
+                  </button>
+                </div>
+
+                {/* Malý náhľad ako to bude vyzerať v Schedule */}
+                <div className="ml-auto hidden sm:block">
+                  <div className="text-[10px] text-gray-400 uppercase font-bold mb-1">Schedule Preview</div>
+                  <div
+                    className="px-3 py-1 rounded text-[11px] font-black uppercase border-l-4"
+                    style={{
+                      backgroundColor: `${newTypeColor}25`,
+                      borderColor: newTypeColor,
+                      color: '#1f2937'
+                    }}
+                  >
+                    {newTypeName || 'Training'}
+                  </div>
+                </div>
+              </div>
+
+              {showColorPicker && (
+                <div className="absolute z-50 mt-2 bg-white p-3 rounded-xl shadow-2xl border border-gray-100">
+                  <HexColorPicker color={newTypeColor} onChange={setNewTypeColor} />
+                  <button
+                    type="button"
+                    className="w-full mt-3 bg-gray-900 text-white text-xs py-2 rounded-lg font-bold"
+                    onClick={() => setShowColorPicker(false)}
+                  >
+                    Confirm
+                  </button>
+                </div>
+              )}
+            </Form.Group>
+
+            <hr className="my-4" />
+
+            {/* 2. Stratégia cien */}
+            <h6 className="font-bold mb-3">Pricing Strategy</h6>
+            <div className="flex gap-4 mb-4">
+              <Form.Check
+                type="radio"
+                label="Fixed Price per Child"
+                name="pricingMode"
+                id="modeFixed"
+                checked={pricingMode === 'fixed'}
+                onChange={() => setPricingMode('fixed')}
+              />
+              <Form.Check
+                type="radio"
+                label="Custom / Tiered Discounts"
+                name="pricingMode"
+                id="modeTiered"
+                checked={pricingMode === 'tiered'}
+                onChange={() => setPricingMode('tiered')}
+              />
+            </div>
+
+            {/* 3. Vstupy pre ceny podľa stratégie */}
+            <div className="bg-gray-50 p-3 rounded border">
+              {pricingMode === 'fixed' ? (
+                <Form.Group>
+                  <Form.Label className="font-bold text-primary-600">Price per 1 Child (€)</Form.Label>
+                  <Form.Control
+                    type="number"
+                    step="0.01"
+                    value={fixedPricePerChild}
+                    onChange={e => setFixedPricePerChild(e.target.value)}
+                  />
+                  <Form.Text className="text-muted">
+                    System will automatically calculate:
+                    2 Children = €{(fixedPricePerChild * 2).toFixed(2)},
+                    3 Children = €{(fixedPricePerChild * 3).toFixed(2)}
+                  </Form.Text>
+                </Form.Group>
+              ) : (
+                <div className="grid grid-cols-3 gap-3">
+                  <Form.Group>
+                    <Form.Label>1 Child (€)</Form.Label>
+                    <Form.Control
+                      type="number"
+                      value={newTypePrice1}
+                      onChange={e => setNewTypePrice1(e.target.value)}
+                    />
+                  </Form.Group>
+
+                  <Form.Group>
+                    <Form.Label>2 Children (€)</Form.Label>
+                    <Form.Control
+                      type="number"
+                      value={newTypePrice2}
+                      onChange={e => setNewTypePrice2(e.target.value)}
+                    />
+                  </Form.Group>
+
+                  <Form.Group>
+                    <Form.Label>3 Children (€)</Form.Label>
+                    <Form.Control
+                      type="number"
+                      value={newTypePrice3}
+                      onChange={e => setNewTypePrice3(e.target.value)}
+                    />
+                  </Form.Group>
+                  <div className="col-span-3">
+                    <Form.Text className="text-muted">Set specific prices to offer discounts for siblings.</Form.Text>
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </Modal.Body>
+
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowCreateTypeModal(false)}>
+              Close
+            </Button>
+            <Button type="submit" variant="primary">
+              Create Type
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+
+      {/* 2. USER BOOKING FORM */}
       <Form onSubmit={handleSubmit} className="space-y-6">
-        {/* Training Details Card */}
         <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200">
           <div className="bg-gray-100 bg-opacity-50 border-b border-gray-300 px-6 py-4">
             <h5 className="text-lg font-bold text-gray-800">
               {t?.booking?.trainingDetails || 'Training Details'}
             </h5>
           </div>
+
           <div className="p-6">
             <Form.Group className="mb-6">
               <Form.Label className="font-bold text-gray-800">
                 {t?.booking?.trainingType?.label || 'Select Training Type'} <span className="text-red-500">*</span>
               </Form.Label>
               <Form.Select
-                value={trainingType}
-                onChange={(e) => {
-                  setTrainingType(e.target.value);
-                  setSelectedDate('');
-                  setSelectedTime('');
-                }}
+                value={trainingTypeId} // Zmena: viazané na ID
+                onChange={handleTypeChange}
                 disabled={isCreditMode}
                 className="w-full text-lg py-3"
               >
                 <option value="">{t?.booking?.trainingType?.placeholder || 'Choose training type...'}</option>
-                <option value="MINI">{t?.booking?.trainingType?.mini || 'MINI'} (2-4 years)</option>
-                <option value="MIDI">{t?.booking?.trainingType?.midi || 'MIDI'} (4-6 years)</option>
-                <option value="MAXI">{t?.booking?.trainingType?.maxi || 'MAXI'} (6+ years)</option>
+                {trainingTypes
+                  .filter(t => isAdmin ? true : t.active)
+                  .map(type => (
+                    <option key={type.id} value={type.id}> {/* Zmena: value={type.id} */}
+                      {type.name} {type.duration_minutes ? `(${type.duration_minutes} min)` : ''} {!type.active ? '(Inactive)' : ''}
+                    </option>
+                  ))}
               </Form.Select>
             </Form.Group>
 
@@ -910,9 +1263,24 @@ const Booking = () => {
                 disabled={isCreditMode}
                 className="w-full text-lg py-3"
               >
-                <option value="1">1 {t?.booking?.child || 'Child'} - €15</option>
-                <option value="2">2 {t?.booking?.children || 'Children'} - €28</option>
-                <option value="3">3 {t?.booking?.children || 'Children'} - €39</option>
+                {/* Dynamické generovanie možností 1, 2, 3 */}
+                {[1, 2, 3].map(num => {
+                  // 1. Zistíme cenu pre daný počet detí z aktuálneho typu tréningu
+                  const priceObj = currentType?.prices?.find(p => p.child_count === num);
+                  // 2. Ak ešte nie je vybraný typ, alebo cena chýba, dáme '?' alebo 0
+                  const displayPrice = priceObj ? priceObj.price : 0;
+
+                  // 3. Text pre dieťa/deti
+                  const childLabel = num === 1
+                    ? (t?.booking?.child || 'Child')
+                    : (t?.booking?.children || 'Children');
+
+                  return (
+                    <option key={num} value={num}>
+                      {num} {childLabel} - €{displayPrice}
+                    </option>
+                  );
+                })}
               </Form.Select>
             </Form.Group>
 
@@ -1143,7 +1511,8 @@ const Booking = () => {
               <div className="mb-6">
                 <h4 className="text-2xl font-bold text-primary-600">
                   {t?.booking?.totalPrice || 'Total Price'}:
-                  <span className="ml-2">€{pricing[childrenCount] + (accompanyingPerson ? 3 : 0)}</span>
+                  {/* ZMENA: Tu voláme tvoju novú funkciu */}
+                  <span className="ml-2">€{calculateTotalPrice().toFixed(2)}</span>
                 </h4>
                 <div className="text-gray-600 text-sm mt-1">
                   {childrenCount} {childrenCount === 1 ? t?.booking?.child || 'child' : t?.booking?.children || 'children'}

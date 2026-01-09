@@ -218,23 +218,41 @@ function isAuthenticated(req, res, next) {
   }
 }
 
+
 app.post('/api/set-training', isAdmin, async (req, res) => {
   try {
     const { trainingType, trainingDate, maxParticipants } = req.body;
-    console.log('Received training data:', req.body);
 
+    // 1. PRETYPOVANIE na číslo (istota pre SQL query)
+    const typeId = parseInt(trainingType, 10);
+
+    // 2. Kontrola typu
+    const typeRes = await pool.query('SELECT name FROM training_types WHERE id = $1', [typeId]);
+
+    if (typeRes.rows.length === 0) {
+      console.log(`[ERROR] Training type ID ${typeId} not found in DB`);
+      return res.status(404).json({ error: `Training type ID ${typeId} not found` });
+    }
+
+    const typeName = typeRes.rows[0].name;
+
+    // 3. Vloženie - skontroluj si, či máš v DB stĺpce training_type_id, training_type, training_date, max_participants
     const result = await pool.query(
       `INSERT INTO training_availability 
-       (training_type, training_date, max_participants)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [trainingType, trainingDate, maxParticipants]
+       (training_type_id, training_type, training_date, max_participants)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [typeId, typeName, trainingDate, maxParticipants]
     );
 
-    console.log('Insert result:', result.rows[0]);
     res.status(201).json(result.rows[0]);
+
   } catch (error) {
-    console.error('Set training error:', error);
-    res.status(500).json({ error: 'Failed to set training date', details: error.message });
+    // TOTO vypíše presnú chybu z Postgresu (napr. že chýba stĺpec)
+    console.error('SET TRAINING ERROR:', error.message);
+    res.status(500).json({
+      error: 'Failed to set training date',
+      details: error.message
+    });
   }
 });
 
@@ -544,7 +562,88 @@ app.get('/api/admin/archived-sessions-report', isAdmin, async (req, res) => {
   }
 });
 
+app.get('/api/training-types', async (req, res) => {
+  try {
+    const isAdminRequest = req.query.admin === 'true'; // Admin vidí aj neaktívne
 
+    let query = `
+      SELECT t.*, 
+             COALESCE(json_agg(json_build_object('child_count', p.child_count, 'price', p.price)) FILTER (WHERE p.id IS NOT NULL), '[]') as prices
+      FROM training_types t
+      LEFT JOIN training_prices p ON t.id = p.training_type_id
+    `;
+
+    if (!isAdminRequest) {
+      query += ` WHERE t.active = TRUE`;
+    }
+
+    query += ` GROUP BY t.id ORDER BY t.name ASC`;
+
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching training types:', error);
+    res.status(500).json({ error: 'Failed to fetch training types' });
+  }
+});
+
+// 2. POST nový typ tréningu (ADMIN)
+app.post('/api/admin/training-types', isAdmin, async (req, res) => {
+  // 1. Pridaj colorHex do deštrukturalizácie
+  const { name, description, durationMinutes, prices, accompanyingPrice, colorHex } = req.body;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 2. Uprav INSERT query - pridaj color_hex a $5
+    const typeResult = await client.query(
+      `INSERT INTO training_types (name, description, duration_minutes, accompanying_person_price, color_hex) 
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [
+        name,
+        description,
+        durationMinutes || 60,
+        accompanyingPrice || 3.00,
+        colorHex || '#3b82f6' // Fallback farba ak by neprišla žiadna
+      ]
+    );
+    const typeId = typeResult.rows[0].id;
+
+    // Vloženie cien
+    if (prices && Array.isArray(prices)) {
+      for (const p of prices) {
+        await client.query(
+          `INSERT INTO training_prices (training_type_id, child_count, price) VALUES ($1, $2, $3)`,
+          [typeId, p.child_count, p.price]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json({ success: true, id: typeId });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error creating training type:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.put('/api/admin/training-types/:id/toggle', isAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { active } = req.body;
+  try {
+    await pool.query('UPDATE training_types SET active = $1 WHERE id = $2', [active, id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error toggling training type:', error);
+    res.status(500).json({ error: 'Failed to update status' });
+  }
+});
+
+// UPRAVENÉ: training-dates endpoint musí vrátiť ID typu
 app.get('/api/training-dates', async (req, res) => {
   try {
     const userId = req.session?.userId || null;
@@ -555,15 +654,26 @@ app.get('/api/training-dates', async (req, res) => {
       isAdmin = roleCheck.rows[0]?.role === 'admin';
     }
 
-    // ✅ If admin → show all; else → hide cancelled
+    // Join s training_types pre získanie aktuálneho názvu
     const result = await pool.query(
       `
-      SELECT id, training_type, training_date, max_participants, cancelled
-      FROM training_availability
-      WHERE training_date >= NOW()
-      ${isAdmin ? '' : 'AND (cancelled IS NULL OR cancelled = FALSE)'}
-      ORDER BY training_date ASC
-      `
+        SELECT 
+          ta.id, 
+          tt.id as training_type_id,
+          tt.name as training_type, 
+          tt.duration_minutes,
+          tt.description,
+          tt.active,
+          tt.color_hex, 
+          ta.training_date, 
+          ta.max_participants, 
+          ta.cancelled
+          FROM training_availability ta
+          JOIN training_types tt ON ta.training_type_id = tt.id
+          WHERE ta.training_date >= NOW()
+          ${isAdmin ? '' : 'AND (ta.cancelled IS NULL OR ta.cancelled = FALSE) AND tt.active = TRUE'}
+         ORDER BY ta.training_date ASC
+         `
     );
 
     res.json(result.rows);
@@ -572,8 +682,6 @@ app.get('/api/training-dates', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch training dates' });
   }
 });
-
-
 
 app.get('/api/season-tickets/:userId', isAuthenticated, async (req, res) => {
   try {
@@ -742,7 +850,7 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
         Training: ${trainingType}
         Date: ${selectedDate}
         Time: ${selectedTime}
-        Photo Consent: ${photoConsent ? 'Agreed' : 'Declined'}
+        Photo Consent: ${(photoConsent === true || photoConsent === 'true') ? 'Agreed' : 'Declined'}
         Notes: ${note || 'No additional notes'}
         Season Ticket ID: ${seasonTicketId}
       `.trim(),
@@ -785,54 +893,90 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
   }
 });
 
+app.post('/api/set-training', isAdmin, async (req, res) => {
+  try {
+    // POZOR: Premenná sa musí volať rovnako ako kľúč v req.body z frontendu
+    // Vo tvojom logu z prehliadača vidím, že posielaš "trainingType"
+    const { trainingType, trainingDate, maxParticipants } = req.body;
+
+    console.log('Received training data:', req.body);
+
+    // 1. Overíme, či typ existuje (trainingType tu obsahuje ID vybrané v dropdown-e)
+    const typeRes = await pool.query('SELECT name FROM training_types WHERE id = $1', [trainingType]);
+
+    if (typeRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Training type not found in database' });
+    }
+
+    const typeName = typeRes.rows[0].name;
+
+    // 2. Vložíme do tabuľky training_availability
+    // Používame názvy stĺpcov, ktoré máš v DB (training_date / date - skontroluj si presný názov v DB)
+    const result = await pool.query(
+      `INSERT INTO training_availability 
+       (training_type_id, training_type, training_date, max_participants)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [trainingType, typeName, trainingDate, maxParticipants]
+    );
+
+    console.log('Insert success:', result.rows[0]);
+    res.status(201).json(result.rows[0]);
+
+  } catch (error) {
+    console.error('Set training error details:', error);
+    res.status(500).json({
+      error: 'Failed to set training date',
+      details: error.message
+    });
+  }
+});
+
+// UPRAVENÉ: create-payment-session - Dynamický výpočet ceny
 app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
   try {
     const {
       userId,
-      trainingId, // PRIDANÉ: Budeme posielať ID z frontendu
-      trainingType,
+      trainingId,
+      trainingType, // Stále posielame z FE, ale pre cenu použijeme DB
       selectedDate,
       selectedTime,
       childrenCount,
       childrenAge,
-      totalPrice,
+      // totalPrice, // <-- IGNORUJEME cenu z Frontendu kvoli bezpečnosti, vypočítame ju tu
       photoConsent,
       mobile,
       note,
       accompanyingPerson,
     } = req.body;
 
-    // Validácia povinných polí (teraz vyžadujeme trainingId)
-    if (!userId || !trainingId || !childrenCount || !totalPrice) {
-      return res.status(400).json({ error: 'Missing required fields (userId, trainingId, etc.)' });
-    }
-
-    const pricing = { 1: 15, 2: 28, 3: 39 };
-    if (!pricing[childrenCount]) {
-      return res.status(400).json({ error: 'Invalid number of children' });
-    }
-    const expectedPrice = pricing[childrenCount] + (accompanyingPerson ? 3 : 0);
-    if (totalPrice !== expectedPrice) {
-      return res.status(400).json({ error: 'Price validation failed' });
-    }
-
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
-      // 1. Nájdeme tréning priamo podľa ID
+      // 1. Získame detaily tréningu a CENNÍK pre daný typ
       const trainingResult = await client.query(
-        `SELECT id, max_participants, training_type, training_date 
-         FROM training_availability WHERE id = $1`,
-        [trainingId]
+        `SELECT ta.id, ta.max_participants, ta.training_date, 
+                tt.name as type_name, tt.accompanying_person_price,
+                tp.price as base_price
+         FROM training_availability ta
+         JOIN training_types tt ON ta.training_type_id = tt.id
+         JOIN training_prices tp ON tp.training_type_id = tt.id AND tp.child_count = $2
+         WHERE ta.id = $1`,
+        [trainingId, childrenCount]
       );
 
       if (trainingResult.rows.length === 0) {
-        throw new Error('Tréningový termín už neexistuje.');
+        throw new Error('Tréning alebo cena pre tento počet detí neexistuje.');
       }
       const training = trainingResult.rows[0];
 
-      // 2. Skontrolujeme aktuálnu kapacitu
+      // 2. Výpočet ceny na serveri (Bezpečnosť)
+      let calculatedPrice = parseFloat(training.base_price);
+      if (accompanyingPerson) {
+        calculatedPrice += parseFloat(training.accompanying_person_price);
+      }
+
+      // Validácia kapacity (ostáva rovnaká)
       const bookingsResult = await client.query(
         `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children 
          FROM bookings WHERE training_id = $1 AND active = true`,
@@ -844,20 +988,19 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         throw new Error('Kapacita tréningu bola práve naplnená.');
       }
 
-      // 3. Formátovanie popisu pre Stripe
       const sessionDate = new Date(training.training_date).toLocaleDateString('sk-SK');
 
-      // 4. Create Stripe checkout session
+      // 3. Create Stripe checkout session
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [{
           price_data: {
             currency: 'eur',
             product_data: {
-              name: `${training.training_type} Tréning`,
+              name: `${training.type_name} Tréning`,
               description: `Termín: ${sessionDate} | Počet detí: ${childrenCount}`
             },
-            unit_amount: Math.round(totalPrice * 100),
+            unit_amount: Math.round(calculatedPrice * 100),
           },
           quantity: 1,
         }],
@@ -867,12 +1010,12 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         metadata: {
           userId: userId.toString(),
           trainingId: training.id.toString(),
-          trainingType: training.training_type,
+          trainingType: training.type_name,
           selectedDate,
           selectedTime,
           childrenCount: childrenCount.toString(),
           childrenAge: childrenAge?.toString() || '',
-          totalPrice: totalPrice.toString(),
+          totalPrice: calculatedPrice.toString(), // Ukladáme vypočítanú cenu
           photoConsent: photoConsent?.toString() || 'false',
           mobile: mobile || '',
           note: note || '',
@@ -881,7 +1024,7 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         },
       });
 
-      // 5. Vytvorenie záznamu o rezervácii (active=true, booking_type='paid')
+      // 4. Vytvorenie záznamu (ostáva rovnaké, len používame calculatedPrice)
       const bookingResult = await client.query(
         `INSERT INTO bookings (
           user_id, training_id, number_of_children, amount_paid, payment_time, 
@@ -892,7 +1035,7 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
           userId,
           training.id,
           childrenCount,
-          totalPrice,
+          calculatedPrice,
           session.id,
           childrenAge || '',
           photoConsent !== null ? photoConsent : false,
@@ -1067,7 +1210,8 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
             Training: ${trainingType}
             Date: ${selectedDate}
             Time: ${selectedTime}
-            Photo Consent: ${photoConsent ? 'Agreed' : 'Declined'}
+            Photo Consent: ${(photoConsent === true || photoConsent === 'true') ? 'Agreed' : 'Declined'}
+            Accompanying Person: ${(accompanyingPerson === true || accompanyingPerson === 'true') ? 'Yes' : 'No'}
             Notes: ${note || 'No additional notes'}
             Price: €${totalPrice}
             Payment Intent: ${paymentIntentId}
@@ -2497,7 +2641,8 @@ app.post('/api/bookings/use-credit', async (req, res) => {
 
     // ✅ Use updated form data or fall back to credit data
     const finalChildrenAges = childrenAges || credit.children_ages || '';
-    const finalPhotoConsent = photoConsent !== undefined ? photoConsent : credit.photo_consent;
+    const rawConsent = photoConsent !== undefined ? photoConsent : credit.photo_consent;
+    const finalPhotoConsent = (rawConsent === true || rawConsent === 'true');
     const finalMobile = mobile || credit.mobile || '';
     const finalNote = note || credit.note || '';
     const finalAccompanyingPerson = accompanyingPerson !== undefined ? accompanyingPerson : (credit.accompanying_person || false);

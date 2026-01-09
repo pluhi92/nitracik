@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react'; // PRIDANÉ: useLayoutEffect
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../contexts/LanguageContext';
 import MobileSchedule from './MobileSchedule';
@@ -12,14 +12,12 @@ const Schedule = () => {
   const [trainingSessions, setTrainingSessions] = useState([]);
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedSession, setSelectedSession] = useState(null);
-  const [selectedDay, setSelectedDay] = useState(null); // PRIDANÉ: Chýbajúca deklarácia
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
   const [currentTime, setCurrentTime] = useState(new Date());
-  const scrollRef = useRef(null); // PRIDANÉ: Chýbajúci ref
+  const scrollRef = useRef(null);
 
-  const fetchTrainingSessions = async () => {
+  const fetchTrainingSessions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -31,26 +29,24 @@ const Schedule = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t?.schedule?.fetchError]);
 
   useEffect(() => {
     fetchTrainingSessions();
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
-  }, [t]);
+  }, [fetchTrainingSessions]);
 
   const goToPreviousWeek = () => {
     const prev = new Date(currentWeek);
     prev.setDate(prev.getDate() - 7);
     setCurrentWeek(prev);
-    setSelectedDay(null);
   };
 
   const goToNextWeek = () => {
     const next = new Date(currentWeek);
     next.setDate(next.getDate() + 7);
     setCurrentWeek(next);
-    setSelectedDay(null);
   };
 
   const getWeekDays = (date) => {
@@ -100,20 +96,7 @@ const Schedule = () => {
     });
   };
 
-  const formatDate = (d) => d.toLocaleDateString('sk-SK', { day: 'numeric', month: 'numeric' });
   const formatDayName = (d) => d.toLocaleDateString('sk-SK', { weekday: 'short' });
-  const formatFullDate = (d) => d.toLocaleDateString('sk-SK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const formatTime = (d) => new Date(d).toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
-
-  const getTrainingStyle = (type) => {
-    switch (type?.toLowerCase()) {
-      case 'mini': return 'bg-yellow-100 text-yellow-900 border-l-4 border-yellow-500';
-      case 'midi': return 'bg-green-100 text-green-900 border-l-4 border-green-500';
-      case 'maxi': return 'bg-blue-100 text-blue-900 border-l-4 border-blue-500';
-      default: return 'bg-gray-100 text-gray-900 border-l-4 border-gray-500';
-    }
-  };
-
   const isToday = (d) => d.toDateString() === new Date().toDateString();
   const isWeekend = (d) => d.getDay() === 0 || d.getDay() === 6;
 
@@ -142,7 +125,6 @@ const Schedule = () => {
     }
   }, [loading]);
 
-  // Helper pre mobil - musí byť definovaný pred prvým použitím
   const getTrainingsForDay = (day) => {
     const start = new Date(day);
     start.setHours(0, 0, 0, 0);
@@ -155,32 +137,36 @@ const Schedule = () => {
         return d >= start && d <= end && !s.cancelled;
       })
       .sort((a, b) => new Date(a.training_date) - new Date(b.training_date))
-      .map(session => ({
-        ...session,
-        startTime: new Date(session.training_date),
-        endTime: new Date(new Date(session.training_date).getTime() + 60 * 60 * 1000), // 1 hour default
-      }));
+      .map(session => {
+        const startT = new Date(session.training_date);
+        const duration = session.duration_minutes || 60;
+        const endT = new Date(startT.getTime() + duration * 60 * 1000);
+
+        return {
+          ...session,
+          startTime: startT,
+          endTime: endT,
+        };
+      });
   };
 
   const handleBookingRedirect = () => {
-  // PRIDANÉ: Definujeme premennú isLoggedIn načítaním z localStorage
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
 
-  if (isLoggedIn && selectedSession) {
-    navigate('/booking', {
-      state: {
-        incomingId: selectedSession.id,
-        incomingType: selectedSession.training_type,
-        incomingDate: dayjs(selectedSession.training_date).format('YYYY-MM-DD'),
-        incomingTime: dayjs(selectedSession.training_date).format('HH:mm')
-      }
-    });
-  } else {
-    // Ak nie je prihlásený, pošleme ho na login a povieme aplikácii, 
-    // že po prihlásení sa má vrátiť na booking
-    navigate('/login', { state: { from: '/booking' } });
-  }
-};
+    if (isLoggedIn && selectedSession) {
+      navigate('/booking', {
+        state: {
+          incomingId: selectedSession.id,
+          incomingTypeId: selectedSession.training_type_id,
+          incomingType: selectedSession.training_type,
+          incomingDate: dayjs(selectedSession.training_date).format('YYYY-MM-DD'),
+          incomingTime: dayjs(selectedSession.training_date).format('HH:mm')
+        }
+      });
+    } else {
+      navigate('/login', { state: { from: '/booking' } });
+    }
+  };
 
   const handleSessionClick = (session) => {
     setSelectedSession(session);
@@ -196,41 +182,7 @@ const Schedule = () => {
   return (
     <section className="min-h-screen bg-background py-8 md:py-12 flex flex-col">
       <div className="max-w-7xl mx-auto px-4 w-full flex-grow flex flex-col">
-
-        {/* HEADER SECTION - len pre desktop */}
-        <div className="mb-6 hidden lg:block">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">
-              {t?.schedule?.title || 'Tréningový rozvrh'}
-            </h1>
-
-            <div className="hidden md:flex gap-4 text-sm">
-              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-yellow-400 rounded-full border border-yellow-600"></span> <span className="font-medium text-gray-700">MINI</span></span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded-full border border-green-700"></span> <span className="font-medium text-gray-700">MIDI</span></span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 bg-blue-500 rounded-full border border-blue-700"></span> <span className="font-medium text-gray-700">MAXI</span></span>
-            </div>
-          </div>
-
-          {/* Navigation Controls - len pre desktop */}
-          <div className="flex items-center justify-between md:justify-center gap-6 py-2">
-            <button onClick={goToPreviousWeek} className="p-3 bg-white rounded-full shadow-md hover:shadow-lg hover:scale-105 transition border border-gray-100">
-              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-            </button>
-
-            <div className="text-center min-w-[200px]">
-              <h2 className="text-2xl font-bold text-gray-800">{mainMonthYear}</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                {weekDays[0].getDate()}. – {weekDays[6].getDate()}. {weekDays[6].toLocaleDateString('sk-SK', { month: 'long' })}
-              </p>
-            </div>
-
-            <button onClick={goToNextWeek} className="p-3 bg-white rounded-full shadow-md hover:shadow-lg hover:scale-105 transition border border-gray-100">
-              <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-            </button>
-          </div>
-        </div>
-
-        {/* MOBILE CONTENT - používa tvoj nový MobileSchedule */}
+        {/* MOBILE VIEW - ZOBRAZUJE SA LEN NA MOBILE */}
         <div className="lg:hidden flex-grow">
           <MobileSchedule
             trainingSessions={trainingSessions}
@@ -238,141 +190,222 @@ const Schedule = () => {
           />
         </div>
 
-        {/* DESKTOP CONTENT */}
-        <div className="hidden lg:block bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200 overflow-hidden flex-grow-0">
-          <div
-            ref={scrollRef}
-            className="overflow-y-auto relative scroll-smooth"
-            style={{ height: '600px' }}
-          >
-            {/* Sticky Days Header */}
-            <div className="sticky top-0 z-30 bg-gray-50 grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-300 shadow-sm">
-              <div className="p-3 border-r border-gray-300 bg-gray-50"></div>
-              {weekDays.map(day => (
-                <div
-                  key={day.toISOString()}
-                  className={`p-3 text-center border-r border-gray-200 last:border-r-0 
-                        ${isToday(day) ? 'bg-blue-50/50' : isWeekend(day) ? 'bg-gray-100' : 'bg-gray-50'}`}
-                >
-                  <div className={`text-xs uppercase font-bold tracking-wider ${isToday(day) ? 'text-blue-700' : 'text-gray-500'}`}>
-                    {formatDayName(day)}
-                  </div>
-                  <div className={`text-xl font-extrabold leading-none mt-1 ${isToday(day) ? 'text-blue-700' : 'text-gray-800'}`}>
-                    {day.getDate()}
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* DESKTOP VIEW - ZOBRAZUJE SA LEN NA DESKTOPE */}
+        <div className="hidden lg:block">
+          {/* HEADER SECTION */}
+          <div className="mb-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
+              <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">
+                {t?.schedule?.title || 'Tréningový rozvrh'}
+              </h1>
 
-            {/* Calendar Grid Body */}
-            <div className="relative min-h-[1440px] bg-white">
-
-              {/* Grid Lines & Time Labels */}
-              <div className="grid grid-cols-[60px_repeat(7,1fr)]">
-                {timeSlots.map((slot, index) => {
-                  const isHour = slot.endsWith(':00');
-                  const isHalfHour = slot.endsWith(':30');
-                  const borderClass = isHalfHour ? 'border-b border-gray-300' : 'border-b border-gray-100';
-
-                  return (
-                    <React.Fragment key={slot}>
-                      <div className={`border-r border-gray-300 text-right pr-3 py-1 text-xs font-bold text-gray-900 h-[30px] -mt-2.5 bg-gray-50 z-20`}>
-                        {isHour ? slot : ''}
-                      </div>
-
-                      {weekDays.map(day => (
-                        <div
-                          key={`${day.toISOString()}-${slot}`}
-                          className={`border-r border-gray-100 last:border-r-0 h-[30px] 
-                                ${borderClass}
-                                ${isToday(day) ? 'bg-blue-50/10' : isWeekend(day) ? 'bg-gray-50' : ''}`}
-                        ></div>
-                      ))}
-                    </React.Fragment>
-                  );
-                })}
+              {/* Dynamická legenda v Schedule.js čerpajúca dáta z DB */}
+              <div className="hidden md:flex flex-wrap justify-center gap-x-12 gap-y-4 mt-8 mb-6">
+                {[...new Map(trainingSessions
+                  .filter(s => s.active === true)
+                  .map(s => [s.training_type, s])
+                ).values()]
+                  .sort((a, b) => a.training_type.localeCompare(b.training_type))
+                  .map(session => (
+                    <div key={session.training_type} className="flex items-center gap-3.5 px-3 py-1">
+                      <span
+                        className="w-5 h-5 rounded-full shadow-md border border-black"
+                        style={{ backgroundColor: session.color_hex }}
+                      ></span>
+                      <span className="font-black text-gray-800 uppercase text-[15px] tracking-[0.15em]">
+                        {session.training_type}
+                      </span>
+                    </div>
+                  ))}
               </div>
 
-              {/* Events Layer */}
-              <div className="absolute top-0 left-0 w-full h-full pointer-events-none grid grid-cols-[60px_repeat(7,1fr)]">
-                <div></div>
+              {/* Navigation Controls - len pre desktop */}
+              <div className="flex items-center justify-between md:justify-center gap-6 py-2">
+                <button onClick={goToPreviousWeek} className="p-3 bg-white rounded-full shadow-md hover:shadow-lg hover:scale-105 transition border border-gray-100">
+                  <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                </button>
+
+                <div className="text-center min-w-[200px]">
+                  <h2 className="text-2xl font-bold text-gray-800">{mainMonthYear}</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {weekDays[0].getDate()}. – {weekDays[6].getDate()}. {weekDays[6].toLocaleDateString('sk-SK', { month: 'long' })}
+                  </p>
+                </div>
+
+                <button onClick={goToNextWeek} className="p-3 bg-white rounded-full shadow-md hover:shadow-lg hover:scale-105 transition border border-gray-100">
+                  <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* DESKTOP CONTENT */}
+          <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200 overflow-hidden flex-grow-0">
+            <div
+              ref={scrollRef}
+              className="overflow-y-auto relative scroll-smooth"
+              style={{ height: '600px' }}
+            >
+              {/* Sticky Days Header */}
+              <div className="sticky top-0 z-30 bg-gray-50 grid grid-cols-[60px_repeat(7,1fr)] border-b border-gray-300 shadow-sm">
+                <div className="p-3 border-r border-gray-300 bg-gray-50"></div>
                 {weekDays.map(day => (
-                  <div key={`events-${day.toISOString()}`} className="relative h-full">
-                    {timeSlots.map(slot => {
-                      const trainings = getTrainingsForSlot(day, slot);
-                      if (!trainings.length) return null;
-                      return trainings.map(t => (
-                        <div
-                          key={t.id}
-                          onClick={() => handleSessionClick(t)}
-                          className={`absolute w-[92%] left-[4%] z-10 p-1.5 rounded-md text-xs pointer-events-auto cursor-pointer hover:scale-[1.02] transition-all shadow-md border-l-[5px] overflow-hidden flex flex-col justify-start 
-                            ${getTrainingStyle(t.training_type)} 
-                            ${selectedSession?.id === t.id ? 'ring-2 ring-blue-600 scale-[1.02]' : ''}`}
-                          style={{
-                            top: (() => {
-                              const [h, m] = slot.split(':').map(Number);
-                              return `${(h * 60) + (m === 30 ? 30 : 0)}px`;
-                            })(),
-                            height: '58px'
-                          }}
-                        >
-                          <div className="font-extrabold text-[11px] uppercase tracking-wide opacity-80">
-                            {t.training_type}
-                          </div>
-                          <div className="font-bold text-sm mt-auto">
-                            {formatTime(t.training_date)}
-                          </div>
-                        </div>
-                      ));
-                    })}
+                  <div
+                    key={day.toISOString()}
+                    className={`p-3 text-center border-r border-gray-200 last:border-r-0 
+                        ${isToday(day) ? 'bg-blue-50/50' : isWeekend(day) ? 'bg-gray-100' : 'bg-gray-50'}`}
+                  >
+                    <div className={`text-xs uppercase font-bold tracking-wider ${isToday(day) ? 'text-blue-700' : 'text-gray-500'}`}>
+                      {formatDayName(day)}
+                    </div>
+                    <div className={`text-xl font-extrabold leading-none mt-1 ${isToday(day) ? 'text-blue-700' : 'text-gray-800'}`}>
+                      {day.getDate()}
+                    </div>
                   </div>
                 ))}
               </div>
 
-              {/* Current Time Line */}
-              <div className="absolute left-[60px] right-0 border-t-2 border-red-500 z-20 pointer-events-none flex items-center" style={{ top: `${getCurrentTimePosition()}%` }}>
-                <div className="w-2 h-2 bg-red-500 rounded-full -ml-1"></div>
+              {/* Calendar Grid Body */}
+              <div className="relative min-h-[1440px] bg-white">
+                {/* Grid Lines & Time Labels */}
+                <div className="grid grid-cols-[60px_repeat(7,1fr)]">
+                  {timeSlots.map((slot, index) => {
+                    const isHour = slot.endsWith(':00');
+                    const isHalfHour = slot.endsWith(':30');
+                    const borderClass = isHalfHour ? 'border-b border-gray-300' : 'border-b border-gray-100';
+
+                    return (
+                      <React.Fragment key={slot}>
+                        <div className={`border-r border-gray-300 text-right pr-3 py-1 text-xs font-bold text-gray-900 h-[30px] -mt-2.5 bg-gray-50 z-20`}>
+                          {isHour ? slot : ''}
+                        </div>
+
+                        {weekDays.map(day => (
+                          <div
+                            key={`${day.toISOString()}-${slot}`}
+                            className={`border-r border-gray-100 last:border-r-0 h-[30px] 
+                                ${borderClass}
+                                ${isToday(day) ? 'bg-blue-50/10' : isWeekend(day) ? 'bg-gray-50' : ''}`}
+                          ></div>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+
+                {/* Events Layer */}
+                <div className="absolute top-0 left-0 w-full h-full pointer-events-none grid grid-cols-[60px_repeat(7,1fr)]">
+                  <div></div>
+                  {weekDays.map(day => (
+                    <div key={`events-${day.toISOString()}`} className="relative h-full">
+                      {timeSlots.map(slot => {
+                        const trainings = getTrainingsForSlot(day, slot);
+                        if (!trainings.length) return null;
+
+                        return trainings.map(t => {
+                          const duration = t.duration_minutes || 60;
+                          const dynamicHeight = `${duration - 2}px`;
+
+                          return (
+                            <div
+                              key={t.id}
+                              onClick={() => handleSessionClick(t)}
+                              className={`absolute w-[92%] left-[4%] z-10 p-1.5 rounded-md text-xs pointer-events-auto cursor-pointer hover:scale-[1.02] transition-all shadow-md border-l-[5px] overflow-hidden flex flex-col justify-start 
+                              ${selectedSession?.id === t.id ? 'ring-2 ring-blue-600 scale-[1.02]' : ''}`}
+                              style={{
+                                top: (() => {
+                                  const [h, m] = slot.split(':').map(Number);
+                                  return `${(h * 60) + (m === 30 ? 30 : 0)}px`;
+                                })(),
+                                height: dynamicHeight,
+                                backgroundColor: `${t.color_hex}25`,
+                                borderColor: t.color_hex,
+                              }}
+                            >
+                              <div
+                                className="font-extrabold text-[11px] uppercase tracking-wide opacity-90"
+                                style={{ color: t.color_hex }}
+                              >
+                                {t.training_type}
+                              </div>
+                              <div className="font-bold text-sm mt-auto text-gray-900">
+                                {dayjs(t.training_date).format('HH:mm')}
+                                {` - ${dayjs(t.training_date).add(duration, 'minute').format('HH:mm')}`}
+                              </div>
+                            </div>
+                          );
+                        });
+                      })}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Current Time Line */}
+                <div className="absolute left-[60px] right-0 border-t-2 border-red-500 z-20 pointer-events-none flex items-center" style={{ top: `${getCurrentTimePosition()}%` }}>
+                  <div className="w-2 h-2 bg-red-500 rounded-full -ml-1"></div>
+                </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* PRIDANÉ: DESKTOP ACTION BAR - Zobrazí sa naspodu po vybraní tréningu */}
+        <AnimatePresence>
+          {selectedSession && (
+            <motion.div
+              initial={{ y: 100, x: '-50%', opacity: 0 }}
+              animate={{ y: 0, x: '-50%', opacity: 1 }}
+              exit={{ y: 100, x: '-50%', opacity: 0 }}
+              className="fixed bottom-10 left-1/2 z-[100] bg-white shadow-2xl rounded-2xl p-6 border-2 border-secondary-500 flex items-center gap-10 min-w-[600px] hidden lg:flex"
+            >
+              <div className="flex-1">
+                <h4 className="font-black text-secondary-800 text-xl uppercase italic leading-none">
+                  {selectedSession.training_type}
+                </h4>
+
+                {selectedSession.description && (
+                  <p className="text-gray-500 text-sm mt-2 leading-relaxed italic border-l-2 border-secondary-200 pl-3">
+                    {selectedSession.description}
+                  </p>
+                )}
+
+                <div className="flex flex-col mt-2">
+                  <p className="text-gray-600 font-bold text-sm">
+                    {dayjs(selectedSession.training_date).format('dddd | D. M. YYYY | HH:mm')}
+                    <span className="ml-2 text-secondary-500 opacity-70">
+                      ({selectedSession.duration_minutes || 60} min)
+                    </span>
+                  </p>
+                  <a
+                    href="https://www.google.com/maps/search/?api=1&query=Štefánikova+trieda+148"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-secondary-600 text-xs font-semibold hover:underline mt-1 flex items-center gap-1"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    Štefánikova trieda 148, 949 01 Nitra
+                  </a>
+                </div>
+              </div>
+
+              <div className="flex gap-4 items-center">
+                <button
+                  onClick={() => setSelectedSession(null)}
+                  className="px-4 py-2 text-gray-400 font-bold hover:text-gray-800 transition-colors uppercase text-xs tracking-widest"
+                >
+                  Zavrieť
+                </button>
+                <button
+                  onClick={handleBookingRedirect}
+                  className="bg-secondary-800 text-white px-8 py-4 rounded-xl font-black uppercase tracking-[0.15em] hover:bg-black transition-all shadow-lg"
+                >
+                  Prihlásiť sa
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-
-      {/* PRIDANÉ: DESKTOP ACTION BAR - Zobrazí sa naspodu po vybraní tréningu */}
-      <AnimatePresence>
-        {selectedSession && (
-          <motion.div
-            initial={{ y: 100, x: '-50%', opacity: 0 }}
-            animate={{ y: 0, x: '-50%', opacity: 1 }}
-            exit={{ y: 100, x: '-50%', opacity: 0 }}
-            className="fixed bottom-10 left-1/2 z-[100] bg-white shadow-2xl rounded-2xl p-6 border-2 border-secondary-500 flex items-center gap-10 min-w-[600px] hidden lg:flex"
-          >
-            <div className="flex-1">
-              <h4 className="font-black text-secondary-800 text-xl uppercase italic leading-none">
-                {selectedSession.training_type} Tréning
-              </h4>
-              <p className="text-gray-600 font-bold mt-2">
-                {dayjs(selectedSession.training_date).format('dddd | D. M. YYYY | HH:mm')}
-              </p>
-            </div>
-
-            <div className="flex gap-4 items-center">
-              <button
-                onClick={() => setSelectedSession(null)}
-                className="px-4 py-2 text-gray-400 font-bold hover:text-gray-800 transition-colors uppercase text-xs tracking-widest"
-              >
-                Zavrieť
-              </button>
-              <button
-                onClick={handleBookingRedirect}
-                className="bg-secondary-800 text-white px-8 py-4 rounded-xl font-black uppercase tracking-[0.15em] hover:bg-black transition-all shadow-lg text-sm"
-              >
-                Prihlásiť sa na hodinu
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </section>
   );
 };

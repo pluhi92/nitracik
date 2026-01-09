@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import 'dayjs/locale/sk'; 
+import 'dayjs/locale/sk';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Nastavenie slovenčiny pre dayjs
@@ -26,14 +26,14 @@ const MobileSchedule = ({ trainingSessions, getTrainingsForDay }) => {
 
   const hasTraining = (date) => {
     if (!trainingSessions) return false;
-    return trainingSessions.some(session => 
+    return trainingSessions.some(session =>
       dayjs(session.training_date).isSame(date, 'day') && !session.cancelled
     );
   };
 
   const getCurrentWeekDays = () => {
     const days = [];
-    const startOfWeek = viewDate.startOf('week'); 
+    const startOfWeek = viewDate.startOf('week');
     for (let i = 0; i < 7; i++) {
       days.push(startOfWeek.add(i, 'day'));
     }
@@ -58,22 +58,22 @@ const MobileSchedule = ({ trainingSessions, getTrainingsForDay }) => {
   };
 
   const handleBookingRedirect = (session) => {
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-  
-  if (isLoggedIn && session) {
-    navigate('/booking', { 
-      state: { 
-        incomingId: session.id, // PRIDANÉ: Posielame ID tréningu
-        incomingType: session.training_type,
-        incomingDate: dayjs(session.training_date).format('YYYY-MM-DD'),
-        incomingTime: dayjs(session.training_date).format('HH:mm')
-      } 
-    });
-  } else {
-    // Ak nie je prihlásený, presmerujeme na login a uložíme si cieľ
-    navigate('/login', { state: { from: '/booking' } });
-  }
-};
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+
+    if (isLoggedIn && session) {
+      navigate('/booking', {
+        state: {
+          incomingId: session.id, // PRIDANÉ: Posielame ID tréningu
+          incomingType: session.training_type,
+          incomingDate: dayjs(session.training_date).format('YYYY-MM-DD'),
+          incomingTime: dayjs(session.training_date).format('HH:mm')
+        }
+      });
+    } else {
+      // Ak nie je prihlásený, presmerujeme na login a uložíme si cieľ
+      navigate('/login', { state: { from: '/booking' } });
+    }
+  };
 
   useEffect(() => {
     if (trainingSessions && selectedDate) {
@@ -122,16 +122,16 @@ const MobileSchedule = ({ trainingSessions, getTrainingsForDay }) => {
           const isSelected = date.isSame(selectedDate, 'day');
           const isToday = date.isSame(dayjs(), 'day');
           const containsTraining = hasTraining(date);
-          
+
           return (
             <button
               key={index}
               onClick={() => { setSelectedDate(date); setExpandedSessionId(null); }}
               className={`flex flex-col items-center p-2 rounded-lg transition-all duration-200 border-2
-                ${isSelected 
-                  ? 'bg-secondary-800 border-secondary-800 text-white shadow-md' 
-                  : isToday 
-                    ? 'bg-secondary-50 border-secondary-500 text-white' 
+                ${isSelected
+                  ? 'bg-secondary-800 border-secondary-800 text-white shadow-md'
+                  : isToday
+                    ? 'bg-secondary-50 border-secondary-500 text-white'
                     : containsTraining
                       ? 'bg-white border-secondary-400 text-gray-800'
                       : 'bg-transparent border-transparent text-gray-600 hover:bg-gray-100'}`}
@@ -165,15 +165,27 @@ const MobileSchedule = ({ trainingSessions, getTrainingsForDay }) => {
                   className={`bg-white rounded-xl shadow-sm overflow-hidden border transition-all cursor-pointer ${isExpanded ? 'border-secondary-500 ring-1 ring-secondary-500' : 'border-gray-200'}`}
                 >
                   <div className="flex p-4">
-                    <div className="w-16 pt-1">
-                      <div className={`text-lg font-bold ${colors.text}`}>{startTime.format('HH:mm')}</div>
-                      <div className="text-xs text-gray-500 mt-1">{endTime.format('HH:mm')}</div>
+                    {/* ČASOVÝ BLOK - SEM PRIDÁME DYNAMICKÚ DĹŽKU */}
+                    <div className="w-20 pt-1 border-r border-gray-50 pr-2">
+                      <div className={`text-lg font-bold ${colors.text}`}>
+                        {startTime.format('HH:mm')}
+                      </div>
+                      <div className="text-xs text-gray-400 font-medium">
+                        do {endTime.format('HH:mm')}
+                      </div>
+                      {/* Informácia o počte minút */}
+                      <div className="text-[10px] text-secondary-500 font-bold mt-1 uppercase tracking-tighter">
+                        {session.duration_minutes || 60} min
+                      </div>
                     </div>
 
                     <div className="flex-1 ml-4 border-l pl-4 border-gray-100">
-                      <h4 className="font-bold text-gray-800 text-lg">{session.training_type} tréning</h4>
+                      <h4 className="font-bold text-gray-800 text-lg">{session.training_type}</h4>
                       <div className="flex items-center justify-between mt-3">
-                        <span className="text-xs text-gray-500">{session.location || 'Hala'}</span>
+                        {/* ZMENA: Adresa namiesto 'Hala' */}
+                        <span className="text-[10px] text-gray-400 font-medium uppercase tracking-tight">
+                          Štefánikova trieda 148
+                        </span>
                         <span className="text-[10px] px-2 py-1 rounded-md bg-green-50 text-green-700 font-bold uppercase border border-green-100">Aktívny</span>
                       </div>
                     </div>
