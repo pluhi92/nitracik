@@ -22,6 +22,96 @@ const path = require('path');
 const dayjs = require('dayjs');
 require('dayjs/locale/sk');
 dayjs.locale('sk');
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.,])[A-Za-z\d@$!%*?&.,]{8,}$/;
+
+const sendVerificationEmail = async (userEmail, userName, verificationLink) => {
+  const subject = 'Vitajte v Nitráčiku - Overenie emailu';
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: userEmail,
+    subject,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+          .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+          .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #eab308; } /* Žltá linka pre Nitráčik štýl */
+          .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
+          .highlight-box { background-color: #fefce8; border: 1px solid #fde047; border-radius: 6px; padding: 20px; margin: 25px 0; text-align: center; font-style: italic; }
+          .btn-verify { display: block; width: 200px; margin: 20px auto; padding: 12px 20px; background-color: #2563eb; color: #ffffff !important; text-decoration: none; border-radius: 6px; text-align: center; font-weight: bold; }
+          .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+          p { margin-bottom: 15px; }
+          .quote-en { color: #d97706; font-weight: bold; font-size: 18px; display: block; margin-bottom: 5px; }
+          .quote-sk { color: #555; font-size: 16px; }
+        </style>
+      </head>
+      <body>
+        <div style="background-color: #f4f4f4; padding: 40px 0;">
+          <div class="container">
+            <div class="header">
+              <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+            </div>
+            <div class="content">
+              <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName}.</p>
+
+              <p>Vitajte v Nitráčiku! Sme veľmi radi, že sa k nám pridávate.</p> 
+              
+              <p>Už Vám chýba len jeden malý krok, aby ste sa mohli naplno ponoriť do nášho sveta plného farieb a zábavy. Prosím, potvrďte svoju registráciu kliknutím na tlačidlo nižšie:</p>
+
+              <a href="${verificationLink}" class="btn-verify">OVERIŤ EMAIL</a>
+
+              <p style="text-align: center; font-size: 12px; color: #999;">Ak tlačidlo nefunguje, skopírujte tento odkaz do prehliadača:<br/>${verificationLink}</p>
+
+              <div class="highlight-box">
+                 <span class="quote-en">"Wow, look at all the colors you're mixing!"</span>
+                 <span class="quote-sk">"Jéj, pozri na tie farby, čo miešaš!"</span>
+              </div>
+
+              <div style="margin-top: 30px;">
+                <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
+                <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
+                <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
+              </div>
+            </div>
+            <div class="footer">
+              <div style="margin-bottom: 15px;">
+                <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
+                  <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                </a>
+                <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
+                  <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                </a>
+              </div>
+              <p style="margin: 0;">© 2026 O.z. Nitráčik.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+    attachments: [
+      {
+        filename: 'logo_bez.PNG',
+        path: path.join(__dirname, '..', 'public', 'logo_bez.PNG'),
+        cid: 'nitracikLogo'
+      },
+      {
+        filename: 'instagram.png',
+        path: path.join(__dirname, '..', 'public', 'instagram.png'),
+        cid: 'igIcon'
+      },
+      {
+        filename: 'facebook.png',
+        path: path.join(__dirname, '..', 'public', 'facebook.png'),
+        cid: 'fbIcon'
+      }
+    ]
+  };
+  return transporter.sendMail(mailOptions);
+};
 
 // Pridal som parameter 'userName', aby sme mohli osloviť zákazníka menom
 const sendUserBookingEmail = async (userEmail, sessionDetails) => {
@@ -115,6 +205,93 @@ const sendUserBookingEmail = async (userEmail, sessionDetails) => {
               </div>
               <p style="margin: 0;">© 2026 O.z. Nitráčik. Všetky práva vyhradené.</p>
               <p style="margin: 5px 0 0 0;">oznitracik@gmail.com</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+    attachments: [
+      {
+        filename: 'logo_bez.PNG',
+        path: path.join(__dirname, '..', 'public', 'logo_bez.PNG'),
+        cid: 'nitracikLogo'
+      },
+      {
+        filename: 'instagram.png',
+        path: path.join(__dirname, '..', 'public', 'instagram.png'),
+        cid: 'igIcon'
+      },
+      {
+        filename: 'facebook.png',
+        path: path.join(__dirname, '..', 'public', 'facebook.png'),
+        cid: 'fbIcon'
+      }
+    ]
+  };
+  return transporter.sendMail(mailOptions);
+};
+
+const sendAccountDeletedEmail = async (userEmail, userName) => {
+  const subject = 'Rozlúčka s Nitráčikom - Potvrdenie zrušenia účtu';
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: userEmail,
+    subject,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+          .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+          .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #ef4444; } /* Červená linka pre delete */
+          .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
+          .highlight-box { background-color: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; padding: 20px; margin: 25px 0; text-align: center; font-style: italic; }
+          .highlight-item { margin-bottom: 5px; font-size: 15px; }
+          .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+          p { margin-bottom: 15px; }
+          .quote-en { color: #ef4444; font-weight: bold; font-size: 18px; display: block; margin-bottom: 5px; }
+          .quote-sk { color: #555; font-size: 16px; }
+        </style>
+      </head>
+      <body>
+        <div style="background-color: #f4f4f4; padding: 40px 0;">
+          <div class="container">
+            <div class="header">
+              <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+            </div>
+            <div class="content">
+              <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName || 'kamarát'}.</p>
+
+              <p>S ľútosťou Vám potvrdzujem, že Váš účet bol na Vašu žiadosť úspešne zrušený a Vaše osobné údaje boli vymazané z nášho systému.</p>
+
+              <p>Hoci sa naše cesty nateraz rozchádzajú, chcem Vám poďakovať, že ste boli súčasťou nášho ufúľaného sveta.</p>
+              
+              <p>Mrzí nás, že odchádzate, ale dvere u nás máte vždy otvorené. Kedykoľvek sa na nás v budúcnosti obrátite, radi Vás opäť privítame medzi nami.</p>
+
+              <div class="highlight-box">
+                 <span class="quote-en">"Sorry about the mess, we're making memories!"</span>
+                 <span class="quote-sk">"Prepáčte ten neporiadok, tvorili sme spomienky!"</span>
+              </div>
+
+              <div style="margin-top: 30px;">
+                <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
+                <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
+                <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
+              </div>
+            </div>
+            <div class="footer">
+              <div style="margin-bottom: 15px;">
+                <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
+                  <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                </a>
+                <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
+                  <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                </a>
+              </div>
+              <p style="margin: 0;">© 2026 O.z. Nitráčik.</p>
             </div>
           </div>
         </div>
@@ -1377,14 +1554,29 @@ function validateMobile(mobile) {
 }
 
 app.post('/api/register', async (req, res) => {
-  const { firstName, lastName, email, password, address } = req.body;
+  const { firstName, lastName, email, password, address, _honey } = req.body;
 
   try {
+    // 1. HONEYPOT check
+    if (_honey) {
+      console.log(`Bot detected! Honeypot filled: ${_honey}`);
+      return res.status(400).json({ message: 'Bot detected.' });
+    }
+
+    // 2. Kontrola sily hesla
+    if (!PASSWORD_REGEX.test(password)) {
+      return res.status(400).json({
+        message: 'Password is too weak. It must allow: 8+ chars, 1 uppercase, 1 lowercase, 1 number, 1 special char.'
+      });
+    }
+
+    // 3. Kontrola emailu
     const emailCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (emailCheck.rows.length > 0) {
       return res.status(400).json({ message: 'Email is already registered. Please use a different one.' });
     }
 
+    // 4. Uloženie
     const hashedPassword = await bcrypt.hash(password, 10);
     const verificationToken = uuidv4();
 
@@ -1393,17 +1585,15 @@ app.post('/api/register', async (req, res) => {
       [firstName, lastName, email, hashedPassword, address, verificationToken, false]
     );
 
+    // 5. Odoslanie HTML emailu
     const clientUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const verificationLink = `${clientUrl}/verify-email?token=${verificationToken}`;
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Verify Your Email',
-      text: `Please click the following link to verify your email: ${verificationLink}`,
-    };
 
-    await sendEmail(mailOptions);
-    res.status(201).json({ message: 'User registered successfully. Please check your email to verify your account.', userId: result.rows[0].id });
+    // Voláme našu novú funkciu
+    await sendVerificationEmail(email, firstName, verificationLink);
+
+    res.status(201).json({ message: 'User registered successfully. Please check your email.', userId: result.rows[0].id });
+
   } catch (error) {
     console.error('Error registering user:', error);
     res.status(500).json({ message: 'Failed to register user', error: error.message });
@@ -2921,6 +3111,73 @@ app.post('/api/contact', async (req, res) => {
   } catch (error) {
     console.error('Contact form error:', error);
     res.status(500).json({ message: 'Failed to send message. Please try again.' });
+  }
+});
+
+app.delete('/api/users/:id', async (req, res) => {
+  const userIdToDelete = req.params.id;
+  const currentUserId = req.session.userId;
+
+  // Kontrola, či užívateľ maže vlastný účet
+  if (!currentUserId || String(currentUserId) !== String(userIdToDelete)) {
+    return res.status(403).json({ error: 'Forbidden: You can only delete your own account' });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN'); // Začiatok transakcie
+
+    // -------------------------------------------------------------
+    // KROK 0: Získame info o užívateľovi (PREDTÝM ako ho zmažeme)
+    // -------------------------------------------------------------
+    // Používame SELECT * aby sme mali istotu, že trafíme existujúce stĺpce
+    const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userIdToDelete]);
+
+    let userInfo = null;
+    let userNameForEmail = 'Kamarát'; // Defaultné oslovenie
+
+    if (userResult.rows.length > 0) {
+      userInfo = userResult.rows[0];
+
+      // TU BOLA CHYBA: Teraz už vieme, že stĺpec sa volá 'first_name'
+      userNameForEmail = userInfo.first_name || 'Kamarát';
+    }
+
+    // KROK A: Zmažeme závislé dáta (rezervácie, permanentky)
+    await client.query('DELETE FROM bookings WHERE user_id = $1', [userIdToDelete]);
+    await client.query('DELETE FROM season_tickets WHERE user_id = $1', [userIdToDelete]);
+
+    // KROK B: Zmažeme samotného užívateľa
+    const result = await client.query('DELETE FROM users WHERE id = $1', [userIdToDelete]);
+
+    if (result.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await client.query('COMMIT'); // Potvrdenie transakcie - užívateľ je zmazaný
+
+    // KROK C: Odošleme rozlúčkový email (ak sme našli email)
+    if (userInfo && userInfo.email) {
+      console.log(`Sending delete email to: ${userInfo.email}`);
+      sendAccountDeletedEmail(userInfo.email, userNameForEmail).catch(err =>
+        console.error('Failed to send delete confirmation email:', err)
+      );
+    }
+
+    // KROK D: Zrušíme session a odhlásime ho
+    req.session.destroy((err) => {
+      if (err) console.error('Session destroy error:', err);
+      res.json({ message: 'User account deleted successfully' });
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK'); // V prípade chyby vrátime všetko späť
+    console.error('Delete user error:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  } finally {
+    client.release();
   }
 });
 

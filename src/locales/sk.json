@@ -156,6 +156,15 @@
       "repeatPassword": "Zopakujte heslo",
       "address": "Adresa",
       "submit": "Registrovať sa",
+      "gdprConsentText": "Súhlasím s pravidlami o spracovaní osobných údajov",
+      "termsConsentText": "Súhlasím s obchodnými podmienkami",
+      "passwordRequirements": {
+        "length": "Minimálne 8 znakov",
+        "upper": "1 veľké písmeno (A-Z)",
+        "lower": "1 malé písmeno (a-z)",
+        "number": "1 číslo (0-9)",
+        "special": "1 špeciálny znak (@$!%*?&)"
+      },
       "loading": "Registrujem...",
       "loginPrompt": "Už máte účet?",
       "loginLink": "Prihláste sa tu",

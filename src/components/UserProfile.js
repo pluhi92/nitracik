@@ -1,9 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal, Button } from 'react-bootstrap';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Tooltip } from 'react-tooltip';
 import api from '../api/api';
+
+const SpinnerIcon = ({ className }) => (
+  <svg className={`animate-spin ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+  </svg>
+);
 
 const UserProfile = () => {
   const { t } = useTranslation();
@@ -34,6 +41,24 @@ const UserProfile = () => {
   const [selectedSession, setSelectedSession] = useState(null);
   const [reason, setReason] = useState('');
   const [forceCancel, setForceCancel] = useState(false);
+
+  // --- SMART ADRESA LOGIKA ---
+  const [addrCity, setAddrCity] = useState('');
+  const [addrStreet, setAddrStreet] = useState('');
+  const [addrNumber, setAddrNumber] = useState('');
+  const [addrZip, setAddrZip] = useState('');
+  const [hasNoStreet, setHasNoStreet] = useState(false);
+  
+  const [citySuggestions, setCitySuggestions] = useState([]);
+  const [streetSuggestions, setStreetSuggestions] = useState([]);
+  const [isSearchingCity, setIsSearchingCity] = useState(false);
+  const [isSearchingStreet, setIsSearchingStreet] = useState(false);
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [showStreetDropdown, setShowStreetDropdown] = useState(false);
+
+  const cityInputRef = useRef(null);
+  const streetInputRef = useRef(null);
+  const numberInputRef = useRef(null);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editedAddress, setEditedAddress] = useState('');
@@ -124,6 +149,127 @@ const UserProfile = () => {
       fetchUserData();
     }
   }, [userId]);
+
+  // Parsovanie existujúcej adresy pri zapnutí editácie
+  useEffect(() => {
+    if (isEditing && editedAddress) {
+      try {
+        const parts = editedAddress.split(',');
+        if (parts.length >= 2) {
+            const part1 = parts[0].trim(); // Ulica + Číslo
+            const part2 = parts[1].trim(); // PSČ + Mesto
+
+            const streetMatch = part1.match(/^(.*)\s+(\S+)$/);
+            if (streetMatch) {
+                setAddrStreet(streetMatch[1]);
+                setAddrNumber(streetMatch[2]);
+            } else {
+                setAddrStreet(part1);
+            }
+
+            const zipMatch = part2.match(/^(\d{3}\s?\d{2})\s+(.+)$/);
+            if (zipMatch) {
+                setAddrZip(zipMatch[1]);
+                setAddrCity(zipMatch[2]);
+            } else {
+                setAddrCity(part2);
+            }
+        } else {
+            setAddrStreet(editedAddress);
+        }
+      } catch (e) { console.error(e); }
+    }
+  }, [isEditing]); // Odstránené editedAddress zo závislostí aby sa neprepisovalo počas písania, len pri otvorení
+
+  // Click outside handler
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (cityInputRef.current && !cityInputRef.current.contains(event.target)) setShowCityDropdown(false);
+      if (streetInputRef.current && !streetInputRef.current.contains(event.target)) setShowStreetDropdown(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // API Search functions
+  const searchCity = async (query) => {
+    if (query.length < 2) return;
+    setIsSearchingCity(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?city=${query}&country=Slovakia&format=json&addressdetails=1&limit=5&accept-language=sk`);
+      const data = await res.json();
+      setCitySuggestions(data);
+      setShowCityDropdown(true);
+    } catch (err) { console.error(err); } finally { setIsSearchingCity(false); }
+  };
+
+  const searchStreet = async (query) => {
+    if (query.length < 2 || !addrCity || hasNoStreet) return;
+    setIsSearchingStreet(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?street=${query}&city=${addrCity}&country=Slovakia&format=json&addressdetails=1&limit=5&accept-language=sk`);
+      const data = await res.json();
+      setStreetSuggestions(data);
+      setShowStreetDropdown(true);
+    } catch (err) { console.error(err); } finally { setIsSearchingStreet(false); }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => { if (addrCity && showCityDropdown) searchCity(addrCity); }, 500);
+    return () => clearTimeout(timer);
+  }, [addrCity]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => { if (addrStreet && showStreetDropdown && !hasNoStreet) searchStreet(addrStreet); }, 500);
+    return () => clearTimeout(timer);
+  }, [addrStreet, hasNoStreet]);
+
+  const handleSelectCity = (city) => {
+    const cityName = city.address.city || city.address.town || city.address.village || city.display_name.split(',')[0];
+    setAddrCity(cityName);
+    setAddrZip(city.address.postcode || '');
+    setShowCityDropdown(false);
+    if (hasNoStreet && numberInputRef.current) numberInputRef.current.focus();
+    else if (streetInputRef.current) streetInputRef.current.focus();
+  };
+
+  const handleSelectStreet = (street) => {
+    const streetName = street.address.road || street.display_name.split(',')[0];
+    setAddrStreet(streetName);
+    if (street.address.postcode) setAddrZip(street.address.postcode);
+    setShowStreetDropdown(false);
+    if (numberInputRef.current) numberInputRef.current.focus();
+  };
+
+  // Upravený SAVE handler (spojí adresu dokopy)
+  const handleUpdateProfileSmart = async () => {
+    setIsUpdating(true);
+    setUpdateMessage('');
+    
+    let fullAddress = '';
+    if (hasNoStreet) {
+        fullAddress = `${addrCity} ${addrNumber}, ${addrZip} ${addrCity}`;
+    } else {
+        fullAddress = `${addrStreet} ${addrNumber}, ${addrZip} ${addrCity}`;
+    }
+
+    try {
+      await api.put(`/api/users/${userId}`, {
+        address: fullAddress,
+        mobile: editedMobile
+      });
+      
+      setUpdateMessage(t?.profile?.update?.success || 'Profile updated successfully!');
+      setUpdateVariant('success');
+      setEditedAddress(fullAddress); // Aktualizujeme hlavný state
+      setIsEditing(false);
+    } catch (err) {
+      setUpdateMessage(err.response?.data?.error || t?.profile?.update?.error?.generic || 'Failed to update profile');
+      setUpdateVariant('danger');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const processSessions = (data) => {
     if (!Array.isArray(data)) {
@@ -636,21 +782,35 @@ const UserProfile = () => {
 
     setIsDeleting(true);
     try {
+      // 1. Overenie hesla (volá Váš pôvodný endpoint)
       const verifyResponse = await api.post(
         '/api/verify-password',
         { password }
       );
 
+      // Keďže Váš verify endpoint vracia 200 len pri úspechu a 400 pri chybe,
+      // podmienka if (verifyResponse.data.success) je tu vlastne redundantná,
+      // ale pre zachovanie logiky ju môžeme nechať.
       if (verifyResponse.data.success) {
+        
+        // 2. Zmazanie užívateľa (volá nový endpoint s mailom)
         await api.delete(`/api/users/${userId}`);
 
+        // 3. Vyčistenie klientskych dát
         localStorage.removeItem('userId');
         localStorage.removeItem('isLoggedIn');
-        navigate('/account-deleted');
+        localStorage.removeItem('userRole'); // Ak používate aj role
+        // localStorage.clear(); // TIP: Toto pre istotu vymaže úplne všetko z localStorage
+
+        // 4. TVRDÝ RELOAD A PRESMEROVANIE
+        // Namiesto navigate('/account-deleted') použijeme toto:
+        window.location.href = '/account-deleted'; 
+        
       } else {
         setError(t?.profile?.delete?.error?.incorrect || 'Incorrect password');
       }
     } catch (err) {
+      // Tu zachytávame 400 z verify-password alebo 500 z delete
       setError(err.response?.data?.error || t?.profile?.delete?.error?.generic || 'Failed to delete account');
     } finally {
       setIsDeleting(false);
@@ -935,6 +1095,7 @@ const UserProfile = () => {
 
             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
               {!isEditing ? (
+                // VIEW MODE (Bez zmeny)
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <h5 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
@@ -962,22 +1123,105 @@ const UserProfile = () => {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      {t?.profile?.info?.address || 'Address'} *
-                    </label>
-                    <input
-                      type="text"
-                      value={editedAddress}
-                      onChange={(e) => setEditedAddress(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-600 dark:text-white"
-                      placeholder={t?.profile?.info?.addressPlaceholder || 'Enter your full address'}
-                      required
-                    />
+                // EDIT MODE (SMART ADRESA)
+                <div className="space-y-4">
+                  
+                  {/* 1. MESTO */}
+                  <div className="relative" ref={cityInputRef}>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Mesto / Obec *
+                      </label>
+                      <input 
+                        type="text" 
+                        value={addrCity}
+                        onChange={(e) => { setAddrCity(e.target.value); setShowCityDropdown(true); }}
+                        onFocus={() => setShowCityDropdown(true)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
+                        placeholder="Napr. Nitra"
+                      />
+                      {isSearchingCity && <div className="absolute right-3 top-9"><SpinnerIcon className="w-5 h-5 text-gray-400" /></div>}
+                      {showCityDropdown && citySuggestions.length > 0 && (
+                        <ul className="absolute z-50 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
+                          {citySuggestions.map((city, idx) => (
+                            <li key={idx} onClick={() => handleSelectCity(city)} className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200">
+                              {city.display_name}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                   </div>
+
+                  {/* 2. ULICA + CHECKBOX */}
+                  <div className="relative" ref={streetInputRef}>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Ulica *
+                      </label>
+                      <input 
+                        type="text" 
+                        value={addrStreet}
+                        onChange={(e) => { setAddrStreet(e.target.value); setShowStreetDropdown(true); }}
+                        onFocus={() => !hasNoStreet && setShowStreetDropdown(true)}
+                        disabled={!addrCity || hasNoStreet}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:text-white
+                          ${hasNoStreet ? 'bg-gray-200 dark:bg-gray-800 text-gray-500 cursor-not-allowed border-gray-300' : 'bg-white dark:bg-gray-600 border-gray-300 dark:border-gray-600'}`}
+                        placeholder={hasNoStreet ? 'Obec nemá ulice' : (addrCity ? `Ulica v ${addrCity}` : "Najprv vyberte mesto")}
+                      />
+                      {isSearchingStreet && !hasNoStreet && <div className="absolute right-3 top-9"><SpinnerIcon className="w-5 h-5 text-gray-400" /></div>}
+                      {showStreetDropdown && streetSuggestions.length > 0 && !hasNoStreet && (
+                        <ul className="absolute z-50 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
+                          {streetSuggestions.map((street, idx) => (
+                            <li key={idx} onClick={() => handleSelectStreet(street)} className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200">
+                              {street.display_name.split(',')[0]}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2 mb-2">
+                      <input 
+                        type="checkbox" 
+                        id="noStreetProfile" 
+                        checked={hasNoStreet} 
+                        onChange={(e) => {
+                            setHasNoStreet(e.target.checked);
+                            if(e.target.checked) setAddrStreet('');
+                        }}
+                        className="w-4 h-4 text-blue-600 rounded"
+                      />
+                      <label htmlFor="noStreetProfile" className="text-xs text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                        Obec nemá ulice (použiť len číslo domu)
+                      </label>
+                  </div>
+
+                  {/* 3. ČÍSLO a PSČ */}
+                  <div className="grid grid-cols-3 gap-3">
+                     <div className="col-span-1">
+                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Číslo *</label>
+                       <input 
+                          ref={numberInputRef}
+                          type="text" 
+                          value={addrNumber}
+                          onChange={(e) => setAddrNumber(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
+                          placeholder="36"
+                       />
+                     </div>
+                     <div className="col-span-2">
+                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">PSČ *</label>
+                       <input 
+                          type="text" 
+                          value={addrZip}
+                          onChange={(e) => setAddrZip(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
+                          placeholder="949 01"
+                       />
+                     </div>
+                  </div>
+
+                  {/* 4. MOBILE */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       {t?.profile?.info?.mobile || 'Mobile Number'}
                     </label>
                     <input
@@ -991,11 +1235,13 @@ const UserProfile = () => {
                       {t?.profile?.info?.mobileHelp || 'Optional: Add your mobile number for important updates'}
                     </p>
                   </div>
-                  <div className="md:col-span-2 flex gap-3">
+
+                  {/* BUTTONS */}
+                  <div className="flex gap-3 pt-2">
                     <button
                       className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      onClick={handleUpdateProfile}
-                      disabled={isUpdating || !editedAddress.trim()}
+                      onClick={handleUpdateProfileSmart}
+                      disabled={isUpdating || !addrCity || !addrZip || !addrNumber}
                     >
                       {isUpdating
                         ? (t?.profile?.update?.updating || 'Updating...')
@@ -1007,13 +1253,11 @@ const UserProfile = () => {
                       onClick={() => {
                         setIsEditing(false);
                         setUpdateMessage('');
-                        api.get(`/api/users/${userId}`)
-                          .then(response => {
-                            const userData = response.data;
-                            setEditedAddress(userData.address || '');
-                            setEditedMobile(userData.mobile || '');
-                          })
-                          .catch(error => console.error('Error fetching user data:', error));
+                        // Reset pri zrušení
+                        api.get(`/api/users/${userId}`).then(res => {
+                            setEditedAddress(res.data.address || '');
+                            setEditedMobile(res.data.mobile || '');
+                        });
                       }}
                       disabled={isUpdating}
                     >
