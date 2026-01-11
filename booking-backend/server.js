@@ -10,6 +10,8 @@ const express = require('express');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
+const axios = require('axios');
 const { Pool } = require('pg');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
@@ -23,6 +25,23 @@ const dayjs = require('dayjs');
 require('dayjs/locale/sk');
 dayjs.locale('sk');
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.,])[A-Za-z\d@$!%*?&.,]{8,}$/;
+
+app.set('trust proxy', 1);
+
+
+app.use((req, res, next) => {
+  console.log('REQ IP:', req.ip);
+  console.log('XFF:', req.headers['x-forwarded-for']);
+  next();
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hodina
+  max: 5, 
+  message: { message: 'Príliš veľa pokusov o registráciu z tejto IP adresy, skúste to prosím neskôr.' },
+  standardHeaders: true, 
+  legacyHeaders: false,
+});
 
 const sendVerificationEmail = async (userEmail, userName, verificationLink) => {
   const subject = 'Vitajte v Nitráčiku - Overenie emailu';
@@ -319,14 +338,236 @@ const sendAccountDeletedEmail = async (userEmail, userName) => {
   return transporter.sendMail(mailOptions);
 };
 
+app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
 
-app.use((req, res, next) => {
-  if (req.originalUrl === '/stripe-webhook') {
-    next();
-  } else {
-    express.json()(req, res, next);
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+    console.log('[DEBUG] Webhook Event Received:', event.type);
+  } catch (err) {
+    console.error('[DEBUG] Webhook Signature Verification Failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
   }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      if (session.metadata.type === 'season_ticket') {
+        const { userId, entries, totalPrice } = session.metadata;
+        const expiryDate = new Date();
+        expiryDate.setFullYear(expiryDate.getFullYear() + 1); // 1 year expiry
+
+        const ticketResult = await client.query(
+          `INSERT INTO season_tickets (user_id, entries_total, entries_remaining, purchase_date, expiry_date, stripe_payment_id, amount_paid, payment_time)
+           VALUES ($1, $2, $2, NOW(), $3, $4, $5, $6) RETURNING *`,
+          [userId, entries, expiryDate, session.id, parseFloat(totalPrice), new Date(session.created * 1000)]
+        );
+
+        console.log('[DEBUG] Season ticket created:', {
+          ticketId: ticketResult.rows[0].id,
+          userId,
+          entries,
+          amountPaid: totalPrice
+        });
+
+        const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
+        const user = userResult.rows[0];
+
+        const mailOptions = {
+          from: process.env.EMAIL_USER,
+          to: user.email,
+          subject: 'Season Ticket Purchase Confirmation',
+          text: `
+            Hello ${user.first_name},
+            Your season ticket purchase for ${entries} entries has been confirmed!
+            Details:
+            - Total Entries: ${entries}
+            - Price: €${totalPrice}
+            - Purchase Date: ${new Date().toLocaleDateString()}
+            - Expiry Date: ${expiryDate.toLocaleDateString()}
+            Thank you!
+            Nitracik Team
+          `.trim(),
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log('[DEBUG] Season ticket email sent to:', user.email);
+      } else if (session.metadata.type === 'training_session') {
+        const {
+          userId,
+          trainingType,
+          selectedDate,
+          selectedTime,
+          childrenCount,
+          childrenAge,
+          totalPrice,
+          photoConsent,
+          mobile,
+          note,
+          accompanyingPerson,
+        } = session.metadata;
+
+        if (!userId || !trainingType || !selectedDate || !selectedTime || !childrenCount || !totalPrice) {
+          throw new Error('Missing required metadata fields');
+        }
+
+        const [time, modifier] = selectedTime.split(' ');
+        let [hours, minutes] = time.split(':');
+        if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
+        if (modifier === 'AM' && hours === '12') hours = '00';
+        const trainingDateTimeUTC = new Date(`${selectedDate}T${hours}:${minutes}`);
+        const trainingDateTimeLocal = new Date(trainingDateTimeUTC.toLocaleString('en-US', { timeZone: 'Europe/Budapest' }));
+
+        const trainingResult = await client.query(
+          `SELECT * FROM training_availability WHERE training_type = $1 AND training_date = $2`,
+          [trainingType, trainingDateTimeLocal]
+        );
+        if (trainingResult.rows.length === 0) {
+          throw new Error('Training session no longer available');
+        }
+
+        const training = trainingResult.rows[0];
+        const bookingsResult = await client.query(
+          `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1`,
+          [training.id]
+        );
+        const bookedCount = parseInt(bookingsResult.rows[0].booked_children, 10);
+        if (bookedCount >= training.max_participants) {
+          throw new Error('Session is full');
+        }
+
+        // Update existing booking with payment details
+        const paymentIntentId = session.payment_intent;
+        const updateResult = await client.query(
+          `UPDATE bookings 
+           SET amount_paid = $1, 
+               payment_time = $2, 
+               payment_intent_id = $3, 
+               session_id = NULL 
+           WHERE session_id = $4 
+           RETURNING *`,
+          [parseFloat(totalPrice), new Date(session.created * 1000), paymentIntentId, session.id]
+        );
+
+        if (updateResult.rowCount === 0) {
+          throw new Error('No booking found with the provided session ID');
+        }
+
+        const booking = updateResult.rows[0];
+        console.log('[DEBUG] Booking updated with payment details:', {
+          bookingId: booking.id,
+          paymentIntentId,
+          amountPaid: totalPrice,
+          sessionId: session.id
+        });
+
+        const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
+        const user = userResult.rows[0];
+
+        const adminMailOptions = {
+          from: process.env.EMAIL_USER,
+          to: process.env.ADMIN_EMAIL,
+          subject: 'New Booking Request',
+          text: `
+            User: ${user.first_name} ${user.last_name}
+            Email: ${user.email}
+            Address: ${user.address}
+            Mobile: ${mobile || 'Not provided'}
+            Children: ${childrenCount}
+            Children Age: ${childrenAge}
+            Training: ${trainingType}
+            Date: ${selectedDate}
+            Time: ${selectedTime}
+            Photo Consent: ${(photoConsent === true || photoConsent === 'true') ? 'Agreed' : 'Declined'}
+            Accompanying Person: ${(accompanyingPerson === true || accompanyingPerson === 'true') ? 'Yes' : 'No'}
+            Notes: ${note || 'No additional notes'}
+            Price: €${totalPrice}
+            Payment Intent: ${paymentIntentId}
+          `.trim(),
+        };
+
+        // 1. ZÍSKANIE EMAILU A MENA
+        // Email berieme primárne z účtu v DB, ak by tam nebol, záložne zo Stripe
+        const targetEmail = user.email || session.customer_details?.email;
+        // MENO berieme VŽDY z databázy (krstné meno), aby to bolo osobné
+        const firstName = user.first_name || 'Osôbka';
+
+        // 2. ODOSLANIE EMAILU
+        try {
+          await sendUserBookingEmail(targetEmail, {
+            date: selectedDate,
+            start_time: selectedTime,
+            trainingType: trainingType,
+            userName: firstName, // Tu posielame krstné meno z konta
+            paymentType: 'payment'
+          });
+          console.log(`[DEBUG] Email odoslaný na meno: ${firstName} (${targetEmail})`);
+        } catch (emailError) {
+          console.error('[DEBUG] Chyba pri odosielaní užívateľského emailu:', emailError.message);
+        }
+
+        // 3. ODOSLANIE EMAILU ADMINOVI (pôvodný kód)
+        await transporter.sendMail(adminMailOptions);
+
+        console.log('[DEBUG] Booking confirmation emails sent to admin and user');
+      }
+
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('[DEBUG] Webhook processing error:', error.message);
+    } finally {
+      client.release();
+    }
+  }
+
+  res.json({ received: true });
 });
+
+// Add webhook handler for refund updates
+app.post('/stripe-refund-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  if (event.type === 'charge.refund.updated') {
+    const refund = event.data.object;
+
+    try {
+      await pool.query(
+        'UPDATE refunds SET status = $1, updated_at = NOW() WHERE refund_id = $2',
+        [refund.status, refund.id]
+      );
+      console.log('Refund status updated:', refund.id, refund.status);
+    } catch (error) {
+      console.error('Error updating refund status:', error);
+    }
+  }
+
+  res.json({ received: true });
+});
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true })); 
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
@@ -1238,201 +1479,6 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
   }
 });
 
-app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
-
-  try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-    console.log('[DEBUG] Webhook Event Received:', event.type);
-  } catch (err) {
-    console.error('[DEBUG] Webhook Signature Verification Failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-    const client = await pool.connect();
-
-    try {
-      await client.query('BEGIN');
-
-      if (session.metadata.type === 'season_ticket') {
-        const { userId, entries, totalPrice } = session.metadata;
-        const expiryDate = new Date();
-        expiryDate.setFullYear(expiryDate.getFullYear() + 1); // 1 year expiry
-
-        const ticketResult = await client.query(
-          `INSERT INTO season_tickets (user_id, entries_total, entries_remaining, purchase_date, expiry_date, stripe_payment_id, amount_paid, payment_time)
-           VALUES ($1, $2, $2, NOW(), $3, $4, $5, $6) RETURNING *`,
-          [userId, entries, expiryDate, session.id, parseFloat(totalPrice), new Date(session.created * 1000)]
-        );
-
-        console.log('[DEBUG] Season ticket created:', {
-          ticketId: ticketResult.rows[0].id,
-          userId,
-          entries,
-          amountPaid: totalPrice
-        });
-
-        const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
-        const user = userResult.rows[0];
-
-        const mailOptions = {
-          from: process.env.EMAIL_USER,
-          to: user.email,
-          subject: 'Season Ticket Purchase Confirmation',
-          text: `
-            Hello ${user.first_name},
-            Your season ticket purchase for ${entries} entries has been confirmed!
-            Details:
-            - Total Entries: ${entries}
-            - Price: €${totalPrice}
-            - Purchase Date: ${new Date().toLocaleDateString()}
-            - Expiry Date: ${expiryDate.toLocaleDateString()}
-            Thank you!
-            Nitracik Team
-          `.trim(),
-        };
-
-        await transporter.sendMail(mailOptions);
-        console.log('[DEBUG] Season ticket email sent to:', user.email);
-      } else if (session.metadata.type === 'training_session') {
-        const {
-          userId,
-          trainingType,
-          selectedDate,
-          selectedTime,
-          childrenCount,
-          childrenAge,
-          totalPrice,
-          photoConsent,
-          mobile,
-          note,
-          accompanyingPerson,
-        } = session.metadata;
-
-        if (!userId || !trainingType || !selectedDate || !selectedTime || !childrenCount || !totalPrice) {
-          throw new Error('Missing required metadata fields');
-        }
-
-        const [time, modifier] = selectedTime.split(' ');
-        let [hours, minutes] = time.split(':');
-        if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
-        if (modifier === 'AM' && hours === '12') hours = '00';
-        const trainingDateTimeUTC = new Date(`${selectedDate}T${hours}:${minutes}`);
-        const trainingDateTimeLocal = new Date(trainingDateTimeUTC.toLocaleString('en-US', { timeZone: 'Europe/Budapest' }));
-
-        const trainingResult = await client.query(
-          `SELECT * FROM training_availability WHERE training_type = $1 AND training_date = $2`,
-          [trainingType, trainingDateTimeLocal]
-        );
-        if (trainingResult.rows.length === 0) {
-          throw new Error('Training session no longer available');
-        }
-
-        const training = trainingResult.rows[0];
-        const bookingsResult = await client.query(
-          `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1`,
-          [training.id]
-        );
-        const bookedCount = parseInt(bookingsResult.rows[0].booked_children, 10);
-        if (bookedCount >= training.max_participants) {
-          throw new Error('Session is full');
-        }
-
-        // Update existing booking with payment details
-        const paymentIntentId = session.payment_intent;
-        const updateResult = await client.query(
-          `UPDATE bookings 
-           SET amount_paid = $1, 
-               payment_time = $2, 
-               payment_intent_id = $3, 
-               session_id = NULL 
-           WHERE session_id = $4 
-           RETURNING *`,
-          [parseFloat(totalPrice), new Date(session.created * 1000), paymentIntentId, session.id]
-        );
-
-        if (updateResult.rowCount === 0) {
-          throw new Error('No booking found with the provided session ID');
-        }
-
-        const booking = updateResult.rows[0];
-        console.log('[DEBUG] Booking updated with payment details:', {
-          bookingId: booking.id,
-          paymentIntentId,
-          amountPaid: totalPrice,
-          sessionId: session.id
-        });
-
-        const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
-        const user = userResult.rows[0];
-
-        const adminMailOptions = {
-          from: process.env.EMAIL_USER,
-          to: process.env.ADMIN_EMAIL,
-          subject: 'New Booking Request',
-          text: `
-            User: ${user.first_name} ${user.last_name}
-            Email: ${user.email}
-            Address: ${user.address}
-            Mobile: ${mobile || 'Not provided'}
-            Children: ${childrenCount}
-            Children Age: ${childrenAge}
-            Training: ${trainingType}
-            Date: ${selectedDate}
-            Time: ${selectedTime}
-            Photo Consent: ${(photoConsent === true || photoConsent === 'true') ? 'Agreed' : 'Declined'}
-            Accompanying Person: ${(accompanyingPerson === true || accompanyingPerson === 'true') ? 'Yes' : 'No'}
-            Notes: ${note || 'No additional notes'}
-            Price: €${totalPrice}
-            Payment Intent: ${paymentIntentId}
-          `.trim(),
-        };
-
-        // 1. ZÍSKANIE EMAILU A MENA
-        // Email berieme primárne z účtu v DB, ak by tam nebol, záložne zo Stripe
-        const targetEmail = user.email || session.customer_details?.email;
-        // MENO berieme VŽDY z databázy (krstné meno), aby to bolo osobné
-        const firstName = user.first_name || 'Osôbka';
-
-        // 2. ODOSLANIE EMAILU
-        try {
-          await sendUserBookingEmail(targetEmail, {
-            date: selectedDate,
-            start_time: selectedTime,
-            trainingType: trainingType,
-            userName: firstName, // Tu posielame krstné meno z konta
-            paymentType: 'payment'
-          });
-          console.log(`[DEBUG] Email odoslaný na meno: ${firstName} (${targetEmail})`);
-        } catch (emailError) {
-          console.error('[DEBUG] Chyba pri odosielaní užívateľského emailu:', emailError.message);
-        }
-
-        // 3. ODOSLANIE EMAILU ADMINOVI (pôvodný kód)
-        await transporter.sendMail(adminMailOptions);
-
-        console.log('[DEBUG] Booking confirmation emails sent to admin and user');
-      }
-
-      await client.query('COMMIT');
-    } catch (error) {
-      await client.query('ROLLBACK');
-      console.error('[DEBUG] Webhook processing error:', error.message);
-    } finally {
-      client.release();
-    }
-  }
-
-  res.json({ received: true });
-});
-
 // Updated endpoint to handle payment success redirect
 app.get('/api/booking-success', isAuthenticated, async (req, res) => {
   const { session_id, booking_id } = req.query;
@@ -1472,7 +1518,21 @@ app.use((req, res, next) => {
 });
 
 function validateEnvVariables() {
-  const requiredEnvVars = ['EMAIL_USER', 'EMAIL_PASS', 'DB_USER', 'DB_HOST', 'DB_NAME', 'DB_PASSWORD', 'DB_PORT', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'FRONTEND_URL', 'SESSION_SECRET'];
+  const requiredEnvVars = [
+    'EMAIL_USER', 
+    'EMAIL_PASS', 
+    'DB_USER', 
+    'DB_HOST', 
+    'DB_NAME', 
+    'DB_PASSWORD', 
+    'DB_PORT', 
+    'STRIPE_SECRET_KEY', 
+    'STRIPE_WEBHOOK_SECRET', 
+    'FRONTEND_URL', 
+    'SESSION_SECRET',
+    'HCAPTCHA_SECRET' // <--- PRIDANÉ TU
+  ];
+
   for (const envVar of requiredEnvVars) {
     if (!process.env[envVar]) {
       console.error(`Missing ${envVar} in environment variables.`);
@@ -1553,50 +1613,101 @@ function validateMobile(mobile) {
   return mobileRegex.test(mobile);
 }
 
-app.post('/api/register', async (req, res) => {
-  const { firstName, lastName, email, password, address, _honey } = req.body;
+app.post('/api/register', registerLimiter, async (req, res) => {
+  // Pridali sme hCaptchaToken do destrukturalizácie
+  const { firstName, lastName, email, password, address, _honey, hCaptchaToken } = req.body;
+
+  // 1. HONEYPOT KONTROLA (už si mal)
+  if (_honey) {
+    console.log(`Bot detected via honeypot. IP: ${req.ip}`);
+    return res.status(200).json({ message: 'Registrácia úspešná' }); // Fake success
+  }
+
+  // 2. HCAPTCHA OVERENIE (NOVÉ)
+  if (!hCaptchaToken) {
+    return res.status(400).json({ message: 'Prosím, potvrďte, že nie ste robot (Captcha).' });
+  }
 
   try {
-    // 1. HONEYPOT check
-    if (_honey) {
-      console.log(`Bot detected! Honeypot filled: ${_honey}`);
-      return res.status(400).json({ message: 'Bot detected.' });
+    const verificationUrl = 'https://api.hcaptcha.com/siteverify';
+    const params = new URLSearchParams();
+    params.append('secret', process.env.HCAPTCHA_SECRET);
+    params.append('response', hCaptchaToken);
+
+    const captchaResponse = await axios.post(verificationUrl, params);
+    const captchaData = captchaResponse.data;
+
+    if (!captchaData.success) {
+      console.error('hCaptcha verification failed:', captchaData);
+      return res.status(400).json({ message: 'Overenie Captcha zlyhalo. Skúste to znova.' });
+    }
+  } catch (error) {
+    console.error('hCaptcha API error:', error);
+    return res.status(500).json({ message: 'Chyba pri overovaní Captcha.' });
+  }
+
+  // --- ZVYŠOK TVOJHO PÔVODNÉHO KÓDU ---
+  // Od tohto bodu je kód rovnaký ako predtým, len pokračuješ validáciou a DB operáciami.
+
+  if (!firstName || !lastName || !email || !password || !address) {
+    return res.status(400).json({ message: 'Všetky polia sú povinné.' });
+  }
+  
+  // Validácia hesla
+  if (!PASSWORD_REGEX.test(password)) {
+    return res.status(400).json({
+      message: 'Heslo musí mať min. 8 znakov, veľké a malé písmeno, číslo a špeciálny znak.'
+    });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Kontrola existencie emailu
+    const userCheck = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (userCheck.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: 'Užívateľ s týmto emailom už existuje.' });
     }
 
-    // 2. Kontrola sily hesla
-    if (!PASSWORD_REGEX.test(password)) {
-      return res.status(400).json({
-        message: 'Password is too weak. It must allow: 8+ chars, 1 uppercase, 1 lowercase, 1 number, 1 special char.'
-      });
-    }
+    // Hashovanie hesla
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-    // 3. Kontrola emailu
-    const emailCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (emailCheck.rows.length > 0) {
-      return res.status(400).json({ message: 'Email is already registered. Please use a different one.' });
-    }
-
-    // 4. Uloženie
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Vytvorenie verifikačného tokenu
     const verificationToken = uuidv4();
 
-    const result = await pool.query(
-      'INSERT INTO users (first_name, last_name, email, password, address, verification_token, verified) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-      [firstName, lastName, email, hashedPassword, address, verificationToken, false]
+    // Vloženie užívateľa
+    const newUser = await client.query(
+      `INSERT INTO users 
+      (first_name, last_name, email, password, address, role, created_at, verified, verification_token)
+       VALUES ($1, $2, $3, $4, $5, 'user', NOW(), false, $6) 
+       RETURNING id, email, first_name`,
+      [firstName, lastName, email, hashedPassword, address, verificationToken]
     );
 
-    // 5. Odoslanie HTML emailu
-    const clientUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const verificationLink = `${clientUrl}/verify-email?token=${verificationToken}`;
+    await client.query('COMMIT');
 
-    // Voláme našu novú funkciu
-    await sendVerificationEmail(email, firstName, verificationLink);
+    // Odoslanie emailu (asynchrónne, neblokujeme response)
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000'; 
+    const verificationLink = `${baseUrl}/verify-email?token=${verificationToken}`;
 
-    res.status(201).json({ message: 'User registered successfully. Please check your email.', userId: result.rows[0].id });
+    sendVerificationEmail(email, firstName, verificationLink).catch(err => 
+        console.error('Email send failed:', err)
+    );
+
+    res.status(201).json({ 
+        message: 'Registrácia úspešná! Skontrolujte si email pre aktiváciu účtu.' 
+    });
 
   } catch (error) {
-    console.error('Error registering user:', error);
-    res.status(500).json({ message: 'Failed to register user', error: error.message });
+    await client.query('ROLLBACK');
+    console.error('Chyba pri registrácii:', error);
+    res.status(500).json({ message: 'Interná chyba servera' });
+  } finally {
+    client.release();
   }
 });
 
@@ -1652,20 +1763,30 @@ app.post('/api/reset-password', async (req, res) => {
 });
 
 app.get('/api/verify-email', async (req, res) => {
-  const { token } = req.query;
+  const { token } = req.query; // Frontend posiela ?token=xyz
 
   try {
+    // 1. Hľadáme užívateľa podľa tokenu
     const result = await pool.query('SELECT * FROM users WHERE verification_token = $1', [token]);
+
     if (result.rows.length === 0) {
-      return res.status(400).json({ message: 'You have successfully verified your email address' });
+      // OPRAVA: Ak token nie je v DB, znamená to, že je neplatný alebo už bol použitý.
+      return res.status(400).json({ 
+        message: 'Tento overovací odkaz je neplatný alebo už bol použitý.' 
+      });
     }
 
     const user = result.rows[0];
+
+    // 2. Nastavíme verified na true a ZMAŽEME token (aby sa nedal použiť znova)
     await pool.query('UPDATE users SET verified = true, verification_token = NULL WHERE id = $1', [user.id]);
-    res.status(200).json({ message: 'Email verified successfully. You can now log in.' });
+
+    // 3. Úspech
+    res.status(200).json({ message: 'Email bol úspešne overený. Teraz sa môžete prihlásiť.' });
+
   } catch (error) {
     console.error('Error verifying email:', error);
-    res.status(500).json({ message: 'Failed to verify email', error: error.message });
+    res.status(500).json({ message: 'Nepodarilo sa overiť email.', error: error.message });
   }
 });
 
@@ -2319,39 +2440,6 @@ app.delete('/api/admin/training-sessions/:trainingId', isAdmin, async (req, res)
   } finally {
     client.release();
   }
-});
-
-// Add webhook handler for refund updates
-app.post('/stripe-refund-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
-
-  try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  if (event.type === 'charge.refund.updated') {
-    const refund = event.data.object;
-
-    try {
-      await pool.query(
-        'UPDATE refunds SET status = $1, updated_at = NOW() WHERE refund_id = $2',
-        [refund.status, refund.id]
-      );
-      console.log('Refund status updated:', refund.id, refund.status);
-    } catch (error) {
-      console.error('Error updating refund status:', error);
-    }
-  }
-
-  res.json({ received: true });
 });
 
 // Add endpoint to get refund status

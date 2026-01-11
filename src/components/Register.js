@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../contexts/LanguageContext';
 import api from '../api/api';
+import HCaptcha from '@hcaptcha/react-hcaptcha'; // IMPORT HCAPTCHA
 
 // --- IKONY ---
 const CheckIcon = ({ className }) => (
@@ -39,7 +40,7 @@ const Register = () => {
   const [addrStreet, setAddrStreet] = useState('');
   const [addrNumber, setAddrNumber] = useState('');
   const [addrZip, setAddrZip] = useState('');
-  const [hasNoStreet, setHasNoStreet] = useState(false); // NOVÉ: Obec bez ulice
+  const [hasNoStreet, setHasNoStreet] = useState(false);
   
   const [citySuggestions, setCitySuggestions] = useState([]);
   const [streetSuggestions, setStreetSuggestions] = useState([]);
@@ -52,11 +53,10 @@ const Register = () => {
   const [gdprConsent, setGdprConsent] = useState(false);
   const [vopConsent, setVopConsent] = useState(false);
 
-  // Anti-bot
+  // Anti-bot & Security
   const [honey, setHoney] = useState('');
-  const [captchaQuestion, setCaptchaQuestion] = useState({ question: '', validAnswers: [] });
-  const [captchaAnswer, setCaptchaAnswer] = useState('');
-  const [isCaptchaCorrect, setIsCaptchaCorrect] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState(null); // NOVÝ STATE PRE TOKEN
+  const hCaptchaRef = useRef(null); // REF PRE RESETOVANIE CAPTCHY
 
   // UX State
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
@@ -71,26 +71,7 @@ const Register = () => {
 
   // --- LOGIC ---
 
-  const questionsBank = [
-    { q: "Koľko nôh má pes? (číslo)", a: ["4", "štyri", "styri"] },
-    { q: "Akej farby je tráva?", a: ["zelená", "zelena", "green"] },
-    { q: "Akej farby je sneh?", a: ["biela", "biely", "white"] },
-    { q: "Koľko je 10 mínus 2? (číslo)", a: ["8", "osem"] },
-    { q: "Koľko je 3 plus 3? (číslo)", a: ["6", "šesť", "sest"] },
-    { q: "Ako sa volá naše hlavné mesto?", a: ["bratislava", "ba"] },
-    { q: "Doplň slovo: Nitr__ik", a: ["áč", "ac", "áčik", "acik"] },
-    { q: "Je slnko studené alebo horúce?", a: ["horúce", "horuce", "teplé", "teple", "hot"] },
-    { q: "Aký je opak dňa?", a: ["noc", "tma", "night"] },
-    { q: "Koľko prstov má človek na jednej ruke? (číslo)", a: ["5", "päť", "pat", "pät"] },
-    { q: "Čo pijeme z vodovodu?", a: ["voda", "vodu", "water"] },
-    { q: "Koľko dní má týždeň? (číslo)", a: ["7", "sedem"] },
-    { q: "Aký zvuk robí mačka?", a: ["mnau", "mňau", "meow"] },
-    { q: "Aký zvuk robí pes?", a: ["haf", "hav", "woof"] },
-    { q: "Ktorý mesiac je prvý v roku?", a: ["január", "januar", "january"] }
-  ];
-
   useEffect(() => {
-    generateCaptcha();
     const handleClickOutside = (event) => {
       if (cityInputRef.current && !cityInputRef.current.contains(event.target)) setShowCityDropdown(false);
       if (streetInputRef.current && !streetInputRef.current.contains(event.target)) setShowStreetDropdown(false);
@@ -98,23 +79,6 @@ const Register = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  const generateCaptcha = () => {
-    const randomIndex = Math.floor(Math.random() * questionsBank.length);
-    setCaptchaQuestion({
-      question: questionsBank[randomIndex].q,
-      validAnswers: questionsBank[randomIndex].a
-    });
-    setCaptchaAnswer('');
-    setIsCaptchaCorrect(false);
-  };
-
-  const handleCaptchaChange = (e) => {
-    const val = e.target.value.toLowerCase().trim();
-    setCaptchaAnswer(e.target.value);
-    if (captchaQuestion.validAnswers.includes(val)) setIsCaptchaCorrect(true);
-    else setIsCaptchaCorrect(false);
-  };
 
   // --- ADRESS SEARCH LOGIC ---
   const searchCity = async (query) => {
@@ -133,7 +97,6 @@ const Register = () => {
   };
 
   const searchStreet = async (query) => {
-    // Nehľadáme ulicu, ak je zaškrtnuté "Obec bez ulice"
     if (query.length < 2 || !addrCity || hasNoStreet) return;
     setIsSearchingStreet(true);
     try {
@@ -169,7 +132,6 @@ const Register = () => {
     setShowCityDropdown(false);
     if (city.address.postcode) setAddrZip(city.address.postcode);
     
-    // Ak užívateľ vyberie mesto, ale má zaškrtnuté "bez ulice", focus ide na číslo
     if (hasNoStreet && numberInputRef.current) {
         numberInputRef.current.focus();
     } else if (streetInputRef.current) {
@@ -210,7 +172,6 @@ const Register = () => {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return errorMessages.emailInvalid || 'Invalid email';
         break;
       case 'addrCity': if (!value) return 'City is required'; break;
-      // Ulica je povinná len ak NIE JE zaškrtnuté "Obec bez ulice"
       case 'addrStreet': if (!value && !hasNoStreet) return 'Street is required'; break;
       case 'addrNumber': if (!value) return 'Number is required'; break;
       case 'addrZip': if (!value) return 'ZIP is required'; break;
@@ -232,29 +193,24 @@ const Register = () => {
 
   const isPasswordValid = Object.values(passwordCriteria).every(Boolean);
   const doPasswordsMatch = password && repeatPassword && password === repeatPassword;
-  // Validácia adresy: Ulica musí byť vyplnená LEN ak hasNoStreet je false
   const isAddressValid = addrCity && (hasNoStreet || addrStreet) && addrNumber && addrZip;
 
+  // VALIDACIA FORMULARA TERAZ KONTROLUJE captchaToken
   const isFormValid = 
     !Object.values(errors).some((error) => error) &&
     firstName && lastName && email &&
     isPasswordValid && doPasswordsMatch &&
     isAddressValid &&
-    gdprConsent && vopConsent && isCaptchaCorrect;
+    gdprConsent && vopConsent && captchaToken;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setApiError('');
     if (!doPasswordsMatch) return;
 
-    // LOGIKA PRE TVORBU REŤAZCA ADRESY
-    // Ak má ulicu: "Fraňa Mojtu 36, 949 01 Nitra"
-    // Ak nemá ulicu: "Preseľany 154, 956 12 Preseľany" (Namiesto ulice sa použije názov mesta alebo sa vynechá)
-    
+    // Adresa logika
     let fullAddress = '';
     if (hasNoStreet) {
-        // Pre obce bez ulíc sa zvykne písať: Obec Číslo, PSČ Obec
-        // Aby to bolo v DB pekné, použijeme Názov Obce namiesto ulice
         fullAddress = `${addrCity} ${addrNumber}, ${addrZip} ${addrCity}`;
     } else {
         fullAddress = `${addrStreet} ${addrNumber}, ${addrZip} ${addrCity}`;
@@ -265,13 +221,16 @@ const Register = () => {
       const response = await api.post('/api/register', {
         firstName, lastName, email, password,
         address: fullAddress,
-        _honey: honey
+        _honey: honey,
+        hCaptchaToken: captchaToken // POSIELAME TOKEN NA BACKEND
       });
       setApiError(`success: ${response.data.message}`);
       setTimeout(() => navigate('/login'), 3000);
     } catch (err) {
       setApiError(err.response?.data?.message || 'Registration failed');
-      generateCaptcha();
+      // Pri chybe resetujeme captchu, aby ju musel užívateľ vyplniť znova (prevencia proti replay útokom)
+      setCaptchaToken(null);
+      if (hCaptchaRef.current) hCaptchaRef.current.resetCaptcha();
     } finally {
       setLoading(false);
     }
@@ -355,7 +314,6 @@ const Register = () => {
                   value={addrStreet}
                   onChange={(e) => { setAddrStreet(e.target.value); setShowStreetDropdown(true); }}
                   onFocus={() => !hasNoStreet && setShowStreetDropdown(true)}
-                  // Ak je "Obec bez ulíc", input je deaktivovaný
                   disabled={!addrCity || hasNoStreet} 
                   className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all 
                     ${hasNoStreet ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}
@@ -372,7 +330,6 @@ const Register = () => {
                 )}
              </div>
 
-             {/* Checkbox "Obec nemá ulice" */}
              <div className="flex items-center gap-2 mt-1 mb-2">
                 <input 
                   type="checkbox" 
@@ -381,8 +338,8 @@ const Register = () => {
                   onChange={(e) => {
                       setHasNoStreet(e.target.checked);
                       if (e.target.checked) {
-                          setAddrStreet(''); // Vymazať ulicu, ak zaškrtne
-                          setErrors(prev => ({ ...prev, addrStreet: '' })); // Vymazať error
+                          setAddrStreet('');
+                          setErrors(prev => ({ ...prev, addrStreet: '' }));
                       }
                   }}
                   className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
@@ -402,7 +359,7 @@ const Register = () => {
                     value={addrNumber}
                     onChange={(e) => setAddrNumber(e.target.value)}
                     className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.addrNumber ? 'border-red-500' : 'border-gray-200 focus:border-primary-500'}`}
-                    placeholder="Číslo (154)"
+                    placeholder="Číslo"
                  />
                </div>
                <div className="col-span-2">
@@ -412,7 +369,7 @@ const Register = () => {
                     value={addrZip}
                     onChange={(e) => setAddrZip(e.target.value)}
                     className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.addrZip ? 'border-red-500' : 'border-gray-200 focus:border-primary-500'}`}
-                    placeholder="PSČ (956 12)"
+                    placeholder="PSČ"
                  />
                </div>
              </div>
@@ -455,13 +412,13 @@ const Register = () => {
             </div>
           </div>
 
-          {/* CAPTCHA */}
-          <div className="p-4 bg-primary-50 rounded-xl border border-primary-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-             <div className="text-sm font-medium text-gray-700">{t?.login?.register?.securityQuestion || 'Bezpečnostná otázka'}: <span className="block sm:inline sm:ml-2 text-lg font-bold text-primary-700">{captchaQuestion.question}</span></div>
-             <div className="flex items-center gap-2 w-full sm:w-auto">
-               <input type="text" value={captchaAnswer} onChange={handleCaptchaChange} className={`w-full sm:w-32 px-3 py-2 border rounded-lg text-center font-bold outline-none transition-all ${isCaptchaCorrect ? 'border-green-500 bg-green-50 text-green-700 ring-2 ring-green-200' : 'border-gray-300 focus:border-primary-500 bg-white'}`} placeholder="odpoveď" />
-               <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">{isCaptchaCorrect && <CheckIcon className="w-6 h-6 text-green-600" />}</div>
-             </div>
+          {/* --- HCAPTCHA IMPLEMENTÁCIA --- */}
+          <div className="flex justify-center py-2">
+            <HCaptcha
+              sitekey="10000000-ffff-ffff-ffff-000000000001" 
+              onVerify={(token) => setCaptchaToken(token)}
+              ref={hCaptchaRef}
+            />
           </div>
 
           <button type="submit" className={`w-full py-4 px-6 rounded-xl text-white font-bold text-lg shadow-lg transition-all duration-300 transform hover:-translate-y-1 ${isFormValid ? 'bg-primary-500 hover:bg-primary-600 hover:shadow-primary-500/30' : 'bg-gray-300 cursor-not-allowed shadow-none'}`} disabled={!isFormValid || loading}>

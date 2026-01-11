@@ -179,6 +179,7 @@ const UserProfile = () => {
         }
       } catch (e) { console.error(e); }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing]); // Odstránené editedAddress zo závislostí aby sa neprepisovalo počas písania, len pri otvorení
 
   // Click outside handler
@@ -217,12 +218,13 @@ const UserProfile = () => {
   useEffect(() => {
     const timer = setTimeout(() => { if (addrCity && showCityDropdown) searchCity(addrCity); }, 500);
     return () => clearTimeout(timer);
-  }, [addrCity]);
+  }, [addrCity, showCityDropdown]);
 
   useEffect(() => {
     const timer = setTimeout(() => { if (addrStreet && showStreetDropdown && !hasNoStreet) searchStreet(addrStreet); }, 500);
     return () => clearTimeout(timer);
-  }, [addrStreet, hasNoStreet]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addrStreet, hasNoStreet, showStreetDropdown]);
 
   const handleSelectCity = (city) => {
     const cityName = city.address.city || city.address.town || city.address.village || city.display_name.split(',')[0];
@@ -242,7 +244,7 @@ const UserProfile = () => {
   };
 
   // Upravený SAVE handler (spojí adresu dokopy)
-  const handleUpdateProfileSmart = async () => {
+  const handleUpdateProfile = async () => {
     setIsUpdating(true);
     setUpdateMessage('');
     
@@ -315,42 +317,6 @@ const UserProfile = () => {
       console.log('[DEBUG] Bookings refreshed after cancellation');
     } catch (error) {
       console.error('Error refreshing sessions:', error);
-    }
-  };
-
-  const handleUpdateProfile = async () => {
-    if (!editedAddress.trim()) {
-      setUpdateMessage(t?.profile?.update?.error?.required || 'Address is required');
-      setUpdateVariant('danger');
-      return;
-    }
-
-    setIsUpdating(true);
-    try {
-      const response = await api.put(
-        `/api/users/${userId}`,
-        {
-          address: editedAddress.trim(),
-          mobile: editedMobile.trim() || null,
-        }
-      );
-
-      setUpdateMessage(t?.profile?.update?.success || 'Profile updated successfully!');
-      setUpdateVariant('success');
-      setIsEditing(false);
-
-      localStorage.setItem('userAddress', editedAddress.trim());
-
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      setUpdateMessage(
-        error.response?.data?.error ||
-        t?.profile?.update?.error?.generic ||
-        'Failed to update profile'
-      );
-      setUpdateVariant('danger');
-    } finally {
-      setIsUpdating(false);
     }
   };
 
@@ -1240,7 +1206,7 @@ const UserProfile = () => {
                   <div className="flex gap-3 pt-2">
                     <button
                       className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      onClick={handleUpdateProfileSmart}
+                      onClick={handleUpdateProfile}
                       disabled={isUpdating || !addrCity || !addrZip || !addrNumber}
                     >
                       {isUpdating
