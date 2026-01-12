@@ -1,4 +1,5 @@
 require('dotenv').config({ path: './cred.env' });
+const emailService = require('./services/emailService');
 console.log('ADMIN_EMAIL:', process.env.ADMIN_EMAIL);
 
 const PORT = process.env.PORT || 5000;
@@ -8,7 +9,6 @@ console.log('DB_USER:', process.env.DB_USER);
 
 const express = require('express');
 const cors = require('cors');
-const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const axios = require('axios');
@@ -37,308 +37,15 @@ app.use((req, res, next) => {
 
 const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hodina
-  max: 5, 
+  max: 5,
   message: { message: 'Príliš veľa pokusov o registráciu z tejto IP adresy, skúste to prosím neskôr.' },
-  standardHeaders: true, 
+  standardHeaders: true,
   legacyHeaders: false,
 });
 
-const sendVerificationEmail = async (userEmail, userName, verificationLink) => {
-  const subject = 'Vitajte v Nitráčiku - Overenie emailu';
-
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: userEmail,
-    subject,
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
-          .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-          .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #eab308; } /* Žltá linka pre Nitráčik štýl */
-          .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
-          .highlight-box { background-color: #fefce8; border: 1px solid #fde047; border-radius: 6px; padding: 20px; margin: 25px 0; text-align: center; font-style: italic; }
-          .btn-verify { display: block; width: 200px; margin: 20px auto; padding: 12px 20px; background-color: #2563eb; color: #ffffff !important; text-decoration: none; border-radius: 6px; text-align: center; font-weight: bold; }
-          .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
-          p { margin-bottom: 15px; }
-          .quote-en { color: #d97706; font-weight: bold; font-size: 18px; display: block; margin-bottom: 5px; }
-          .quote-sk { color: #555; font-size: 16px; }
-        </style>
-      </head>
-      <body>
-        <div style="background-color: #f4f4f4; padding: 40px 0;">
-          <div class="container">
-            <div class="header">
-              <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
-            </div>
-            <div class="content">
-              <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName}.</p>
-
-              <p>Vitajte v Nitráčiku! Sme veľmi radi, že sa k nám pridávate.</p> 
-              
-              <p>Už Vám chýba len jeden malý krok, aby ste sa mohli naplno ponoriť do nášho sveta plného farieb a zábavy. Prosím, potvrďte svoju registráciu kliknutím na tlačidlo nižšie:</p>
-
-              <a href="${verificationLink}" class="btn-verify">OVERIŤ EMAIL</a>
-
-              <p style="text-align: center; font-size: 12px; color: #999;">Ak tlačidlo nefunguje, skopírujte tento odkaz do prehliadača:<br/>${verificationLink}</p>
-
-              <div class="highlight-box">
-                 <span class="quote-en">"Wow, look at all the colors you're mixing!"</span>
-                 <span class="quote-sk">"Jéj, pozri na tie farby, čo miešaš!"</span>
-              </div>
-
-              <div style="margin-top: 30px;">
-                <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
-                <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
-                <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
-              </div>
-            </div>
-            <div class="footer">
-              <div style="margin-bottom: 15px;">
-                <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
-                  <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
-                </a>
-                <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
-                  <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
-                </a>
-              </div>
-              <p style="margin: 0;">© 2026 O.z. Nitráčik.</p>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
-    attachments: [
-      {
-        filename: 'logo_bez.PNG',
-        path: path.join(__dirname, '..', 'public', 'logo_bez.PNG'),
-        cid: 'nitracikLogo'
-      },
-      {
-        filename: 'instagram.png',
-        path: path.join(__dirname, '..', 'public', 'instagram.png'),
-        cid: 'igIcon'
-      },
-      {
-        filename: 'facebook.png',
-        path: path.join(__dirname, '..', 'public', 'facebook.png'),
-        cid: 'fbIcon'
-      }
-    ]
-  };
-  return transporter.sendMail(mailOptions);
-};
-
-// Pridal som parameter 'userName', aby sme mohli osloviť zákazníka menom
-const sendUserBookingEmail = async (userEmail, sessionDetails) => {
-  // 1. Získame dáta z objektu (userName je teraz vnútri)
-  const userName = sessionDetails.userName || 'Osôbka';
-  const bookingDate = dayjs(sessionDetails.date).format('DD.MM.YYYY');
-  const bookingDay = dayjs(sessionDetails.date).format('dddd');
-  const formattedDateString = `${bookingDate} (${bookingDay})`;
-
-  const SUBJECTS = {
-    credit: 'Rezervácia – uhradená kreditom | Nitráčik',
-    season_ticket: 'Rezervácia – uplatnený permanentný vstup | Nitráčik',
-    payment: 'Potvrdenie rezervácie | Nitráčik'
-  };
-
-  const PAYMENT_TEXT = {
-    credit: 'rezervácia bola uhradená z vášho kreditu',
-    season_ticket: 'rezervácia bola odpočítaná z permanentného vstupu',
-    payment: 'platba prebehla úspešne'
-  };
-
-  // Default hodnota pre paymentType, ak by chýbala
-  const pType = sessionDetails.paymentType || 'payment';
-
-  const subject = SUBJECTS[pType];
-  const paymentInfo = PAYMENT_TEXT[pType];
-
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: userEmail,
-    subject,
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
-          .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-          .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #eab308; }
-          .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
-          .highlight-box { background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 15px; margin: 20px 0; text-align: left; }
-          .highlight-item { margin-bottom: 5px; font-size: 15px; }
-          .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
-          p { margin-bottom: 15px; }
-        </style>
-      </head>
-      <body>
-        <div style="background-color: #f4f4f4; padding: 40px 0;">
-          <div class="container">
-            <div class="header">
-              <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
-            </div>
-            <div class="content">
-              <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName}.</p>
-
-              <p>Prinášam dobrú správu, že vaša ${paymentInfo} za <strong>MESSY&SENSORY play NITRÁČIK - ${sessionDetails.trainingType || 'Tréning'}</strong>.</p>
-
-              <div class="highlight-box">
-                <div class="highlight-item">📅 <strong>Dátum:</strong> ${formattedDateString}</div>
-                <div class="highlight-item">⏰ <strong>Čas:</strong> ${sessionDetails.start_time || sessionDetails.time}</div>
-                <div class="highlight-item">📍 <strong>Miesto:</strong> 
-                        <a href="https://www.google.com/maps/search/?api=1&query=Štefánikova+trieda+148,+Nitra" 
-                          style="color: #2563eb; text-decoration: underline;">
-                          Štefánikova trieda 148, Nitra</a>
-                  </div>
-              </div>
-
-              <p>Teším sa na kopu krásnych ufúľaných momentov.</p> 
-              <p>Skvelé bude, ak so sebou prinesiete náhradné oblečenie, ktoré možno ušpiniť a malý uteráčik.</p>
-              <p>Odporúčam vziať gumené šľapky aj pre sprevádzajúcu osobu, ktoré zvládnu aj klzký terén, nakoľko vodné a podobné aktivity sú a budú pevnou súčasťou hodín 😉.</p>
-              <p>Prosím o dochvíľnosť, aby Vám neušla ani jedna zaujímavá chvíľa 🙃. Herný priestor sa sprístupní až v momente dohodnutého času, aby mali všetky detičky rovnaký “štart” a naplno si mohli vychutnať pekne pripravené stanovištia.</p>
-              <p>Vstup je cez vnútorné átrium, takže neklopkajte na prvé dvere, ale pokračujte cez bráničku, na ktorej vás bude vítať tabuľka <strong>“VITAJTE U NITRÁČIKA”</strong>.</p>
-              <p>Parkovanie je zadarmo pred budovou alebo zboku v areáli železníc.</p>
-              <p>Ďakujem za dôveru a podporu a teším sa na osobné stretnutie.</p>
-
-              <div style="margin-top: 30px;">
-                <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
-                <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
-                <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
-                <p style="font-size: 13px; color: #666; margin: 0;">+421 949 584 576</p>
-              </div>
-            </div>
-            <div class="footer">
-              <div style="margin-bottom: 15px;">
-                <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
-                  <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
-                </a>
-                <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
-                  <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
-                </a>
-              </div>
-              <p style="margin: 0;">© 2026 O.z. Nitráčik. Všetky práva vyhradené.</p>
-              <p style="margin: 5px 0 0 0;">oznitracik@gmail.com</p>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
-    attachments: [
-      {
-        filename: 'logo_bez.PNG',
-        path: path.join(__dirname, '..', 'public', 'logo_bez.PNG'),
-        cid: 'nitracikLogo'
-      },
-      {
-        filename: 'instagram.png',
-        path: path.join(__dirname, '..', 'public', 'instagram.png'),
-        cid: 'igIcon'
-      },
-      {
-        filename: 'facebook.png',
-        path: path.join(__dirname, '..', 'public', 'facebook.png'),
-        cid: 'fbIcon'
-      }
-    ]
-  };
-  return transporter.sendMail(mailOptions);
-};
-
-const sendAccountDeletedEmail = async (userEmail, userName) => {
-  const subject = 'Rozlúčka s Nitráčikom - Potvrdenie zrušenia účtu';
-
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: userEmail,
-    subject,
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
-          .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-          .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #ef4444; } /* Červená linka pre delete */
-          .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
-          .highlight-box { background-color: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; padding: 20px; margin: 25px 0; text-align: center; font-style: italic; }
-          .highlight-item { margin-bottom: 5px; font-size: 15px; }
-          .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
-          p { margin-bottom: 15px; }
-          .quote-en { color: #ef4444; font-weight: bold; font-size: 18px; display: block; margin-bottom: 5px; }
-          .quote-sk { color: #555; font-size: 16px; }
-        </style>
-      </head>
-      <body>
-        <div style="background-color: #f4f4f4; padding: 40px 0;">
-          <div class="container">
-            <div class="header">
-              <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
-            </div>
-            <div class="content">
-              <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName || 'kamarát'}.</p>
-
-              <p>S ľútosťou Vám potvrdzujem, že Váš účet bol na Vašu žiadosť úspešne zrušený a Vaše osobné údaje boli vymazané z nášho systému.</p>
-
-              <p>Hoci sa naše cesty nateraz rozchádzajú, chcem Vám poďakovať, že ste boli súčasťou nášho ufúľaného sveta.</p>
-              
-              <p>Mrzí nás, že odchádzate, ale dvere u nás máte vždy otvorené. Kedykoľvek sa na nás v budúcnosti obrátite, radi Vás opäť privítame medzi nami.</p>
-
-              <div class="highlight-box">
-                 <span class="quote-en">"Sorry about the mess, we're making memories!"</span>
-                 <span class="quote-sk">"Prepáčte ten neporiadok, tvorili sme spomienky!"</span>
-              </div>
-
-              <div style="margin-top: 30px;">
-                <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
-                <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
-                <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
-              </div>
-            </div>
-            <div class="footer">
-              <div style="margin-bottom: 15px;">
-                <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
-                  <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
-                </a>
-                <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
-                  <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
-                </a>
-              </div>
-              <p style="margin: 0;">© 2026 O.z. Nitráčik.</p>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
-    attachments: [
-      {
-        filename: 'logo_bez.PNG',
-        path: path.join(__dirname, '..', 'public', 'logo_bez.PNG'),
-        cid: 'nitracikLogo'
-      },
-      {
-        filename: 'instagram.png',
-        path: path.join(__dirname, '..', 'public', 'instagram.png'),
-        cid: 'igIcon'
-      },
-      {
-        filename: 'facebook.png',
-        path: path.join(__dirname, '..', 'public', 'facebook.png'),
-        cid: 'fbIcon'
-      }
-    ]
-  };
-  return transporter.sendMail(mailOptions);
-};
 
 app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  console.log('🔹 [DEBUG] Webhook hit!'); // 1. Zistíme, či sem vôbec Stripe trafí
   const sig = req.headers['stripe-signature'];
   let event;
 
@@ -356,51 +63,76 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
+    console.log('📦 [DEBUG] Session data:', JSON.stringify(session.metadata, null, 2));
     const client = await pool.connect();
 
     try {
       await client.query('BEGIN');
 
+      // === 1. SEASON TICKET (Permanentka) ===
       if (session.metadata.type === 'season_ticket') {
         const { userId, entries, totalPrice } = session.metadata;
-        const expiryDate = new Date();
-        expiryDate.setFullYear(expiryDate.getFullYear() + 1); // 1 year expiry
+        console.log(`Processing Season Ticket for User: ${userId}, Entries: ${entries}, Price: ${totalPrice}`);
+        
+        // Konverzia typov (Stripe posiela stringy)
+        const entriesInt = parseInt(entries, 10);
+        const priceFloat = parseFloat(totalPrice);
 
+        // Bezpečnostná kontrola: sedia ceny s novým cenníkom?
+        const validPrices = { 3: 40, 5: 65, 10: 120 };
+        if (validPrices[entriesInt] !== priceFloat) {
+             console.error(`[SECURITY] Price mismatch. Entries: ${entriesInt}, Paid: ${priceFloat}`);
+             throw new Error('Payment amount verification failed');
+        }
+
+        // Exspirácia (1 rok od nákupu)
+        const expiryDate = new Date();
+        expiryDate.setMonth(expiryDate.getMonth() + 6); //6 mesiacov
+
+        console.log('📝 [DEBUG] Attempting INSERT into DB...');
+
+        // === INSERT DO DB (Vrátane amount_paid a payment_time) ===
         const ticketResult = await client.query(
-          `INSERT INTO season_tickets (user_id, entries_total, entries_remaining, purchase_date, expiry_date, stripe_payment_id, amount_paid, payment_time)
-           VALUES ($1, $2, $2, NOW(), $3, $4, $5, $6) RETURNING *`,
-          [userId, entries, expiryDate, session.id, parseFloat(totalPrice), new Date(session.created * 1000)]
+          `INSERT INTO season_tickets (
+              user_id, 
+              entries_total, 
+              entries_remaining, 
+              purchase_date, 
+              expiry_date, 
+              stripe_payment_id, 
+              amount_paid, 
+              payment_time,
+              created_at,
+              updated_at
+           )
+           VALUES ($1, $2, $2, NOW(), $3, $4, $5, $6, NOW(), NOW()) 
+           RETURNING id`,
+          [
+            parseInt(userId, 10),            // $1: user_id
+            entriesInt,                      // $2: entries_total (aj remaining)
+            expiryDate,                      // $3: expiry_date
+            session.id,                      // $4: stripe_payment_id
+            priceFloat,                      // $5: amount_paid
+            new Date(session.created * 1000) // $6: payment_time (zo Stripe timestampu)
+          ]
         );
 
-        console.log('[DEBUG] Season ticket created:', {
-          ticketId: ticketResult.rows[0].id,
-          userId,
-          entries,
-          amountPaid: totalPrice
-        });
+        console.log('[DEBUG] Season ticket created ID:', ticketResult.rows[0].id);
 
+        // Odoslanie emailu užívateľovi
         const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
         const user = userResult.rows[0];
 
-        const mailOptions = {
-          from: process.env.EMAIL_USER,
-          to: user.email,
-          subject: 'Season Ticket Purchase Confirmation',
-          text: `
-            Hello ${user.first_name},
-            Your season ticket purchase for ${entries} entries has been confirmed!
-            Details:
-            - Total Entries: ${entries}
-            - Price: €${totalPrice}
-            - Purchase Date: ${new Date().toLocaleDateString()}
-            - Expiry Date: ${expiryDate.toLocaleDateString()}
-            Thank you!
-            Nitracik Team
-          `.trim(),
-        };
+        if (user) {
+          console.log('📧 [DEBUG] Sending email to:', user.email);
+            await emailService.sendSeasonTicketConfirmation(user.email, user.first_name, {
+              entries: entriesInt, 
+              totalPrice: priceFloat, 
+              expiryDate
+            });
+            console.log('[DEBUG] Confirmation email sent to:', user.email);
+        }
 
-        await transporter.sendMail(mailOptions);
-        console.log('[DEBUG] Season ticket email sent to:', user.email);
       } else if (session.metadata.type === 'training_session') {
         const {
           userId,
@@ -473,28 +205,6 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
         const user = userResult.rows[0];
 
-        const adminMailOptions = {
-          from: process.env.EMAIL_USER,
-          to: process.env.ADMIN_EMAIL,
-          subject: 'New Booking Request',
-          text: `
-            User: ${user.first_name} ${user.last_name}
-            Email: ${user.email}
-            Address: ${user.address}
-            Mobile: ${mobile || 'Not provided'}
-            Children: ${childrenCount}
-            Children Age: ${childrenAge}
-            Training: ${trainingType}
-            Date: ${selectedDate}
-            Time: ${selectedTime}
-            Photo Consent: ${(photoConsent === true || photoConsent === 'true') ? 'Agreed' : 'Declined'}
-            Accompanying Person: ${(accompanyingPerson === true || accompanyingPerson === 'true') ? 'Yes' : 'No'}
-            Notes: ${note || 'No additional notes'}
-            Price: €${totalPrice}
-            Payment Intent: ${paymentIntentId}
-          `.trim(),
-        };
-
         // 1. ZÍSKANIE EMAILU A MENA
         // Email berieme primárne z účtu v DB, ak by tam nebol, záložne zo Stripe
         const targetEmail = user.email || session.customer_details?.email;
@@ -503,7 +213,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
 
         // 2. ODOSLANIE EMAILU
         try {
-          await sendUserBookingEmail(targetEmail, {
+          await emailService.sendUserBookingEmail(targetEmail, {
             date: selectedDate,
             start_time: selectedTime,
             trainingType: trainingType,
@@ -516,7 +226,9 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         }
 
         // 3. ODOSLANIE EMAILU ADMINOVI (pôvodný kód)
-        await transporter.sendMail(adminMailOptions);
+        await emailService.sendAdminNewBookingNotification(process.env.ADMIN_EMAIL, {
+          user, mobile, childrenCount, childrenAge, trainingType, selectedDate, selectedTime, photoConsent, accompanyingPerson, note, totalPrice, paymentIntentId
+        });
 
         console.log('[DEBUG] Booking confirmation emails sent to admin and user');
       }
@@ -567,7 +279,7 @@ app.post('/stripe-refund-webhook', express.raw({ type: 'application/json' }), as
 });
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); 
+app.use(express.urlencoded({ extended: true }));
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
@@ -1129,7 +841,7 @@ app.post('/api/create-season-ticket-payment', isAuthenticated, async (req, res) 
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const pricing = { 5: 60, 10: 100 };
+    const pricing = { 3: 40, 5: 65, 10: 120 };
     if (pricing[entries] !== totalPrice) {
       return res.status(400).json({ error: 'Price validation failed' });
     }
@@ -1183,6 +895,12 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
 
     if (!userId || !seasonTicketId || !trainingType || !selectedDate || !selectedTime || !childrenCount) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Ak tréning NIE JE 'MIDI' ani 'MAXI', vyhodíme chybu.
+    const allowedTypes = ['MIDI', 'MAXI'];
+    if (!allowedTypes.includes(trainingType)) {
+      return res.status(400).json({ error: 'Season tickets are valid only for MIDI and MAXI training sessions.' });
     }
 
     // Verify season ticket
@@ -1253,38 +971,19 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
     const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
     const user = userResult.rows[0];
 
-    // Send emails
-    const adminMailOptions = {
-      from: process.env.EMAIL_USER,
-      to: process.env.ADMIN_EMAIL,
-      subject: 'New Booking Request (Season Ticket)',
-      text: `
-        User: ${user.first_name} ${user.last_name}
-        Email: ${user.email}
-        Address: ${user.address}
-        Mobile: ${mobile || 'Not provided'}
-        Children: ${childrenCount}
-        Children Age: ${childrenAge}
-        Training: ${trainingType}
-        Date: ${selectedDate}
-        Time: ${selectedTime}
-        Photo Consent: ${(photoConsent === true || photoConsent === 'true') ? 'Agreed' : 'Declined'}
-        Notes: ${note || 'No additional notes'}
-        Season Ticket ID: ${seasonTicketId}
-      `.trim(),
-    };
-
-    await sendUserBookingEmail(user.email, {
+    // 1. User mail (zostáva volanie tvojho servisu, len sa uisti že má prefix emailService)
+    await emailService.sendUserBookingEmail(user.email, {
       date: selectedDate,
       start_time: selectedTime,
       trainingType: trainingType,
       userName: user.first_name,
-      paymentType: user.season_ticket_id ? 'season_ticket' : 'credit' // Dôležité pre správny predmet mailu
+      paymentType: user.season_ticket_id ? 'season_ticket' : 'credit'
     });
 
-    await Promise.all([
-      transporter.sendMail(adminMailOptions),
-    ]);
+    // 2. Admin mail
+    await emailService.sendAdminSeasonTicketUsage(process.env.ADMIN_EMAIL, {
+      user, mobile, childrenCount, childrenAge, trainingType, selectedDate, selectedTime, photoConsent, note, seasonTicketId
+    });
 
     await client.query('COMMIT');
     res.json({ success: true });
@@ -1519,16 +1218,16 @@ app.use((req, res, next) => {
 
 function validateEnvVariables() {
   const requiredEnvVars = [
-    'EMAIL_USER', 
-    'EMAIL_PASS', 
-    'DB_USER', 
-    'DB_HOST', 
-    'DB_NAME', 
-    'DB_PASSWORD', 
-    'DB_PORT', 
-    'STRIPE_SECRET_KEY', 
-    'STRIPE_WEBHOOK_SECRET', 
-    'FRONTEND_URL', 
+    'EMAIL_USER',
+    'EMAIL_PASS',
+    'DB_USER',
+    'DB_HOST',
+    'DB_NAME',
+    'DB_PASSWORD',
+    'DB_PORT',
+    'STRIPE_SECRET_KEY',
+    'STRIPE_WEBHOOK_SECRET',
+    'FRONTEND_URL',
     'SESSION_SECRET',
     'HCAPTCHA_SECRET' // <--- PRIDANÉ TU
   ];
@@ -1543,49 +1242,9 @@ function validateEnvVariables() {
 
 validateEnvVariables();
 
-let transporter;
-try {
-  transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    // ✅ Pridané podľa Gemini
-    tls: {
-      rejectUnauthorized: false // Ignoruje problémy s certifikátom
-    },
-    // ✅ Pridané pre lepšiu diagnostiku
-    debug: false,
-    logger: false
-  });
-
-  transporter.verify(function (error, success) {
-    if (error) {
-      console.log('❌ Email server connection failed:', error.message);
-      console.log('💡 Debug info:', {
-        host: 'smtp.gmail.com',
-        port: 587,
-        user: process.env.EMAIL_USER ? '***' + process.env.EMAIL_USER.slice(-10) : 'missing'
-      });
-    } else {
-      console.log('✅ Email server is ready to send messages');
-    }
-  });
-} catch (error) {
-  console.error('Nodemailer Initialization Error:', error.message);
-}
-
 app.get('/api/test-email', async (req, res) => {
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.ADMIN_EMAIL,
-      subject: 'Test Email',
-      text: 'This is a test email from Nitracik.',
-    });
+    await emailService.sendTestEmail(process.env.ADMIN_EMAIL);
     res.json({ message: 'Test email sent successfully' });
   } catch (error) {
     console.error('Test email error:', error);
@@ -1593,15 +1252,15 @@ app.get('/api/test-email', async (req, res) => {
   }
 });
 
-async function sendEmail(mailOptions) {
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log(`Email sent to ${mailOptions.to}`);
-  } catch (error) {
-    console.error(`Error sending email to ${mailOptions.to}:`, error);
-    throw error;
-  }
-}
+// async function sendEmail(mailOptions) {
+//   try {
+//     await transporter.sendMail(mailOptions);
+//     console.log(`Email sent to ${mailOptions.to}`);
+//   } catch (error) {
+//     console.error(`Error sending email to ${mailOptions.to}:`, error);
+//     throw error;
+//   }
+// }
 
 function validateEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -1652,7 +1311,7 @@ app.post('/api/register', registerLimiter, async (req, res) => {
   if (!firstName || !lastName || !email || !password || !address) {
     return res.status(400).json({ message: 'Všetky polia sú povinné.' });
   }
-  
+
   // Validácia hesla
   if (!PASSWORD_REGEX.test(password)) {
     return res.status(400).json({
@@ -1691,15 +1350,15 @@ app.post('/api/register', registerLimiter, async (req, res) => {
     await client.query('COMMIT');
 
     // Odoslanie emailu (asynchrónne, neblokujeme response)
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000'; 
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const verificationLink = `${baseUrl}/verify-email?token=${verificationToken}`;
 
-    sendVerificationEmail(email, firstName, verificationLink).catch(err => 
-        console.error('Email send failed:', err)
+    emailService.sendVerificationEmail(email, firstName, verificationLink).catch(err =>
+      console.error('Email send failed:', err)
     );
 
-    res.status(201).json({ 
-        message: 'Registrácia úspešná! Skontrolujte si email pre aktiváciu účtu.' 
+    res.status(201).json({
+      message: 'Registrácia úspešná! Skontrolujte si email pre aktiváciu účtu.'
     });
 
   } catch (error) {
@@ -1725,14 +1384,9 @@ app.post('/api/forgot-password', async (req, res) => {
 
     const clientUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const resetLink = `${clientUrl}/reset-password?token=${resetToken}`;
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Password Reset',
-      text: `Click the following link to reset your password: ${resetLink}`,
-    };
 
-    await sendEmail(mailOptions);
+    await emailService.sendPasswordResetEmail(email, resetLink);
+
     res.status(200).json({ message: 'Password reset link sent to your email.' });
   } catch (error) {
     console.error('Error in forgot password:', error);
@@ -1771,8 +1425,8 @@ app.get('/api/verify-email', async (req, res) => {
 
     if (result.rows.length === 0) {
       // OPRAVA: Ak token nie je v DB, znamená to, že je neplatný alebo už bol použitý.
-      return res.status(400).json({ 
-        message: 'Tento overovací odkaz je neplatný alebo už bol použitý.' 
+      return res.status(400).json({
+        message: 'Tento overovací odkaz je neplatný alebo už bol použitý.'
       });
     }
 
@@ -2292,50 +1946,13 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
 
     // 5. Send cancellation emails with refund information
     try {
-      const adminMailOptions = {
-        from: process.env.EMAIL_USER,
-        to: process.env.ADMIN_EMAIL,
-        subject: 'Session Cancellation Notification',
-        text: `
-          Session Cancellation
-          User: ${booking.first_name} ${booking.last_name}
-          Email: ${booking.email}
-          Training: ${booking.training_type}
-          Date: ${new Date(booking.training_date).toLocaleString()}
-          Children: ${booking.number_of_children}
-          Refund Status: ${refundData ? (refundData.id ? `Processed (${refundData.id})` : `Failed: ${refundData.error}`) : 'Not applicable (season ticket)'}
-          Amount: €${booking.amount_paid || 0}
-        `.trim(),
-      };
-
-      const userMailOptions = {
-        from: process.env.EMAIL_USER,
-        to: booking.email,
-        subject: 'Session Cancellation Confirmation',
-        text: `
-          Hello ${booking.first_name},
-          Your ${booking.training_type} training session on ${new Date(booking.training_date).toLocaleString()} has been successfully canceled.
-          ${refundData && refundData.id ? `
-            Refund Information:
-            - Amount: €${booking.amount_paid}
-            - Refund ID: ${refundData.id}
-            - Status: ${refundData.status}
-            The refund may take 5-10 business days to appear in your account.
-          ` : refundData && refundData.error ? `
-            Refund Status: Failed to process refund: ${refundData.error}. Please contact support.
-          ` : usageResult.rows.length > 0 ? `
-            Season Ticket: ${booking.number_of_children} entries have been returned to your season ticket.
-          ` : ''}
-          If you have any questions, please contact us.
-          Best regards,
-          Nitracik Team
-        `.trim(),
-      };
-
-      await Promise.all([
-        transporter.sendMail(adminMailOptions),
-        transporter.sendMail(userMailOptions),
-      ]);
+      await emailService.sendCancellationEmails(
+        process.env.ADMIN_EMAIL,
+        booking.email,
+        booking,
+        refundData,
+        usageResult
+      );
       console.log('[DEBUG] Cancellation emails sent successfully');
     } catch (emailError) {
       console.error('[DEBUG] Error sending cancellation emails:', emailError.message);
@@ -2525,37 +2142,12 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
     const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
     for (const booking of bookings) {
-      const refundUrl = `${FRONTEND_URL}/refund-option?bookingId=${booking.booking_id}&action=refund`;
-      const creditUrl = `${FRONTEND_URL}/refund-option?bookingId=${booking.booking_id}&action=credit`;
-
-      const sessionDate = new Date(booking.training_date).toLocaleString('en-GB', {
-        dateStyle: 'full',
-        timeStyle: 'short',
-      });
-
-      const html = `
-        <div style="font-family:Arial, sans-serif; line-height:1.6;">
-          <h3>Training Session Cancelled</h3>
-          <p>Dear ${booking.first_name},</p>
-          <p>Your <strong>${booking.training_type}</strong> training on <strong>${sessionDate}</strong> has been cancelled.</p>
-          <p>Reason: ${reason || 'No reason provided.'}</p>
-          <p>Please choose one of the following:</p>
-          <div style="margin:20px 0;">
-            <a href="${refundUrl}" style="background:#e63946;color:white;padding:10px 20px;text-decoration:none;border-radius:6px;">💳 Request Refund</a>
-            &nbsp;&nbsp;
-            <a href="${creditUrl}" style="background:#2a9d8f;color:white;padding:10px 20px;text-decoration:none;border-radius:6px;">🎫 Accept Credit</a>
-          </div>
-          <p>If you take no action, your payment will remain on hold.</p>
-          <p>Best regards,<br/>Nitracik Team</p>
-        </div>
-      `;
-
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: booking.email,
-        subject: `Cancelled: ${booking.training_type} Training`,
-        html,
-      });
+      await emailService.sendMassCancellationEmail(
+        booking.email,
+        booking,
+        reason,
+        FRONTEND_URL
+      );
     }
 
     await client.query('COMMIT');
@@ -2988,40 +2580,19 @@ app.post('/api/bookings/use-credit', async (req, res) => {
         const user = userResult.rows[0];
         const training = trainingResult.rows[0];
 
-        // Admin email
-        const adminMailOptions = {
-          from: process.env.EMAIL_USER,
-          to: process.env.ADMIN_EMAIL,
-          subject: 'Credit-Based Booking Created',
-          text: `
-            New booking created using credit:
-            User: ${user.first_name} ${user.last_name}
-            Email: ${user.email}
-            Training: ${training.training_type}
-            Date: ${new Date(training.training_date).toLocaleString()}
-            Children: ${credit.child_count}
-            Children Ages: ${finalChildrenAges}
-            Mobile: ${finalMobile}
-            Photo Consent: ${finalPhotoConsent ? 'Agreed' : 'Declined'}
-            Notes: ${finalNote || 'None'}
-            Booking ID: ${bookingId}
-            Credit ID: ${creditId}
-            Original cancelled session cleared: ${originalSessionId || 'N/A'}
-          `.trim(),
-        };
-
         // User email
-        await sendUserBookingEmail(user.email, {
+        await emailService.sendUserBookingEmail(user.email, {
           date: selectedDate,
           start_time: selectedTime,
           trainingType: trainingType,
           userName: user.first_name,
-          paymentType: user.season_ticket_id ? 'season_ticket' : 'credit' // Dôležité pre správny predmet mailu
+          paymentType: user.season_ticket_id ? 'season_ticket' : 'credit'
         });
 
-        await Promise.all([
-          transporter.sendMail(adminMailOptions),
-        ]);
+        // Admin mail
+        await emailService.sendAdminCreditUsage(process.env.ADMIN_EMAIL, {
+          user, training, credit, finalChildrenAges, finalMobile, finalPhotoConsent, finalNote, bookingId, creditId, originalSessionId
+        });
 
         console.log('[DEBUG] Confirmation emails sent successfully');
       }
@@ -3159,41 +2730,9 @@ app.post('/api/contact', async (req, res) => {
     }
 
     // Send email to admin
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: process.env.ADMIN_EMAIL,
-      subject: `New Contact Form Message from ${name}`,
-      text: `
-        Name: ${name}
-        Email: ${email}
-        Message: ${message}
-        
-        Sent from Nitracik contact form.
-      `.trim(),
-      replyTo: email
-    };
-
-    await transporter.sendMail(mailOptions);
-
-    // Send confirmation email to user
-    const userMailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Thank you for contacting Nitracik',
-      text: `
-        Dear ${name},
-        
-        Thank you for contacting Nitracik! We have received your message and will get back to you as soon as possible.
-        
-        Your message:
-        "${message}"
-        
-        Best regards,
-        Nitracik Team
-      `.trim()
-    };
-
-    await transporter.sendMail(userMailOptions);
+    await emailService.sendContactFormEmails(process.env.ADMIN_EMAIL, {
+      name, email, message
+    });
 
     res.status(200).json({ message: 'Message sent successfully' });
   } catch (error) {
@@ -3249,7 +2788,7 @@ app.delete('/api/users/:id', async (req, res) => {
     // KROK C: Odošleme rozlúčkový email (ak sme našli email)
     if (userInfo && userInfo.email) {
       console.log(`Sending delete email to: ${userInfo.email}`);
-      sendAccountDeletedEmail(userInfo.email, userNameForEmail).catch(err =>
+      emailService.sendAccountDeletedEmail(userInfo.email, userNameForEmail).catch(err =>
         console.error('Failed to send delete confirmation email:', err)
       );
     }
