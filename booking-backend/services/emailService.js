@@ -92,31 +92,43 @@ module.exports = {
 
     // 2. Booking email
     sendUserBookingEmail: async (userEmail, sessionDetails) => {
-        const userName = sessionDetails.userName || 'Osôbka';
-        const bookingDate = dayjs(sessionDetails.date).format('DD.MM.YYYY');
-        const bookingDay = dayjs(sessionDetails.date).format('dddd');
-        const formattedDateString = `${bookingDate} (${bookingDay})`;
+    const userName = sessionDetails.userName || 'Osôbka';
+    const bookingDate = dayjs(sessionDetails.date).format('DD.MM.YYYY');
+    const bookingDay = dayjs(sessionDetails.date).format('dddd');
+    const formattedDateString = `${bookingDate} (${bookingDay})`;
 
-        const SUBJECTS = {
-            credit: 'Rezervácia – uhradená kreditom | Nitráčik',
-            season_ticket: 'Rezervácia – uplatnený permanentný vstup | Nitráčik',
-            payment: 'Potvrdenie rezervácie | Nitráčik'
-        };
-        const PAYMENT_TEXT = {
-            credit: 'rezervácia bola uhradená z vášho kreditu',
-            season_ticket: 'rezervácia bola odpočítaná z permanentného vstupu',
-            payment: 'platba prebehla úspešne'
-        };
+    const SUBJECTS = {
+      credit: 'Rezervácia – uhradená kreditom | Nitráčik',
+      season_ticket: 'Rezervácia – uplatnený permanentný vstup | Nitráčik',
+      payment: 'Potvrdenie rezervácie | Nitráčik'
+    };
+    const PAYMENT_TEXT = {
+      credit: 'rezervácia bola uhradená z vášho kreditu',
+      season_ticket: 'rezervácia bola odpočítaná z permanentného vstupu',
+      payment: 'platba prebehla úspešne'
+    };
 
-        const pType = sessionDetails.paymentType || 'payment';
-        const subject = SUBJECTS[pType];
-        const paymentInfo = PAYMENT_TEXT[pType];
+    const pType = sessionDetails.paymentType || 'payment';
+    const subject = SUBJECTS[pType];
+    const paymentInfo = PAYMENT_TEXT[pType];
 
-        const mailOptions = {
-            from: process.env.EMAIL_USER,
-            to: userEmail,
-            subject,
-            html: `
+    // === NOVÁ LOGIKA PRE SEASON TICKET INFO ===
+    let seasonTicketRows = '';
+    
+    // Zobrazíme to len ak je typ 'season_ticket' a máme potrebné dáta
+    if (pType === 'season_ticket' && sessionDetails.remainingEntries !== undefined) {
+      seasonTicketRows = `
+        <div class="highlight-item">🎟️ <strong>Použité vstupy:</strong> ${sessionDetails.usedEntries}</div>
+        <div class="highlight-item">🔢 <strong>Zostávajúce vstupy:</strong> ${sessionDetails.remainingEntries}</div>
+      `;
+    }
+    // ==========================================
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: userEmail,
+      subject,
+      html: `
         <!DOCTYPE html>
         <html>
         <head>
@@ -140,15 +152,20 @@ module.exports = {
               <div class="content">
                 <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName}.</p>
                 <p>Prinášam dobrú správu, že vaša ${paymentInfo} za <strong>MESSY&SENSORY play NITRÁČIK - ${sessionDetails.trainingType || 'Tréning'}</strong>.</p>
+                
                 <div class="highlight-box">
                   <div class="highlight-item">📅 <strong>Dátum:</strong> ${formattedDateString}</div>
                   <div class="highlight-item">⏰ <strong>Čas:</strong> ${sessionDetails.start_time || sessionDetails.time}</div>
                   <div class="highlight-item">📍 <strong>Miesto:</strong> 
-                          <a href="https://www.google.com/maps/search/?api=1&query=Štefánikova+trieda+148,+Nitra" 
-                            style="color: #2563eb; text-decoration: underline;">
-                            Štefánikova trieda 148, Nitra</a>
-                    </div>
+                      <a href="https://www.google.com/maps/search/?api=1&query=Štefánikova+trieda+148,+Nitra" 
+                        style="color: #2563eb; text-decoration: underline;">
+                        Štefánikova trieda 148, Nitra</a>
+                  </div>
+                  
+                  ${seasonTicketRows}
+                  
                 </div>
+
                 <p>Teším sa na kopu krásnych ufúľaných momentov.</p> 
                 <p>Skvelé bude, ak so sebou prinesiete náhradné oblečenie, ktoré možno ušpiniť a malý uteráčik.</p>
                 <p>Odporúčam vziať gumené šľapky aj pre sprevádzajúcu osobu, ktoré zvládnu aj klzký terén, nakoľko vodné a podobné aktivity sú a budú pevnou súčasťou hodín 😉.</p>
@@ -156,6 +173,7 @@ module.exports = {
                 <p>Vstup je cez vnútorné átrium, takže neklopkajte na prvé dvere, ale pokračujte cez bráničku, na ktorej vás bude vítať tabuľka <strong>“VITAJTE U NITRÁČIKA”</strong>.</p>
                 <p>Parkovanie je zadarmo pred budovou alebo zboku v areáli železníc.</p>
                 <p>Ďakujem za dôveru a podporu a teším sa na osobné stretnutie.</p>
+                
                 <div style="margin-top: 30px;">
                   <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
                   <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
@@ -180,10 +198,10 @@ module.exports = {
         </body>
         </html>
       `,
-            attachments: getCommonAttachments()
-        };
-        return transporter.sendMail(mailOptions);
-    },
+      attachments: getCommonAttachments()
+    };
+    return transporter.sendMail(mailOptions);
+  },
 
     // 3. Delete account email
     sendAccountDeletedEmail: async (userEmail, userName) => {

@@ -110,6 +110,16 @@ const Booking = () => {
   }, [useSeasonTicket, selectedSeasonTicket]);
 
   useEffect(() => {
+    const allowedTypes = ['MIDI', 'MAXI'];
+
+    // Ak je vybratý tréning, ktorý NIE JE MIDI/MAXI, a zároveň máš zaškrtnutú permanentku:
+    if (!allowedTypes.includes(trainingType) && useSeasonTicket) {
+      setUseSeasonTicket(false);      // Odškrtni checkbox
+      setSelectedSeasonTicket('');    // Vynuluj výber konkrétnej permanentky
+    }
+  }, [trainingType, useSeasonTicket]); // Sleduje zmeny typu tréningu a checkboxu
+
+  useEffect(() => {
     if (childrenAges.length === childrenCount) {
       return; // Zastavíme vykonávanie efektu, ak nie je potrebné nič meniť
     }
@@ -207,20 +217,20 @@ const Booking = () => {
   }, [isLoggedIn, isAdmin]);
 
   useEffect(() => {
-      // Ak nemáme ID alebo dáta, končíme
-      if (!trainingTypeId || trainingTypes.length === 0) return;
+    // Ak nemáme ID alebo dáta, končíme
+    if (!trainingTypeId || trainingTypes.length === 0) return;
 
-      // 1. Nájdi objekt podľa ID
-      const typeObj = trainingTypes.find(t => t.id === Number(trainingTypeId));
+    // 1. Nájdi objekt podľa ID
+    const typeObj = trainingTypes.find(t => t.id === Number(trainingTypeId));
 
-      // 2. Nastav ho do state-u (tým sa spustí výpočet ceny)
-      setSelectedTypeObj(typeObj || null);
+    // 2. Nastav ho do state-u (tým sa spustí výpočet ceny)
+    setSelectedTypeObj(typeObj || null);
 
-      // 3. Synchronizuj aj názov (pretože CustomCalendar filtruje podľa názvu stringu)
-      if (typeObj) {
-        setTrainingType(typeObj.name);
-      }
-    }, [trainingTypeId, trainingTypes]);
+    // 3. Synchronizuj aj názov (pretože CustomCalendar filtruje podľa názvu stringu)
+    if (typeObj) {
+      setTrainingType(typeObj.name);
+    }
+  }, [trainingTypeId, trainingTypes]);
 
 
   useEffect(() => {
@@ -1371,8 +1381,7 @@ const Booking = () => {
               </div>
             </Form.Group>
 
-            {/* Season Ticket Section */}
-            {!isCreditMode && seasonTickets.length > 0 && (
+            {!isCreditMode && seasonTickets.length > 0 && ['MIDI', 'MAXI'].includes(trainingType) && (
               <Form.Group className="mb-4">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <Form.Check

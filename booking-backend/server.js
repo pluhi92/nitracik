@@ -430,8 +430,13 @@ app.get('/api/admin/bookings', isAdmin, async (req, res) => {
 
 app.get('/api/admin/season-tickets', async (req, res) => {
   try {
+    // === ZMENA: Pridaná podmienka WHERE ===
+    // Zobrazujeme len tie, ktoré majú zostatok A SÚČASNE dátum expirácie je v budúcnosti
     const tickets = await pool.query(
-      'SELECT u.first_name, u.last_name, u.email, s.entries_total, s.entries_remaining FROM season_tickets s JOIN users u ON s.user_id = u.id'
+      `SELECT u.first_name, u.last_name, u.email, s.user_id, s.entries_total, s.entries_remaining, s.expiry_date 
+       FROM season_tickets s 
+       JOIN users u ON s.user_id = u.id
+       WHERE s.entries_remaining > 0 AND s.expiry_date >= NOW()`
     );
     res.json(tickets.rows);
   } catch (err) {
@@ -946,19 +951,23 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
       throw new Error('Not enough available spots');
     }
 
-    // Insert booking with amount_paid and payment_time
+    // Insert booking
     const bookingResult = await client.query(
       `INSERT INTO bookings (user_id, training_id, number_of_children, amount_paid, payment_time, booked_at, active, booking_type)
-   VALUES ($1, $2, $3, 0, NULL, NOW(), true, 'season_ticket') RETURNING id`,
+       VALUES ($1, $2, $3, 0, NULL, NOW(), true, 'season_ticket') RETURNING id`,
       [userId, training.id, childrenCount]
     );
     const bookingId = bookingResult.rows[0].id;
 
-    // Update season ticket entries
-    await client.query(
-      `UPDATE season_tickets SET entries_remaining = entries_remaining - $1 WHERE id = $2`,
+    // === ZMENA TU: Update season ticket entries a získanie zostatku ===
+    const updateTicketResult = await client.query(
+      `UPDATE season_tickets SET entries_remaining = entries_remaining - $1 WHERE id = $2 RETURNING entries_remaining`,
       [childrenCount, seasonTicketId]
     );
+    
+    // Uložíme si nový zostatok
+    const newBalance = updateTicketResult.rows[0].entries_remaining;
+    // ================================================================
 
     // Record season ticket usage
     await client.query(
@@ -971,13 +980,16 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
     const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
     const user = userResult.rows[0];
 
-    // 1. User mail (zostáva volanie tvojho servisu, len sa uisti že má prefix emailService)
+    // 1. User mail - UPRAVENÉ VOLANIE
     await emailService.sendUserBookingEmail(user.email, {
       date: selectedDate,
       start_time: selectedTime,
       trainingType: trainingType,
       userName: user.first_name,
-      paymentType: user.season_ticket_id ? 'season_ticket' : 'credit'
+      paymentType: 'season_ticket',
+      // Posielame nové údaje do emailu
+      usedEntries: childrenCount,
+      remainingEntries: newBalance
     });
 
     // 2. Admin mail
@@ -991,7 +1003,6 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
     await client.query('ROLLBACK');
     console.error('Season ticket booking error:', error);
 
-    // Return specific error messages based on the error type
     if (error.message.includes('Not enough entries remaining')) {
       res.status(400).json({ error: 'Not enough entries remaining in your season ticket' });
     } else if (error.message.includes('Season ticket has expired')) {

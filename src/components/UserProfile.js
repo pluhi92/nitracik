@@ -41,6 +41,7 @@ const UserProfile = () => {
   const [selectedSession, setSelectedSession] = useState(null);
   const [reason, setReason] = useState('');
   const [forceCancel, setForceCancel] = useState(false);
+  const [showHistory, setShowHistory] = useState(false); // Nový state pre históriu
 
   // --- SMART ADRESA LOGIKA ---
   const [addrCity, setAddrCity] = useState('');
@@ -48,7 +49,7 @@ const UserProfile = () => {
   const [addrNumber, setAddrNumber] = useState('');
   const [addrZip, setAddrZip] = useState('');
   const [hasNoStreet, setHasNoStreet] = useState(false);
-  
+
   const [citySuggestions, setCitySuggestions] = useState([]);
   const [streetSuggestions, setStreetSuggestions] = useState([]);
   const [isSearchingCity, setIsSearchingCity] = useState(false);
@@ -156,26 +157,26 @@ const UserProfile = () => {
       try {
         const parts = editedAddress.split(',');
         if (parts.length >= 2) {
-            const part1 = parts[0].trim(); // Ulica + Číslo
-            const part2 = parts[1].trim(); // PSČ + Mesto
+          const part1 = parts[0].trim(); // Ulica + Číslo
+          const part2 = parts[1].trim(); // PSČ + Mesto
 
-            const streetMatch = part1.match(/^(.*)\s+(\S+)$/);
-            if (streetMatch) {
-                setAddrStreet(streetMatch[1]);
-                setAddrNumber(streetMatch[2]);
-            } else {
-                setAddrStreet(part1);
-            }
+          const streetMatch = part1.match(/^(.*)\s+(\S+)$/);
+          if (streetMatch) {
+            setAddrStreet(streetMatch[1]);
+            setAddrNumber(streetMatch[2]);
+          } else {
+            setAddrStreet(part1);
+          }
 
-            const zipMatch = part2.match(/^(\d{3}\s?\d{2})\s+(.+)$/);
-            if (zipMatch) {
-                setAddrZip(zipMatch[1]);
-                setAddrCity(zipMatch[2]);
-            } else {
-                setAddrCity(part2);
-            }
+          const zipMatch = part2.match(/^(\d{3}\s?\d{2})\s+(.+)$/);
+          if (zipMatch) {
+            setAddrZip(zipMatch[1]);
+            setAddrCity(zipMatch[2]);
+          } else {
+            setAddrCity(part2);
+          }
         } else {
-            setAddrStreet(editedAddress);
+          setAddrStreet(editedAddress);
         }
       } catch (e) { console.error(e); }
     }
@@ -247,12 +248,12 @@ const UserProfile = () => {
   const handleUpdateProfile = async () => {
     setIsUpdating(true);
     setUpdateMessage('');
-    
+
     let fullAddress = '';
     if (hasNoStreet) {
-        fullAddress = `${addrCity} ${addrNumber}, ${addrZip} ${addrCity}`;
+      fullAddress = `${addrCity} ${addrNumber}, ${addrZip} ${addrCity}`;
     } else {
-        fullAddress = `${addrStreet} ${addrNumber}, ${addrZip} ${addrCity}`;
+      fullAddress = `${addrStreet} ${addrNumber}, ${addrZip} ${addrCity}`;
     }
 
     try {
@@ -260,7 +261,7 @@ const UserProfile = () => {
         address: fullAddress,
         mobile: editedMobile
       });
-      
+
       setUpdateMessage(t?.profile?.update?.success || 'Profile updated successfully!');
       setUpdateVariant('success');
       setEditedAddress(fullAddress); // Aktualizujeme hlavný state
@@ -337,6 +338,17 @@ const UserProfile = () => {
 
     return `${day}. ${month}. ${year} - ${hours}:${minutes} (${dayName})`;
   };
+
+  // Logika pre rozdelenie tiketov
+  const currentDate = new Date();
+
+  const activeTickets = seasonTickets.filter(ticket =>
+    ticket.entries_remaining > 0 && new Date(ticket.expiry_date) > currentDate
+  );
+
+  const historyTickets = seasonTickets.filter(ticket =>
+    ticket.entries_remaining === 0 || new Date(ticket.expiry_date) <= currentDate
+  );
 
   const renderSessionTable = (type) => {
     const filtered = processSessions(bookedSessions)
@@ -758,7 +770,7 @@ const UserProfile = () => {
       // podmienka if (verifyResponse.data.success) je tu vlastne redundantná,
       // ale pre zachovanie logiky ju môžeme nechať.
       if (verifyResponse.data.success) {
-        
+
         // 2. Zmazanie užívateľa (volá nový endpoint s mailom)
         await api.delete(`/api/users/${userId}`);
 
@@ -770,8 +782,8 @@ const UserProfile = () => {
 
         // 4. TVRDÝ RELOAD A PRESMEROVANIE
         // Namiesto navigate('/account-deleted') použijeme toto:
-        window.location.href = '/account-deleted'; 
-        
+        window.location.href = '/account-deleted';
+
       } else {
         setError(t?.profile?.delete?.error?.incorrect || 'Incorrect password');
       }
@@ -889,63 +901,124 @@ const UserProfile = () => {
             )}
           </div>
         </div>
-      ) : (
+     ) : (
+        // ================== USER ČASŤ (Nový dizajn) ==================
         <>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
-            <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
-              {t?.profile?.mySeasonTickets?.title || 'Vaše permanentky'}
-            </h3>
-            {seasonTickets.length === 0 ? (
-              <p className="text-gray-600 dark:text-gray-400 text-center py-8">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
+          <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
+            {t?.profile?.mySeasonTickets?.title || 'Vaše permanentky'}
+          </h3>
+
+          {/* 1. AKTÍVNE PERMANENTKY */}
+          {activeTickets.length === 0 ? (
+            <div className="text-center py-8 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
                 {t?.profile?.mySeasonTickets?.noTickets || 'Nemáte žiadne aktívne permanentky.'}
               </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead>
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        {t?.profile?.mySeasonTickets?.ticketId || 'ID permanentky'}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        {t?.profile?.mySeasonTickets?.entriesTotal || 'Celkový počet vstupov'}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        {t?.profile?.mySeasonTickets?.entriesRemaining || 'Zostávajúce vstupy'}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        {t?.profile?.mySeasonTickets?.purchaseDate || 'Dátum nákupu'}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        {t?.profile?.mySeasonTickets?.expiryDate || 'Dátum expirácie'}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {seasonTickets.map((ticket) => (
-                      <tr key={ticket.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                        <td className="px-6 py-4 whitespace-nowrap text-base text-gray-900 dark:text-white font-medium">
-                          {ticket.id}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-base text-gray-600 dark:text-gray-300 font-medium">
-                          {ticket.entries_total}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-base text-gray-600 dark:text-gray-300 font-medium">
+              <button 
+                onClick={() => navigate('/season-tickets')}
+                className="bg-secondary-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-secondary-600 transition-colors"
+              >
+                Kúpiť novú permanentku →
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto mb-2">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      {t?.profile?.mySeasonTickets?.ticketId || 'ID'}
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      {t?.profile?.mySeasonTickets?.entriesTotal || 'Vstupy'}
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      {t?.profile?.mySeasonTickets?.entriesRemaining || 'Zostatok'}
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      {t?.profile?.mySeasonTickets?.purchaseDate || 'Kúpené'}
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      {t?.profile?.mySeasonTickets?.expiryDate || 'Platnosť'}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                  {activeTickets.map((ticket) => (
+                    <tr key={ticket.id} className="hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">
+                        #{ticket.id}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                        {ticket.entries_total}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 py-1 px-3 rounded-full text-sm font-bold">
                           {ticket.entries_remaining}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-base text-gray-600 dark:text-gray-300 font-medium">
-                          {formatSlovakDate(ticket.purchase_date).split(' - ')[0]}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-base text-gray-600 dark:text-gray-300 font-medium">
-                          {formatSlovakDate(ticket.expiry_date).split(' - ')[0]}
-                        </td>
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                        {formatSlovakDate(ticket.purchase_date).split(' - ')[0]}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                        {formatSlovakDate(ticket.expiry_date).split(' - ')[0]}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* 2. HISTÓRIA / VYČERPANÉ (Zobrazí sa len ak existujú staré lístky) */}
+          {historyTickets.length > 0 && (
+            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-sm font-medium transition-colors mb-4"
+              >
+                {showHistory ? 'Skryť históriu permanentiek' : `Zobraziť históriu / Vyčerpané permanentky (${historyTickets.length})`}
+                <span className={`transform transition-transform duration-200 ${showHistory ? 'rotate-180' : ''}`}>▼</span>
+              </button>
+
+              {showHistory && (
+                <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 opacity-75 hover:opacity-100 transition-opacity">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-100 dark:bg-gray-900">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">ID</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Dátum nákupu</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+                    </thead>
+                    <tbody className="bg-gray-50 dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                      {historyTickets.map((ticket) => (
+                        <tr key={ticket.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">#{ticket.id}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            {ticket.entries_remaining === 0 ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300">
+                                Vyčerpaná
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-300">
+                                Expirovaná
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {formatSlovakDate(ticket.purchase_date).split(' - ')[0]}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
             <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
@@ -1091,98 +1164,98 @@ const UserProfile = () => {
               ) : (
                 // EDIT MODE (SMART ADRESA)
                 <div className="space-y-4">
-                  
+
                   {/* 1. MESTO */}
                   <div className="relative" ref={cityInputRef}>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Mesto / Obec *
-                      </label>
-                      <input 
-                        type="text" 
-                        value={addrCity}
-                        onChange={(e) => { setAddrCity(e.target.value); setShowCityDropdown(true); }}
-                        onFocus={() => setShowCityDropdown(true)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
-                        placeholder="Napr. Nitra"
-                      />
-                      {isSearchingCity && <div className="absolute right-3 top-9"><SpinnerIcon className="w-5 h-5 text-gray-400" /></div>}
-                      {showCityDropdown && citySuggestions.length > 0 && (
-                        <ul className="absolute z-50 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
-                          {citySuggestions.map((city, idx) => (
-                            <li key={idx} onClick={() => handleSelectCity(city)} className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200">
-                              {city.display_name}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Mesto / Obec *
+                    </label>
+                    <input
+                      type="text"
+                      value={addrCity}
+                      onChange={(e) => { setAddrCity(e.target.value); setShowCityDropdown(true); }}
+                      onFocus={() => setShowCityDropdown(true)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
+                      placeholder="Napr. Nitra"
+                    />
+                    {isSearchingCity && <div className="absolute right-3 top-9"><SpinnerIcon className="w-5 h-5 text-gray-400" /></div>}
+                    {showCityDropdown && citySuggestions.length > 0 && (
+                      <ul className="absolute z-50 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
+                        {citySuggestions.map((city, idx) => (
+                          <li key={idx} onClick={() => handleSelectCity(city)} className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200">
+                            {city.display_name}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
 
                   {/* 2. ULICA + CHECKBOX */}
                   <div className="relative" ref={streetInputRef}>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Ulica *
-                      </label>
-                      <input 
-                        type="text" 
-                        value={addrStreet}
-                        onChange={(e) => { setAddrStreet(e.target.value); setShowStreetDropdown(true); }}
-                        onFocus={() => !hasNoStreet && setShowStreetDropdown(true)}
-                        disabled={!addrCity || hasNoStreet}
-                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:text-white
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Ulica *
+                    </label>
+                    <input
+                      type="text"
+                      value={addrStreet}
+                      onChange={(e) => { setAddrStreet(e.target.value); setShowStreetDropdown(true); }}
+                      onFocus={() => !hasNoStreet && setShowStreetDropdown(true)}
+                      disabled={!addrCity || hasNoStreet}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:text-white
                           ${hasNoStreet ? 'bg-gray-200 dark:bg-gray-800 text-gray-500 cursor-not-allowed border-gray-300' : 'bg-white dark:bg-gray-600 border-gray-300 dark:border-gray-600'}`}
-                        placeholder={hasNoStreet ? 'Obec nemá ulice' : (addrCity ? `Ulica v ${addrCity}` : "Najprv vyberte mesto")}
-                      />
-                      {isSearchingStreet && !hasNoStreet && <div className="absolute right-3 top-9"><SpinnerIcon className="w-5 h-5 text-gray-400" /></div>}
-                      {showStreetDropdown && streetSuggestions.length > 0 && !hasNoStreet && (
-                        <ul className="absolute z-50 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
-                          {streetSuggestions.map((street, idx) => (
-                            <li key={idx} onClick={() => handleSelectStreet(street)} className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200">
-                              {street.display_name.split(',')[0]}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                      placeholder={hasNoStreet ? 'Obec nemá ulice' : (addrCity ? `Ulica v ${addrCity}` : "Najprv vyberte mesto")}
+                    />
+                    {isSearchingStreet && !hasNoStreet && <div className="absolute right-3 top-9"><SpinnerIcon className="w-5 h-5 text-gray-400" /></div>}
+                    {showStreetDropdown && streetSuggestions.length > 0 && !hasNoStreet && (
+                      <ul className="absolute z-50 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
+                        {streetSuggestions.map((street, idx) => (
+                          <li key={idx} onClick={() => handleSelectStreet(street)} className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200">
+                            {street.display_name.split(',')[0]}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
-                  
+
                   <div className="flex items-center gap-2 mb-2">
-                      <input 
-                        type="checkbox" 
-                        id="noStreetProfile" 
-                        checked={hasNoStreet} 
-                        onChange={(e) => {
-                            setHasNoStreet(e.target.checked);
-                            if(e.target.checked) setAddrStreet('');
-                        }}
-                        className="w-4 h-4 text-blue-600 rounded"
-                      />
-                      <label htmlFor="noStreetProfile" className="text-xs text-gray-600 dark:text-gray-400 cursor-pointer select-none">
-                        Obec nemá ulice (použiť len číslo domu)
-                      </label>
+                    <input
+                      type="checkbox"
+                      id="noStreetProfile"
+                      checked={hasNoStreet}
+                      onChange={(e) => {
+                        setHasNoStreet(e.target.checked);
+                        if (e.target.checked) setAddrStreet('');
+                      }}
+                      className="w-4 h-4 text-blue-600 rounded"
+                    />
+                    <label htmlFor="noStreetProfile" className="text-xs text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                      Obec nemá ulice (použiť len číslo domu)
+                    </label>
                   </div>
 
                   {/* 3. ČÍSLO a PSČ */}
                   <div className="grid grid-cols-3 gap-3">
-                     <div className="col-span-1">
-                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Číslo *</label>
-                       <input 
-                          ref={numberInputRef}
-                          type="text" 
-                          value={addrNumber}
-                          onChange={(e) => setAddrNumber(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
-                          placeholder="36"
-                       />
-                     </div>
-                     <div className="col-span-2">
-                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">PSČ *</label>
-                       <input 
-                          type="text" 
-                          value={addrZip}
-                          onChange={(e) => setAddrZip(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
-                          placeholder="949 01"
-                       />
-                     </div>
+                    <div className="col-span-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Číslo *</label>
+                      <input
+                        ref={numberInputRef}
+                        type="text"
+                        value={addrNumber}
+                        onChange={(e) => setAddrNumber(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
+                        placeholder="36"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">PSČ *</label>
+                      <input
+                        type="text"
+                        value={addrZip}
+                        onChange={(e) => setAddrZip(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
+                        placeholder="949 01"
+                      />
+                    </div>
                   </div>
 
                   {/* 4. MOBILE */}
@@ -1221,8 +1294,8 @@ const UserProfile = () => {
                         setUpdateMessage('');
                         // Reset pri zrušení
                         api.get(`/api/users/${userId}`).then(res => {
-                            setEditedAddress(res.data.address || '');
-                            setEditedMobile(res.data.mobile || '');
+                          setEditedAddress(res.data.address || '');
+                          setEditedMobile(res.data.mobile || '');
                         });
                       }}
                       disabled={isUpdating}
