@@ -1485,26 +1485,36 @@ const Booking = () => {
 
             <Form.Group className="mb-4">
               <div className="space-y-2">
-                <div>
-                  <a
-                    href="/terms-and-conditions.pdf"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary-600 hover:text-primary-700 font-medium no-underline"
-                  >
-                    <i className="bi bi-file-text me-1"></i>
-                    {t?.booking?.terms || 'General Terms and Conditions'}
-                  </a>
-                </div>
                 <Form.Check
                   type="checkbox"
                   id="consent"
                   checked={consent}
                   onChange={() => setConsent(!consent)}
                   required
+                  className="flex items-start gap-3"
                   label={
-                    <span className="font-bold text-gray-800">
-                      {t?.booking?.consent || 'I agree to the rules (Required)'}
+                    <span className="text-sm text-gray-700 leading-relaxed">
+                      {t?.booking?.consentText1 || 'Oboznámil som sa so'}{' '}
+                      <a
+                        href="/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-600 hover:text-primary-700 underline font-medium"
+                      >
+                        {t?.booking?.consentLink1 || 'Všeobecnými obchodnými podmienkami'}
+                      </a>
+                      {' '}{t?.booking?.consentText2 || 'a'}{' '}
+                      <a
+                        href="/gdpr"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-600 hover:text-primary-700 underline font-medium"
+                      >
+                        {t?.booking?.consentLink2 || 'Ochranou osobných údajov'}
+                      </a>
+                      {t?.booking?.consentText3 || ', porozumel som ich obsahu'}
+                      <br />
+                      {t?.booking?.consentText4 || 'a v celom rozsahu s nimi súhlasím.'}
                     </span>
                   }
                 />
@@ -1574,7 +1584,7 @@ const Booking = () => {
                   ) : (
                     <>
                       <i className="bi bi-credit-card me-2"></i>
-                      {t?.booking?.bookWithPayment || 'Confirm & Pay'}
+                      {t?.booking?.bookWithPayment || 'Confirm reservation'}
                     </>
                   )}
                 </div>
@@ -1582,8 +1592,19 @@ const Booking = () => {
             </Button>
             <Tooltip id="booking-tooltip" />
 
-            <div className="mt-4 text-gray-600 text-sm">
-              {t?.booking?.secureBooking || 'Your booking is secure and protected'}
+            {!isCreditMode && !useSeasonTicket && (
+              <div className="mt-2">
+                <div className="text-gray-800 text-base font-semibold">
+                  {'| '}{t?.booking?.paymentObligation || 'with payment obligation'}{' |'}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4">
+
+              <div className="text-gray-600 text-sm mt-8">
+                {'🔒 '}{t?.booking?.secureBooking || 'Your booking is secure and protected'}
+              </div>
             </div>
           </div>
         </div>

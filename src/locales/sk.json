@@ -39,15 +39,21 @@
     "agree": "SÚHLASÍM s publikovaním fotografií môjho dieťaťa",
     "disagree": "NESÚHLASÍM s publikovaním fotografií môjho dieťaťa",
     "consents": "Súhlasy a dohody",
-    "consent": "Súhlasím s pravidlami (Povinné)",
+    "consentText1": "Oboznámil som sa so",
+    "consentLink1": "Všeobecnými obchodnými podmienkami",
+    "consentText2": "a",
+    "consentLink2": "Ochranou osobných údajov",
+    "consentText3": ", porozumel som ich obsahu",
+    "consentText4": "a v celom rozsahu s nimi súhlasím.",
     "consentRequired": "Pre dokončenie rezervácie musíte súhlasiť s pravidlami.",
     "terms": "Všeobecné obchodné podmienky",
     "totalPrice": "Celková cena",
     "child": "dieťa",
     "children": "deti",
-    "bookWithPayment": "Záväzne rezervovať",
+    "bookWithPayment": "Potvrdiť rezerváciu",
     "bookWithSeasonTicket": "Rezervovať s permanentkou",
     "bookWithCredit": "Rezervovať s kreditom",
+    "paymentObligation": "s povinnosťou platby",
     "redirecting": "Presmerovanie na platbu...",
     "availability": {
       "warning": "Upozornenie na dostupnosť",
@@ -196,9 +202,9 @@
       }
     },
     "sessionType": {
-      "midi": "MIDI relácie",
-      "mini": "MINI relácie",
-      "maxi": "MAXI relácie"
+      "midi": "MIDI",
+      "mini": "MINI",
+      "maxi": "MAXI"
     },
     "table": {
       "date": "Dátum",
@@ -227,8 +233,8 @@
       "expiryDate": "Dátum expirácie"
     },
     "bookedSessions": {
-      "title": "Vaše rezervované relácie",
-      "noSessions": "Nemáte žiadne rezervované relácie."
+      "title": "Vaše rezervované hodiny",
+      "noSessions": "Nemáte žiadne rezervované hodiny."
     },
     "dangerZone": {
       "title": "Nebezpečná zóna",
@@ -244,14 +250,14 @@
       "confirm": "Potvrdiť vymazanie"
     },
     "cancel": {
-      "button": "Zrušiť reláciu",
-      "alert": "Zrušenie je povolené iba do 10 hodín pred reláciou.",
-      "confirm": "Naozaj chcete zrušiť túto reláciu?",
-      "success": "Relácia bola úspešne zrušená. E-maily boli odoslané vám a administrátorovi.",
+      "button": "Zrušiť hodinu",
+      "alert": "Zrušenie je povolené iba do 10 hodín pred hodinou.",
+      "confirm": "Naozaj chcete zrušiť túto hodinu?",
+      "success": "Hodina bola úspešne zrušená. E-maily boli odoslané vám a administrátorovi.",
       "error": {
         "notFound": "Rezerváciu nebolo možné nájsť. Možno bola už vymazaná alebo neexistuje.",
         "unauthorized": "Nemáte oprávnenie na zrušenie tejto rezervácie.",
-        "generic": "Nepodarilo sa zrušiť reláciu. Skúste to znova."
+        "generic": "Nepodarilo sa zrušiť hodinu. Skúste to znova."
       },
       "tooltip": "Zrušenie už nie je možné, pretože do tréningu zostáva menej ako 10 hodín."
     },
@@ -265,17 +271,17 @@
         "generic": "Nepodarilo sa vymazať účet"
       },
       "cancelled": "ZRUŠENÉ",
-      "cancelSession": "Zrušiť reláciu",
+      "cancelSession": "Zrušiť hodinu",
       "forceCancel": "Vynútené zrušenie",
-      "hoursUntilSession": "hodín do relácie",
+      "hoursUntilSession": "hodín do hodiny",
       "cancelModal": {
-        "title": "Zrušiť reláciu",
+        "title": "Zrušiť hodinu",
         "chooseOption": "Vyberte možnosť zrušenia:",
-        "refundOption": "Zrušiť reláciu a požiadať o refundáciu",
-        "replacementOption": "Nahradiť inou reláciou",
-        "selectReplacement": "Vyberte náhradnú reláciu:",
-        "chooseSession": "Vyberte reláciu...",
-        "noReplacements": "Nenašli sa žiadne dostupné náhradné relácie.",
+        "refundOption": "Zrušiť hodinu a požiadať o refundáciu",
+        "replacementOption": "Nahradiť inou hodinou",
+        "selectReplacement": "Vyberte náhradnú hodinu:",
+        "chooseSession": "Vyberte hodinu...",
+        "noReplacements": "Nenašli sa žiadne dostupné náhradné hodiny.",
         "refundInfo": "Informácie o refundácii:",
         "refundDetails": "Vaša refundácia bude spracovaná automaticky a môže trvať 5-10 pracovných dní, kým sa objaví na vašom účte.",
         "seasonTicketInfo": "Táto rezervácia bola vytvorená pomocou permanentky. Refundácia nie je možná; vstupy budú vrátené na vašu permanentku.",
@@ -286,7 +292,7 @@
       "seasonTicketSuccess": "{count} vstupov bolo vrátených na vašu permanentku.",
       "creditReturned": "Váš kredit bol vrátený na váš účet.",
       "refundFailed": "Spracovanie refundácie zlyhalo.",
-      "replacementSuccess": "Relácia bola úspešne nahradená."
+      "replacementSuccess": "Hodina bola úspešne nahradená."
     },
     "info": {
       "title": "Vaše profilové informácie",
@@ -310,10 +316,10 @@
       "cancel": "Zrušiť"
     },
     "cancelled": "ZRUŠENÉ",
-    "hoursUntilSession": "hodín do relácie",
+    "hoursUntilSession": "hodín do udalosti",
     "admin": {
       "readyToDelete": "✅ Pripravené na vymazanie",
-      "deleteSession": "🗑️ Vymazať reláciu",
+      "deleteSession": "🗑️ Vymazať hodinu",
       "pendingCancellations": "⏳ {count} čaká",
       "forceCancelTooltip": "Vynútené zrušenie do 10 hodín"
     },

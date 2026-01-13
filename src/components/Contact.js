@@ -8,13 +8,14 @@ function Contact() {
     name: "",
     email: "",
     message: "",
+    agreementChecked: false, // NOVÉ: Predvolená hodnota pre GDPR/VOP suhlas
   });
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    const { name, value, type, checked } = e.target;
+    setFormData({ ...formData, [name]: type === "checkbox" ? checked : value });
   };
 
   const handleSubmit = async (e) => {
@@ -24,12 +25,12 @@ function Contact() {
     try {
       // NOVÉ: Použitie api.post namiesto fetch()
       // Axios automaticky použije baseURL, Content-Type a withCredentials
-      const response = await api.post("/api/contact", formData); 
-      
+      const response = await api.post("/api/contact", formData);
+
       // Axios automaticky spracuje JSON a hádže chybu pre ne-2xx status
       setMessage(response.data.message);
-      setFormData({ name: "", email: "", message: "" }); // Reset formulára
-      
+      setFormData({ name: "", email: "", message: "", agreementChecked: false }); // Reset formulára
+
     } catch (error) {
       // Spracovanie chyby z Axios (vrátenej z backendu alebo sieťovej)
       const errorMessage = error.response?.data?.message || t?.contact?.form?.errorGeneric || "An error occurred. Please try again.";
@@ -55,7 +56,7 @@ function Contact() {
         {/* Main Card Container */}
         <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200 p-4 sm:p-6 md:p-8 w-full">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
-            
+
             {/* Left Column - Contact Info & Map */}
             <div className="space-y-6 md:space-y-8">
               {/* Contact Info */}
@@ -63,7 +64,7 @@ function Contact() {
                 <h3 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-4 md:mb-6">
                   Kontaktné informácie
                 </h3>
-                
+
                 {/* Phone */}
                 <div className="flex items-start gap-3 sm:gap-4">
                   <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 rounded-lg flex items-center justify-center text-lg sm:text-xl flex-shrink-0">
@@ -76,7 +77,7 @@ function Contact() {
                     <p className="text-gray-600 text-base sm:text-lg">+421 949 584 576</p>
                   </div>
                 </div>
-                
+
                 {/* Address */}
                 <div className="flex items-start gap-3 sm:gap-4">
                   <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 rounded-lg flex items-center justify-center text-lg sm:text-xl flex-shrink-0">
@@ -90,7 +91,7 @@ function Contact() {
                     <p className="text-gray-600 text-base sm:text-lg">949 01 Nitra</p>
                   </div>
                 </div>
-                
+
                 {/* Email */}
                 <div className="flex items-start gap-3 sm:gap-4">
                   <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 rounded-lg flex items-center justify-center text-lg sm:text-xl flex-shrink-0">
@@ -123,9 +124,9 @@ function Contact() {
                   />
                 </div>
                 <div className="text-center">
-                  <a 
-                    href="https://maps.google.com/?q=Štefánikova+trieda+148+Nitra" 
-                    target="_blank" 
+                  <a
+                    href="https://maps.google.com/?q=Štefánikova+trieda+148+Nitra"
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 px-4 py-2 sm:px-6 sm:py-3 bg-primary-500 text-white font-medium rounded-lg hover:bg-primary-600 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg text-sm sm:text-base"
                   >
@@ -141,7 +142,7 @@ function Contact() {
                 <h3 className="text-xl sm:text-2xl font-semibold text-gray-800 mb-6 sm:mb-8">
                   {t?.contact?.form?.title || 'Napíšte nám'}
                 </h3>
-                
+
                 {/* Name Field */}
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-800 mb-2">
@@ -158,7 +159,7 @@ function Contact() {
                     className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-sm sm:text-base"
                   />
                 </div>
-                
+
                 {/* Email Field */}
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-800 mb-2">
@@ -175,7 +176,7 @@ function Contact() {
                     className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 text-sm sm:text-base"
                   />
                 </div>
-                
+
                 {/* Message Field */}
                 <div>
                   <label htmlFor="message" className="block text-sm font-medium text-gray-800 mb-2">
@@ -192,29 +193,51 @@ function Contact() {
                     className="w-full px-3 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-300 resize-y min-h-[100px] font-inherit text-sm sm:text-base"
                   />
                 </div>
-                
+
+                {/* Agreement Checkbox */}
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="agreementChecked"
+                    name="agreementChecked"
+                    checked={formData.agreementChecked}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500 focus:ring-2 flex-shrink-0"
+                  />
+                  <label htmlFor="agreementChecked" className="text-xs sm:text-sm text-gray-700 leading-relaxed">
+                    Oboznámil som sa so{' '}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:text-primary-600 underline font-medium">
+                      Všeobecnými obchodnými podmienkami
+                    </a>
+                    {' '}a{' '}
+                    <a href="/gdpr" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:text-primary-600 underline font-medium">
+                      Ochranou osobných údajov
+                    </a>
+                    , porozumel som ich obsahu a v celom rozsahu s nimi súhlasím.
+                  </label>
+                </div>
+
                 {/* Submit Button */}
-                <button 
-                  type="submit" 
-                  className={`w-full py-3 sm:py-4 px-4 sm:px-6 bg-primary-500 text-white font-semibold rounded-lg transition-all duration-300 text-sm sm:text-base ${
-                    isLoading 
-                      ? 'bg-gray-400 cursor-wait' 
+                <button
+                  type="submit"
+                  className={`w-full py-3 sm:py-4 px-4 sm:px-6 bg-primary-500 text-white font-semibold rounded-lg transition-all duration-300 text-sm sm:text-base ${isLoading
+                      ? 'bg-gray-400 cursor-wait'
                       : 'hover:bg-primary-600 hover:-translate-y-0.5 hover:shadow-lg'
-                  } disabled:bg-gray-400 disabled:cursor-not-allowed disabled:transform-none`}
-                  disabled={isLoading}
+                    } disabled:bg-gray-400 disabled:cursor-not-allowed disabled:transform-none`}
+                  disabled={isLoading || !formData.agreementChecked}
                 >
-                  {isLoading 
-                    ? (t?.contact?.form?.sending || 'Odosielam...') 
+                  {isLoading
+                    ? (t?.contact?.form?.sending || 'Odosielam...')
                     : (t?.contact?.form?.submit || 'Odoslať správu')}
                 </button>
-                
+
                 {/* Message Display */}
                 {message && (
-                  <div className={`p-3 sm:p-4 rounded-lg text-center font-medium text-sm sm:text-base ${
-                    message.includes('successfully') 
-                      ? 'bg-green-100 text-green-800 border border-green-200' 
+                  <div className={`p-3 sm:p-4 rounded-lg text-center font-medium text-sm sm:text-base ${message.includes('successfully')
+                      ? 'bg-green-100 text-green-800 border border-green-200'
                       : 'bg-red-100 text-red-800 border border-red-200'
-                  }`}>
+                    }`}>
                     {message}
                   </div>
                 )}

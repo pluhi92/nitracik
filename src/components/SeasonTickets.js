@@ -23,26 +23,26 @@ const SeasonTickets = () => {
   const [agreedToGdpr, setAgreedToGdpr] = useState(false);
 
   const [seasonTickets, setSeasonTickets] = useState([
-    { 
-      id: 1, 
-      entries: 3, 
-      price: 40, 
+    {
+      id: 1,
+      entries: 3,
+      price: 40,
       popular: false,
-      savings: 'Small Saver', 
-      perEntry: 13.33 
+      savings: 'Small Saver',
+      perEntry: 13.33
     },
-    { 
-      id: 2, 
-      entries: 5, 
-      price: 65, 
-      popular: true, 
+    {
+      id: 2,
+      entries: 5,
+      price: 65,
+      popular: true,
       savings: 'Standard',
       perEntry: 13
     },
-    { 
-      id: 3, 
-      entries: 10, 
-      price: 120, 
+    {
+      id: 3,
+      entries: 10,
+      price: 120,
       popular: false,
       savings: 'Best Value',
       perEntry: 12
@@ -74,7 +74,7 @@ const SeasonTickets = () => {
   // 2. KROK: Užívateľ klikne "Zaplatiť" v modálnom okne (skutočná platba)
   const executePayment = async () => {
     if (!ticketToBuy) return;
-    
+
     // Validácia checkboxov (pre istotu, hoci button bude disabled)
     if (!agreedToTerms || !agreedToGdpr) {
       setError('Pre pokračovanie musíte súhlasiť s podmienkami.');
@@ -83,10 +83,10 @@ const SeasonTickets = () => {
 
     setLoading(true);
     setSelectedTicket(ticketToBuy.id);
-    
+
     try {
       const stripe = await stripePromise;
-      
+
       const response = await api.post('api/create-season-ticket-payment', {
         userId,
         entries: ticketToBuy.entries,
@@ -130,7 +130,7 @@ const SeasonTickets = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto mb-8">
           {seasonTickets.map((ticket) => (
-            <div 
+            <div
               className={`
                 relative bg-white/90 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-lg transition-all duration-300 ease-in-out flex flex-col h-full
                 ${ticket.popular ? 'border-secondary-500' : 'border-gray-200'}
@@ -144,7 +144,7 @@ const SeasonTickets = () => {
                   {t?.seasonTickets?.mostPopular || 'Most Popular'}
                 </div>
               )}
-              
+
               <div className="flex justify-between items-start mb-4">
                 <h3 className="text-xl font-bold text-gray-900 m-0">
                   {ticket.entries} {t?.seasonTickets?.entries || 'Entries'}
@@ -168,16 +168,16 @@ const SeasonTickets = () => {
                   </span>
                   <span className="text-base font-bold text-gray-900">€{ticket.perEntry}</span>
                 </div>
-                
+
                 {/* Validity info block */}
                 <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4 text-center">
-                   <p className="text-sm text-blue-800 font-medium">📅 Platnosť: 6 mesiacov</p>
+                  <p className="text-sm text-blue-800 font-medium">📅 Platnosť: 6 mesiacov</p>
                 </div>
 
                 <ul className="space-y-1 text-sm">
                   <li className="flex items-center text-gray-900 font-medium">
                     <span className="text-secondary-500 font-bold mr-2">✓</span>
-                     Platí na MIDI a MAXI
+                    Platí na MIDI a MAXI
                   </li>
                   <li className="flex items-center text-gray-900 font-medium">
                     <span className="text-secondary-500 font-bold mr-2">✓</span>
@@ -223,7 +223,7 @@ const SeasonTickets = () => {
       {showConfirmModal && ticketToBuy && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-fadeIn transform transition-all">
-            
+
             {/* Header okna */}
             <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
               <h3 className="text-lg font-bold text-gray-800">Súhrn objednávky</h3>
@@ -234,7 +234,7 @@ const SeasonTickets = () => {
 
             {/* Obsah okna */}
             <div className="p-6 space-y-4">
-              
+
               {/* Info o lístku */}
               <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 mb-4">
                 <div className="flex justify-between items-center mb-2">
@@ -251,55 +251,41 @@ const SeasonTickets = () => {
                 </ul>
               </div>
 
-              {/* Checkboxy */}
+              {/* Checkbox */}
               <div className="space-y-3">
-                <label className="flex items-start gap-3 cursor-pointer group">
-                  <div className="relative flex items-center">
-                    <input 
-                      type="checkbox" 
-                      className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-gray-300 checked:border-secondary-500 checked:bg-secondary-500 transition-all"
-                      checked={agreedToTerms}
-                      onChange={(e) => setAgreedToTerms(e.target.checked)}
-                    />
-                    <svg className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none opacity-0 peer-checked:opacity-100 text-white" viewBox="0 0 14 10" fill="none">
-                      <path d="M1 5L4.5 8.5L13 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                  <span className="text-sm text-gray-600">
-                    Súhlasím so <Link to="/vop" target="_blank" className="text-secondary-600 underline hover:text-secondary-700">všeobecnými obchodnými podmienkami</Link>.
-                  </span>
-                </label>
-
-                <label className="flex items-start gap-3 cursor-pointer group">
-                  <div className="relative flex items-center">
-                    <input 
-                      type="checkbox" 
-                      className="peer h-5 w-5 cursor-pointer appearance-none rounded border border-gray-300 checked:border-secondary-500 checked:bg-secondary-500 transition-all"
-                      checked={agreedToGdpr}
-                      onChange={(e) => setAgreedToGdpr(e.target.checked)}
-                    />
-                     <svg className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none opacity-0 peer-checked:opacity-100 text-white" viewBox="0 0 14 10" fill="none">
-                      <path d="M1 5L4.5 8.5L13 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                  <span className="text-sm text-gray-600">
-                    Oboznámil som sa s <Link to="/gdpr" target="_blank" className="text-secondary-600 underline hover:text-secondary-700">zásadami ochrany osobných údajov</Link> a svojimi právami.
-                  </span>
-                </label>
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="agreedToTerms"
+                    className="mt-1 w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500 focus:ring-2 flex-shrink-0"
+                    checked={agreedToTerms}
+                    onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  />
+                  <label htmlFor="agreedToTerms" className="text-sm text-gray-700 leading-relaxed cursor-pointer">
+                    Oboznámil som sa so{' '}
+                    <Link to="/terms" target="_blank" className="text-secondary-600 underline hover:text-secondary-700 font-medium">
+                      Všeobecnými obchodnými podmienkami
+                    </Link>
+                    {' '}a{' '}
+                    <Link to="/gdpr" target="_blank" className="text-secondary-600 underline hover:text-secondary-700 font-medium">
+                      Ochranou osobných údajov
+                    </Link>
+                    , porozumel som ich obsahu a v celom rozsahu s nimi súhlasím.
+                  </label>
+                </div>
               </div>
-
             </div>
 
             {/* Footer s tlačidlom */}
             <div className="p-6 pt-0">
               <button
                 onClick={executePayment}
-                disabled={loading || !agreedToTerms || !agreedToGdpr}
+                disabled={loading || !agreedToTerms}
                 className={`
                   w-full py-3.5 rounded-xl font-bold text-white text-base shadow-lg transition-all transform
                   flex justify-center items-center gap-2
-                  ${(loading || !agreedToTerms || !agreedToGdpr) 
-                    ? 'bg-gray-300 cursor-not-allowed' 
+                  ${(loading || !agreedToTerms)
+                    ? 'bg-gray-300 cursor-not-allowed'
                     : 'bg-green-600 hover:bg-green-700 hover:-translate-y-1 hover:shadow-green-200'
                   }
                 `}

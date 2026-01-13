@@ -13,9 +13,8 @@ import googlepayLogo from "../assets/googlePay.png";
 const Foot = () => {
   const handleCookiePreferences = (e) => {
     e.preventDefault();
-    if (window.openCookieSettings) {
-      window.openCookieSettings();
-    }
+    // Odosielame udalosť 'openCookieSettings', ktorú CookieConsent počúva
+    window.dispatchEvent(new Event('openCookieSettings'));
   };
 
   return (

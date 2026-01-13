@@ -43,6 +43,7 @@ const UserProfile = () => {
   const [forceCancel, setForceCancel] = useState(false);
   const [showHistory, setShowHistory] = useState(false); // Nový state pre históriu
 
+
   // --- SMART ADRESA LOGIKA ---
   const [addrCity, setAddrCity] = useState('');
   const [addrStreet, setAddrStreet] = useState('');
@@ -338,6 +339,33 @@ const UserProfile = () => {
 
     return `${day}. ${month}. ${year} - ${hours}:${minutes} (${dayName})`;
   };
+
+  const processedAdminSessions = React.useMemo(() =>
+    processSessions(bookedSessions),
+    [bookedSessions]);
+
+  // 2. Vytiahneme unikátne typy tréningov (odstránime duplicity)
+  const availableSessionTypes = [...new Set(processedAdminSessions
+    .map(session => session.training_type)
+    .filter(type => type) // Odstráni prázdne hodnoty (null/undefined)
+  )];
+
+  // 3. Zoradíme ich: MINI, MIDI, MAXI prvé, ostatné podľa abecedy
+  const sortedSessionTypes = availableSessionTypes.sort((a, b) => {
+    const priorityOrder = ['MINI', 'MIDI', 'MAXI'];
+    const indexA = priorityOrder.indexOf(a);
+    const indexB = priorityOrder.indexOf(b);
+
+    // Ak sú oba v prioritnom zozname, zoraď podľa poradia v zozname
+    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+    // Ak je len A prioritný, ide dopredu
+    if (indexA !== -1) return -1;
+    // Ak je len B prioritný, ide dopredu
+    if (indexB !== -1) return 1;
+
+    // Ostatné zoraď abecedne
+    return a.localeCompare(b);
+  });
 
   // Logika pre rozdelenie tiketov
   const currentDate = new Date();
@@ -847,9 +875,19 @@ const UserProfile = () => {
 
       {isAdmin ? (
         <div className="space-y-8">
-          {renderSessionTable('MIDI')}
-          {renderSessionTable('MINI')}
-          {renderSessionTable('MAXI')}
+
+          {/* Dynamicky vykreslíme tabuľku pre každý nájdený typ */}
+          {sortedSessionTypes.length > 0 ? (
+            sortedSessionTypes.map((type) => (
+              <React.Fragment key={type}>
+                {renderSessionTable(type)}
+              </React.Fragment>
+            ))
+          ) : (
+            <p className="text-gray-500 dark:text-gray-400 text-center py-4">
+              Žiadne tréningy na zobrazenie.
+            </p>
+          )}
 
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-200 dark:border-gray-700">
             <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
@@ -901,124 +939,124 @@ const UserProfile = () => {
             )}
           </div>
         </div>
-     ) : (
+      ) : (
         // ================== USER ČASŤ (Nový dizajn) ==================
         <>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
-          <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
-            {t?.profile?.mySeasonTickets?.title || 'Vaše permanentky'}
-          </h3>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
+              {t?.profile?.mySeasonTickets?.title || 'Vaše permanentky'}
+            </h3>
 
-          {/* 1. AKTÍVNE PERMANENTKY */}
-          {activeTickets.length === 0 ? (
-            <div className="text-center py-8 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                {t?.profile?.mySeasonTickets?.noTickets || 'Nemáte žiadne aktívne permanentky.'}
-              </p>
-              <button 
-                onClick={() => navigate('/season-tickets')}
-                className="bg-secondary-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-secondary-600 transition-colors"
-              >
-                Kúpiť novú permanentku →
-              </button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto mb-2">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      {t?.profile?.mySeasonTickets?.ticketId || 'ID'}
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      {t?.profile?.mySeasonTickets?.entriesTotal || 'Vstupy'}
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      {t?.profile?.mySeasonTickets?.entriesRemaining || 'Zostatok'}
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      {t?.profile?.mySeasonTickets?.purchaseDate || 'Kúpené'}
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      {t?.profile?.mySeasonTickets?.expiryDate || 'Platnosť'}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
-                  {activeTickets.map((ticket) => (
-                    <tr key={ticket.id} className="hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">
-                        #{ticket.id}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
-                        {ticket.entries_total}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 py-1 px-3 rounded-full text-sm font-bold">
-                          {ticket.entries_remaining}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
-                        {formatSlovakDate(ticket.purchase_date).split(' - ')[0]}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
-                        {formatSlovakDate(ticket.expiry_date).split(' - ')[0]}
-                      </td>
+            {/* 1. AKTÍVNE PERMANENTKY */}
+            {activeTickets.length === 0 ? (
+              <div className="text-center py-8 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  {t?.profile?.mySeasonTickets?.noTickets || 'Nemáte žiadne aktívne permanentky.'}
+                </p>
+                <button
+                  onClick={() => navigate('/season-tickets')}
+                  className="bg-secondary-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-secondary-600 transition-colors"
+                >
+                  Kúpiť novú permanentku →
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto mb-2">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        {t?.profile?.mySeasonTickets?.ticketId || 'ID'}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        {t?.profile?.mySeasonTickets?.entriesTotal || 'Vstupy'}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        {t?.profile?.mySeasonTickets?.entriesRemaining || 'Zostatok'}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        {t?.profile?.mySeasonTickets?.purchaseDate || 'Kúpené'}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        {t?.profile?.mySeasonTickets?.expiryDate || 'Platnosť'}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* 2. HISTÓRIA / VYČERPANÉ (Zobrazí sa len ak existujú staré lístky) */}
-          {historyTickets.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <button
-                onClick={() => setShowHistory(!showHistory)}
-                className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-sm font-medium transition-colors mb-4"
-              >
-                {showHistory ? 'Skryť históriu permanentiek' : `Zobraziť históriu / Vyčerpané permanentky (${historyTickets.length})`}
-                <span className={`transform transition-transform duration-200 ${showHistory ? 'rotate-180' : ''}`}>▼</span>
-              </button>
-
-              {showHistory && (
-                <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 opacity-75 hover:opacity-100 transition-opacity">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-100 dark:bg-gray-900">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">ID</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Dátum nákupu</th>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                    {activeTickets.map((ticket) => (
+                      <tr key={ticket.id} className="hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">
+                          #{ticket.id}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                          {ticket.entries_total}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 py-1 px-3 rounded-full text-sm font-bold">
+                            {ticket.entries_remaining}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                          {formatSlovakDate(ticket.purchase_date).split(' - ')[0]}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                          {formatSlovakDate(ticket.expiry_date).split(' - ')[0]}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="bg-gray-50 dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                      {historyTickets.map((ticket) => (
-                        <tr key={ticket.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">#{ticket.id}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            {ticket.entries_remaining === 0 ? (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300">
-                                Vyčerpaná
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-300">
-                                Expirovaná
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                            {formatSlovakDate(ticket.purchase_date).split(' - ')[0]}
-                          </td>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* 2. HISTÓRIA / VYČERPANÉ (Zobrazí sa len ak existujú staré lístky) */}
+            {historyTickets.length > 0 && (
+              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-sm font-medium transition-colors mb-4"
+                >
+                  {showHistory ? 'Skryť históriu permanentiek' : `Zobraziť históriu / Vyčerpané permanentky (${historyTickets.length})`}
+                  <span className={`transform transition-transform duration-200 ${showHistory ? 'rotate-180' : ''}`}>▼</span>
+                </button>
+
+                {showHistory && (
+                  <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 opacity-75 hover:opacity-100 transition-opacity">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <thead className="bg-gray-100 dark:bg-gray-900">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">ID</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Dátum nákupu</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                      </thead>
+                      <tbody className="bg-gray-50 dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {historyTickets.map((ticket) => (
+                          <tr key={ticket.id}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">#{ticket.id}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {ticket.entries_remaining === 0 ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300">
+                                  Vyčerpaná
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-300">
+                                  Expirovaná
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              {formatSlovakDate(ticket.purchase_date).split(' - ')[0]}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
             <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
