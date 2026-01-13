@@ -341,5 +341,8 @@
     "fri": "FRI",
     "sat": "SAT",
     "sun": "SUN"
+  },
+"greetingBar": {
+    "hello": "Hello"
   }
 }

@@ -1,8 +1,10 @@
 import React from "react";
 import { useUser } from '../contexts/UserContext';
+import { useTranslation } from '../contexts/LanguageContext';
 
 const GreetingBar = () => {
   const { user } = useUser();
+  const { t } = useTranslation();
 
   if (!user.isLoggedIn) {
     return null;
@@ -10,20 +12,20 @@ const GreetingBar = () => {
 
   return (
     <div
-      className={`
+      className="
         w-full px-5 py-2 text-[12px] font-medium flex justify-center
         bg-background text-text transition-colors duration-300 z-[998]
         dark:bg-background dark:text-text
-      `}
+      "
     >
       <div
-        className={`
+        className="
           max-w-[1200px] w-full flex items-center justify-end
           lg:justify-end md:justify-center
-        `}
+        "
       >
         <span className="text-[12px] md:text-[11px] sm:text-[10px] text-gray-700 dark:text-gray-300">
-          Hello,{" "}
+          {t?.greetingBar?.hello || 'Hello'},{" "}
           <strong className="text-secondary-600 font-bold">
             {user.firstName || "User"}
           </strong>
