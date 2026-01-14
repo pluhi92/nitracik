@@ -1484,41 +1484,47 @@ const Booking = () => {
             </Form.Group>
 
             <Form.Group className="mb-4">
-              <div className="space-y-2">
-                <Form.Check
-                  type="checkbox"
-                  id="consent"
-                  checked={consent}
-                  onChange={() => setConsent(!consent)}
-                  required
-                  className="flex items-start gap-3"
-                  label={
-                    <span className="text-sm text-gray-700 leading-relaxed">
-                      {t?.booking?.consentText1 || 'Oboznámil som sa so'}{' '}
-                      <a
-                        href="/terms"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary-600 hover:text-primary-700 underline font-medium"
-                      >
-                        {t?.booking?.consentLink1 || 'Všeobecnými obchodnými podmienkami'}
-                      </a>
-                      {' '}{t?.booking?.consentText2 || 'a'}{' '}
-                      <a
-                        href="/gdpr"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary-600 hover:text-primary-700 underline font-medium"
-                      >
-                        {t?.booking?.consentLink2 || 'Ochranou osobných údajov'}
-                      </a>
-                      {t?.booking?.consentText3 || ', porozumel som ich obsahu'}
-                      <br />
-                      {t?.booking?.consentText4 || 'a v celom rozsahu s nimi súhlasím.'}
-                    </span>
-                  }
-                />
-              </div>
+              <Form.Check
+                type="checkbox"
+                id="consent"
+                checked={consent}
+                onChange={() => setConsent(!consent)}
+                required
+                label={
+                  <span className="text-sm text-gray-700 leading-relaxed">
+                    {t.booking.consentText
+                      .split('{terms}')
+                      .map((part, index) =>
+                        index === 0 ? (
+                          <>
+                            {part}
+                            <a
+                              href="/terms"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary-600 hover:text-primary-700 underline font-medium"
+                            >
+                              {t.booking.terms}
+                            </a>
+                          </>
+                        ) : (
+                          <>
+                            {part.split('{privacy}')[0]}
+                            <a
+                              href="/gdpr"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary-600 hover:text-primary-700 underline font-medium"
+                            >
+                              {t.booking.privacy}
+                            </a>
+                            {part.split('{privacy}')[1]}
+                          </>
+                        )
+                      )}
+                  </span>
+                }
+              />
             </Form.Group>
           </div>
         </div>

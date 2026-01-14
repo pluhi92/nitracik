@@ -205,16 +205,41 @@ function Contact() {
                     required
                     className="mt-1 w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500 focus:ring-2 flex-shrink-0"
                   />
-                  <label htmlFor="agreementChecked" className="text-xs sm:text-sm text-gray-700 leading-relaxed">
-                    Oboznámil som sa so{' '}
-                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:text-primary-600 underline font-medium">
-                      Všeobecnými obchodnými podmienkami
-                    </a>
-                    {' '}a{' '}
-                    <a href="/gdpr" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:text-primary-600 underline font-medium">
-                      Ochranou osobných údajov
-                    </a>
-                    , porozumel som ich obsahu a v celom rozsahu s nimi súhlasím.
+
+                  <label
+                    htmlFor="agreementChecked"
+                    className="text-xs sm:text-sm text-gray-700 leading-relaxed"
+                  >
+                    {t.contact.form.consentText
+                      .split('{terms}')
+                      .map((part, index) =>
+                        index === 0 ? (
+                          <>
+                            {part}
+                            <a
+                              href="/terms"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary-500 hover:text-primary-600 underline font-medium"
+                            >
+                              {t.contact.form.terms}
+                            </a>
+                          </>
+                        ) : (
+                          <>
+                            {part.split('{privacy}')[0]}
+                            <a
+                              href="/gdpr"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary-500 hover:text-primary-600 underline font-medium"
+                            >
+                              {t.contact.form.privacy}
+                            </a>
+                            {part.split('{privacy}')[1]}
+                          </>
+                        )
+                      )}
                   </label>
                 </div>
 
@@ -222,8 +247,8 @@ function Contact() {
                 <button
                   type="submit"
                   className={`w-full py-3 sm:py-4 px-4 sm:px-6 bg-primary-500 text-white font-semibold rounded-lg transition-all duration-300 text-sm sm:text-base ${isLoading
-                      ? 'bg-gray-400 cursor-wait'
-                      : 'hover:bg-primary-600 hover:-translate-y-0.5 hover:shadow-lg'
+                    ? 'bg-gray-400 cursor-wait'
+                    : 'hover:bg-primary-600 hover:-translate-y-0.5 hover:shadow-lg'
                     } disabled:bg-gray-400 disabled:cursor-not-allowed disabled:transform-none`}
                   disabled={isLoading || !formData.agreementChecked}
                 >
@@ -235,8 +260,8 @@ function Contact() {
                 {/* Message Display */}
                 {message && (
                   <div className={`p-3 sm:p-4 rounded-lg text-center font-medium text-sm sm:text-base ${message.includes('successfully')
-                      ? 'bg-green-100 text-green-800 border border-green-200'
-                      : 'bg-red-100 text-red-800 border border-red-200'
+                    ? 'bg-green-100 text-green-800 border border-green-200'
+                    : 'bg-red-100 text-red-800 border border-red-200'
                     }`}>
                     {message}
                   </div>

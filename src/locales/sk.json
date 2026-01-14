@@ -39,14 +39,10 @@
     "agree": "SÚHLASÍM s publikovaním fotografií môjho dieťaťa",
     "disagree": "NESÚHLASÍM s publikovaním fotografií môjho dieťaťa",
     "consents": "Súhlasy a dohody",
-    "consentText1": "Oboznámil som sa so",
-    "consentLink1": "Všeobecnými obchodnými podmienkami",
-    "consentText2": "a",
-    "consentLink2": "Ochranou osobných údajov",
-    "consentText3": ", porozumel som ich obsahu",
-    "consentText4": "a v celom rozsahu s nimi súhlasím.",
+    "consentText": "*Vyjadrujem súhlas so {terms} a vyhlasujem, že som sa oboznámil/a so {privacy}.",
+    "terms": "Všeobecnými obchodnými podmienkami",
+    "privacy": "Zásadami ochrany osobných údajov",
     "consentRequired": "Pre dokončenie rezervácie musíte súhlasiť s pravidlami.",
-    "terms": "Všeobecné obchodné podmienky",
     "totalPrice": "Celková cena",
     "child": "dieťa",
     "children": "deti",
@@ -126,6 +122,9 @@
       "emailPlaceholder": "Zadajte váš email",
       "message": "Vaša správa",
       "messagePlaceholder": "Napíšte svoju správu",
+      "consentText": "*Vyjadrujem súhlas so {terms} a vyhlasujem, že som sa oboznámil/a so {privacy}.",
+      "terms": "Všeobecnými obchodnými podmienkami",
+      "privacy": "Zásadami ochrany osobných údajov",
       "submit": "Odoslať správu",
       "sending": "Odosielam...",
       "success": "Správa úspešne odoslaná!",
@@ -187,6 +186,35 @@
         "emailExists": "Email je už registrovaný",
         "generic": "Registrácia zlyhala. Skúste to znova."
       }
+    }
+  },
+  "seasonTicketsPage": {
+    "title": "Permanentky",
+    "subtitle": "Ušetrite s našimi výhodnými balíčkami vstupov",
+    "entries": "Vstupov",
+    "buyButton": "Kúpiť permanentku",
+    "processing": "Spracovávam...",
+    "paymentObligation": "(s povinnosťou platby)",
+    "mostPopular": "Najobľúbenejšie",
+    "perEntry": "Cena za vstup: {price}€",
+    "validity": "Platnosť: 6 mesiacov",
+    "validityNote": "od zakúpenia",
+    "restriction": "Platí len pre MIDI a MAXI",
+    "restrictionDetail": "Nevzťahuje sa na iné typy tréningov",
+    "termsAgreement": "Súhlasím s",
+    "privacyPolicy": "Ochranou osobných údajov",
+    "savings": "Úspora: {percent}%",
+    "validFor": "Platí len pre",
+    "and": "a",
+    "tags": {
+      "smallSaver": "Štartovací balík",
+      "standard": "Štandard",
+      "bestValue": "Najvýhodnejšie"
+    },
+    "entriesLabel": {
+      "one": "vstup",
+      "few": "vstupy",
+      "many": "vstupov"
     }
   },
   "profile": {

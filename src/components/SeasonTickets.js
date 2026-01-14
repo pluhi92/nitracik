@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom'; // Pridal som Link pre VOP/GDPR
+import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { useTranslation } from '../contexts/LanguageContext';
 import api from '../api/api';
@@ -7,45 +7,55 @@ import api from '../api/api';
 const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
 
 const SeasonTickets = () => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(localStorage.getItem('isLoggedIn') === 'true');
   const [userId, setUserId] = useState(localStorage.getItem('userId'));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [selectedTicket, setSelectedTicket] = useState(null);
-  const [showValidityTooltip, setShowValidityTooltip] = useState(null);
 
-  // === NOVÉ STAVY PRE MODÁLNE OKNO ===
+  // Stavy pre modálne okno
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [ticketToBuy, setTicketToBuy] = useState(null);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [agreedToGdpr, setAgreedToGdpr] = useState(false);
+  const [agreementChecked, setAgreementChecked] = useState(false);
 
-  const [seasonTickets, setSeasonTickets] = useState([
+  // Pomocná funkcia na výpočet úspory
+  const calculateSavings = (price, entries) => {
+    const standardPrice = 15; // štandardná cena za vstup
+    const totalStandardPrice = entries * standardPrice;
+    const savings = totalStandardPrice - price;
+    const savingsPercent = Math.round((savings / totalStandardPrice) * 100);
+    return savingsPercent;
+  };
+
+  // Dáta permanentiek
+  const [seasonTickets] = useState([
     {
       id: 1,
       entries: 3,
       price: 40,
       popular: false,
-      savings: 'Small Saver',
-      perEntry: 13.33
+      savingsKey: 'smallSaver',
+      perEntry: 13.33,
+      savingsPercent: calculateSavings(40, 3)
     },
     {
       id: 2,
       entries: 5,
       price: 65,
       popular: true,
-      savings: 'Standard',
-      perEntry: 13
+      savingsKey: 'standard',
+      perEntry: 13.00,
+      savingsPercent: calculateSavings(65, 5)
     },
     {
       id: 3,
       entries: 10,
       price: 120,
       popular: false,
-      savings: 'Best Value',
-      perEntry: 12
+      savingsKey: 'bestValue',
+      perEntry: 12.00,
+      savingsPercent: calculateSavings(120, 10)
     },
   ]);
 
@@ -58,7 +68,6 @@ const SeasonTickets = () => {
     return () => window.removeEventListener('storage', handleAuthChange);
   }, []);
 
-  // 1. KROK: Užívateľ klikne na tlačidlo na karte (len otvorí okno)
   const handleBuyClick = (ticket) => {
     if (!isLoggedIn) {
       navigate('/login', { state: { from: '/season-tickets' } });
@@ -66,27 +75,22 @@ const SeasonTickets = () => {
     }
     setError('');
     setTicketToBuy(ticket);
-    setAgreedToTerms(false);
-    setAgreedToGdpr(false);
+    setAgreementChecked(false);
     setShowConfirmModal(true);
   };
 
-  // 2. KROK: Užívateľ klikne "Zaplatiť" v modálnom okne (skutočná platba)
   const executePayment = async () => {
     if (!ticketToBuy) return;
 
-    // Validácia checkboxov (pre istotu, hoci button bude disabled)
-    if (!agreedToTerms || !agreedToGdpr) {
-      setError('Pre pokračovanie musíte súhlasiť s podmienkami.');
+    if (!agreementChecked) {
+      setError(t?.seasonTicketsPage?.termsError || 'Pre pokračovanie musíte súhlasiť s podmienkami.');
       return;
     }
 
     setLoading(true);
-    setSelectedTicket(ticketToBuy.id);
 
     try {
       const stripe = await stripePromise;
-
       const response = await api.post('api/create-season-ticket-payment', {
         userId,
         entries: ticketToBuy.entries,
@@ -103,211 +107,287 @@ const SeasonTickets = () => {
       }
     } catch (err) {
       console.error('Payment error:', err);
-      setError(t?.seasonTickets?.paymentError || 'Payment initialization failed. Please try again.');
+      setError(t?.booking?.paymentError || 'Payment initialization failed.');
       setLoading(false);
       setShowConfirmModal(false);
     }
   };
 
-  // Zatvorenie modálneho okna
   const closeConfirmModal = () => {
     setShowConfirmModal(false);
     setTicketToBuy(null);
     setError('');
   };
 
+  const getEntriesLabel = (count) => {
+    if (!t?.seasonTicketsPage?.entriesLabel) return '';
+
+    if (language === 'sk') {
+      if (count === 1) return t.seasonTicketsPage.entriesLabel.one;
+      if (count >= 2 && count <= 4) return t.seasonTicketsPage.entriesLabel.few;
+      return t.seasonTicketsPage.entriesLabel.many;
+    }
+
+    // EN
+    return count === 1
+      ? t.seasonTicketsPage.entriesLabel.one
+      : t.seasonTicketsPage.entriesLabel.many;
+  };
+
   return (
-    <div className="min-h-screen bg-custom-flakes py-6 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-black mb-2">
-            {t?.seasonTickets?.title || 'Season Tickets'}
+    // Ponechávame pôvodný section nezmenený
+    <section className="min-h-screen bg-background py-12 px-4 sm:px-6">
+      <div className="max-w-container mx-auto">
+
+        {/* Header - čierny text */}
+        <div className="text-center mb-10">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-black mb-4">
+            {t?.seasonTicketsPage?.title || 'Permanentky'}
           </h1>
-          <p className="text-gray-600 max-w-xl mx-auto">
-            {t?.seasonTickets?.subtitle || 'Save money with our bundle packages'}
+          <p className="text-base sm:text-lg md:text-xl text-black max-w-2xl mx-auto leading-relaxed">
+            {t?.seasonTicketsPage?.subtitle || 'Ušetrite s našimi výhodnými balíčkami vstupov'}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto mb-8">
+        {/* Grid Kariet - firemný dizajn */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
           {seasonTickets.map((ticket) => (
             <div
-              className={`
-                relative bg-white/90 backdrop-blur-sm border border-gray-200 rounded-xl p-6 shadow-lg transition-all duration-300 ease-in-out flex flex-col h-full
-                ${ticket.popular ? 'border-secondary-500' : 'border-gray-200'}
-                ${selectedTicket === ticket.id ? 'border-secondary-500 shadow-xl ring-2 ring-secondary-500 ring-opacity-20' : ''}
-                hover:transform hover:-translate-y-1 hover:shadow-xl
-              `}
               key={ticket.id}
-            >
+              className={`
+                relative flex flex-col p-6 sm:p-8
+                bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2
+                transition-all duration-300 hover:shadow-2xl hover:scale-105
+                ${ticket.popular
+                  ? 'border-secondary-900 ring-2 ring-secondary-200 shadow-secondary-500/20'
+                  : 'border-gray-200 hover:border-secondary-400 hover:shadow-secondary-500/10'
+                }
+            `}>
+              {/* Odznak Najobľúbenejšie */}
               {ticket.popular && (
-                <div className="absolute -top-2 -right-2 bg-secondary-500 text-white px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide shadow-lg z-10">
-                  {t?.seasonTickets?.mostPopular || 'Most Popular'}
+                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                  <span className="bg-secondary-900 text-white text-xs font-bold px-4 py-1 uppercase tracking-wider rounded-full shadow-lg">
+                    {t?.seasonTicketsPage?.mostPopular || 'Najobľúbenejšie'}
+                  </span>
                 </div>
               )}
 
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-xl font-bold text-gray-900 m-0">
-                  {ticket.entries} {t?.seasonTickets?.entries || 'Entries'}
-                </h3>
-                {ticket.savings && (
-                  <span className="bg-secondary-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
-                    {ticket.savings}
-                  </span>
-                )}
-              </div>
+              {/* Obsah karty */}
+              <div className="flex-1 flex flex-col items-center text-center">
 
-              <div className="text-center mb-4 py-3 border-b border-dashed border-gray-200">
-                <span className="text-xl font-semibold text-gray-500 align-top mr-1">€</span>
-                <span className="text-4xl font-black text-secondary-600 leading-none">{ticket.price}</span>
-              </div>
+                {/* Tag / Názov balíčka */}
+                <span className={`
+                  inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-6 text-gray-500
+                  ${ticket.popular ? 'bg-secondary-100' : 'bg-secondary-50'}
+                `}>
+                  {t?.seasonTicketsPage?.tags?.[ticket.savingsKey] || ticket.savingsKey}
+                </span>
 
-              <div className="flex-1 mb-6">
-                <div className="flex justify-between items-center bg-white px-3 py-2 rounded-lg mb-3 border border-gray-100">
-                  <span className="text-sm text-gray-600">
-                    {t?.seasonTickets?.perEntry || 'Per entry'}:
+                {/* Počet vstupov - KARTA */}
+                <div className="mb-2">
+                  <h3 className="text-5xl sm:text-6xl font-bold text-gray-500 tracking-tight">
+                    {ticket.entries}
+                  </h3>
+                  <span className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-1 block">
+                    {/* LOGIKA: Ak je SK, riešime skloňovanie. Ak je EN, riešime Entry/Entries */}
+                    {language === 'sk'
+                      ? (ticket.entries === 1 ? 'vstup' : (ticket.entries >= 2 && ticket.entries <= 4 ? 'vstupy' : t?.seasonTicketsPage?.entries))
+                      : (ticket.entries === 1 ? 'Entry' : t?.seasonTicketsPage?.entries)
+                    }
                   </span>
-                  <span className="text-base font-bold text-gray-900">€{ticket.perEntry}</span>
                 </div>
 
-                {/* Validity info block */}
-                <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4 text-center">
-                  <p className="text-sm text-blue-800 font-medium">📅 Platnosť: 6 mesiacov</p>
+                {/* Cena */}
+                <div className="mb-6 w-full border-t border-b border-secondary-200 py-4 mt-4">
+                  <div className="flex justify-center items-baseline">
+                    <span className="text-3xl font-bold text-secondary-600">€{ticket.price}</span>
+                  </div>
+                  <p className="text-green-600 text-sm mt-1 font-medium">
+                    {t?.seasonTicketsPage?.savings.replace(
+                      '{percent}',
+                      ticket.savingsPercent
+                    )}
+                  </p>
                 </div>
 
-                <ul className="space-y-1 text-sm">
-                  <li className="flex items-center text-gray-900 font-medium">
-                    <span className="text-secondary-500 font-bold mr-2">✓</span>
-                    Platí na MIDI a MAXI
+                {/* Vlastnosti (Features) */}
+                <ul className="text-sm space-y-4 mb-8 w-full text-left px-2">
+
+                  {/* Platnosť: 6 mesiacov */}
+                  <li className="flex items-start gap-3">
+                    <div className="mt-0.5 p-1 bg-secondary-100 rounded-full text-secondary-600 flex-shrink-0">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-gray-500 block">
+                        {t?.seasonTicketsPage?.validity || 'Platnosť: 6 mesiacov'}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {t?.seasonTicketsPage?.validityNote || 'od zakúpenia'}
+                      </span>
+                    </div>
                   </li>
-                  <li className="flex items-center text-gray-900 font-medium">
-                    <span className="text-secondary-500 font-bold mr-2">✓</span>
-                    {t?.seasonTickets?.feature2 || 'Prenosná na súrodencov'}
+
+                  {/* Obmedzenie: Len MIDI a MAXI */}
+                  <li className="flex items-start gap-3">
+                    <div className="mt-0.5 p-1 bg-secondary-500/20 rounded-full text-secondary-700 flex-shrink-0">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    </div>
+                    <div>
+                      <span className="font-bold text-gray-500 block">
+                        {t?.seasonTicketsPage?.restriction || 'Platí len pre MIDI a MAXI'}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {t?.seasonTicketsPage?.restrictionDetail || 'Nevzťahuje sa na iné typy'}
+                      </span>
+                    </div>
                   </li>
                 </ul>
-              </div>
 
-              <button
-                className={`
-                  w-full bg-secondary-500 text-white border-none py-3 px-6 rounded-lg font-bold text-base transition-all duration-300 ease-in-out
-                  flex items-center justify-center gap-2 relative overflow-hidden
-                  hover:bg-secondary-600 hover:transform hover:-translate-y-0.5 hover:shadow-lg
-                `}
-                // ZMENA: Voláme handleBuyClick namiesto priamej platby
-                onClick={() => handleBuyClick(ticket)}
-              >
-                {t?.seasonTickets?.buyNow || 'Kúpiť'}
-                <span className="transition-transform duration-300 ease-in-out group-hover:translate-x-1">→</span>
-              </button>
+                {/* Tlačidlo - secondary-900 pre všetky */}
+                <div className="mt-auto w-full">
+                  <button
+                    onClick={() => handleBuyClick(ticket)}
+                    className="
+                      w-full py-3.5 px-6 rounded-lg font-semibold text-white transition-all duration-300
+                      bg-secondary-900 hover:bg-secondary-500 shadow-lg hover:shadow-xl hover:-translate-y-0.5
+                    "
+                  >
+                    {t?.seasonTicketsPage?.buyButton || 'Kúpiť permanentku'}
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
         </div>
-
-        {error && !showConfirmModal && (
-          <div className="bg-red-50 text-red-700 px-6 py-4 rounded-xl flex items-center gap-3 mb-6 border border-red-200 max-w-2xl mx-auto">
-            <span className="text-xl">⚠️</span>
-            {error}
-          </div>
-        )}
-
-        <div className="flex justify-between items-center flex-wrap gap-4 pt-6 border-t border-gray-300 max-w-2xl mx-auto">
-          <button
-            className="bg-transparent text-gray-600 border border-gray-400 px-5 py-2 rounded-lg transition-all duration-300 ease-in-out hover:bg-gray-50 hover:text-gray-800 hover:border-gray-500"
-            onClick={() => navigate('/booking')}
-          >
-            ← {t?.seasonTickets?.backToBooking || 'Späť na rezervácie'}
-          </button>
-        </div>
       </div>
 
-      {/* ================= MODÁLNE OKNO (CONFIRMATION MODAL) ================= */}
+      {/* MODAL WINDOW - Finalizovaný dizajn */}
       {showConfirmModal && ticketToBuy && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-fadeIn transform transition-all">
+        <div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border-2 border-gray-200">
 
-            {/* Header okna */}
-            <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-800">Súhrn objednávky</h3>
-              <button onClick={closeConfirmModal} className="text-gray-400 hover:text-gray-600">
-                ✕
+            {/* Modal Header */}
+            <div className="px-6 py-4 flex justify-between items-center">
+              {/* ZMENA 2: Odstránené 'uppercase', text bude tak ako v preklade (Kúpiť permanentku) */}
+              <h3 className="font-bold text-lg text-black">
+                {t?.seasonTicketsPage?.buyButton || 'Kúpiť permanentku'}
+              </h3>
+              <button onClick={closeConfirmModal} className="text-gray-500 hover:text-black transition-colors">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
             </div>
 
-            {/* Obsah okna */}
-            <div className="p-6 space-y-4">
+            {/* ZMENA 1: Čiara je sivá (border-gray-300), kratšia (w-2/3) a vycentrovaná (mx-auto) */}
+            <div className="border-b border-gray-300 w-2/3 mx-auto"></div>
 
-              {/* Info o lístku */}
-              <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 mb-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="font-bold text-gray-800 text-lg">{ticketToBuy.entries} vstupov</span>
-                  <span className="font-bold text-secondary-600 text-xl">{ticketToBuy.price} €</span>
+            <div className="p-6 pb-2">
+
+              <div className="flex flex-col items-center justify-center mb-6">
+
+                {/* 3 VSTUPY - ZMENA 3: Gramatika */}
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-xl font-bold text-gray-500">
+                    {ticketToBuy.entries}
+                  </span>
+                  <span className="text-xl font-bold text-gray-500">
+                    {getEntriesLabel(ticketToBuy.entries)}
+                  </span>
                 </div>
-                <ul className="text-sm text-gray-700 space-y-1">
-                  <li className="flex items-center gap-2">
-                    <span>📅</span> Expirácia: <strong>6 mesiacov</strong> od zakúpenia
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span>🧘‍♀️</span> Platí na: <strong>MIDI a MAXI</strong> hodiny
-                  </li>
-                </ul>
+
+                {/* CENA */}
+                <div className="text-5xl font-extrabold text-black mb-4">
+                  {ticketToBuy.price} €
+                </div>
+
+                <div className="text-center text-gray-600 font-medium">
+                  {t?.seasonTicketsPage?.validFor}{' '}
+                  <span style={{ color: '#eabd64' }} className="font-bold">MIDI</span>{' '}
+                  {t?.seasonTicketsPage?.and}{' '}
+                  <span style={{ color: '#f8b2b2' }} className="font-bold">MAXI</span>
+                </div>
               </div>
 
+
+              {/* Platnosť */}
+              <div className="text-center font-bold text-gray-800 mt-4 mb-2">
+                {t?.seasonTicketsPage?.validity || 'Platnosť: 6 mesiacov od dňa zakúpenia'}
+              </div>
+
+            </div>
+
+            {/* ZMENA 1: Spodná čiara taktiež kratšia a sivá */}
+            <div className="border-b border-gray-300 w-2/3 mx-auto"></div>
+
+            {/* SPODNÁ ČASŤ */}
+            <div className="p-6 pt-8">
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 flex items-center gap-2">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  {error}
+                </div>
+              )}
+
               {/* Checkbox */}
-              <div className="space-y-3">
+              <div className="mb-6">
                 <div className="flex items-start gap-3">
                   <input
                     type="checkbox"
-                    id="agreedToTerms"
+                    id="agreementChecked"
+                    checked={agreementChecked}
+                    onChange={(e) => setAgreementChecked(e.target.checked)}
+                    required
                     className="mt-1 w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500 focus:ring-2 flex-shrink-0"
-                    checked={agreedToTerms}
-                    onChange={(e) => setAgreedToTerms(e.target.checked)}
                   />
-                  <label htmlFor="agreedToTerms" className="text-sm text-gray-700 leading-relaxed cursor-pointer">
-                    Oboznámil som sa so{' '}
-                    <Link to="/terms" target="_blank" className="text-secondary-600 underline hover:text-secondary-700 font-medium">
-                      Všeobecnými obchodnými podmienkami
-                    </Link>
-                    {' '}a{' '}
-                    <Link to="/gdpr" target="_blank" className="text-secondary-600 underline hover:text-secondary-700 font-medium">
-                      Ochranou osobných údajov
-                    </Link>
-                    , porozumel som ich obsahu a v celom rozsahu s nimi súhlasím.
+                  <label htmlFor="agreementChecked" className="text-xs sm:text-sm text-gray-700 leading-relaxed">
+                    {t?.contact?.form?.consentText?.split('{terms}').map((part, index) =>
+                      index === 0 ? (
+                        <>
+                          {part}
+                          <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:text-primary-600 underline font-medium">
+                            {t?.contact?.form?.terms || 'Všeobecnými obchodnými podmienkami'}
+                          </a>
+                        </>
+                      ) : (
+                        <>
+                          {part.split('{privacy}')[0]}
+                          <a href="/gdpr" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:text-primary-600 underline font-medium">
+                            {t?.contact?.form?.privacy || 'Zásadami ochrany osobných údajov'}
+                          </a>
+                          {part.split('{privacy}')[1]}
+                        </>
+                      )
+                    )}
                   </label>
                 </div>
               </div>
-            </div>
 
-            {/* Footer s tlačidlom */}
-            <div className="p-6 pt-0">
+              {/* Tlačidlo - ZMENA 2: Odstránené uppercase */}
               <button
                 onClick={executePayment}
-                disabled={loading || !agreedToTerms}
-                className={`
-                  w-full py-3.5 rounded-xl font-bold text-white text-base shadow-lg transition-all transform
+                disabled={loading || !agreementChecked}
+                className="
+                  w-full py-3.5 px-6 rounded-lg font-bold text-white shadow-lg transition-all tracking-wide
                   flex justify-center items-center gap-2
-                  ${(loading || !agreedToTerms)
-                    ? 'bg-gray-300 cursor-not-allowed'
-                    : 'bg-green-600 hover:bg-green-700 hover:-translate-y-1 hover:shadow-green-200'
-                  }
-                `}
+                  bg-secondary-900 hover:bg-secondary-500 hover:-translate-y-0.5 hover:shadow-xl
+                  disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed disabled:transform-none
+                "
               >
                 {loading ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Spracovávam...
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    {t?.seasonTicketsPage?.processing || 'Spracovávam...'}
                   </>
                 ) : (
-                  <>
-                    Kúpiť permanentku <span className="text-xs font-normal opacity-90">(s povinnosťou platby)</span>
-                  </>
+                  t?.seasonTicketsPage?.buyButton || 'Kúpiť permanentku'
                 )}
               </button>
             </div>
-
           </div>
         </div>
       )}
-
-    </div>
+    </section>
   );
 };
 

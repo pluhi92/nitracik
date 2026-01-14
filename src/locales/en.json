@@ -39,14 +39,10 @@
     "agree": "AGREE to publish photos of my children",
     "disagree": "DISAGREE to publish photos of my children",
     "consents": "Consents and Agreements",
-    "consentText1": "I have read and understood the",
-    "consentLink1": "Terms and Conditions",
-    "consentText2": "and",
-    "consentLink2": "Privacy Policy",
-    "consentText3": ", I understand their content",
-    "consentText4": "and I fully agree with them.",
+    "consentText": "*I agree to the {terms} and declare that I have read the {privacy}.",
+    "terms": "Terms and Conditions",
+    "privacy": "Privacy Policy",
     "consentRequired": "You must agree to the rules to complete the booking.",
-    "terms": "General Terms and Conditions",
     "totalPrice": "Total Price",
     "child": "child",
     "children": "children",
@@ -125,6 +121,9 @@
       "emailPlaceholder": "Enter your email",
       "message": "Your Message",
       "messagePlaceholder": "Write your message here",
+      "consentText": "*I agree to the {terms} and declare that I have read the {privacy}.",
+      "terms": "Terms and Conditions",
+      "privacy": "Privacy Policy",
       "submit": "Send Message",
       "sending": "Sending...",
       "success": "Message sent successfully!",
@@ -186,6 +185,34 @@
         "emailExists": "Email is already registered",
         "generic": "Registration failed. Please try again."
       }
+    }
+  },
+  "seasonTicketsPage": {
+    "title": "Season Tickets",
+    "subtitle": "Save money with our bundle packages",
+    "entries": "Entries",
+    "buyButton": "Purchase Ticket",
+    "processing": "Processing...",
+    "paymentObligation": "(payment obligation)",
+    "mostPopular": "Most Popular",
+    "perEntry": "Price per entry: {price}€",
+    "validity": "Validity: 6 months",
+    "validityNote": "from purchase",
+    "restriction": "Valid only for MIDI & MAXI",
+    "restrictionDetail": "Not applicable for other training types",
+    "termsAgreement": "*I agree to the",
+    "privacyPolicy": "Privacy Policy",
+    "savings": "Savings: {percent}%",
+    "validFor": "Valid only for",
+    "and": "&",
+    "tags": {
+      "smallSaver": "Small Saver",
+      "standard": "Standard",
+      "bestValue": "Best Value"
+    },
+    "entriesLabel": {
+      "one": "entry",
+      "many": "entries"
     }
   },
   "profile": {
@@ -342,7 +369,7 @@
     "sat": "SAT",
     "sun": "SUN"
   },
-"greetingBar": {
+  "greetingBar": {
     "hello": "Hello"
   }
 }
