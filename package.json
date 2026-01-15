@@ -9,18 +9,17 @@
     "@heroicons/react": "^2.2.0",
     "@stripe/stripe-js": "^5.8.0",
     "axios": "^1.13.2",
-    "bcrypt": "^5.1.1",
+
     "bootstrap": "^5.3.3",
     "bootstrap-icons": "^1.13.1",
-    "connect-pg-simple": "^10.0.0",
+  
     "cra-template": "1.2.0",
     "dayjs": "^1.11.19",
-    "express-rate-limit": "^8.2.1",
-    "firebase-admin": "^13.1.0",
+    
+ 
     "framer-motion": "^12.23.26",
-    "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^6.10.0",
-    "pdfkit": "^0.17.1",
+   
+    
     "react": "^19.0.0",
     "react-bootstrap": "^2.10.9",
     "react-calendar": "^5.1.0",
@@ -33,7 +32,7 @@
     "react-scripts": "5.0.1",
     "react-toastify": "^11.0.3",
     "react-tooltip": "^5.28.0",
-    "stripe": "^17.7.0",
+  
     "web-vitals": "^4.2.4"
   },
   "scripts": {
