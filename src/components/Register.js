@@ -34,14 +34,14 @@ const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
-  
+
   // --- SMART ADRESA STATE ---
   const [addrCity, setAddrCity] = useState('');
   const [addrStreet, setAddrStreet] = useState('');
   const [addrNumber, setAddrNumber] = useState('');
   const [addrZip, setAddrZip] = useState('');
   const [hasNoStreet, setHasNoStreet] = useState(false);
-  
+
   const [citySuggestions, setCitySuggestions] = useState([]);
   const [streetSuggestions, setStreetSuggestions] = useState([]);
   const [isSearchingCity, setIsSearchingCity] = useState(false);
@@ -131,11 +131,11 @@ const Register = () => {
     setAddrZip('');
     setShowCityDropdown(false);
     if (city.address.postcode) setAddrZip(city.address.postcode);
-    
+
     if (hasNoStreet && numberInputRef.current) {
-        numberInputRef.current.focus();
+      numberInputRef.current.focus();
     } else if (streetInputRef.current) {
-        streetInputRef.current.focus();
+      streetInputRef.current.focus();
     }
   };
 
@@ -167,7 +167,7 @@ const Register = () => {
     switch (name) {
       case 'firstName': if (!value) return errorMessages.firstNameRequired || 'Required'; break;
       case 'lastName': if (!value) return errorMessages.lastNameRequired || 'Required'; break;
-      case 'email': 
+      case 'email':
         if (!value) return errorMessages.emailRequired || 'Required';
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return errorMessages.emailInvalid || 'Invalid email';
         break;
@@ -196,7 +196,7 @@ const Register = () => {
   const isAddressValid = addrCity && (hasNoStreet || addrStreet) && addrNumber && addrZip;
 
   // VALIDACIA FORMULARA TERAZ KONTROLUJE captchaToken
-  const isFormValid = 
+  const isFormValid =
     !Object.values(errors).some((error) => error) &&
     firstName && lastName && email &&
     isPasswordValid && doPasswordsMatch &&
@@ -211,9 +211,9 @@ const Register = () => {
     // Adresa logika
     let fullAddress = '';
     if (hasNoStreet) {
-        fullAddress = `${addrCity} ${addrNumber}, ${addrZip} ${addrCity}`;
+      fullAddress = `${addrCity} ${addrNumber}, ${addrZip} ${addrCity}`;
     } else {
-        fullAddress = `${addrStreet} ${addrNumber}, ${addrZip} ${addrCity}`;
+      fullAddress = `${addrStreet} ${addrNumber}, ${addrZip} ${addrCity}`;
     }
 
     setLoading(true);
@@ -239,7 +239,7 @@ const Register = () => {
   const PasswordRequirement = ({ met, text }) => {
     let colorClass = met ? 'text-green-600 font-medium' : (!isPasswordFocused && passwordTouched ? 'text-red-500 font-medium' : 'text-gray-500');
     let Icon = met ? CheckIcon : (!isPasswordFocused && passwordTouched ? XIcon : null);
-    
+
     return (
       <li className={`flex items-center text-xs transition-colors duration-200 ${colorClass}`}>
         <div className="w-5 h-5 mr-1.5 flex items-center justify-center flex-shrink-0">
@@ -257,7 +257,7 @@ const Register = () => {
       <div className="max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 sm:p-12 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-secondary-100 rounded-bl-full opacity-50 -mr-16 -mt-16 pointer-events-none"></div>
         <h2 className="text-3xl font-bold text-center text-gray-900 mb-8 relative z-10">{t?.login?.register?.title || 'Create Account'}</h2>
-        
+
         <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
           <div style={{ display: 'none', opacity: 0, position: 'absolute', left: '-9999px' }}>
             <input type="text" name="_honey" value={honey} onChange={(e) => setHoney(e.target.value)} tabIndex="-1" autoComplete="off" />
@@ -283,96 +283,96 @@ const Register = () => {
 
           {/* --- SMART ADRESA SEKCE --- */}
           <div className="space-y-3">
-             <label className="block text-sm font-medium text-gray-700">{t?.login?.register?.address || 'Address'}</label>
-             
-             {/* 1. MESTO */}
-             <div className="relative" ref={cityInputRef}>
-                <input 
-                  type="text" 
-                  name="addrCity"
-                  value={addrCity}
-                  onChange={(e) => { setAddrCity(e.target.value); setShowCityDropdown(true); }}
-                  onFocus={() => setShowCityDropdown(true)}
-                  className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.addrCity ? 'border-red-500' : 'border-gray-200 focus:border-primary-500'}`}
-                  placeholder="Mesto / Obec (napr. Nitra)"
-                />
-                {isSearchingCity && <div className="absolute right-3 top-3.5"><SpinnerIcon className="w-5 h-5 text-gray-400" /></div>}
-                {showCityDropdown && citySuggestions.length > 0 && (
-                  <ul className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
-                    {citySuggestions.map((city, idx) => (
-                      <li key={idx} onClick={() => handleSelectCity(city)} className="px-4 py-2 hover:bg-primary-50 cursor-pointer text-sm text-gray-700">{city.display_name}</li>
-                    ))}
-                  </ul>
-                )}
-             </div>
+            <label className="block text-sm font-medium text-gray-700">{t?.login?.register?.address || 'Address'}</label>
 
-             {/* 2. ULICA + CHECKBOX PRE DEDINY */}
-             <div className="relative" ref={streetInputRef}>
-                <input 
-                  type="text" 
-                  name="addrStreet"
-                  value={addrStreet}
-                  onChange={(e) => { setAddrStreet(e.target.value); setShowStreetDropdown(true); }}
-                  onFocus={() => !hasNoStreet && setShowStreetDropdown(true)}
-                  disabled={!addrCity || hasNoStreet} 
-                  className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all 
+            {/* 1. MESTO */}
+            <div className="relative" ref={cityInputRef}>
+              <input
+                type="text"
+                name="addrCity"
+                value={addrCity}
+                onChange={(e) => { setAddrCity(e.target.value); setShowCityDropdown(true); }}
+                onFocus={() => setShowCityDropdown(true)}
+                className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.addrCity ? 'border-red-500' : 'border-gray-200 focus:border-primary-500'}`}
+                placeholder="Mesto / Obec (napr. Nitra)"
+              />
+              {isSearchingCity && <div className="absolute right-3 top-3.5"><SpinnerIcon className="w-5 h-5 text-gray-400" /></div>}
+              {showCityDropdown && citySuggestions.length > 0 && (
+                <ul className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
+                  {citySuggestions.map((city, idx) => (
+                    <li key={idx} onClick={() => handleSelectCity(city)} className="px-4 py-2 hover:bg-primary-50 cursor-pointer text-sm text-gray-700">{city.display_name}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* 2. ULICA + CHECKBOX PRE DEDINY */}
+            <div className="relative" ref={streetInputRef}>
+              <input
+                type="text"
+                name="addrStreet"
+                value={addrStreet}
+                onChange={(e) => { setAddrStreet(e.target.value); setShowStreetDropdown(true); }}
+                onFocus={() => !hasNoStreet && setShowStreetDropdown(true)}
+                disabled={!addrCity || hasNoStreet}
+                className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all 
                     ${hasNoStreet ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}
                     ${errors.addrStreet && !hasNoStreet ? 'border-red-500' : 'border-gray-200 focus:border-primary-500'}`}
-                  placeholder={hasNoStreet ? 'Obec nemá ulice' : (addrCity ? `Ulica v ${addrCity}` : "Najprv vyberte mesto")}
-                />
-                {isSearchingStreet && !hasNoStreet && <div className="absolute right-3 top-3.5"><SpinnerIcon className="w-5 h-5 text-gray-400" /></div>}
-                {showStreetDropdown && streetSuggestions.length > 0 && !hasNoStreet && (
-                  <ul className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
-                    {streetSuggestions.map((street, idx) => (
-                      <li key={idx} onClick={() => handleSelectStreet(street)} className="px-4 py-2 hover:bg-primary-50 cursor-pointer text-sm text-gray-700">{street.display_name.split(',')[0]}</li>
-                    ))}
-                  </ul>
-                )}
-             </div>
+                placeholder={hasNoStreet ? 'Obec nemá ulice' : (addrCity ? `Ulica v ${addrCity}` : "Najprv vyberte mesto")}
+              />
+              {isSearchingStreet && !hasNoStreet && <div className="absolute right-3 top-3.5"><SpinnerIcon className="w-5 h-5 text-gray-400" /></div>}
+              {showStreetDropdown && streetSuggestions.length > 0 && !hasNoStreet && (
+                <ul className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
+                  {streetSuggestions.map((street, idx) => (
+                    <li key={idx} onClick={() => handleSelectStreet(street)} className="px-4 py-2 hover:bg-primary-50 cursor-pointer text-sm text-gray-700">{street.display_name.split(',')[0]}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
-             <div className="flex items-center gap-2 mt-1 mb-2">
-                <input 
-                  type="checkbox" 
-                  id="noStreet" 
-                  checked={hasNoStreet} 
-                  onChange={(e) => {
-                      setHasNoStreet(e.target.checked);
-                      if (e.target.checked) {
-                          setAddrStreet('');
-                          setErrors(prev => ({ ...prev, addrStreet: '' }));
-                      }
-                  }}
-                  className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
-                />
-                <label htmlFor="noStreet" className="text-xs text-gray-600 cursor-pointer select-none">
-                  Obec nemá ulice (použiť len číslo domu)
-                </label>
-             </div>
+            <div className="flex items-center gap-2 mt-1 mb-2">
+              <input
+                type="checkbox"
+                id="noStreet"
+                checked={hasNoStreet}
+                onChange={(e) => {
+                  setHasNoStreet(e.target.checked);
+                  if (e.target.checked) {
+                    setAddrStreet('');
+                    setErrors(prev => ({ ...prev, addrStreet: '' }));
+                  }
+                }}
+                className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
+              />
+              <label htmlFor="noStreet" className="text-xs text-gray-600 cursor-pointer select-none">
+                Obec nemá ulice (použiť len číslo domu)
+              </label>
+            </div>
 
-             {/* 3. ČÍSLO a PSČ */}
-             <div className="grid grid-cols-3 gap-3">
-               <div className="col-span-1">
-                 <input 
-                    ref={numberInputRef}
-                    type="text" 
-                    name="addrNumber"
-                    value={addrNumber}
-                    onChange={(e) => setAddrNumber(e.target.value)}
-                    className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.addrNumber ? 'border-red-500' : 'border-gray-200 focus:border-primary-500'}`}
-                    placeholder="Číslo"
-                 />
-               </div>
-               <div className="col-span-2">
-                 <input 
-                    type="text" 
-                    name="addrZip"
-                    value={addrZip}
-                    onChange={(e) => setAddrZip(e.target.value)}
-                    className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.addrZip ? 'border-red-500' : 'border-gray-200 focus:border-primary-500'}`}
-                    placeholder="PSČ"
-                 />
-               </div>
-             </div>
+            {/* 3. ČÍSLO a PSČ */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-1">
+                <input
+                  ref={numberInputRef}
+                  type="text"
+                  name="addrNumber"
+                  value={addrNumber}
+                  onChange={(e) => setAddrNumber(e.target.value)}
+                  className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.addrNumber ? 'border-red-500' : 'border-gray-200 focus:border-primary-500'}`}
+                  placeholder="Číslo"
+                />
+              </div>
+              <div className="col-span-2">
+                <input
+                  type="text"
+                  name="addrZip"
+                  value={addrZip}
+                  onChange={(e) => setAddrZip(e.target.value)}
+                  className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.addrZip ? 'border-red-500' : 'border-gray-200 focus:border-primary-500'}`}
+                  placeholder="PSČ"
+                />
+              </div>
+            </div>
           </div>
 
           {/* HESLO */}
@@ -415,7 +415,7 @@ const Register = () => {
           {/* --- HCAPTCHA IMPLEMENTÁCIA --- */}
           <div className="flex justify-center py-2">
             <HCaptcha
-              sitekey="10000000-ffff-ffff-ffff-000000000001" 
+              sitekey={process.env.VITE_HCAPTCHA_SITEKEY || '10000000-ffff-ffff-ffff-000000000001'}
               onVerify={(token) => setCaptchaToken(token)}
               ref={hCaptchaRef}
             />
@@ -424,7 +424,7 @@ const Register = () => {
           <button type="submit" className={`w-full py-4 px-6 rounded-xl text-white font-bold text-lg shadow-lg transition-all duration-300 transform hover:-translate-y-1 ${isFormValid ? 'bg-primary-500 hover:bg-primary-600 hover:shadow-primary-500/30' : 'bg-gray-300 cursor-not-allowed shadow-none'}`} disabled={!isFormValid || loading}>
             {loading ? <div className="flex items-center justify-center gap-3"><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>{t?.login?.register?.loading || 'Registering...'}</span></div> : t?.login?.register?.submit || 'Create Account'}
           </button>
-          
+
           {apiError && <div className={`text-center text-sm font-medium py-3 px-4 rounded-lg border animate-fadeIn ${apiError.includes('success') ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>{apiError}</div>}
         </form>
 
