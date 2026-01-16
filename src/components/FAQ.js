@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronDownIcon, ChevronUpIcon, PencilSquareIcon, TrashIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
 import { Modal, Button, Form } from 'react-bootstrap';
 import api from '../api/api';
@@ -17,25 +17,17 @@ const FAQ = () => {
   const [currentFaq, setCurrentFaq] = useState({ id: null, question: '', answer: '' });
   const [loading, setLoading] = useState(false);
 
-  // Načítanie dát a overenie admina pri štarte
-  useEffect(() => {
-    fetchFaqs();
-    if (userId) {
-      checkAdminStatus();
-    }
-  }, [userId]);
-
-  const fetchFaqs = async () => {
+  // 1. Obalíme funkcie do useCallback, aby boli stabilné
+  const fetchFaqs = useCallback(async () => {
     try {
       const response = await api.get('/api/faqs');
       setFaqData(response.data);
     } catch (error) {
       console.error('Error fetching FAQs:', error);
     }
-  };
+  }, []);
 
-  // Nezávislá kontrola admina priamo v tejto komponente
-  const checkAdminStatus = async () => {
+  const checkAdminStatus = useCallback(async () => {
     try {
       const response = await api.get(`/api/users/${userId}`);
       // Porovnáme email s admin emailom (z .env premennej)
@@ -45,7 +37,15 @@ const FAQ = () => {
     } catch (error) {
       console.error('Admin check failed:', error);
     }
-  };
+  }, [userId]);
+
+  // 2. Teraz ich môžeme bezpečne pridať do závislostí useEffect
+  useEffect(() => {
+    fetchFaqs();
+    if (userId) {
+      checkAdminStatus();
+    }
+  }, [userId, fetchFaqs, checkAdminStatus]);
 
   const toggleAccordion = (index) => {
     setOpenIndex(openIndex === index ? null : index);

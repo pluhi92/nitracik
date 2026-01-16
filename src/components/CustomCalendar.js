@@ -1,5 +1,5 @@
 // src/components/CustomCalendar.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from '../contexts/LanguageContext';
 import logo from '../assets/logo_bez.PNG';
 
@@ -28,11 +28,38 @@ const CustomCalendar = ({
     return t?.calendar?.[day.toLowerCase()] || day.slice(0, 2).toUpperCase();
   };
 
-  useEffect(() => {
-    generateCalendar();
-  }, [currentDate, trainingDates, trainingType, selectedDate]);
+  // --- ZAČIATOK PRESUNUTÝCH A UPRAVENÝCH FUNKCIÍ ---
 
-  const generateCalendar = () => {
+  // 1. isSameDay musí byť prvá (nemá závislosti)
+  const isSameDay = useCallback((a, b) =>
+    a.getDate() === b.getDate() &&
+    a.getMonth() === b.getMonth() &&
+    a.getFullYear() === b.getFullYear(), []);
+
+  // 2. createDayObject používa isSameDay, preto musí byť pod ňou
+  const createDayObject = useCallback((date, isCurrentMonth) => {
+    const formattedDate = date.toLocaleDateString('en-CA');
+    const isAvailable = trainingType && trainingDates[trainingType]?.[formattedDate];
+    const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+    const isPastDate = date < minDate && !isSameDay(date, minDate);
+    const disabled = isPastDate || !isAvailable;
+
+    return {
+      date,
+      isCurrentMonth,
+      isToday: isSameDay(date, new Date()),
+      isAvailable,
+      isSelected: selectedDate && isSameDay(date, new Date(selectedDate)),
+      isDisabled: disabled,
+      isWeekend,
+      dayOfWeek,
+    };
+  }, [trainingType, trainingDates, minDate, selectedDate, isSameDay]);
+
+  // 3. generateCalendar používa createDayObject, preto je tu
+  const generateCalendar = useCallback(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const firstDay = new Date(year, month, 1);
@@ -56,7 +83,7 @@ const CustomCalendar = ({
       days.push(createDayObject(date, true));
     }
 
-    // Nasledujúci mesiac – doplníme, aby bol grid vždy 42 dní (6 riadkov)
+    // Nasledujúci mesiac
     const totalCells = 42;
     const nextMonthDays = totalCells - days.length;
     for (let i = 1; i <= nextMonthDays; i++) {
@@ -65,34 +92,14 @@ const CustomCalendar = ({
     }
 
     setCalendarDays(days);
-  };
+  }, [currentDate, createDayObject]);
 
-  const createDayObject = (date, isCurrentMonth) => {
-  const formattedDate = date.toLocaleDateString('en-CA');
-  const isAvailable = trainingType && trainingDates[trainingType]?.[formattedDate];
-  const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
-  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+  // --- KONIEC UPRAVENÝCH FUNKCIÍ ---
 
-  // Opravená logika: dátum je disabled len ak je STRICTLY pred minDate (nie rovnaký deň)
-  const isPastDate = date < minDate && !isSameDay(date, minDate);
-  const disabled = isPastDate || !isAvailable;
-
-  return {
-    date,
-    isCurrentMonth,
-    isToday: isSameDay(date, new Date()),
-    isAvailable,
-    isSelected: selectedDate && isSameDay(date, new Date(selectedDate)),
-    isDisabled: disabled,
-    isWeekend,
-    dayOfWeek,
-  };
-};
-
-  const isSameDay = (a, b) =>
-    a.getDate() === b.getDate() &&
-    a.getMonth() === b.getMonth() &&
-    a.getFullYear() === b.getFullYear();
+  // 4. useEffect teraz volá stabilnú funkciu generateCalendar
+  useEffect(() => {
+    generateCalendar();
+  }, [generateCalendar]);
 
   const handleDateClick = (day) => {
     if (!day.isDisabled && day.isAvailable) {
@@ -115,35 +122,35 @@ const CustomCalendar = ({
     }, 350);
   };
 
- const getDayClasses = (day, idx) => {
-  let base = 'flex items-center justify-center text-sm font-medium aspect-square transition-all';
+  const getDayClasses = (day, idx) => {
+    let base = 'flex items-center justify-center text-sm font-medium aspect-square transition-all';
 
-  // Kliknutý deň má vlastnú farbu
-  if (day.isSelected) return `${base} bg-secondary-600 text-white font-bold shadow`;
+    // Kliknutý deň má vlastnú farbu
+    if (day.isSelected) return `${base} bg-secondary-600 text-white font-bold shadow`;
 
-  // Dnešok - čierny border + farebné pozadie podľa dostupnosti
-  if (day.isToday) {
-    if (day.isAvailable) {
-      return `${base} bg-[#FFA000] border-2 !border-black text-white font-bold hover:bg-[#FF8F00] cursor-pointer`;
+    // Dnešok - čierny border + farebné pozadie podľa dostupnosti
+    if (day.isToday) {
+      if (day.isAvailable) {
+        return `${base} bg-[#FFA000] border-2 !border-black text-white font-bold hover:bg-[#FF8F00] cursor-pointer`;
+      }
+      return `${base} bg-primary-50 border-2 !border-black text-primary-700 font-semibold`;
     }
-    return `${base} bg-primary-50 border-2 !border-black text-primary-700 font-semibold`;
-  }
 
-  // Dostupný tréning – hover efekt tmavší
-  if (day.isAvailable) return `${base} bg-secondary-500 text-white font-bold hover:bg-secondary-600 cursor-pointer`;
+    // Dostupný tréning – hover efekt tmavší
+    if (day.isAvailable) return `${base} bg-secondary-500 text-white font-bold hover:bg-secondary-600 cursor-pointer`;
 
-  // Víkendy – stále read-only, s vyšším kontrastom border
-  if (day.isWeekend) return `${base} bg-gray-300 text-neutral-700 cursor-not-allowed opacity-50`;
+    // Víkendy – stále read-only, s vyšším kontrastom border
+    if (day.isWeekend) return `${base} bg-gray-300 text-neutral-700 cursor-not-allowed opacity-50`;
 
-  // Minulé alebo nedostupné dni
-  if (day.isDisabled) return `${base} bg-muted text-muted cursor-not-allowed opacity-40`;
+    // Minulé alebo nedostupné dni
+    if (day.isDisabled) return `${base} bg-muted text-muted cursor-not-allowed opacity-40`;
 
-  // Dni mimo aktuálneho mesiaca
-  if (!day.isCurrentMonth) return `${base} bg-muted opacity-40 cursor-not-allowed`;
+    // Dni mimo aktuálneho mesiaca
+    if (!day.isCurrentMonth) return `${base} bg-muted opacity-40 cursor-not-allowed`;
 
-  // Pracovné dni
-  return `${base} bg-white text-neutral-800`;
-};
+    // Pracovné dni
+    return `${base} bg-white text-neutral-800`;
+  };
 
   return (
     <div className="bg-card rounded-xl shadow-lg border-2 border-border overflow-hidden">
@@ -172,8 +179,6 @@ const CustomCalendar = ({
                 ? 'animate-slide-down'
                 : ''
             }`}
-
-
         >
           {(prevCalendarDays.length > 0 ? prevCalendarDays : calendarDays).map((day, idx) => (
             <button

@@ -104,13 +104,14 @@ const Foot = () => {
               </Link>
             </li>
             <li>
-              <a
-                href="#"
+              {/* ZMENA: <a> na <button> */}
+              <button
+                type="button"
                 onClick={handleCookiePreferences}
-                className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm"
+                className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm bg-transparent border-0 p-0 cursor-pointer"
               >
                 Nastavenia cookies
-              </a>
+              </button>
             </li>
           </ul>
 

@@ -1408,13 +1408,23 @@ app.post('/api/forgot-password', async (req, res) => {
 app.post('/api/reset-password', async (req, res) => {
   const { token, newPassword } = req.body;
 
+  // --- 1. PRIDANÁ VALIDÁCIA HESLA ---
+  if (!newPassword || !PASSWORD_REGEX.test(newPassword)) {
+    return res.status(400).json({
+      message: 'Heslo musí mať min. 8 znakov, veľké a malé písmeno, číslo a špeciálny znak.'
+    });
+  }
+
   try {
     const user = await pool.query('SELECT * FROM users WHERE reset_token = $1', [token]);
+    
     if (user.rows.length === 0) {
       return res.status(400).json({ message: 'Invalid or expired token.' });
     }
 
+    // Hashovanie nového (teraz už overeného) hesla
     const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
     await pool.query(
       'UPDATE users SET password = $1, reset_token = NULL WHERE id = $2',
       [hashedPassword, user.rows[0].id]

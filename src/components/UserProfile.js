@@ -35,7 +35,6 @@ const UserProfile = () => {
   const [alertVariant, setAlertVariant] = useState('success');
   const navigate = useNavigate();
   const userId = localStorage.getItem('userId');
-  const userName = localStorage.getItem('userName') || 'Unknown User';
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminCancelModal, setShowAdminCancelModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
@@ -725,7 +724,7 @@ const UserProfile = () => {
         }
       } else if (cancellationType === 'replacement' && selectedReplacement) {
 
-        const response = await api.post(
+        await api.post(
           `/api/replace-booking/${selectedBooking.bookingId}`,
           { newTrainingId: selectedReplacement }
         );
@@ -1374,6 +1373,13 @@ const UserProfile = () => {
                   }}
                   required
                 />
+                {/* Tooltip message */}
+                {tooltipMessage && (
+                  <div className="text-red-500 text-sm mt-1">
+                    {tooltipMessage}
+                  </div>
+                )}
+
               </div>
               <div className="md:col-span-5 w-full min-w-0">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

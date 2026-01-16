@@ -156,8 +156,7 @@ const MobileSchedule = ({ trainingSessions, getTrainingsForDay }) => {
             const colors = getTypeColor(session.training_type);
             const startTime = dayjs(session.training_date);
             const endTime = session.endTime ? dayjs(session.endTime) : startTime.add(1, 'hour');
-            const durationHours = endTime.diff(startTime, 'hours', true);
-
+            
             return (
               <div key={session.id || index} className="space-y-2">
                 <motion.div

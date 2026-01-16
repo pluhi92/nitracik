@@ -80,50 +80,58 @@ const Register = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- ADRESS SEARCH LOGIC ---
-  const searchCity = async (query) => {
-    if (query.length < 2) return;
-    setIsSearchingCity(true);
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?city=${query}&country=Slovakia&format=json&addressdetails=1&limit=5&accept-language=sk`);
-      const data = await res.json();
-      setCitySuggestions(data);
-      setShowCityDropdown(true);
-    } catch (err) {
-      console.error("City search failed", err);
-    } finally {
-      setIsSearchingCity(false);
-    }
-  };
+// --- ADRESS SEARCH LOGIC ---
 
-  const searchStreet = async (query) => {
-    if (query.length < 2 || !addrCity || hasNoStreet) return;
-    setIsSearchingStreet(true);
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?street=${query}&city=${addrCity}&country=Slovakia&format=json&addressdetails=1&limit=5&accept-language=sk`);
-      const data = await res.json();
-      setStreetSuggestions(data);
-      setShowStreetDropdown(true);
-    } catch (err) {
-      console.error("Street search failed", err);
-    } finally {
-      setIsSearchingStreet(false);
-    }
-  };
-
+  // 1. Vyhľadávanie MESTA
   useEffect(() => {
+    // Funkciu definujeme priamo tu, aby bola "čerstvá" pri každom spustení efektu
+    const searchCity = async (query) => {
+      if (query.length < 2) return;
+      setIsSearchingCity(true);
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?city=${query}&country=Slovakia&format=json&addressdetails=1&limit=5&accept-language=sk`);
+        const data = await res.json();
+        setCitySuggestions(data);
+        setShowCityDropdown(true);
+      } catch (err) {
+        console.error("City search failed", err);
+      } finally {
+        setIsSearchingCity(false);
+      }
+    };
+
     const timer = setTimeout(() => {
+      // Pridali sme showCityDropdown do podmienky aj do závislostí
       if (addrCity && showCityDropdown) searchCity(addrCity);
     }, 500);
-    return () => clearTimeout(timer);
-  }, [addrCity]);
 
+    return () => clearTimeout(timer);
+  }, [addrCity, showCityDropdown]); // Teraz je to kompletné
+
+  // 2. Vyhľadávanie ULICE
   useEffect(() => {
+    const searchStreet = async (query) => {
+      // Tu používame addrCity, takže ho musíme dať do závislostí dole
+      if (query.length < 2 || !addrCity || hasNoStreet) return;
+      setIsSearchingStreet(true);
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?street=${query}&city=${addrCity}&country=Slovakia&format=json&addressdetails=1&limit=5&accept-language=sk`);
+        const data = await res.json();
+        setStreetSuggestions(data);
+        setShowStreetDropdown(true);
+      } catch (err) {
+        console.error("Street search failed", err);
+      } finally {
+        setIsSearchingStreet(false);
+      }
+    };
+
     const timer = setTimeout(() => {
       if (addrStreet && showStreetDropdown && !hasNoStreet) searchStreet(addrStreet);
     }, 500);
+
     return () => clearTimeout(timer);
-  }, [addrStreet, hasNoStreet]);
+  }, [addrStreet, hasNoStreet, showStreetDropdown, addrCity]); // Pridané všetky potrebné závislosti
 
   const handleSelectCity = (city) => {
     const cityName = city.address.city || city.address.town || city.address.village || city.display_name.split(',')[0];
