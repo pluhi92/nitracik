@@ -69,6 +69,11 @@ const Register = () => {
   const streetInputRef = useRef(null);
   const numberInputRef = useRef(null);
 
+  console.log(
+  'HCAPTCHA KEY (CRA):',
+  process.env.REACT_APP_HCAPTCHA_SITEKEY
+);
+
   // --- LOGIC ---
 
   useEffect(() => {
@@ -80,7 +85,7 @@ const Register = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-// --- ADRESS SEARCH LOGIC ---
+  // --- ADRESS SEARCH LOGIC ---
 
   // 1. Vyhľadávanie MESTA
   useEffect(() => {
@@ -423,11 +428,12 @@ const Register = () => {
           {/* --- HCAPTCHA IMPLEMENTÁCIA --- */}
           <div className="flex justify-center py-2">
             <HCaptcha
-              sitekey={process.env.VITE_HCAPTCHA_SITEKEY || '10000000-ffff-ffff-ffff-000000000001'}
+              sitekey={process.env.REACT_APP_HCAPTCHA_SITEKEY}
               onVerify={(token) => setCaptchaToken(token)}
               ref={hCaptchaRef}
             />
           </div>
+
 
           <button type="submit" className={`w-full py-4 px-6 rounded-xl text-white font-bold text-lg shadow-lg transition-all duration-300 transform hover:-translate-y-1 ${isFormValid ? 'bg-primary-500 hover:bg-primary-600 hover:shadow-primary-500/30' : 'bg-gray-300 cursor-not-allowed shadow-none'}`} disabled={!isFormValid || loading}>
             {loading ? <div className="flex items-center justify-center gap-3"><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>{t?.login?.register?.loading || 'Registering...'}</span></div> : t?.login?.register?.submit || 'Create Account'}
