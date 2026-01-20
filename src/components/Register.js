@@ -69,10 +69,10 @@ const Register = () => {
   const streetInputRef = useRef(null);
   const numberInputRef = useRef(null);
 
-  console.log(
-  'HCAPTCHA KEY (CRA):',
-  process.env.REACT_APP_HCAPTCHA_SITEKEY
-);
+//   console.log(
+//   'HCAPTCHA KEY (CRA):',
+//   process.env.REACT_APP_HCAPTCHA_SITEKEY
+// );
 
   // --- LOGIC ---
 
