@@ -313,19 +313,30 @@ app.use(session({
 
 const isAdmin = async (req, res, next) => {
   try {
-    console.log('[DEBUG] Session userId:', req.session.userId);
+    // console.log('[DEBUG] Session userId:', req.session.userId);
+
+    if (!req.session.userId) {
+       return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     const userResult = await pool.query(
       'SELECT email, role FROM users WHERE id = $1',
       [req.session.userId]
     );
-    console.log('[DEBUG] User query result:', userResult.rows[0]);
+    
+    // console.log('[DEBUG] User query result:', userResult.rows[0]);
 
-    if (userResult.rows[0]?.email === process.env.ADMIN_EMAIL) {
-      next();
+    // --- ZMENA TU ---
+    // Nekontrolujeme či sa email rovná tomu v .env, ale či má užívateľ v databáze rolu 'admin'
+    const user = userResult.rows[0];
+
+    if (user && user.role === 'admin') {
+      next(); // Je to admin, pustíme ho ďalej
     } else {
-      console.log('[DEBUG] Admin check failed for email:', userResult.rows[0]?.email);
+      console.log('[DEBUG] Admin check failed. User role:', user?.role);
       res.status(403).json({ error: 'Admin privileges required' });
     }
+
   } catch (error) {
     console.error('Admin check error:', error);
     res.status(500).json({ error: 'Server error during admin check' });
@@ -1640,11 +1651,13 @@ app.get('/api/bookings/user/:userId', isAuthenticated, async (req, res) => {
     const result = await pool.query(`
       SELECT 
         b.id AS booking_id, 
+        b.credit_id,           -- ✅ Pridané pre starší kód
+        b.booking_type,        -- ✅ TOTO JE KĽÚČOVÉ - musí sa vrátiť
+        b.amount_paid,         -- ✅ Pre rozlíšenie paid
         t.training_type, 
         t.training_date,
         t.cancelled,
-        b.active,
-        b.booking_type -- ✅ ADD: Include booking_type
+        b.active
       FROM bookings b
       JOIN training_availability t ON b.training_id = t.id
       WHERE b.user_id = $1 AND b.active = true
@@ -1829,17 +1842,19 @@ app.get('/api/replacement-sessions/:bookingId', isAuthenticated, async (req, res
   }
 });
 
-// USER: Cancel Booking (Single)
+// USER: Cancel Booking (Single) - UPDATED with credit option
 app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const bookingId = req.params.bookingId;
+    const { requestCredit } = req.body; // NEW: Flag to request credit instead of refund
 
-    // 1. Get complete booking info (vrátane training_id pre tabuľku a credit_id pre vrátenie kreditu)
+    // 1. Get complete booking info
     const bookingResult = await client.query(
       `SELECT b.id, b.user_id, b.training_id, b.number_of_children, b.session_id, 
               b.amount_paid, b.payment_time, b.payment_intent_id, b.credit_id, b.booking_type,
+              b.children_ages, b.photo_consent, b.mobile, b.note, b.accompanying_person,
               ta.training_date, ta.training_type,
               u.email, u.first_name, u.last_name
        FROM bookings b 
@@ -1878,80 +1893,101 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
       const seasonTicketId = usageResult.rows[0].season_ticket_id;
       console.log('[DEBUG] Reversing season ticket usage:', seasonTicketId);
 
-      // Vrátime vstupy
       await client.query(
         'UPDATE season_tickets SET entries_remaining = entries_remaining + $1 WHERE id = $2',
         [booking.number_of_children, seasonTicketId]
       );
-      // Zmažeme záznam o použití
       await client.query('DELETE FROM season_ticket_usage WHERE booking_id = $1', [bookingId]);
 
-      // --- B. CREDIT RETURN (Pridané) ---
+      refundData = { type: 'season_ticket_returned' };
+
+    // --- B. CREDIT RETURN ---
     } else if (booking.booking_type === 'credit' || booking.credit_id) {
       console.log('[DEBUG] Returning credit to user:', booking.user_id);
 
-      // Predpokladám, že máš tabuľku 'credits' alebo stĺpec 'credit_balance' v users.
-      // Uprav tento query podľa tvojej DB štruktúry.
-      // Možnosť 1: Ak máš tabuľku credits
       if (booking.credit_id) {
         await client.query(
-          'UPDATE credits SET amount = amount + $1 WHERE id = $2',
-          [booking.number_of_children, booking.credit_id] // Alebo amount_paid ak je kredit v eurách
+          "UPDATE credits SET status = 'active', used_at = NULL WHERE id = $1",
+          [booking.credit_id]
         );
-      } else {
-        // Možnosť 2: Ak vraciaš len "počet vstupov" do kreditu
-        // Tu musíš doplniť logiku podľa toho, ako funguje tvoj kreditný systém
-        // Napr. await client.query('UPDATE users SET credit_balance = credit_balance + ...')
       }
-
-      // Poznačíme si pre email, že to bol kredit
+      
       refundData = { type: 'credit_returned' };
 
-      // --- C. STRIPE REFUND (Paid) ---
+    // --- C. PAID BOOKING: REFUND OR CREDIT ---
     } else {
-      if (!booking.amount_paid || booking.amount_paid <= 0) {
-        refundData = { error: 'No payment associated with this booking' };
-      } else if (!booking.payment_intent_id) {
-        refundData = { error: 'No payment intent found' };
-      } else {
-        try {
-          const refund = await stripe.refunds.create({
-            payment_intent: booking.payment_intent_id,
-            amount: Math.round(booking.amount_paid * 100),
-            reason: 'requested_by_customer',
-            metadata: {
-              booking_id: bookingId,
-              user_id: booking.user_id,
-            }
-          });
-          refundData = refund;
+      // NEW: Check if user requested credit instead of refund
+      if (requestCredit) {
+        console.log('[DEBUG] User requested CREDIT instead of refund for booking:', bookingId);
+        
+        // Create credit record
+        await client.query(`
+          INSERT INTO credits (
+            user_id, session_id, child_count, accompanying_person, children_ages, 
+            photo_consent, mobile, note, training_type, original_date, 
+            reason, status, created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'User requested credit on cancellation', 'active', NOW())
+        `, [
+          booking.user_id,
+          booking.training_id,
+          booking.number_of_children,
+          booking.accompanying_person || false,
+          booking.children_ages,
+          booking.photo_consent,
+          booking.mobile,
+          booking.note,
+          booking.training_type,
+          booking.training_date
+        ]);
 
-          // Uložíme refund do DB
-          await client.query(
-            'INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at) VALUES ($1, $2, $3, $4, $5, NOW())',
-            [bookingId, refund.id, booking.amount_paid, refund.status, 'Cancellation by customer']
-          );
-        } catch (refundError) {
-          console.error('[DEBUG] Stripe Refund error:', refundError.message);
-          refundData = { error: 'Failed to process refund automatically.' };
+        refundData = { type: 'credit_issued' };
+
+      } else {
+        // Original REFUND logic
+        if (!booking.amount_paid || booking.amount_paid <= 0) {
+          refundData = { error: 'No payment associated with this booking' };
+        } else if (!booking.payment_intent_id) {
+          refundData = { error: 'No payment intent found' };
+        } else {
+          try {
+            const refund = await stripe.refunds.create({
+              payment_intent: booking.payment_intent_id,
+              amount: Math.round(booking.amount_paid * 100),
+              reason: 'requested_by_customer',
+              metadata: {
+                booking_id: bookingId,
+                user_id: booking.user_id,
+              }
+            });
+            refundData = refund;
+
+            await client.query(
+              'INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at) VALUES ($1, $2, $3, $4, $5, NOW())',
+              [bookingId, refund.id, booking.amount_paid, refund.status, 'Cancellation by customer']
+            );
+          } catch (refundError) {
+            console.error('[DEBUG] Stripe Refund error:', refundError.message);
+            refundData = { error: 'Failed to process refund automatically.' };
+          }
         }
       }
     }
 
-    // 4. DELETE THE BOOKING
-    const deleteResult = await client.query(
-      'DELETE FROM bookings WHERE id = $1 AND user_id = $2 RETURNING *',
+    // 4. DELETE THE BOOKING (or mark inactive based on your logic)
+    await client.query(
+      'DELETE FROM bookings WHERE id = $1 AND user_id = $2',
       [bookingId, req.session.userId]
     );
 
-    await client.query('COMMIT'); // <--- TU sa user vymaže z DB
+    await client.query('COMMIT');
 
-    // 5. SEND EMAILS (Teraz sa vygeneruje tabuľka bez usera)
+    // 5. SEND EMAILS
     try {
       await emailService.sendCancellationEmails(
         process.env.ADMIN_EMAIL,
         booking.email,
-        booking,    // Obsahuje training_id, takže tabuľka sa načíta správne
+        booking,
         refundData,
         usageResult
       );
@@ -1962,7 +1998,8 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
     res.json({
       success: true,
       message: 'Booking canceled successfully',
-      refundProcessed: !!refundData?.id || refundData?.type === 'credit_returned'
+      refundProcessed: !!refundData?.id || ['credit_returned', 'season_ticket_returned', 'credit_issued'].includes(refundData?.type),
+      creditIssued: refundData?.type === 'credit_issued'
     });
 
   } catch (error) {

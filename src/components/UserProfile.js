@@ -695,11 +695,14 @@ const UserProfile = () => {
     setShowCancelModal(true);
   };
 
+  // Updated confirmCancellation function in UserProfile.js
+
   const confirmCancellation = async () => {
     if (!selectedBooking) return;
 
     try {
       if (cancellationType === 'refund') {
+        // Original refund logic - DELETE request WITHOUT requestCredit flag
         const response = await api.delete(
           `/api/bookings/${selectedBooking.bookingId}`
         );
@@ -722,8 +725,45 @@ const UserProfile = () => {
           }
           showAlert(message, response.data.refundError ? 'danger' : 'success');
         }
-      } else if (cancellationType === 'replacement' && selectedReplacement) {
 
+      } else if (cancellationType === 'credit') {
+        // NEW: Request credit instead of refund
+        const response = await api.delete(
+          `/api/bookings/${selectedBooking.bookingId}`,
+          {
+            data: { requestCredit: true } // Send flag to backend
+          }
+        );
+
+        if (response.data.error) {
+          showAlert(
+            response.data.error || 'Failed to issue credit.',
+            'danger'
+          );
+        } else {
+          const message = response.data.creditIssued
+            ? (t?.profile?.cancel?.creditIssued || 'Credit has been added to your account and is ready to use!')
+            : (t?.profile?.cancel?.creditReturned || 'Your credit has been returned to your account.');
+          showAlert(message, 'success');
+        }
+
+      } else if (cancellationType === 'return') {
+        // NEW: Return season ticket entry or credit
+        const response = await api.delete(
+          `/api/bookings/${selectedBooking.bookingId}`
+        );
+
+        if (response.data.error) {
+          showAlert(response.data.error, 'danger');
+        } else {
+          const message = bookingType === 'season_ticket'
+            ? (t?.profile?.cancel?.entryReturned || 'Entry has been returned to your season ticket.')
+            : (t?.profile?.cancel?.creditReturned || 'Your credit has been returned to your account.');
+          showAlert(message, 'success');
+        }
+
+      } else if (cancellationType === 'replacement' && selectedReplacement) {
+        // Original replacement logic
         await api.post(
           `/api/replace-booking/${selectedBooking.bookingId}`,
           { newTrainingId: selectedReplacement }
@@ -731,8 +771,10 @@ const UserProfile = () => {
         showAlert(t?.profile?.cancel?.replacementSuccess || 'Session successfully replaced.', 'success');
       }
 
+      // Refresh bookings
       const bookingsResponse = await api.get(`/api/bookings/user/${userId}`);
       setBookedSessions(bookingsResponse.data);
+
     } catch (error) {
       console.error('Error processing cancellation:', error);
 
@@ -1072,13 +1114,15 @@ const UserProfile = () => {
                   const canCancel = !isCancelled && canCancelSession(session.training_date);
 
                   const getBookingTypeInfo = () => {
-                    if (session.credit_id) {
+                    // PRIORITA 1: Skontroluj booking_type (najspoľahlivejšie)
+                    if (session.booking_type === 'credit') {
                       return {
                         type: 'credit',
                         label: t?.profile?.bookingMethods?.credit || '💳 Kredit',
                         badgeClass: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                       };
                     }
+
                     if (session.booking_type === 'season_ticket') {
                       return {
                         type: 'season_ticket',
@@ -1086,16 +1130,29 @@ const UserProfile = () => {
                         badgeClass: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                       };
                     }
-                    if (session.amount_paid > 0) {
+
+                    // PRIORITA 2: Fallback na credit_id (pre starší kód)
+                    if (session.credit_id) {
+                      return {
+                        type: 'credit',
+                        label: t?.profile?.bookingMethods?.credit || '💳 Kredit',
+                        badgeClass: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                      };
+                    }
+
+                    // PRIORITA 3: Platená rezervácia
+                    if (session.booking_type === 'paid' || (session.amount_paid && session.amount_paid > 0)) {
                       return {
                         type: 'paid',
                         label: t?.profile?.bookingMethods?.paid || '💰 Zaplatené',
                         badgeClass: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                       };
                     }
+
+                    // PRIORITA 4: Neznámy typ (fallback)
                     return {
                       type: 'unknown',
-                      label: 'Rezervácia',
+                      label: t?.profile?.bookingMethods?.reservation || 'Rezervácia',
                       badgeClass: 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200'
                     };
                   };
@@ -1513,99 +1570,216 @@ const UserProfile = () => {
       <Modal show={showCancelModal} onHide={() => setShowCancelModal(false)} size="lg">
         <Modal.Header closeButton>
           <Modal.Title className="text-xl font-semibold text-gray-800">
-            {t?.profile?.cancelModal?.title || 'Cancel Session'}
+            {t?.profile?.cancelModal?.title || 'Zrušiť rezerváciu'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <h5 className="text-lg font-semibold text-gray-800 mb-4">
-            {t?.profile?.cancelModal?.chooseOption || 'Choose cancellation option:'}
+            {t?.profile?.cancelModal?.chooseOption || 'Vyberte možnosť zrušenia:'}
           </h5>
 
           <div className="space-y-4 mb-4">
+            {/* ========== PAID BOOKING OPTIONS ========== */}
             {bookingType === 'paid' && (
-              <div className="flex items-center">
-                <input
-                  type="radio"
-                  name="cancellationType"
-                  id="refundOption"
-                  checked={cancellationType === 'refund'}
-                  onChange={() => setCancellationType('refund')}
-                  className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-                />
-                <label htmlFor="refundOption" className="ml-2 text-gray-700">
-                  {t?.profile?.cancelModal?.refundOption || 'Cancel session and request refund'}
-                </label>
-              </div>
+              <>
+                {/* Option 1: Refund */}
+                <div className="flex items-start p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                  <input
+                    type="radio"
+                    name="cancellationType"
+                    id="refundOption"
+                    checked={cancellationType === 'refund'}
+                    onChange={() => setCancellationType('refund')}
+                    className="w-4 h-4 mt-1 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="refundOption" className="ml-3 flex-1 cursor-pointer">
+                    <div className="font-semibold text-gray-800">
+                      💰 {t?.profile?.cancelModal?.refundOption || 'Požiadať o vrátenie peňazí'}
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {t?.profile?.cancelModal?.refundDescription || 'Peniaze vám budú vrátené na váš bankový účet do 5-10 pracovných dní'}
+                    </p>
+                  </label>
+                </div>
+
+                {/* Option 2: Credit */}
+                <div className="flex items-start p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                  <input
+                    type="radio"
+                    name="cancellationType"
+                    id="creditOption"
+                    checked={cancellationType === 'credit'}
+                    onChange={() => setCancellationType('credit')}
+                    className="w-4 h-4 mt-1 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="creditOption" className="ml-3 flex-1 cursor-pointer">
+                    <div className="font-semibold text-gray-800">
+                      💳 {t?.profile?.cancelModal?.creditOption || 'Požiadať o kredit'}
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {t?.profile?.cancelModal?.creditDescription || 'Kredit sa pripíše na váš účet a môžete ho použiť na budúcu rezerváciu'}
+                    </p>
+                  </label>
+                </div>
+
+                {/* Option 3: Replace */}
+                <div className="flex items-start p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                  <input
+                    type="radio"
+                    name="cancellationType"
+                    id="replacementOption"
+                    checked={cancellationType === 'replacement'}
+                    onChange={() => setCancellationType('replacement')}
+                    className="w-4 h-4 mt-1 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="replacementOption" className="ml-3 flex-1 cursor-pointer">
+                    <div className="font-semibold text-gray-800">
+                      🔄 {t?.profile?.cancelModal?.replacementOption || 'Nájsť iný termín'}
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {t?.profile?.cancelModal?.replacementDescription || 'Vyberte si náhradný termín zo zoznamu dostupných hodín'}
+                    </p>
+                  </label>
+                </div>
+              </>
             )}
-            <div className="flex items-center">
-              <input
-                type="radio"
-                name="cancellationType"
-                id="replacementOption"
-                checked={cancellationType === 'replacement'}
-                onChange={() => setCancellationType('replacement')}
-                className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="replacementOption" className="ml-2 text-gray-700">
-                {t?.profile?.cancelModal?.replacementOption || 'Replace with another session'}
-              </label>
-            </div>
+
+            {/* ========== SEASON TICKET / CREDIT OPTIONS ========== */}
+            {(bookingType === 'season_ticket' || bookingType === 'credit') && (
+              <>
+                {/* Option 1: Return entry/credit */}
+                <div className="flex items-start p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                  <input
+                    type="radio"
+                    name="cancellationType"
+                    id="returnOption"
+                    checked={cancellationType === 'return'}
+                    onChange={() => setCancellationType('return')}
+                    className="w-4 h-4 mt-1 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="returnOption" className="ml-3 flex-1 cursor-pointer">
+                    <div className="font-semibold text-gray-800">
+                      {bookingType === 'season_ticket' ? '🎫' : '💳'}
+                      {' '}
+                      {bookingType === 'season_ticket'
+                        ? (t?.profile?.cancelModal?.returnTicket || 'Vrátiť vstup z permanentky')
+                        : (t?.profile?.cancelModal?.returnCredit || 'Vrátiť kredit na účet')
+                      }
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {bookingType === 'season_ticket'
+                        ? (t?.profile?.cancelModal?.returnTicketDescription || 'Vstup sa vráti na vašu permanentku a môžete ho použiť neskôr')
+                        : (t?.profile?.cancelModal?.returnCreditDescription || 'Kredit sa vráti na váš účet a môžete ho použiť na inú hodinu')
+                      }
+                    </p>
+                  </label>
+                </div>
+
+                {/* Option 2: Replace */}
+                <div className="flex items-start p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                  <input
+                    type="radio"
+                    name="cancellationType"
+                    id="replacementOption"
+                    checked={cancellationType === 'replacement'}
+                    onChange={() => setCancellationType('replacement')}
+                    className="w-4 h-4 mt-1 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label htmlFor="replacementOption" className="ml-3 flex-1 cursor-pointer">
+                    <div className="font-semibold text-gray-800">
+                      🔄 {t?.profile?.cancelModal?.replacementOption || 'Nájsť iný termín'}
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {t?.profile?.cancelModal?.replacementDescription || 'Vyberte si náhradný termín zo zoznamu dostupných hodín'}
+                    </p>
+                  </label>
+                </div>
+              </>
+            )}
           </div>
 
+          {/* ========== REPLACEMENT SESSION SELECTOR ========== */}
           {cancellationType === 'replacement' && (
-            <div className="mb-4">
+            <div className="mb-4 mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t?.profile?.cancelModal?.selectReplacement || 'Select replacement session:'}
+                {t?.profile?.cancelModal?.selectReplacement || 'Vyberte náhradný termín:'}
               </label>
               <select
                 value={selectedReplacement}
                 onChange={(e) => setSelectedReplacement(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">{t?.profile?.cancelModal?.chooseSession || 'Choose a session...'}</option>
+                <option value="">{t?.profile?.cancelModal?.chooseSession || 'Vyberte termín...'}</option>
                 {replacementSessions.map((session) => (
                   <option key={session.id} value={session.id}>
-                    {new Date(session.training_date).toLocaleString()} - {session.training_type}
-                    ({session.available_spots} spots available)
+                    {new Date(session.training_date).toLocaleString('sk-SK', {
+                      day: 'numeric',
+                      month: 'numeric',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })} - {session.training_type}
+                    {' '}({session.available_spots} voľných miest)
                   </option>
                 ))}
               </select>
               {replacementSessions.length === 0 && (
-                <p className="text-sm text-gray-500 mt-1">
-                  {t?.profile?.cancelModal?.noReplacements || 'No available replacement sessions found.'}
+                <p className="text-sm text-orange-600 mt-2">
+                  ⚠️ {t?.profile?.cancelModal?.noReplacements || 'Momentálne nie sú dostupné žiadne náhradné termíny.'}
                 </p>
               )}
             </div>
           )}
 
+          {/* ========== INFO BOXES ========== */}
           {cancellationType === 'refund' && bookingType === 'paid' && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <strong className="text-blue-800">
-                {t?.profile?.cancelModal?.refundInfo || 'Refund Information:'}
-              </strong>
-              <p className="text-blue-700 mt-1">
-                {t?.profile?.cancelModal?.refundDetails || 'Your refund will be processed automatically and may take 5-10 business days to appear in your account.'}
+              <strong className="text-blue-800">ℹ️ {t?.profile?.cancelModal?.refundInfo || 'Informácie o vrátení peňazí:'}</strong>
+              <p className="text-blue-700 mt-1 text-sm">
+                {t?.profile?.cancelModal?.refundDetails || 'Peniaze budú automaticky vrátené na váš bankový účet. Proces môže trvať 5-10 pracovných dní.'}
+                <a
+                  href="https://docs.stripe.com/refunds"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-1 font-medium underline hover:text-blue-900"
+                >
+                  {t?.profile?.cancelModal?.moreInfo || 'Viac info'}
+                </a>
               </p>
             </div>
           )}
-          {cancellationType === 'refund' && bookingType === 'season_ticket' && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-              <p className="text-yellow-800">
-                {t?.profile?.cancelModal?.seasonTicketInfo || 'This booking was made with a season ticket. No refund is applicable; entries will be returned to your season ticket.'}
-              </p>
-            </div>
-          )}
-          {cancellationType === 'refund' && bookingType === 'credit' && (
+
+          {cancellationType === 'credit' && bookingType === 'paid' && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-              <p className="text-green-800">
-                {t?.profile?.cancelModal?.creditInfo || 'This booking was made with a credit. Your credit will be returned to your account for future use.'}
+              <strong className="text-green-800">✅ {t?.profile?.cancelModal?.creditInfo || 'Informácie o kredite:'}</strong>
+              <p className="text-green-700 mt-1 text-sm">
+                {t?.profile?.cancelModal?.creditDetails || 'Kredit bude okamžite pripísaný na váš účet so všetkými pôvodnými podmienkami rezervácie. Použiť ho môžete na akúkoľvek budúcu hodinu.'}
+              </p>
+            </div>
+          )}
+
+          {cancellationType === 'return' && bookingType === 'season_ticket' && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+              <strong className="text-yellow-800">🎫 {t?.profile?.cancelModal?.ticketReturnInfo || 'Informácie o permanentke:'}</strong>
+              <p className="text-yellow-700 mt-1 text-sm">
+                {t?.profile?.cancelModal?.ticketReturnDetails || 'Vstup bude okamžite vrátený na vašu permanentku a môžete ho použiť na inú hodinu.'}
+              </p>
+            </div>
+          )}
+
+          {cancellationType === 'return' && bookingType === 'credit' && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+              <strong className="text-green-800">💳 {t?.profile?.cancelModal?.creditReturnInfo || 'Informácie o kredite:'}</strong>
+              <p className="text-green-700 mt-1 text-sm">
+                {t?.profile?.cancelModal?.creditReturnDetails || 'Kredit bude okamžite vrátený na váš účet a môžete ho použiť na inú hodinu.'}
               </p>
             </div>
           )}
         </Modal.Body>
+
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowCancelModal(false)}>
-            {t?.profile?.cancelModal?.cancel || 'Cancel'}
+            {t?.profile?.cancelModal?.cancel || 'Zatvoriť'}
           </Button>
           <Button
             variant="primary"
@@ -1614,8 +1788,18 @@ const UserProfile = () => {
               !cancellationType ||
               (cancellationType === 'replacement' && !selectedReplacement)
             }
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300"
           >
-            {t?.profile?.cancelModal?.confirm || 'Confirm Cancellation'}
+            {cancellationType === 'replacement' && selectedReplacement
+              ? (t?.profile?.cancelModal?.confirmReplace || 'Potvrdiť presun')
+              : cancellationType === 'refund'
+                ? (t?.profile?.cancelModal?.confirmRefund || 'Potvrdiť vrátenie peňazí')
+                : cancellationType === 'credit'
+                  ? (t?.profile?.cancelModal?.confirmCredit || 'Potvrdiť kredit')
+                  : cancellationType === 'return'
+                    ? (t?.profile?.cancelModal?.confirmReturn || 'Potvrdiť vrátenie')
+                    : (t?.profile?.cancelModal?.confirm || 'Potvrdiť zrušenie')
+            }
           </Button>
         </Modal.Footer>
       </Modal>
