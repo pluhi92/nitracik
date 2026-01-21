@@ -20,10 +20,10 @@ const Navbar = () => {
   const lastScrollY = useRef(0);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024); // lg breakpoint
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout(); // Počkaj, kým prebehne API volanie (OPTIONS aj POST)
     navigate('/');
-    window.location.reload();
+    // window.location.reload(); <--- Toto pravdepodobne ani nepotrebuješ
   };
 
   useEffect(() => {

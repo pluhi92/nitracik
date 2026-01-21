@@ -7,7 +7,6 @@ export default function RefundOption() {
   const bookingId = params.get('bookingId');
   const action = params.get('action');
   const [message, setMessage] = useState('Processing your request...');
-  const [refundId, setRefundId] = useState(null);
   const [isProcessed, setIsProcessed] = useState(false);
 
   useEffect(() => {
@@ -16,8 +15,6 @@ export default function RefundOption() {
         .get(`/api/booking/${action}`, { params: { bookingId } })
         .then((res) => {
           const { status, message, refundId } = res.data;
-
-          setRefundId(refundId);
 
           if (status === 'processed') {
             setMessage(`Refund Processed Successfully! Refund ID: ${refundId}`);

@@ -1,7 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from '../contexts/LanguageContext';
 import { useUser } from '../contexts/UserContext';
 import { Link } from 'react-router-dom';
+
+// 1. Presunutie statických dát mimo komponentu (best practice)
+// Tým pádom nezavadzajú v závislostiach useEffect/useCallback
+const carouselItems = [
+  {
+    id: 1,
+    image: '/images/close-up-kids-painting-with-brushes-together.jpg',
+    title: 'Professional Training',
+    description: 'Expert-led sessions for all skill levels',
+  },
+  {
+    id: 2,
+    image: '/images/elevated-view-two-boys-gathering-confetti-wooden-floor.jpg',
+    title: 'Modern Facilities',
+    description: 'State-of-the-art equipment and environment',
+  },
+  {
+    id: 3,
+    image: '/images/close-up-kids-painting-with-brushes.jpg',
+    title: 'Certified Instructors',
+    description: 'Qualified professionals with years of experience',
+  },
+  {
+    id: 4,
+    image: '/images/little-boy-playing.jpg',
+    title: 'Community Focus',
+    description: 'Join our growing community of learners',
+  },
+  {
+    id: 5,
+    image: '/images/small-baby-play-with-ribbed-rug.jpg',
+    title: 'Flexible Scheduling',
+    description: 'Sessions available at convenient times',
+  },
+];
 
 const AboutUs = () => {
   const { t } = useTranslation();
@@ -10,45 +45,16 @@ const AboutUs = () => {
   const { user } = useUser();
   const isLoggedIn = user.isLoggedIn;
 
-  const carouselItems = [
-    {
-      id: 1,
-      image: '/images/close-up-kids-painting-with-brushes-together.jpg',
-      title: 'Professional Training',
-      description: 'Expert-led sessions for all skill levels',
-    },
-    {
-      id: 2,
-      image: '/images/elevated-view-two-boys-gathering-confetti-wooden-floor.jpg',
-      title: 'Modern Facilities',
-      description: 'State-of-the-art equipment and environment',
-    },
-    {
-      id: 3,
-      image: '/images/close-up-kids-painting-with-brushes.jpg',
-      title: 'Certified Instructors',
-      description: 'Qualified professionals with years of experience',
-    },
-    {
-      id: 4,
-      image: '/images/little-boy-playing.jpg',
-      title: 'Community Focus',
-      description: 'Join our growing community of learners',
-    },
-    {
-      id: 5,
-      image: '/images/small-baby-play-with-ribbed-rug.jpg',
-      title: 'Flexible Scheduling',
-      description: 'Sessions available at convenient times',
-    },
-  ];
-
-  const nextSlide = () =>
+  // 2. Použitie useCallback pre stabilizáciu funkcie
+  const nextSlide = useCallback(() => {
     setCurrentSlide((prev) => (prev + 1) % carouselItems.length);
+  }, []);
+
   const prevSlide = () =>
     setCurrentSlide(
       (prev) => (prev === 0 ? carouselItems.length - 1 : prev - 1)
     );
+  
   const goToSlide = (index) => setCurrentSlide(index);
 
   const handleJoinClick = (e) => {
@@ -60,11 +66,12 @@ const AboutUs = () => {
     }
   };
 
+  // 3. Pridanie nextSlide do závislostí
+  // Ponechal som aj 'currentSlide', aby sa časovač reštartoval, ak užívateľ prepne slide manuálne
   useEffect(() => {
     const timer = setInterval(nextSlide, 5000);
     return () => clearInterval(timer);
-  }, [currentSlide]);
-
+  }, [currentSlide, nextSlide]);
 
   return (
     <section className="px-6 py-12 text-center bg-inherit rounded-xl shadow-xl transition-colors duration-300 text-secondary">

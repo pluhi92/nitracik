@@ -1,4 +1,5 @@
 require('dotenv').config({ path: './cred.env' });
+const emailService = require('./services/emailService');
 console.log('ADMIN_EMAIL:', process.env.ADMIN_EMAIL);
 
 const PORT = process.env.PORT || 5000;
@@ -8,8 +9,9 @@ console.log('DB_USER:', process.env.DB_USER);
 
 const express = require('express');
 const cors = require('cors');
-const nodemailer = require('nodemailer');
 const bcrypt = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
+const axios = require('axios');
 const { Pool } = require('pg');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
@@ -22,134 +24,262 @@ const path = require('path');
 const dayjs = require('dayjs');
 require('dayjs/locale/sk');
 dayjs.locale('sk');
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.,])[A-Za-z\d@$!%*?&.,]{8,}$/;
 
-// Pridal som parameter 'userName', aby sme mohli osloviť zákazníka menom
-const sendUserBookingEmail = async (userEmail, sessionDetails) => {
-  // 1. Získame dáta z objektu (userName je teraz vnútri)
-  const userName = sessionDetails.userName || 'Osôbka';
-  const bookingDate = dayjs(sessionDetails.date).format('DD.MM.YYYY');
-  const bookingDay = dayjs(sessionDetails.date).format('dddd');
-  const formattedDateString = `${bookingDate} (${bookingDay})`;
-
-  const SUBJECTS = {
-    credit: 'Rezervácia – uhradená kreditom | Nitráčik',
-    season_ticket: 'Rezervácia – uplatnený permanentný vstup | Nitráčik',
-    payment: 'Potvrdenie rezervácie | Nitráčik'
-  };
-
-  const PAYMENT_TEXT = {
-    credit: 'rezervácia bola uhradená z vášho kreditu',
-    season_ticket: 'rezervácia bola odpočítaná z permanentného vstupu',
-    payment: 'platba prebehla úspešne'
-  };
-
-  // Default hodnota pre paymentType, ak by chýbala
-  const pType = sessionDetails.paymentType || 'payment';
-
-  const subject = SUBJECTS[pType];
-  const paymentInfo = PAYMENT_TEXT[pType];
-
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: userEmail,
-    subject,
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
-          .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-          .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #eab308; }
-          .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
-          .highlight-box { background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 15px; margin: 20px 0; text-align: left; }
-          .highlight-item { margin-bottom: 5px; font-size: 15px; }
-          .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
-          p { margin-bottom: 15px; }
-        </style>
-      </head>
-      <body>
-        <div style="background-color: #f4f4f4; padding: 40px 0;">
-          <div class="container">
-            <div class="header">
-              <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
-            </div>
-            <div class="content">
-              <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName}.</p>
-
-              <p>Prinášam dobrú správu, že vaša ${paymentInfo} za <strong>MESSY&SENSORY play NITRÁČIK - ${sessionDetails.trainingType || 'Tréning'}</strong>.</p>
-
-              <div class="highlight-box">
-                <div class="highlight-item">📅 <strong>Dátum:</strong> ${formattedDateString}</div>
-                <div class="highlight-item">⏰ <strong>Čas:</strong> ${sessionDetails.start_time || sessionDetails.time}</div>
-                <div class="highlight-item">📍 <strong>Miesto:</strong> 
-                        <a href="https://www.google.com/maps/search/?api=1&query=Štefánikova+trieda+148,+Nitra" 
-                          style="color: #2563eb; text-decoration: underline;">
-                          Štefánikova trieda 148, Nitra</a>
-                  </div>
-              </div>
-
-              <p>Teším sa na kopu krásnych ufúľaných momentov.</p> 
-              <p>Skvelé bude, ak so sebou prinesiete náhradné oblečenie, ktoré možno ušpiniť a malý uteráčik.</p>
-              <p>Odporúčam vziať gumené šľapky aj pre sprevádzajúcu osobu, ktoré zvládnu aj klzký terén, nakoľko vodné a podobné aktivity sú a budú pevnou súčasťou hodín 😉.</p>
-              <p>Prosím o dochvíľnosť, aby Vám neušla ani jedna zaujímavá chvíľa 🙃. Herný priestor sa sprístupní až v momente dohodnutého času, aby mali všetky detičky rovnaký “štart” a naplno si mohli vychutnať pekne pripravené stanovištia.</p>
-              <p>Vstup je cez vnútorné átrium, takže neklopkajte na prvé dvere, ale pokračujte cez bráničku, na ktorej vás bude vítať tabuľka <strong>“VITAJTE U NITRÁČIKA”</strong>.</p>
-              <p>Parkovanie je zadarmo pred budovou alebo zboku v areáli železníc.</p>
-              <p>Ďakujem za dôveru a podporu a teším sa na osobné stretnutie.</p>
-
-              <div style="margin-top: 30px;">
-                <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
-                <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
-                <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
-                <p style="font-size: 13px; color: #666; margin: 0;">+421 949 584 576</p>
-              </div>
-            </div>
-            <div class="footer">
-              <div style="margin-bottom: 15px;">
-                <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
-                  <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
-                </a>
-                <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
-                  <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
-                </a>
-              </div>
-              <p style="margin: 0;">© 2026 O.z. Nitráčik. Všetky práva vyhradené.</p>
-              <p style="margin: 5px 0 0 0;">oznitracik@gmail.com</p>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `,
-    attachments: [
-      {
-        filename: 'logo_bez.PNG',
-        path: path.join(__dirname, '..', 'public', 'logo_bez.PNG'),
-        cid: 'nitracikLogo'
-      },
-      {
-        filename: 'instagram.png',
-        path: path.join(__dirname, '..', 'public', 'instagram.png'),
-        cid: 'igIcon'
-      },
-      {
-        filename: 'facebook.png',
-        path: path.join(__dirname, '..', 'public', 'facebook.png'),
-        cid: 'fbIcon'
-      }
-    ]
-  };
-  return transporter.sendMail(mailOptions);
-};
+app.set('trust proxy', 1);
 
 
 app.use((req, res, next) => {
-  if (req.originalUrl === '/stripe-webhook') {
-    next();
-  } else {
-    express.json()(req, res, next);
-  }
+  console.log('REQ IP:', req.ip);
+  console.log('XFF:', req.headers['x-forwarded-for']);
+  next();
 });
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hodina
+  max: 5,
+  message: { message: 'Príliš veľa pokusov o registráciu z tejto IP adresy, skúste to prosím neskôr.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+
+app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  console.log('🔹 [DEBUG] Webhook hit!'); // 1. Zistíme, či sem vôbec Stripe trafí
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+    console.log('[DEBUG] Webhook Event Received:', event.type);
+  } catch (err) {
+    console.error('[DEBUG] Webhook Signature Verification Failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    console.log('📦 [DEBUG] Session data:', JSON.stringify(session.metadata, null, 2));
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // === 1. SEASON TICKET (Permanentka) ===
+      if (session.metadata.type === 'season_ticket') {
+        const { userId, entries, totalPrice } = session.metadata;
+        console.log(`Processing Season Ticket for User: ${userId}, Entries: ${entries}, Price: ${totalPrice}`);
+
+        // Konverzia typov (Stripe posiela stringy)
+        const entriesInt = parseInt(entries, 10);
+        const priceFloat = parseFloat(totalPrice);
+
+        // Bezpečnostná kontrola: sedia ceny s novým cenníkom?
+        const validPrices = { 3: 40, 5: 65, 10: 120 };
+        if (validPrices[entriesInt] !== priceFloat) {
+          console.error(`[SECURITY] Price mismatch. Entries: ${entriesInt}, Paid: ${priceFloat}`);
+          throw new Error('Payment amount verification failed');
+        }
+
+        // Exspirácia (1 rok od nákupu)
+        const expiryDate = new Date();
+        expiryDate.setMonth(expiryDate.getMonth() + 6); //6 mesiacov
+
+        console.log('📝 [DEBUG] Attempting INSERT into DB...');
+
+        // === INSERT DO DB (Vrátane amount_paid a payment_time) ===
+        const ticketResult = await client.query(
+          `INSERT INTO season_tickets (
+              user_id, 
+              entries_total, 
+              entries_remaining, 
+              purchase_date, 
+              expiry_date, 
+              stripe_payment_id, 
+              amount_paid, 
+              payment_time,
+              created_at,
+              updated_at
+           )
+           VALUES ($1, $2, $2, NOW(), $3, $4, $5, $6, NOW(), NOW()) 
+           RETURNING id`,
+          [
+            parseInt(userId, 10),            // $1: user_id
+            entriesInt,                      // $2: entries_total (aj remaining)
+            expiryDate,                      // $3: expiry_date
+            session.id,                      // $4: stripe_payment_id
+            priceFloat,                      // $5: amount_paid
+            new Date(session.created * 1000) // $6: payment_time (zo Stripe timestampu)
+          ]
+        );
+
+        console.log('[DEBUG] Season ticket created ID:', ticketResult.rows[0].id);
+
+        // Odoslanie emailu užívateľovi
+        const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
+        const user = userResult.rows[0];
+
+        if (user) {
+          console.log('📧 [DEBUG] Sending email to:', user.email);
+          await emailService.sendSeasonTicketConfirmation(user.email, user.first_name, {
+            entries: entriesInt,
+            totalPrice: priceFloat,
+            expiryDate
+          });
+          console.log('[DEBUG] Confirmation email sent to:', user.email);
+        }
+
+      } else if (session.metadata.type === 'training_session') {
+        const {
+          userId,
+          trainingType,
+          selectedDate,
+          selectedTime,
+          childrenCount,
+          childrenAge,
+          totalPrice,
+          photoConsent,
+          mobile,
+          note,
+          accompanyingPerson,
+        } = session.metadata;
+
+        if (!userId || !trainingType || !selectedDate || !selectedTime || !childrenCount || !totalPrice) {
+          throw new Error('Missing required metadata fields');
+        }
+
+        const [time, modifier] = selectedTime.split(' ');
+        let [hours, minutes] = time.split(':');
+        if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
+        if (modifier === 'AM' && hours === '12') hours = '00';
+        const trainingDateTimeUTC = new Date(`${selectedDate}T${hours}:${minutes}`);
+        const trainingDateTimeLocal = new Date(trainingDateTimeUTC.toLocaleString('en-US', { timeZone: 'Europe/Budapest' }));
+
+        const trainingResult = await client.query(
+          `SELECT * FROM training_availability WHERE training_type = $1 AND training_date = $2`,
+          [trainingType, trainingDateTimeLocal]
+        );
+        if (trainingResult.rows.length === 0) {
+          throw new Error('Training session no longer available');
+        }
+
+        const training = trainingResult.rows[0];
+        const bookingsResult = await client.query(
+          `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1`,
+          [training.id]
+        );
+        const bookedCount = parseInt(bookingsResult.rows[0].booked_children, 10);
+        if (bookedCount >= training.max_participants) {
+          throw new Error('Session is full');
+        }
+
+        // Update existing booking with payment details
+        const paymentIntentId = session.payment_intent;
+        const updateResult = await client.query(
+          `UPDATE bookings 
+           SET amount_paid = $1, 
+               payment_time = $2, 
+               payment_intent_id = $3, 
+               session_id = NULL 
+           WHERE session_id = $4 
+           RETURNING *`,
+          [parseFloat(totalPrice), new Date(session.created * 1000), paymentIntentId, session.id]
+        );
+
+        if (updateResult.rowCount === 0) {
+          throw new Error('No booking found with the provided session ID');
+        }
+
+        const booking = updateResult.rows[0];
+        console.log('[DEBUG] Booking updated with payment details:', {
+          bookingId: booking.id,
+          paymentIntentId,
+          amountPaid: totalPrice,
+          sessionId: session.id
+        });
+
+        const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
+        const user = userResult.rows[0];
+
+        // 1. ZÍSKANIE EMAILU A MENA
+        // Email berieme primárne z účtu v DB, ak by tam nebol, záložne zo Stripe
+        const targetEmail = user.email || session.customer_details?.email;
+        // MENO berieme VŽDY z databázy (krstné meno), aby to bolo osobné
+        const firstName = user.first_name || 'Osôbka';
+
+        // 2. ODOSLANIE EMAILU
+        try {
+          await emailService.sendUserBookingEmail(targetEmail, {
+            date: selectedDate,
+            start_time: selectedTime,
+            trainingType: trainingType,
+            userName: firstName, // Tu posielame krstné meno z konta
+            paymentType: 'payment'
+          });
+          console.log(`[DEBUG] Email odoslaný na meno: ${firstName} (${targetEmail})`);
+        } catch (emailError) {
+          console.error('[DEBUG] Chyba pri odosielaní užívateľského emailu:', emailError.message);
+        }
+
+        // 3. ODOSLANIE EMAILU ADMINOVI (pôvodný kód)
+        await emailService.sendAdminNewBookingNotification(process.env.ADMIN_EMAIL, {
+          user, mobile, childrenCount, childrenAge, trainingType, selectedDate, selectedTime, photoConsent, accompanyingPerson, note, totalPrice, paymentIntentId, trainingId: training.id
+        });
+
+        console.log('[DEBUG] Booking confirmation emails sent to admin and user');
+      }
+
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('[DEBUG] Webhook processing error:', error.message);
+    } finally {
+      client.release();
+    }
+  }
+
+  res.json({ received: true });
+});
+
+// Add webhook handler for refund updates
+app.post('/stripe-refund-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  if (event.type === 'charge.refund.updated') {
+    const refund = event.data.object;
+
+    try {
+      await pool.query(
+        'UPDATE refunds SET status = $1, updated_at = NOW() WHERE refund_id = $2',
+        [refund.status, refund.id]
+      );
+      console.log('Refund status updated:', refund.id, refund.status);
+    } catch (error) {
+      console.error('Error updating refund status:', error);
+    }
+  }
+
+  res.json({ received: true });
+});
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
@@ -183,19 +313,30 @@ app.use(session({
 
 const isAdmin = async (req, res, next) => {
   try {
-    console.log('[DEBUG] Session userId:', req.session.userId);
+    // console.log('[DEBUG] Session userId:', req.session.userId);
+
+    if (!req.session.userId) {
+       return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     const userResult = await pool.query(
       'SELECT email, role FROM users WHERE id = $1',
       [req.session.userId]
     );
-    console.log('[DEBUG] User query result:', userResult.rows[0]);
+    
+    // console.log('[DEBUG] User query result:', userResult.rows[0]);
 
-    if (userResult.rows[0]?.email === process.env.ADMIN_EMAIL) {
-      next();
+    // --- ZMENA TU ---
+    // Nekontrolujeme či sa email rovná tomu v .env, ale či má užívateľ v databáze rolu 'admin'
+    const user = userResult.rows[0];
+
+    if (user && user.role === 'admin') {
+      next(); // Je to admin, pustíme ho ďalej
     } else {
-      console.log('[DEBUG] Admin check failed for email:', userResult.rows[0]?.email);
+      console.log('[DEBUG] Admin check failed. User role:', user?.role);
       res.status(403).json({ error: 'Admin privileges required' });
     }
+
   } catch (error) {
     console.error('Admin check error:', error);
     res.status(500).json({ error: 'Server error during admin check' });
@@ -218,23 +359,41 @@ function isAuthenticated(req, res, next) {
   }
 }
 
+
 app.post('/api/set-training', isAdmin, async (req, res) => {
   try {
     const { trainingType, trainingDate, maxParticipants } = req.body;
-    console.log('Received training data:', req.body);
 
+    // 1. PRETYPOVANIE na číslo (istota pre SQL query)
+    const typeId = parseInt(trainingType, 10);
+
+    // 2. Kontrola typu
+    const typeRes = await pool.query('SELECT name FROM training_types WHERE id = $1', [typeId]);
+
+    if (typeRes.rows.length === 0) {
+      console.log(`[ERROR] Training type ID ${typeId} not found in DB`);
+      return res.status(404).json({ error: `Training type ID ${typeId} not found` });
+    }
+
+    const typeName = typeRes.rows[0].name;
+
+    // 3. Vloženie - skontroluj si, či máš v DB stĺpce training_type_id, training_type, training_date, max_participants
     const result = await pool.query(
       `INSERT INTO training_availability 
-       (training_type, training_date, max_participants)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [trainingType, trainingDate, maxParticipants]
+       (training_type_id, training_type, training_date, max_participants)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [typeId, typeName, trainingDate, maxParticipants]
     );
 
-    console.log('Insert result:', result.rows[0]);
     res.status(201).json(result.rows[0]);
+
   } catch (error) {
-    console.error('Set training error:', error);
-    res.status(500).json({ error: 'Failed to set training date', details: error.message });
+    // TOTO vypíše presnú chybu z Postgresu (napr. že chýba stĺpec)
+    console.error('SET TRAINING ERROR:', error.message);
+    res.status(500).json({
+      error: 'Failed to set training date',
+      details: error.message
+    });
   }
 });
 
@@ -282,8 +441,13 @@ app.get('/api/admin/bookings', isAdmin, async (req, res) => {
 
 app.get('/api/admin/season-tickets', async (req, res) => {
   try {
+    // === ZMENA: Pridaná podmienka WHERE ===
+    // Zobrazujeme len tie, ktoré majú zostatok A SÚČASNE dátum expirácie je v budúcnosti
     const tickets = await pool.query(
-      'SELECT u.first_name, u.last_name, u.email, s.entries_total, s.entries_remaining FROM season_tickets s JOIN users u ON s.user_id = u.id'
+      `SELECT u.first_name, u.last_name, u.email, s.user_id, s.entries_total, s.entries_remaining, s.expiry_date 
+       FROM season_tickets s 
+       JOIN users u ON s.user_id = u.id
+       WHERE s.entries_remaining > 0 AND s.expiry_date >= NOW()`
     );
     res.json(tickets.rows);
   } catch (err) {
@@ -544,7 +708,88 @@ app.get('/api/admin/archived-sessions-report', isAdmin, async (req, res) => {
   }
 });
 
+app.get('/api/training-types', async (req, res) => {
+  try {
+    const isAdminRequest = req.query.admin === 'true'; // Admin vidí aj neaktívne
 
+    let query = `
+      SELECT t.*, 
+             COALESCE(json_agg(json_build_object('child_count', p.child_count, 'price', p.price)) FILTER (WHERE p.id IS NOT NULL), '[]') as prices
+      FROM training_types t
+      LEFT JOIN training_prices p ON t.id = p.training_type_id
+    `;
+
+    if (!isAdminRequest) {
+      query += ` WHERE t.active = TRUE`;
+    }
+
+    query += ` GROUP BY t.id ORDER BY t.name ASC`;
+
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching training types:', error);
+    res.status(500).json({ error: 'Failed to fetch training types' });
+  }
+});
+
+// 2. POST nový typ tréningu (ADMIN)
+app.post('/api/admin/training-types', isAdmin, async (req, res) => {
+  // 1. Pridaj colorHex do deštrukturalizácie
+  const { name, description, durationMinutes, prices, accompanyingPrice, colorHex } = req.body;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 2. Uprav INSERT query - pridaj color_hex a $5
+    const typeResult = await client.query(
+      `INSERT INTO training_types (name, description, duration_minutes, accompanying_person_price, color_hex) 
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [
+        name,
+        description,
+        durationMinutes || 60,
+        accompanyingPrice || 3.00,
+        colorHex || '#3b82f6' // Fallback farba ak by neprišla žiadna
+      ]
+    );
+    const typeId = typeResult.rows[0].id;
+
+    // Vloženie cien
+    if (prices && Array.isArray(prices)) {
+      for (const p of prices) {
+        await client.query(
+          `INSERT INTO training_prices (training_type_id, child_count, price) VALUES ($1, $2, $3)`,
+          [typeId, p.child_count, p.price]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json({ success: true, id: typeId });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error creating training type:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.put('/api/admin/training-types/:id/toggle', isAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { active } = req.body;
+  try {
+    await pool.query('UPDATE training_types SET active = $1 WHERE id = $2', [active, id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error toggling training type:', error);
+    res.status(500).json({ error: 'Failed to update status' });
+  }
+});
+
+// UPRAVENÉ: training-dates endpoint musí vrátiť ID typu
 app.get('/api/training-dates', async (req, res) => {
   try {
     const userId = req.session?.userId || null;
@@ -555,15 +800,26 @@ app.get('/api/training-dates', async (req, res) => {
       isAdmin = roleCheck.rows[0]?.role === 'admin';
     }
 
-    // ✅ If admin → show all; else → hide cancelled
+    // Join s training_types pre získanie aktuálneho názvu
     const result = await pool.query(
       `
-      SELECT id, training_type, training_date, max_participants, cancelled
-      FROM training_availability
-      WHERE training_date >= NOW()
-      ${isAdmin ? '' : 'AND (cancelled IS NULL OR cancelled = FALSE)'}
-      ORDER BY training_date ASC
-      `
+        SELECT 
+          ta.id, 
+          tt.id as training_type_id,
+          tt.name as training_type, 
+          tt.duration_minutes,
+          tt.description,
+          tt.active,
+          tt.color_hex, 
+          ta.training_date, 
+          ta.max_participants, 
+          ta.cancelled
+          FROM training_availability ta
+          JOIN training_types tt ON ta.training_type_id = tt.id
+          WHERE ta.training_date >= NOW()
+          ${isAdmin ? '' : 'AND (ta.cancelled IS NULL OR ta.cancelled = FALSE) AND tt.active = TRUE'}
+         ORDER BY ta.training_date ASC
+         `
     );
 
     res.json(result.rows);
@@ -572,8 +828,6 @@ app.get('/api/training-dates', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch training dates' });
   }
 });
-
-
 
 app.get('/api/season-tickets/:userId', isAuthenticated, async (req, res) => {
   try {
@@ -603,7 +857,7 @@ app.post('/api/create-season-ticket-payment', isAuthenticated, async (req, res) 
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const pricing = { 5: 60, 10: 100 };
+    const pricing = { 3: 40, 5: 65, 10: 120 };
     if (pricing[entries] !== totalPrice) {
       return res.status(400).json({ error: 'Price validation failed' });
     }
@@ -642,32 +896,29 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
     await client.query('BEGIN');
 
     const {
-      userId,
-      seasonTicketId,
-      trainingType,
-      selectedDate,
-      selectedTime,
-      childrenCount,
-      childrenAge,
-      photoConsent,
-      mobile,
-      note,
-      accompanyingPerson,
+      userId, seasonTicketId, trainingType, selectedDate, selectedTime,
+      childrenCount, childrenAge, photoConsent, mobile, note, accompanyingPerson,
     } = req.body;
 
     if (!userId || !seasonTicketId || !trainingType || !selectedDate || !selectedTime || !childrenCount) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Verify season ticket
+    const allowedTypes = ['MIDI', 'MAXI'];
+    if (!allowedTypes.includes(trainingType)) {
+      return res.status(400).json({ error: 'Season tickets are valid only for MIDI and MAXI training sessions.' });
+    }
+
+    // 1. Verify season ticket (Získame aj celkový počet a expiráciu)
     const ticketResult = await client.query(
-      `SELECT entries_remaining, expiry_date FROM season_tickets WHERE id = $1 AND user_id = $2`,
+      `SELECT entries_remaining, entries_total, expiry_date FROM season_tickets WHERE id = $1 AND user_id = $2`,
       [seasonTicketId, userId]
     );
     if (ticketResult.rows.length === 0) {
       return res.status(404).json({ error: 'Season ticket not found' });
     }
-    const ticket = ticketResult.rows[0];
+    const ticket = ticketResult.rows[0]; // Tu máme entries_total aj expiry_date
+
     if (ticket.entries_remaining < childrenCount) {
       return res.status(400).json({ error: 'Not enough entries remaining in your season ticket' });
     }
@@ -675,16 +926,16 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
       return res.status(400).json({ error: 'Season ticket has expired' });
     }
 
-    // Convert time format
+    // Time parsing
     const [time, modifier] = selectedTime.split(' ');
     let [hours, minutes] = time.split(':');
     if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
     if (modifier === 'AM' && hours === '12') hours = '00';
     const trainingDateTime = new Date(`${selectedDate}T${hours}:${minutes}`);
 
-    // Find training session
+    // Find training
     const trainingResult = await client.query(
-      `SELECT id, max_participants FROM training_availability WHERE training_type = $1 AND training_date = $2`,
+      `SELECT id, max_participants, training_type, training_date FROM training_availability WHERE training_type = $1 AND training_date = $2`,
       [trainingType, trainingDateTime]
     );
     if (trainingResult.rows.length === 0) {
@@ -702,71 +953,74 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
       throw new Error('Not enough available spots');
     }
 
-    // Insert booking with amount_paid and payment_time
+    // Insert booking
     const bookingResult = await client.query(
       `INSERT INTO bookings (user_id, training_id, number_of_children, amount_paid, payment_time, booked_at, active, booking_type)
-   VALUES ($1, $2, $3, 0, NULL, NOW(), true, 'season_ticket') RETURNING id`,
+       VALUES ($1, $2, $3, 0, NULL, NOW(), true, 'season_ticket') RETURNING id`,
       [userId, training.id, childrenCount]
     );
     const bookingId = bookingResult.rows[0].id;
 
-    // Update season ticket entries
-    await client.query(
-      `UPDATE season_tickets SET entries_remaining = entries_remaining - $1 WHERE id = $2`,
+    // Update season ticket
+    const updateTicketResult = await client.query(
+      `UPDATE season_tickets SET entries_remaining = entries_remaining - $1 WHERE id = $2 RETURNING entries_remaining`,
       [childrenCount, seasonTicketId]
     );
+    const newBalance = updateTicketResult.rows[0].entries_remaining;
 
-    // Record season ticket usage
+    // Record usage
     await client.query(
       `INSERT INTO season_ticket_usage (season_ticket_id, booking_id, training_type, created_at, used_date)
        VALUES ($1, $2, $3, NOW(), NOW())`,
       [seasonTicketId, bookingId, trainingType]
     );
 
-    // Fetch user details for email
     const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
     const user = userResult.rows[0];
 
-    // Send emails
-    const adminMailOptions = {
-      from: process.env.EMAIL_USER,
-      to: process.env.ADMIN_EMAIL,
-      subject: 'New Booking Request (Season Ticket)',
-      text: `
-        User: ${user.first_name} ${user.last_name}
-        Email: ${user.email}
-        Address: ${user.address}
-        Mobile: ${mobile || 'Not provided'}
-        Children: ${childrenCount}
-        Children Age: ${childrenAge}
-        Training: ${trainingType}
-        Date: ${selectedDate}
-        Time: ${selectedTime}
-        Photo Consent: ${photoConsent ? 'Agreed' : 'Declined'}
-        Notes: ${note || 'No additional notes'}
-        Season Ticket ID: ${seasonTicketId}
-      `.trim(),
-    };
-
-    await sendUserBookingEmail(user.email, {
-      date: selectedDate,
-      start_time: selectedTime,
-      trainingType: trainingType,
-      userName: user.first_name,
-      paymentType: user.season_ticket_id ? 'season_ticket' : 'credit' // Dôležité pre správny predmet mailu
-    });
-
-    await Promise.all([
-      transporter.sendMail(adminMailOptions),
-    ]);
-
     await client.query('COMMIT');
+
+    // --- EMAILY ---
+    try {
+      // 1. User Email (s detailmi o zostatku)
+      await emailService.sendUserBookingEmail(user.email, {
+        date: training.training_date, // Používame dátum z DB pre istotu
+        start_time: selectedTime,
+        trainingType: trainingType,
+        userName: user.first_name,
+        paymentType: 'season_ticket',
+        // Data pre permanentku:
+        usedEntries: childrenCount,
+        remainingEntries: newBalance,
+        totalEntries: ticket.entries_total, // <--- Pridané
+        expiryDate: ticket.expiry_date      // <--- Pridané
+      });
+
+      // 2. Admin Email (s trainingId pre tabuľku)
+      await emailService.sendAdminSeasonTicketUsage(process.env.ADMIN_EMAIL, {
+        user,
+        mobile,
+        childrenCount,
+        childrenAge,
+        trainingType,
+        selectedDate,
+        selectedTime,
+        photoConsent,
+        note,
+        seasonTicketId,
+        trainingId: training.id
+      });
+    } catch (emailError) {
+      console.error("Email sending failed:", emailError);
+      // Nechceme zlyhať request len kvôli emailom, keď už je DB commitnutá
+    }
+
     res.json({ success: true });
+
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Season ticket booking error:', error);
 
-    // Return specific error messages based on the error type
     if (error.message.includes('Not enough entries remaining')) {
       res.status(400).json({ error: 'Not enough entries remaining in your season ticket' });
     } else if (error.message.includes('Season ticket has expired')) {
@@ -785,54 +1039,90 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
   }
 });
 
+app.post('/api/set-training', isAdmin, async (req, res) => {
+  try {
+    // POZOR: Premenná sa musí volať rovnako ako kľúč v req.body z frontendu
+    // Vo tvojom logu z prehliadača vidím, že posielaš "trainingType"
+    const { trainingType, trainingDate, maxParticipants } = req.body;
+
+    console.log('Received training data:', req.body);
+
+    // 1. Overíme, či typ existuje (trainingType tu obsahuje ID vybrané v dropdown-e)
+    const typeRes = await pool.query('SELECT name FROM training_types WHERE id = $1', [trainingType]);
+
+    if (typeRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Training type not found in database' });
+    }
+
+    const typeName = typeRes.rows[0].name;
+
+    // 2. Vložíme do tabuľky training_availability
+    // Používame názvy stĺpcov, ktoré máš v DB (training_date / date - skontroluj si presný názov v DB)
+    const result = await pool.query(
+      `INSERT INTO training_availability 
+       (training_type_id, training_type, training_date, max_participants)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [trainingType, typeName, trainingDate, maxParticipants]
+    );
+
+    console.log('Insert success:', result.rows[0]);
+    res.status(201).json(result.rows[0]);
+
+  } catch (error) {
+    console.error('Set training error details:', error);
+    res.status(500).json({
+      error: 'Failed to set training date',
+      details: error.message
+    });
+  }
+});
+
+// UPRAVENÉ: create-payment-session - Dynamický výpočet ceny
 app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
   try {
     const {
       userId,
-      trainingId, // PRIDANÉ: Budeme posielať ID z frontendu
-      trainingType,
+      trainingId,
+      trainingType, // Stále posielame z FE, ale pre cenu použijeme DB
       selectedDate,
       selectedTime,
       childrenCount,
       childrenAge,
-      totalPrice,
+      // totalPrice, // <-- IGNORUJEME cenu z Frontendu kvoli bezpečnosti, vypočítame ju tu
       photoConsent,
       mobile,
       note,
       accompanyingPerson,
     } = req.body;
 
-    // Validácia povinných polí (teraz vyžadujeme trainingId)
-    if (!userId || !trainingId || !childrenCount || !totalPrice) {
-      return res.status(400).json({ error: 'Missing required fields (userId, trainingId, etc.)' });
-    }
-
-    const pricing = { 1: 15, 2: 28, 3: 39 };
-    if (!pricing[childrenCount]) {
-      return res.status(400).json({ error: 'Invalid number of children' });
-    }
-    const expectedPrice = pricing[childrenCount] + (accompanyingPerson ? 3 : 0);
-    if (totalPrice !== expectedPrice) {
-      return res.status(400).json({ error: 'Price validation failed' });
-    }
-
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
-      // 1. Nájdeme tréning priamo podľa ID
+      // 1. Získame detaily tréningu a CENNÍK pre daný typ
       const trainingResult = await client.query(
-        `SELECT id, max_participants, training_type, training_date 
-         FROM training_availability WHERE id = $1`,
-        [trainingId]
+        `SELECT ta.id, ta.max_participants, ta.training_date, 
+                tt.name as type_name, tt.accompanying_person_price,
+                tp.price as base_price
+         FROM training_availability ta
+         JOIN training_types tt ON ta.training_type_id = tt.id
+         JOIN training_prices tp ON tp.training_type_id = tt.id AND tp.child_count = $2
+         WHERE ta.id = $1`,
+        [trainingId, childrenCount]
       );
 
       if (trainingResult.rows.length === 0) {
-        throw new Error('Tréningový termín už neexistuje.');
+        throw new Error('Tréning alebo cena pre tento počet detí neexistuje.');
       }
       const training = trainingResult.rows[0];
 
-      // 2. Skontrolujeme aktuálnu kapacitu
+      // 2. Výpočet ceny na serveri (Bezpečnosť)
+      let calculatedPrice = parseFloat(training.base_price);
+      if (accompanyingPerson) {
+        calculatedPrice += parseFloat(training.accompanying_person_price);
+      }
+
+      // Validácia kapacity (ostáva rovnaká)
       const bookingsResult = await client.query(
         `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children 
          FROM bookings WHERE training_id = $1 AND active = true`,
@@ -844,20 +1134,19 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         throw new Error('Kapacita tréningu bola práve naplnená.');
       }
 
-      // 3. Formátovanie popisu pre Stripe
       const sessionDate = new Date(training.training_date).toLocaleDateString('sk-SK');
 
-      // 4. Create Stripe checkout session
+      // 3. Create Stripe checkout session
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [{
           price_data: {
             currency: 'eur',
             product_data: {
-              name: `${training.training_type} Tréning`,
+              name: `${training.type_name} Tréning`,
               description: `Termín: ${sessionDate} | Počet detí: ${childrenCount}`
             },
-            unit_amount: Math.round(totalPrice * 100),
+            unit_amount: Math.round(calculatedPrice * 100),
           },
           quantity: 1,
         }],
@@ -867,12 +1156,12 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         metadata: {
           userId: userId.toString(),
           trainingId: training.id.toString(),
-          trainingType: training.training_type,
+          trainingType: training.type_name,
           selectedDate,
           selectedTime,
           childrenCount: childrenCount.toString(),
           childrenAge: childrenAge?.toString() || '',
-          totalPrice: totalPrice.toString(),
+          totalPrice: calculatedPrice.toString(), // Ukladáme vypočítanú cenu
           photoConsent: photoConsent?.toString() || 'false',
           mobile: mobile || '',
           note: note || '',
@@ -881,7 +1170,7 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         },
       });
 
-      // 5. Vytvorenie záznamu o rezervácii (active=true, booking_type='paid')
+      // 4. Vytvorenie záznamu (ostáva rovnaké, len používame calculatedPrice)
       const bookingResult = await client.query(
         `INSERT INTO bookings (
           user_id, training_id, number_of_children, amount_paid, payment_time, 
@@ -892,7 +1181,7 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
           userId,
           training.id,
           childrenCount,
-          totalPrice,
+          calculatedPrice,
           session.id,
           childrenAge || '',
           photoConsent !== null ? photoConsent : false,
@@ -916,200 +1205,6 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
     console.error('[DEBUG] Payment session error:', error.message);
     res.status(500).json({ error: `Chyba pri vytváraní platby: ${error.message}` });
   }
-});
-
-app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
-
-  try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-    console.log('[DEBUG] Webhook Event Received:', event.type);
-  } catch (err) {
-    console.error('[DEBUG] Webhook Signature Verification Failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-    const client = await pool.connect();
-
-    try {
-      await client.query('BEGIN');
-
-      if (session.metadata.type === 'season_ticket') {
-        const { userId, entries, totalPrice } = session.metadata;
-        const expiryDate = new Date();
-        expiryDate.setFullYear(expiryDate.getFullYear() + 1); // 1 year expiry
-
-        const ticketResult = await client.query(
-          `INSERT INTO season_tickets (user_id, entries_total, entries_remaining, purchase_date, expiry_date, stripe_payment_id, amount_paid, payment_time)
-           VALUES ($1, $2, $2, NOW(), $3, $4, $5, $6) RETURNING *`,
-          [userId, entries, expiryDate, session.id, parseFloat(totalPrice), new Date(session.created * 1000)]
-        );
-
-        console.log('[DEBUG] Season ticket created:', {
-          ticketId: ticketResult.rows[0].id,
-          userId,
-          entries,
-          amountPaid: totalPrice
-        });
-
-        const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
-        const user = userResult.rows[0];
-
-        const mailOptions = {
-          from: process.env.EMAIL_USER,
-          to: user.email,
-          subject: 'Season Ticket Purchase Confirmation',
-          text: `
-            Hello ${user.first_name},
-            Your season ticket purchase for ${entries} entries has been confirmed!
-            Details:
-            - Total Entries: ${entries}
-            - Price: €${totalPrice}
-            - Purchase Date: ${new Date().toLocaleDateString()}
-            - Expiry Date: ${expiryDate.toLocaleDateString()}
-            Thank you!
-            Nitracik Team
-          `.trim(),
-        };
-
-        await transporter.sendMail(mailOptions);
-        console.log('[DEBUG] Season ticket email sent to:', user.email);
-      } else if (session.metadata.type === 'training_session') {
-        const {
-          userId,
-          trainingType,
-          selectedDate,
-          selectedTime,
-          childrenCount,
-          childrenAge,
-          totalPrice,
-          photoConsent,
-          mobile,
-          note,
-          accompanyingPerson,
-        } = session.metadata;
-
-        if (!userId || !trainingType || !selectedDate || !selectedTime || !childrenCount || !totalPrice) {
-          throw new Error('Missing required metadata fields');
-        }
-
-        const [time, modifier] = selectedTime.split(' ');
-        let [hours, minutes] = time.split(':');
-        if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
-        if (modifier === 'AM' && hours === '12') hours = '00';
-        const trainingDateTimeUTC = new Date(`${selectedDate}T${hours}:${minutes}`);
-        const trainingDateTimeLocal = new Date(trainingDateTimeUTC.toLocaleString('en-US', { timeZone: 'Europe/Budapest' }));
-
-        const trainingResult = await client.query(
-          `SELECT * FROM training_availability WHERE training_type = $1 AND training_date = $2`,
-          [trainingType, trainingDateTimeLocal]
-        );
-        if (trainingResult.rows.length === 0) {
-          throw new Error('Training session no longer available');
-        }
-
-        const training = trainingResult.rows[0];
-        const bookingsResult = await client.query(
-          `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1`,
-          [training.id]
-        );
-        const bookedCount = parseInt(bookingsResult.rows[0].booked_children, 10);
-        if (bookedCount >= training.max_participants) {
-          throw new Error('Session is full');
-        }
-
-        // Update existing booking with payment details
-        const paymentIntentId = session.payment_intent;
-        const updateResult = await client.query(
-          `UPDATE bookings 
-           SET amount_paid = $1, 
-               payment_time = $2, 
-               payment_intent_id = $3, 
-               session_id = NULL 
-           WHERE session_id = $4 
-           RETURNING *`,
-          [parseFloat(totalPrice), new Date(session.created * 1000), paymentIntentId, session.id]
-        );
-
-        if (updateResult.rowCount === 0) {
-          throw new Error('No booking found with the provided session ID');
-        }
-
-        const booking = updateResult.rows[0];
-        console.log('[DEBUG] Booking updated with payment details:', {
-          bookingId: booking.id,
-          paymentIntentId,
-          amountPaid: totalPrice,
-          sessionId: session.id
-        });
-
-        const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
-        const user = userResult.rows[0];
-
-        const adminMailOptions = {
-          from: process.env.EMAIL_USER,
-          to: process.env.ADMIN_EMAIL,
-          subject: 'New Booking Request',
-          text: `
-            User: ${user.first_name} ${user.last_name}
-            Email: ${user.email}
-            Address: ${user.address}
-            Mobile: ${mobile || 'Not provided'}
-            Children: ${childrenCount}
-            Children Age: ${childrenAge}
-            Training: ${trainingType}
-            Date: ${selectedDate}
-            Time: ${selectedTime}
-            Photo Consent: ${photoConsent ? 'Agreed' : 'Declined'}
-            Notes: ${note || 'No additional notes'}
-            Price: €${totalPrice}
-            Payment Intent: ${paymentIntentId}
-          `.trim(),
-        };
-
-        // 1. ZÍSKANIE EMAILU A MENA
-        // Email berieme primárne z účtu v DB, ak by tam nebol, záložne zo Stripe
-        const targetEmail = user.email || session.customer_details?.email;
-        // MENO berieme VŽDY z databázy (krstné meno), aby to bolo osobné
-        const firstName = user.first_name || 'Osôbka';
-
-        // 2. ODOSLANIE EMAILU
-        try {
-          await sendUserBookingEmail(targetEmail, {
-            date: selectedDate,
-            start_time: selectedTime,
-            trainingType: trainingType,
-            userName: firstName, // Tu posielame krstné meno z konta
-            paymentType: 'payment'
-          });
-          console.log(`[DEBUG] Email odoslaný na meno: ${firstName} (${targetEmail})`);
-        } catch (emailError) {
-          console.error('[DEBUG] Chyba pri odosielaní užívateľského emailu:', emailError.message);
-        }
-
-        // 3. ODOSLANIE EMAILU ADMINOVI (pôvodný kód)
-        await transporter.sendMail(adminMailOptions);
-
-        console.log('[DEBUG] Booking confirmation emails sent to admin and user');
-      }
-
-      await client.query('COMMIT');
-    } catch (error) {
-      await client.query('ROLLBACK');
-      console.error('[DEBUG] Webhook processing error:', error.message);
-    } finally {
-      client.release();
-    }
-  }
-
-  res.json({ received: true });
 });
 
 // Updated endpoint to handle payment success redirect
@@ -1151,7 +1246,21 @@ app.use((req, res, next) => {
 });
 
 function validateEnvVariables() {
-  const requiredEnvVars = ['EMAIL_USER', 'EMAIL_PASS', 'DB_USER', 'DB_HOST', 'DB_NAME', 'DB_PASSWORD', 'DB_PORT', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'FRONTEND_URL', 'SESSION_SECRET'];
+  const requiredEnvVars = [
+    'EMAIL_USER',
+    'EMAIL_PASS',
+    'DB_USER',
+    'DB_HOST',
+    'DB_NAME',
+    'DB_PASSWORD',
+    'DB_PORT',
+    'STRIPE_SECRET_KEY',
+    'STRIPE_WEBHOOK_SECRET',
+    'FRONTEND_URL',
+    'SESSION_SECRET',
+    'HCAPTCHA_SECRET' // <--- PRIDANÉ TU
+  ];
+
   for (const envVar of requiredEnvVars) {
     if (!process.env[envVar]) {
       console.error(`Missing ${envVar} in environment variables.`);
@@ -1162,49 +1271,9 @@ function validateEnvVariables() {
 
 validateEnvVariables();
 
-let transporter;
-try {
-  transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    // ✅ Pridané podľa Gemini
-    tls: {
-      rejectUnauthorized: false // Ignoruje problémy s certifikátom
-    },
-    // ✅ Pridané pre lepšiu diagnostiku
-    debug: false,
-    logger: false
-  });
-
-  transporter.verify(function (error, success) {
-    if (error) {
-      console.log('❌ Email server connection failed:', error.message);
-      console.log('💡 Debug info:', {
-        host: 'smtp.gmail.com',
-        port: 587,
-        user: process.env.EMAIL_USER ? '***' + process.env.EMAIL_USER.slice(-10) : 'missing'
-      });
-    } else {
-      console.log('✅ Email server is ready to send messages');
-    }
-  });
-} catch (error) {
-  console.error('Nodemailer Initialization Error:', error.message);
-}
-
 app.get('/api/test-email', async (req, res) => {
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.ADMIN_EMAIL,
-      subject: 'Test Email',
-      text: 'This is a test email from Nitracik.',
-    });
+    await emailService.sendTestEmail(process.env.ADMIN_EMAIL);
     res.json({ message: 'Test email sent successfully' });
   } catch (error) {
     console.error('Test email error:', error);
@@ -1212,15 +1281,15 @@ app.get('/api/test-email', async (req, res) => {
   }
 });
 
-async function sendEmail(mailOptions) {
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log(`Email sent to ${mailOptions.to}`);
-  } catch (error) {
-    console.error(`Error sending email to ${mailOptions.to}:`, error);
-    throw error;
-  }
-}
+// async function sendEmail(mailOptions) {
+//   try {
+//     await transporter.sendMail(mailOptions);
+//     console.log(`Email sent to ${mailOptions.to}`);
+//   } catch (error) {
+//     console.error(`Error sending email to ${mailOptions.to}:`, error);
+//     throw error;
+//   }
+// }
 
 function validateEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -1232,37 +1301,101 @@ function validateMobile(mobile) {
   return mobileRegex.test(mobile);
 }
 
-app.post('/api/register', async (req, res) => {
-  const { firstName, lastName, email, password, address } = req.body;
+app.post('/api/register', registerLimiter, async (req, res) => {
+  // Pridali sme hCaptchaToken do destrukturalizácie
+  const { firstName, lastName, email, password, address, _honey, hCaptchaToken } = req.body;
+
+  // 1. HONEYPOT KONTROLA (už si mal)
+  if (_honey) {
+    console.log(`Bot detected via honeypot. IP: ${req.ip}`);
+    return res.status(200).json({ message: 'Registrácia úspešná' }); // Fake success
+  }
+
+  // 2. HCAPTCHA OVERENIE (NOVÉ)
+  if (!hCaptchaToken) {
+    return res.status(400).json({ message: 'Prosím, potvrďte, že nie ste robot (Captcha).' });
+  }
 
   try {
-    const emailCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (emailCheck.rows.length > 0) {
-      return res.status(400).json({ message: 'Email is already registered. Please use a different one.' });
+    const verificationUrl = 'https://api.hcaptcha.com/siteverify';
+    const params = new URLSearchParams();
+    params.append('secret', process.env.HCAPTCHA_SECRET);
+    params.append('response', hCaptchaToken);
+
+    const captchaResponse = await axios.post(verificationUrl, params);
+    const captchaData = captchaResponse.data;
+
+    if (!captchaData.success) {
+      console.error('hCaptcha verification failed:', captchaData);
+      return res.status(400).json({ message: 'Overenie Captcha zlyhalo. Skúste to znova.' });
+    }
+  } catch (error) {
+    console.error('hCaptcha API error:', error);
+    return res.status(500).json({ message: 'Chyba pri overovaní Captcha.' });
+  }
+
+  // --- ZVYŠOK TVOJHO PÔVODNÉHO KÓDU ---
+  // Od tohto bodu je kód rovnaký ako predtým, len pokračuješ validáciou a DB operáciami.
+
+  if (!firstName || !lastName || !email || !password || !address) {
+    return res.status(400).json({ message: 'Všetky polia sú povinné.' });
+  }
+
+  // Validácia hesla
+  if (!PASSWORD_REGEX.test(password)) {
+    return res.status(400).json({
+      message: 'Heslo musí mať min. 8 znakov, veľké a malé písmeno, číslo a špeciálny znak.'
+    });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Kontrola existencie emailu
+    const userCheck = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (userCheck.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: 'Užívateľ s týmto emailom už existuje.' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Hashovanie hesla
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Vytvorenie verifikačného tokenu
     const verificationToken = uuidv4();
 
-    const result = await pool.query(
-      'INSERT INTO users (first_name, last_name, email, password, address, verification_token, verified) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-      [firstName, lastName, email, hashedPassword, address, verificationToken, false]
+    // Vloženie užívateľa
+    const newUser = await client.query(
+      `INSERT INTO users 
+      (first_name, last_name, email, password, address, role, created_at, verified, verification_token)
+       VALUES ($1, $2, $3, $4, $5, 'user', NOW(), false, $6) 
+       RETURNING id, email, first_name`,
+      [firstName, lastName, email, hashedPassword, address, verificationToken]
     );
 
-    const clientUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const verificationLink = `${clientUrl}/verify-email?token=${verificationToken}`;
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Verify Your Email',
-      text: `Please click the following link to verify your email: ${verificationLink}`,
-    };
+    await client.query('COMMIT');
 
-    await sendEmail(mailOptions);
-    res.status(201).json({ message: 'User registered successfully. Please check your email to verify your account.', userId: result.rows[0].id });
+    // Odoslanie emailu (asynchrónne, neblokujeme response)
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const verificationLink = `${baseUrl}/verify-email?token=${verificationToken}`;
+
+    emailService.sendVerificationEmail(email, firstName, verificationLink).catch(err =>
+      console.error('Email send failed:', err)
+    );
+
+    res.status(201).json({
+      message: 'Registrácia úspešná! Skontrolujte si email pre aktiváciu účtu.'
+    });
+
   } catch (error) {
-    console.error('Error registering user:', error);
-    res.status(500).json({ message: 'Failed to register user', error: error.message });
+    await client.query('ROLLBACK');
+    console.error('Chyba pri registrácii:', error);
+    res.status(500).json({ message: 'Interná chyba servera' });
+  } finally {
+    client.release();
   }
 });
 
@@ -1280,14 +1413,9 @@ app.post('/api/forgot-password', async (req, res) => {
 
     const clientUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const resetLink = `${clientUrl}/reset-password?token=${resetToken}`;
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Password Reset',
-      text: `Click the following link to reset your password: ${resetLink}`,
-    };
 
-    await sendEmail(mailOptions);
+    await emailService.sendPasswordResetEmail(email, resetLink);
+
     res.status(200).json({ message: 'Password reset link sent to your email.' });
   } catch (error) {
     console.error('Error in forgot password:', error);
@@ -1298,13 +1426,23 @@ app.post('/api/forgot-password', async (req, res) => {
 app.post('/api/reset-password', async (req, res) => {
   const { token, newPassword } = req.body;
 
+  // --- 1. PRIDANÁ VALIDÁCIA HESLA ---
+  if (!newPassword || !PASSWORD_REGEX.test(newPassword)) {
+    return res.status(400).json({
+      message: 'Heslo musí mať min. 8 znakov, veľké a malé písmeno, číslo a špeciálny znak.'
+    });
+  }
+
   try {
     const user = await pool.query('SELECT * FROM users WHERE reset_token = $1', [token]);
+
     if (user.rows.length === 0) {
       return res.status(400).json({ message: 'Invalid or expired token.' });
     }
 
+    // Hashovanie nového (teraz už overeného) hesla
     const hashedPassword = await bcrypt.hash(newPassword, 10);
+
     await pool.query(
       'UPDATE users SET password = $1, reset_token = NULL WHERE id = $2',
       [hashedPassword, user.rows[0].id]
@@ -1318,20 +1456,30 @@ app.post('/api/reset-password', async (req, res) => {
 });
 
 app.get('/api/verify-email', async (req, res) => {
-  const { token } = req.query;
+  const { token } = req.query; // Frontend posiela ?token=xyz
 
   try {
+    // 1. Hľadáme užívateľa podľa tokenu
     const result = await pool.query('SELECT * FROM users WHERE verification_token = $1', [token]);
+
     if (result.rows.length === 0) {
-      return res.status(400).json({ message: 'You have successfully verified your email address' });
+      // OPRAVA: Ak token nie je v DB, znamená to, že je neplatný alebo už bol použitý.
+      return res.status(400).json({
+        message: 'Tento overovací odkaz je neplatný alebo už bol použitý.'
+      });
     }
 
     const user = result.rows[0];
+
+    // 2. Nastavíme verified na true a ZMAŽEME token (aby sa nedal použiť znova)
     await pool.query('UPDATE users SET verified = true, verification_token = NULL WHERE id = $1', [user.id]);
-    res.status(200).json({ message: 'Email verified successfully. You can now log in.' });
+
+    // 3. Úspech
+    res.status(200).json({ message: 'Email bol úspešne overený. Teraz sa môžete prihlásiť.' });
+
   } catch (error) {
     console.error('Error verifying email:', error);
-    res.status(500).json({ message: 'Failed to verify email', error: error.message });
+    res.status(500).json({ message: 'Nepodarilo sa overiť email.', error: error.message });
   }
 });
 
@@ -1503,11 +1651,13 @@ app.get('/api/bookings/user/:userId', isAuthenticated, async (req, res) => {
     const result = await pool.query(`
       SELECT 
         b.id AS booking_id, 
+        b.credit_id,           -- ✅ Pridané pre starší kód
+        b.booking_type,        -- ✅ TOTO JE KĽÚČOVÉ - musí sa vrátiť
+        b.amount_paid,         -- ✅ Pre rozlíšenie paid
         t.training_type, 
         t.training_date,
         t.cancelled,
-        b.active,
-        b.booking_type -- ✅ ADD: Include booking_type
+        b.active
       FROM bookings b
       JOIN training_availability t ON b.training_id = t.id
       WHERE b.user_id = $1 AND b.active = true
@@ -1692,16 +1842,19 @@ app.get('/api/replacement-sessions/:bookingId', isAuthenticated, async (req, res
   }
 });
 
+// USER: Cancel Booking (Single) - UPDATED with credit option
 app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const bookingId = req.params.bookingId;
+    const { requestCredit } = req.body; // NEW: Flag to request credit instead of refund
 
-    // 1. Get complete booking and payment information
+    // 1. Get complete booking info
     const bookingResult = await client.query(
       `SELECT b.id, b.user_id, b.training_id, b.number_of_children, b.session_id, 
-              b.amount_paid, b.payment_time, b.payment_intent_id, b.credit_id,
+              b.amount_paid, b.payment_time, b.payment_intent_id, b.credit_id, b.booking_type,
+              b.children_ages, b.photo_consent, b.mobile, b.note, b.accompanying_person,
               ta.training_date, ta.training_type,
               u.email, u.first_name, u.last_name
        FROM bookings b 
@@ -1717,7 +1870,7 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
 
     const booking = bookingResult.rows[0];
 
-    // ✅ NEW: Check if cancellation is allowed (10 hours before session)
+    // Check 10-hour rule
     const trainingDateTime = new Date(booking.training_date);
     const currentTime = new Date();
     const timeDifference = trainingDateTime - currentTime;
@@ -1727,20 +1880,7 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
       throw new Error('Cancellation is not allowed within 10 hours of the session');
     }
 
-    console.log('[DEBUG] Booking details:', {
-      bookingId: booking.id,
-      userId: booking.user_id,
-      sessionId: booking.session_id || 'null',
-      paymentIntentId: booking.payment_intent_id || 'null',
-      amountPaid: booking.amount_paid || 0,
-      paymentTime: booking.payment_time ? booking.payment_time.toISOString() : 'null',
-      trainingType: booking.training_type,
-      trainingDate: booking.training_date,
-      creditId: booking.credit_id || 'null',
-      hoursUntilSession: hoursDifference // Added for debugging
-    });
-
-    // Check if booking was made with season ticket
+    // Check season ticket usage
     const usageResult = await client.query(
       'SELECT season_ticket_id FROM season_ticket_usage WHERE booking_id = $1',
       [bookingId]
@@ -1748,160 +1888,124 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
 
     let refundData = null;
 
-    // 2. Process Stripe refund only for paid bookings (not season tickets)
-    if (usageResult.rows.length === 0) {
-      if (!booking.amount_paid || booking.amount_paid <= 0) {
-        console.log('[DEBUG] Skipping refund: amount_paid is missing or zero');
-        refundData = { error: 'No payment associated with this booking' };
-        await client.query(
-          'INSERT INTO refunds (booking_id, amount, status, reason, created_at) VALUES ($1, $2, $3, $4, NOW())',
-          [bookingId, 0, 'failed', 'No payment associated with this booking']
-        );
-      } else if (!booking.payment_intent_id) {
-        console.log('[DEBUG] Skipping refund: payment_intent_id is missing');
-        refundData = { error: 'No payment intent found for this booking' };
-        await client.query(
-          'INSERT INTO refunds (booking_id, amount, status, reason, created_at) VALUES ($1, $2, $3, $4, NOW())',
-          [bookingId, booking.amount_paid, 'failed', 'No payment intent found']
-        );
-      } else {
-        try {
-          // Create refund using payment_intent_id
-          const refund = await stripe.refunds.create({
-            payment_intent: booking.payment_intent_id,
-            amount: Math.round(booking.amount_paid * 100),
-            reason: 'requested_by_customer',
-            metadata: {
-              booking_id: bookingId,
-              user_id: booking.user_id,
-              training_type: booking.training_type,
-              training_date: booking.training_date
-            }
-          });
-
-          console.log('[DEBUG] Refund processed:', {
-            refundId: refund.id,
-            paymentIntentId: booking.payment_intent_id,
-            amount: booking.amount_paid
-          });
-          refundData = refund;
-
-          // Store refund reference in database
-          await client.query(
-            'INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at) VALUES ($1, $2, $3, $4, $5, NOW())',
-            [bookingId, refund.id, booking.amount_paid, refund.status, 'Cancellation by customer']
-          );
-        } catch (refundError) {
-          console.error('[DEBUG] Refund creation error:', refundError.message);
-          let userFriendlyMessage = 'Failed to process refund. Please contact support.';
-          if (refundError.type === 'StripeInvalidRequestError') {
-            userFriendlyMessage = 'Invalid refund request. The payment may have already been refunded or is invalid.';
-          } else if (refundError.code === 'resource_missing') {
-            userFriendlyMessage = 'Payment record not found. Please contact support.';
-          }
-          refundData = { error: userFriendlyMessage };
-          await client.query(
-            'INSERT INTO refunds (booking_id, amount, status, reason, created_at) VALUES ($1, $2, $3, $4, NOW())',
-            [bookingId, booking.amount_paid, 'failed', userFriendlyMessage]
-          );
-        }
-      }
-    }
-
-    // 3. Handle season ticket usage reversal
+    // --- A. SEASON TICKET RETURN ---
     if (usageResult.rows.length > 0) {
       const seasonTicketId = usageResult.rows[0].season_ticket_id;
-      console.log('[DEBUG] Reversing season ticket usage for ticket:', seasonTicketId);
+      console.log('[DEBUG] Reversing season ticket usage:', seasonTicketId);
+
       await client.query(
         'UPDATE season_tickets SET entries_remaining = entries_remaining + $1 WHERE id = $2',
         [booking.number_of_children, seasonTicketId]
       );
-      await client.query(
-        'DELETE FROM season_ticket_usage WHERE booking_id = $1',
-        [bookingId]
-      );
+      await client.query('DELETE FROM season_ticket_usage WHERE booking_id = $1', [bookingId]);
+
+      refundData = { type: 'season_ticket_returned' };
+
+    // --- B. CREDIT RETURN ---
+    } else if (booking.booking_type === 'credit' || booking.credit_id) {
+      console.log('[DEBUG] Returning credit to user:', booking.user_id);
+
+      if (booking.credit_id) {
+        await client.query(
+          "UPDATE credits SET status = 'active', used_at = NULL WHERE id = $1",
+          [booking.credit_id]
+        );
+      }
+      
+      refundData = { type: 'credit_returned' };
+
+    // --- C. PAID BOOKING: REFUND OR CREDIT ---
+    } else {
+      // NEW: Check if user requested credit instead of refund
+      if (requestCredit) {
+        console.log('[DEBUG] User requested CREDIT instead of refund for booking:', bookingId);
+        
+        // Create credit record
+        await client.query(`
+          INSERT INTO credits (
+            user_id, session_id, child_count, accompanying_person, children_ages, 
+            photo_consent, mobile, note, training_type, original_date, 
+            reason, status, created_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'User requested credit on cancellation', 'active', NOW())
+        `, [
+          booking.user_id,
+          booking.training_id,
+          booking.number_of_children,
+          booking.accompanying_person || false,
+          booking.children_ages,
+          booking.photo_consent,
+          booking.mobile,
+          booking.note,
+          booking.training_type,
+          booking.training_date
+        ]);
+
+        refundData = { type: 'credit_issued' };
+
+      } else {
+        // Original REFUND logic
+        if (!booking.amount_paid || booking.amount_paid <= 0) {
+          refundData = { error: 'No payment associated with this booking' };
+        } else if (!booking.payment_intent_id) {
+          refundData = { error: 'No payment intent found' };
+        } else {
+          try {
+            const refund = await stripe.refunds.create({
+              payment_intent: booking.payment_intent_id,
+              amount: Math.round(booking.amount_paid * 100),
+              reason: 'requested_by_customer',
+              metadata: {
+                booking_id: bookingId,
+                user_id: booking.user_id,
+              }
+            });
+            refundData = refund;
+
+            await client.query(
+              'INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at) VALUES ($1, $2, $3, $4, $5, NOW())',
+              [bookingId, refund.id, booking.amount_paid, refund.status, 'Cancellation by customer']
+            );
+          } catch (refundError) {
+            console.error('[DEBUG] Stripe Refund error:', refundError.message);
+            refundData = { error: 'Failed to process refund automatically.' };
+          }
+        }
+      }
     }
 
-    // 4. Delete the booking (refunds.booking_id will be set to NULL by constraint)
-    console.log('[DEBUG] Deleting booking:', bookingId);
-    const deleteResult = await client.query(
-      'DELETE FROM bookings WHERE id = $1 AND user_id = $2 RETURNING *',
+    // 4. DELETE THE BOOKING (or mark inactive based on your logic)
+    await client.query(
+      'DELETE FROM bookings WHERE id = $1 AND user_id = $2',
       [bookingId, req.session.userId]
     );
 
-    if (deleteResult.rowCount === 0) {
-      throw new Error('Booking not found or unauthorized');
-    }
-
     await client.query('COMMIT');
 
-    // 5. Send cancellation emails with refund information
+    // 5. SEND EMAILS
     try {
-      const adminMailOptions = {
-        from: process.env.EMAIL_USER,
-        to: process.env.ADMIN_EMAIL,
-        subject: 'Session Cancellation Notification',
-        text: `
-          Session Cancellation
-          User: ${booking.first_name} ${booking.last_name}
-          Email: ${booking.email}
-          Training: ${booking.training_type}
-          Date: ${new Date(booking.training_date).toLocaleString()}
-          Children: ${booking.number_of_children}
-          Refund Status: ${refundData ? (refundData.id ? `Processed (${refundData.id})` : `Failed: ${refundData.error}`) : 'Not applicable (season ticket)'}
-          Amount: €${booking.amount_paid || 0}
-        `.trim(),
-      };
-
-      const userMailOptions = {
-        from: process.env.EMAIL_USER,
-        to: booking.email,
-        subject: 'Session Cancellation Confirmation',
-        text: `
-          Hello ${booking.first_name},
-          Your ${booking.training_type} training session on ${new Date(booking.training_date).toLocaleString()} has been successfully canceled.
-          ${refundData && refundData.id ? `
-            Refund Information:
-            - Amount: €${booking.amount_paid}
-            - Refund ID: ${refundData.id}
-            - Status: ${refundData.status}
-            The refund may take 5-10 business days to appear in your account.
-          ` : refundData && refundData.error ? `
-            Refund Status: Failed to process refund: ${refundData.error}. Please contact support.
-          ` : usageResult.rows.length > 0 ? `
-            Season Ticket: ${booking.number_of_children} entries have been returned to your season ticket.
-          ` : ''}
-          If you have any questions, please contact us.
-          Best regards,
-          Nitracik Team
-        `.trim(),
-      };
-
-      await Promise.all([
-        transporter.sendMail(adminMailOptions),
-        transporter.sendMail(userMailOptions),
-      ]);
-      console.log('[DEBUG] Cancellation emails sent successfully');
+      await emailService.sendCancellationEmails(
+        process.env.ADMIN_EMAIL,
+        booking.email,
+        booking,
+        refundData,
+        usageResult
+      );
     } catch (emailError) {
       console.error('[DEBUG] Error sending cancellation emails:', emailError.message);
     }
 
     res.json({
+      success: true,
       message: 'Booking canceled successfully',
-      trainingDate: booking.training_date,
-      refundProcessed: !!refundData?.id,
-      refundId: refundData?.id,
-      seasonTicketEntriesReturned: usageResult.rows.length > 0 ? booking.number_of_children : 0,
-      refundError: refundData?.error || null
+      refundProcessed: !!refundData?.id || ['credit_returned', 'season_ticket_returned', 'credit_issued'].includes(refundData?.type),
+      creditIssued: refundData?.type === 'credit_issued'
     });
 
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('[DEBUG] Error canceling booking:', error.message);
-    if (error.message === 'Booking not found or unauthorized') {
-      return res.status(404).json({ error: 'Booking not found or unauthorized' });
-    }
-    return res.status(500).json({ error: 'Failed to cancel booking: ' + error.message });
+    res.status(500).json({ error: error.message });
   } finally {
     client.release();
   }
@@ -1917,7 +2021,7 @@ app.delete('/api/admin/training-sessions/:trainingId', isAdmin, async (req, res)
   try {
     await client.query('BEGIN');
 
-    // 1. Overíme existenciu a získame dáta pre snapshot (pôvodný date a type)
+    // 1. Overenie existencie a stavu cancelled
     const sessionCheck = await client.query(
       'SELECT id, training_type, training_date, cancelled FROM training_availability WHERE id = $1',
       [trainingId]
@@ -1935,24 +2039,31 @@ app.delete('/api/admin/training-sessions/:trainingId', isAdmin, async (req, res)
       return res.status(400).json({ error: 'Only cancelled sessions can be deleted from view' });
     }
 
-    // 2. Skontrolujeme, či sú všetci vybavení (active = true znamená, že ešte čakajú)
-    const bookingsCheck = await client.query(
-      'SELECT COUNT(*) as active_count FROM bookings WHERE training_id = $1 AND active = true',
-      [trainingId]
-    );
+    // VALIDÁCIA: Zistíme počet nevyriešených platieb kartou ('paid').
+    // Hľadáme len tie, ktoré sú stále aktívne a nemajú vystavený refund.
+    // Poznámka: Permanentky a kredity ignorujeme, pretože tie sa vrátili automaticky pri zrušení hodiny.
+    const bookingsCheck = await client.query(`
+      SELECT COUNT(*) as pending_count 
+      FROM bookings b
+      LEFT JOIN refunds r ON b.id = r.booking_id
+      WHERE b.training_id = $1 
+      AND b.booking_type = 'paid'   -- Riešime len platby kartou
+      AND b.active = true           -- Ktoré ešte neboli zmenené na kredit (neaktívne)
+      AND r.id IS NULL              -- A ešte nemajú vrátené peniaze (refund)
+    `, [trainingId]);
 
-    const activeCount = parseInt(bookingsCheck.rows[0].active_count);
+    const pendingCount = parseInt(bookingsCheck.rows[0].pending_count);
 
-    if (activeCount > 0) {
+    if (pendingCount > 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({
-        error: `Cannot delete. ${activeCount} user(s) still haven't chosen refund/credit.`,
-        message: 'All users must process their choices before deletion.'
+        error: `Nemožno vymazať. Ešte existuje ${pendingCount} používateľov s platbou kartou, ktorí si nevybrali refund/kredit.`,
+        message: 'Počkajte, kým si všetci používatelia s platbou kartou vyberú možnosť vrátenia.'
       });
     }
 
-    // 3. ZLATÁ STREDNÁ CESTA: Nemažeme bookings, ale odpojíme ich a uložíme snapshot
-    // Nastavíme training_id na NULL, čím zrušíme Foreign Key väzbu
+    // 3. ARCHIVÁCIA: Odpojíme bookings (nastavíme training_id na NULL)
+    // Toto bezpečne odpojí aj vybavené platby kartou, aj permanentky/kredity
     await client.query(
       `UPDATE bookings 
        SET 
@@ -1963,7 +2074,7 @@ app.delete('/api/admin/training-sessions/:trainingId', isAdmin, async (req, res)
       [trainingId, session.training_date, session.training_type]
     );
 
-    // 4. Teraz už môžeme bezpečne zmazať záznam z kalendára
+    // 4. VYMAZANIE: Zmažeme tréning z kalendára
     const deleteResult = await client.query(
       'DELETE FROM training_availability WHERE id = $1 RETURNING *',
       [trainingId]
@@ -1974,7 +2085,7 @@ app.delete('/api/admin/training-sessions/:trainingId', isAdmin, async (req, res)
     console.log('[DEBUG] Session removed from view, bookings archived:', trainingId);
     res.json({
       success: true,
-      message: 'Session deleted from calendar. Bookings were archived for history.',
+      message: 'Tréning bol vymazaný z kalendára. História rezervácií bola archivovaná.',
       deletedSession: deleteResult.rows[0]
     });
 
@@ -1985,39 +2096,6 @@ app.delete('/api/admin/training-sessions/:trainingId', isAdmin, async (req, res)
   } finally {
     client.release();
   }
-});
-
-// Add webhook handler for refund updates
-app.post('/stripe-refund-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
-
-  try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  if (event.type === 'charge.refund.updated') {
-    const refund = event.data.object;
-
-    try {
-      await pool.query(
-        'UPDATE refunds SET status = $1, updated_at = NOW() WHERE refund_id = $2',
-        [refund.status, refund.id]
-      );
-      console.log('Refund status updated:', refund.id, refund.status);
-    } catch (error) {
-      console.error('Error updating refund status:', error);
-    }
-  }
-
-  res.json({ received: true });
 });
 
 // Add endpoint to get refund status
@@ -2041,7 +2119,7 @@ app.get('/api/refunds/:bookingId', isAuthenticated, async (req, res) => {
 // ADMIN: Cancel Session (Email refund/credit options) - UPDATED to preserve bookings
 app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
   const { trainingId, reason, forceCancel } = req.body;
-  const userId = req.session.userId;
+  // const userId = req.session.userId; // Nepoužíva sa, ale nevadí
 
   console.log('[DEBUG] Admin cancel session request:', { trainingId, reason, forceCancel });
 
@@ -2050,9 +2128,9 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // 1. Verify the training session exists and get its date
+    // 1. Získanie info o tréningu
     const trainingRes = await client.query(
-      'SELECT training_date FROM training_availability WHERE id = $1',
+      'SELECT training_date, training_type FROM training_availability WHERE id = $1',
       [trainingId]
     );
 
@@ -2061,10 +2139,12 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Training session not found' });
     }
 
-    const trainingDate = new Date(trainingRes.rows[0].training_date);
-    const hoursDiff = (trainingDate - new Date()) / (1000 * 60 * 60);
+    const trainingInfo = trainingRes.rows[0];
+    const trainingDateObj = new Date(trainingInfo.training_date);
+    const trainingTypeStr = trainingInfo.training_type;
 
-    // 2. Check 10-hour rule unless forceCancel is true
+    // Kontrola 10 hodín
+    const hoursDiff = (trainingDateObj - new Date()) / (1000 * 60 * 60);
     if (hoursDiff <= 10 && !forceCancel) {
       await client.query('ROLLBACK');
       return res.status(400).json({
@@ -2072,9 +2152,9 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
       });
     }
 
-    // 3. ✅ UPDATED: Only mark the training session as cancelled - DON'T delete bookings
+    // 2. Označenie session ako ZRUŠENÁ
     const updateResult = await client.query(
-      'UPDATE training_availability SET cancelled = TRUE WHERE id = $1 RETURNING *',
+      'UPDATE training_availability SET cancelled = TRUE WHERE id = $1',
       [trainingId]
     );
 
@@ -2083,66 +2163,123 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Failed to cancel training session' });
     }
 
-    console.log('[DEBUG] Training session marked as cancelled:', trainingId);
-
-    // 4. Get all bookings for this session to send emails
+    // 3. Získanie všetkých bookingov
+    // Ťaháme aj training_type a date, aby sme ich mali pre emaily
     const bookingsRes = await client.query(`
-      SELECT b.id AS booking_id, b.user_id, b.amount_paid, b.payment_intent_id,
-             u.email, u.first_name, u.last_name,
-             ta.training_type, ta.training_date
+      SELECT 
+        b.id AS booking_id, 
+        b.user_id, 
+        b.amount_paid, 
+        b.payment_intent_id,
+        b.booking_type,
+        b.number_of_children,
+        b.credit_id,            -- Dôležité pre vrátenie kreditu
+        stu.season_ticket_id,
+        u.email, 
+        u.first_name, 
+        u.last_name,
+        ta.training_type,
+        ta.training_date
       FROM bookings b
       JOIN users u ON b.user_id = u.id
-      JOIN training_availability ta ON ta.id = b.training_id
+      JOIN training_availability ta ON b.training_id = ta.id
+      LEFT JOIN season_ticket_usage stu ON b.id = stu.booking_id
       WHERE b.training_id = $1
     `, [trainingId]);
 
     const bookings = bookingsRes.rows;
-    console.log('[DEBUG] Affected bookings:', bookings.length);
-
-    // 5. Send cancellation emails to all affected users
     const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
+    // --- ZOZNAM EMAILOV NA ODOSLANIE (Queue) ---
+    const emailQueue = [];
+
+    // 4. Spracovanie bookingov (IBA DB OPERÁCIE)
     for (const booking of bookings) {
-      const refundUrl = `${FRONTEND_URL}/refund-option?bookingId=${booking.booking_id}&action=refund`;
-      const creditUrl = `${FRONTEND_URL}/refund-option?bookingId=${booking.booking_id}&action=credit`;
+      
+      // --- A: PERMANENTKA ---
+      if (booking.booking_type === 'season_ticket' || booking.season_ticket_id) {
+        if (booking.season_ticket_id) {
+            // Vrátiť vstupy
+            await client.query(
+                'UPDATE season_tickets SET entries_remaining = entries_remaining + $1 WHERE id = $2',
+                [booking.number_of_children, booking.season_ticket_id]
+            );
+            // Zmazať záznam o použití a booking
+            await client.query('DELETE FROM season_ticket_usage WHERE booking_id = $1', [booking.booking_id]);
+            await client.query('DELETE FROM bookings WHERE id = $1', [booking.booking_id]);
 
-      const sessionDate = new Date(booking.training_date).toLocaleString('en-GB', {
-        dateStyle: 'full',
-        timeStyle: 'short',
-      });
+            // Pridať email do fronty
+            emailQueue.push({
+                type: 'season',
+                email: booking.email,
+                firstName: booking.first_name,
+                trainingType: trainingTypeStr,
+                dateObj: trainingDateObj,
+                reason: reason
+            });
+        }
 
-      const html = `
-        <div style="font-family:Arial, sans-serif; line-height:1.6;">
-          <h3>Training Session Cancelled</h3>
-          <p>Dear ${booking.first_name},</p>
-          <p>Your <strong>${booking.training_type}</strong> training on <strong>${sessionDate}</strong> has been cancelled.</p>
-          <p>Reason: ${reason || 'No reason provided.'}</p>
-          <p>Please choose one of the following:</p>
-          <div style="margin:20px 0;">
-            <a href="${refundUrl}" style="background:#e63946;color:white;padding:10px 20px;text-decoration:none;border-radius:6px;">💳 Request Refund</a>
-            &nbsp;&nbsp;
-            <a href="${creditUrl}" style="background:#2a9d8f;color:white;padding:10px 20px;text-decoration:none;border-radius:6px;">🎫 Accept Credit</a>
-          </div>
-          <p>If you take no action, your payment will remain on hold.</p>
-          <p>Best regards,<br/>Nitracik Team</p>
-        </div>
-      `;
+      // --- B: KREDIT (OPRAVENÁ LOGIKA) ---
+      } else if (booking.booking_type === 'credit' || booking.credit_id) {
+        if (booking.credit_id) {
+             // !!! OPRAVA !!!
+             // Namiesto pripočítavania sumy, len "ožívíme" existujúci kredit
+             console.log(`[DEBUG] Reactivating credit ID: ${booking.credit_id}`);
+             await client.query(
+                "UPDATE credits SET status = 'active', used_at = NULL WHERE id = $1",
+                [booking.credit_id] 
+             );
+        }
+        
+        // Zmažeme booking, aby nevisel v systéme
+        await client.query('DELETE FROM bookings WHERE id = $1', [booking.booking_id]);
 
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: booking.email,
-        subject: `Cancelled: ${booking.training_type} Training`,
-        html,
-      });
+        // Pridať email do fronty
+        emailQueue.push({
+            type: 'credit',
+            email: booking.email,
+            firstName: booking.first_name,
+            trainingType: trainingTypeStr,
+            dateObj: trainingDateObj,
+            reason: reason
+        });
+
+      // --- C: PLATBA KARTOU (ŠTANDARD) ---
+      } else {
+        // Títo ostávajú, kým si nevyberú možnosť
+        emailQueue.push({
+            type: 'card',
+            email: booking.email,
+            booking: booking, 
+            reason: reason,
+            frontendUrl: FRONTEND_URL
+        });
+      }
     }
 
+    // 5. ULOŽENIE ZMIEN DO DB
     await client.query('COMMIT');
+    console.log('[DEBUG] DB Transaction Committed. Sending emails now...');
+
+    // 6. ODOSLANIE EMAILOV (Až teraz, keď je DB v poriadku)
+    const emailPromises = emailQueue.map(task => {
+        // Používame try-catch vnútri mapy, aby jeden zlyhaný email nezhodil ostatné
+        // (alebo Promise.allSettled nižšie to rieši tiež)
+        if (task.type === 'season') {
+            return emailService.sendMassCancellationSeasonTicket(task.email, task.firstName, task.trainingType, task.dateObj, task.reason);
+        } else if (task.type === 'credit') {
+            return emailService.sendMassCancellationCredit(task.email, task.firstName, task.trainingType, task.dateObj, task.reason);
+        } else if (task.type === 'card') {
+            return emailService.sendMassCancellationEmail(task.email, task.booking, task.reason, task.frontendUrl);
+        }
+    });
+
+    await Promise.allSettled(emailPromises);
 
     res.json({
       success: true,
-      message: `Session cancelled successfully. ${bookings.length} users notified.`,
-      canceledBookings: bookings.length,
-      forceCancelUsed: forceCancel || false
+      message: `Session cancelled. Processed ${bookings.length} bookings.`,
+      canceledBookings: bookings.length
     });
 
   } catch (error) {
@@ -2409,19 +2546,7 @@ app.post('/api/bookings/use-credit', async (req, res) => {
   const { creditId, trainingId, childrenAges, photoConsent, mobile, note, accompanyingPerson } = req.body;
   const userId = req.session.userId;
 
-  console.log('[DEBUG] Use credit request:', {
-    creditId,
-    trainingId,
-    userId,
-    childrenAges,
-    photoConsent,
-    mobile,
-    note,
-    accompanyingPerson
-  });
-
   if (!userId) {
-    console.log('[DEBUG] Unauthorized: No userId in session');
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -2430,26 +2555,13 @@ app.post('/api/bookings/use-credit', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // ✅ FIX: Fetch the credit with accompanying_person instead of companion_count
-    console.log('[DEBUG] Fetching credit:', creditId);
+    // 1. Fetch the credit
     const creditResult = await client.query(
-      `SELECT 
-    user_id, 
-    child_count, 
-    accompanying_person, 
-    children_ages,
-    photo_consent, 
-    mobile, 
-    note, 
-    training_type, 
-    status, 
-    session_id
-   FROM credits WHERE id = $1 AND user_id = $2 AND status = 'active'`,
+      `SELECT * FROM credits WHERE id = $1 AND user_id = $2 AND status = 'active'`,
       [creditId, userId]
     );
 
     if (creditResult.rows.length === 0) {
-      console.log('[DEBUG] Credit not found or not usable');
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Credit not found or not usable' });
     }
@@ -2457,8 +2569,7 @@ app.post('/api/bookings/use-credit', async (req, res) => {
     const credit = creditResult.rows[0];
     const originalSessionId = credit.session_id;
 
-    // Verify NEW training availability
-    console.log('[DEBUG] Verifying new training availability:', trainingId);
+    // 2. Verify NEW training availability
     const trainingResult = await client.query(
       `SELECT id, training_date, training_type, max_participants 
        FROM training_availability WHERE id = $1`,
@@ -2466,162 +2577,120 @@ app.post('/api/bookings/use-credit', async (req, res) => {
     );
 
     if (trainingResult.rows.length === 0) {
-      console.log('[DEBUG] Training not found');
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Training session not found' });
     }
+    const training = trainingResult.rows[0];
 
-    // Check participant count for NEW session
-    console.log('[DEBUG] Checking participant count for new trainingId:', trainingId);
+    // 3. Check participant count
     const currentBookings = await client.query(
       `SELECT COALESCE(SUM(number_of_children), 0) as total 
        FROM bookings WHERE training_id = $1`,
       [trainingId]
     );
-    const totalParticipants = currentBookings.rows[0].total + credit.child_count;
-    if (totalParticipants > trainingResult.rows[0].max_participants) {
-      console.log('[DEBUG] Training session is full');
+    const totalParticipants = parseInt(currentBookings.rows[0].total) + credit.child_count;
+    if (totalParticipants > training.max_participants) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Training session is full' });
     }
 
-    // ✅ NEW: Only deactivate the original booking but keep booking_type as 'paid'
+    // 4. Deactivate original paid booking if exists (keep type as 'paid')
     if (originalSessionId) {
-      console.log('[DEBUG] Deactivating original booking from cancelled session:', originalSessionId);
       await client.query(
         'UPDATE bookings SET active = false WHERE user_id = $1 AND training_id = $2 AND booking_type = $3',
-        [userId, originalSessionId, 'paid'] // Only deactivate paid bookings, keep type as 'paid'
+        [userId, originalSessionId, 'paid']
       );
-      console.log('[DEBUG] Original paid booking deactivated (not deleted)');
     }
 
-    // ✅ Use updated form data or fall back to credit data
+    // 5. Prepare data
     const finalChildrenAges = childrenAges || credit.children_ages || '';
-    const finalPhotoConsent = photoConsent !== undefined ? photoConsent : credit.photo_consent;
+    const rawConsent = photoConsent !== undefined ? photoConsent : credit.photo_consent;
+    const finalPhotoConsent = (rawConsent === true || rawConsent === 'true');
     const finalMobile = mobile || credit.mobile || '';
     const finalNote = note || credit.note || '';
     const finalAccompanyingPerson = accompanyingPerson !== undefined ? accompanyingPerson : (credit.accompanying_person || false);
 
-    console.log('[DEBUG] Final booking data:', {
-      childrenAges: finalChildrenAges,
-      photoConsent: finalPhotoConsent,
-      mobile: finalMobile,
-      note: finalNote,
-      accompanyingPerson: finalAccompanyingPerson
-    });
-
-    // Insert new booking with updated information - explicitly set as 'credit'
-    console.log('[DEBUG] Inserting new booking for trainingId:', trainingId);
+    // 6. Insert new booking
     const bookingResult = await client.query(
       `INSERT INTO bookings (
-    user_id, training_id, number_of_children, children_ages, 
-    photo_consent, mobile, note, accompanying_person, 
-    amount_paid, payment_intent_id, payment_time, credit_id, 
-    session_id, booked_at, booking_type, active
-  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), $14, $15)
-  RETURNING id`,
+        user_id, training_id, number_of_children, children_ages, 
+        photo_consent, mobile, note, accompanying_person, 
+        amount_paid, payment_intent_id, payment_time, credit_id, 
+        session_id, booked_at, booking_type, active
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, null, null, $9, null, NOW(), 'credit', true)
+      RETURNING id`,
       [
         credit.user_id,
         trainingId,
-        credit.child_count || 1,
+        credit.child_count,
         finalChildrenAges,
         finalPhotoConsent,
         finalMobile,
         finalNote,
         finalAccompanyingPerson,
-        0, // amount_paid: 0 for credit-based booking
-        null, // payment_intent_id: null for credit-based booking
-        null, // payment_time: null for credit-based booking
-        creditId, // credit_id: tracks which credit was used
-        null, // session_id: null for credit-based booking
-        'credit', // ✅ CRITICAL: Explicitly set booking_type to 'credit'
-        true // active: true for new booking
+        creditId
       ]
     );
 
     const bookingId = bookingResult.rows[0].id;
-    console.log('[DEBUG] Booking created with ID:', bookingId);
 
-    // Mark credit as used
-    console.log('[DEBUG] Marking credit as used:', creditId);
+    // 7. Mark credit as used
     await client.query(
       `UPDATE credits SET status = 'used', used_at = NOW() WHERE id = $1`,
       [creditId]
     );
 
-    // ✅ Send confirmation emails
+    // Získame User info pre email
+    const userResult = await client.query('SELECT first_name, last_name, email FROM users WHERE id = $1', [userId]);
+    const user = userResult.rows[0];
+
+    // --- COMMIT TRANSAKCIE ---
+    await client.query('COMMIT'); 
+    // Teraz je booking reálne v DB a getAttendeesList ho uvidí
+
+    // --- ODOSLANIE EMAILOV (Až po commite) ---
     try {
-      const userResult = await client.query(
-        'SELECT first_name, last_name, email FROM users WHERE id = $1',
-        [userId]
-      );
-
-      const trainingResult = await client.query(
-        'SELECT training_type, training_date FROM training_availability WHERE id = $1',
-        [trainingId]
-      );
-
-      if (userResult.rows.length > 0 && trainingResult.rows.length > 0) {
-        const user = userResult.rows[0];
-        const training = trainingResult.rows[0];
-
-        // Admin email
-        const adminMailOptions = {
-          from: process.env.EMAIL_USER,
-          to: process.env.ADMIN_EMAIL,
-          subject: 'Credit-Based Booking Created',
-          text: `
-            New booking created using credit:
-            User: ${user.first_name} ${user.last_name}
-            Email: ${user.email}
-            Training: ${training.training_type}
-            Date: ${new Date(training.training_date).toLocaleString()}
-            Children: ${credit.child_count}
-            Children Ages: ${finalChildrenAges}
-            Mobile: ${finalMobile}
-            Photo Consent: ${finalPhotoConsent ? 'Agreed' : 'Declined'}
-            Notes: ${finalNote || 'None'}
-            Booking ID: ${bookingId}
-            Credit ID: ${creditId}
-            Original cancelled session cleared: ${originalSessionId || 'N/A'}
-          `.trim(),
-        };
-
-        // User email
-        await sendUserBookingEmail(user.email, {
-          date: selectedDate,
-          start_time: selectedTime,
-          trainingType: trainingType,
+        // 1. User Email
+        await emailService.sendUserBookingEmail(user.email, {
+          date: training.training_date,
+          start_time: dayjs(training.training_date).format('HH:mm'), // Alebo ak máš selectedTime v body
+          trainingType: training.training_type,
           userName: user.first_name,
-          paymentType: user.season_ticket_id ? 'season_ticket' : 'credit' // Dôležité pre správny predmet mailu
+          paymentType: 'credit'
         });
 
-        await Promise.all([
-          transporter.sendMail(adminMailOptions),
-        ]);
+        // 2. Admin Email
+        await emailService.sendAdminCreditUsage(process.env.ADMIN_EMAIL, {
+          user, 
+          training, 
+          credit, 
+          finalChildrenAges, 
+          finalMobile, 
+          finalPhotoConsent: finalPhotoConsent, // Pozor na názov premennej v emailService
+          finalNote, 
+          bookingId, 
+          creditId, 
+          originalSessionId,
+          trainingId: training.id // <--- TOTO JE KĽÚČOVÉ PRE TABUĽKU
+        });
 
-        console.log('[DEBUG] Confirmation emails sent successfully');
-      }
+        console.log('[DEBUG] Credit confirmation emails sent.');
     } catch (emailError) {
-      console.error('[DEBUG] Error sending confirmation emails:', emailError.message);
-      // Don't fail the booking if email fails
+        console.error('[DEBUG] Error sending confirmation emails:', emailError.message);
+        // Nezastavujeme response, lebo booking už prebehol
     }
-
-    // Commit transaction
-    console.log('[DEBUG] Committing transaction');
-    await client.query('COMMIT');
 
     res.json({
       success: true,
       message: 'Booking created successfully using credit',
       bookingId: bookingId
     });
+
   } catch (error) {
-    console.error('[DEBUG] Error using credit:', error.message, error.stack);
     await client.query('ROLLBACK');
+    console.error('[DEBUG] Error using credit:', error.message);
     res.status(500).json({ error: 'Error using credit: ' + error.message });
   } finally {
-    console.log('[DEBUG] Releasing client');
     client.release();
   }
 });
@@ -2736,46 +2805,81 @@ app.post('/api/contact', async (req, res) => {
     }
 
     // Send email to admin
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: process.env.ADMIN_EMAIL,
-      subject: `New Contact Form Message from ${name}`,
-      text: `
-        Name: ${name}
-        Email: ${email}
-        Message: ${message}
-        
-        Sent from Nitracik contact form.
-      `.trim(),
-      replyTo: email
-    };
-
-    await transporter.sendMail(mailOptions);
-
-    // Send confirmation email to user
-    const userMailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'Thank you for contacting Nitracik',
-      text: `
-        Dear ${name},
-        
-        Thank you for contacting Nitracik! We have received your message and will get back to you as soon as possible.
-        
-        Your message:
-        "${message}"
-        
-        Best regards,
-        Nitracik Team
-      `.trim()
-    };
-
-    await transporter.sendMail(userMailOptions);
+    await emailService.sendContactFormEmails(process.env.ADMIN_EMAIL, {
+      name, email, message
+    });
 
     res.status(200).json({ message: 'Message sent successfully' });
   } catch (error) {
     console.error('Contact form error:', error);
     res.status(500).json({ message: 'Failed to send message. Please try again.' });
+  }
+});
+
+app.delete('/api/users/:id', async (req, res) => {
+  const userIdToDelete = req.params.id;
+  const currentUserId = req.session.userId;
+
+  // Kontrola, či užívateľ maže vlastný účet
+  if (!currentUserId || String(currentUserId) !== String(userIdToDelete)) {
+    return res.status(403).json({ error: 'Forbidden: You can only delete your own account' });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN'); // Začiatok transakcie
+
+    // -------------------------------------------------------------
+    // KROK 0: Získame info o užívateľovi (PREDTÝM ako ho zmažeme)
+    // -------------------------------------------------------------
+    // Používame SELECT * aby sme mali istotu, že trafíme existujúce stĺpce
+    const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userIdToDelete]);
+
+    let userInfo = null;
+    let userNameForEmail = 'Kamarát'; // Defaultné oslovenie
+
+    if (userResult.rows.length > 0) {
+      userInfo = userResult.rows[0];
+
+      // TU BOLA CHYBA: Teraz už vieme, že stĺpec sa volá 'first_name'
+      userNameForEmail = userInfo.first_name || 'Kamarát';
+    }
+
+    // KROK A: Zmažeme závislé dáta (rezervácie, permanentky)
+    await client.query('DELETE FROM bookings WHERE user_id = $1', [userIdToDelete]);
+    await client.query('DELETE FROM season_tickets WHERE user_id = $1', [userIdToDelete]);
+
+    // KROK B: Zmažeme samotného užívateľa
+    const result = await client.query('DELETE FROM users WHERE id = $1', [userIdToDelete]);
+
+    if (result.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await client.query('COMMIT'); // Potvrdenie transakcie - užívateľ je zmazaný
+
+    // KROK C: Odošleme rozlúčkový email (ak sme našli email)
+    if (userInfo && userInfo.email) {
+      console.log(`Sending delete email to: ${userInfo.email}`);
+      emailService.sendAccountDeletedEmail(userInfo.email, userNameForEmail).catch(err =>
+        console.error('Failed to send delete confirmation email:', err)
+      );
+    }
+
+    // KROK D: Zrušíme session a odhlásime ho
+    req.session.destroy((err) => {
+      if (err) console.error('Session destroy error:', err);
+      res.json({ message: 'User account deleted successfully' });
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK'); // V prípade chyby vrátime všetko späť
+    console.error('Delete user error:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  } finally {
+    client.release();
   }
 });
 
