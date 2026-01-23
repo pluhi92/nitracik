@@ -236,7 +236,7 @@
       "date": "Date",
       "type": "Type",
       "availableSpots": "Available Spots",
-      "participants": "Participants (children)",
+      "participants": "Participants",
       "child": "Number of children: {count}",
       "children": "children",
       "actions": "Actions"

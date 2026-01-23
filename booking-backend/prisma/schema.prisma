@@ -33,6 +33,7 @@ model bookings {
   credits                credits?               @relation(fields: [credit_id], references: [id], onUpdate: NoAction, map: "fk_credit")
   refunds                refunds[]
   season_ticket_usage    season_ticket_usage[]
+  checked_in             Boolean  @default(false)
 
   @@index([credit_id], map: "idx_bookings_credit_id")
 }

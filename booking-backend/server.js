@@ -1,4 +1,4 @@
-require('dotenv').config({ path: './cred.env' });
+require('dotenv').config();
 const emailService = require('./services/emailService');
 console.log('ADMIN_EMAIL:', process.env.ADMIN_EMAIL);
 
@@ -619,6 +619,71 @@ app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
     res.status(500).json({ error: 'Failed to generate payment report' });
   } finally {
     client.release();
+  }
+});
+
+// GET Checklist pre konkrétny tréning
+app.get('/api/admin/checklist/:trainingId', isAdmin, async (req, res) => {
+  const { trainingId } = req.params;
+
+  try {
+    const result = await pool.query(`
+      SELECT 
+        b.id AS booking_id,
+        u.first_name,
+        u.last_name,
+        b.number_of_children,
+        b.note,
+        b.booking_type,
+        b.amount_paid,
+        b.credit_id,
+        b.checked_in,  
+        b.accompanying_person,  
+        CASE 
+            WHEN b.booking_type = 'paid' THEN 'Platba'
+            WHEN b.booking_type = 'season_ticket' THEN 'Permanentka'
+            WHEN b.booking_type = 'credit' THEN 'Kredit'
+            ELSE b.booking_type 
+        END as payment_display
+      FROM bookings b
+      JOIN users u ON b.user_id = u.id
+      WHERE b.training_id = $1 
+        AND b.active = true
+      ORDER BY u.last_name ASC, u.first_name ASC
+    `, [trainingId]);
+
+    // Získame aj info o tréningu pre hlavičku stránky
+    const trainingInfo = await pool.query(`
+        SELECT training_date, training_type 
+        FROM training_availability 
+        WHERE id = $1
+    `, [trainingId]);
+
+    res.json({
+        participants: result.rows,
+        training: trainingInfo.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error fetching checklist:', error);
+    res.status(500).json({ error: 'Failed to fetch checklist' });
+  }
+});
+
+// PUT prepnutie check-in stavu
+app.put('/api/admin/checklist/:bookingId/toggle', isAdmin, async (req, res) => {
+  const { bookingId } = req.params;
+  const { checked_in } = req.body; // Očakávame true/false
+
+  try {
+    await pool.query(
+      'UPDATE bookings SET checked_in = $1 WHERE id = $2',
+      [checked_in, bookingId]
+    );
+    res.json({ success: true, message: 'Check-in updated' });
+  } catch (error) {
+    console.error('Error updating check-in:', error);
+    res.status(500).json({ error: 'Failed to update check-in' });
   }
 });
 

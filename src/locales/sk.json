@@ -238,7 +238,7 @@
       "date": "Dátum",
       "type": "Typ",
       "availableSpots": "Dostupné miesta",
-      "participants": "Účastníci (deti)",
+      "participants": "Účastníci",
       "child": "Počet detí: {count}",
       "children": "Deti",
       "actions": "Akcie"
