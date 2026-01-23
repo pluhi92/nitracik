@@ -1082,19 +1082,28 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
   try {
     const {
       userId,
-      trainingId,
-      trainingType, // Stále posielame z FE, ale pre cenu použijeme DB
+      trainingId, // <--- Toto je kľúčové. Ak user nevyberie čas, toto je zvyčajne null/undefined
+      trainingType,
       selectedDate,
       selectedTime,
       childrenCount,
       childrenAge,
-      // totalPrice, // <-- IGNORUJEME cenu z Frontendu kvoli bezpečnosti, vypočítame ju tu
       photoConsent,
       mobile,
       note,
       accompanyingPerson,
     } = req.body;
 
+    // --- 1. VALIDÁCIA VSTUPOV (FIX) ---
+    // Skôr než začneme transakciu, overíme, či máme to najhlavnejšie - ID tréningu
+    if (!trainingId) {
+       // Tu vrátime 400 (Bad Request) a jasnú hlášku pre užívateľa
+       return res.status(400).json({ error: 'Nebol vybratý konkrétny termín (čas). Prosím, kliknite na požadovaný čas tréningu.' });
+    }
+
+    if (!childrenCount || childrenCount < 1) {
+       return res.status(400).json({ error: 'Musíte zvoliť aspoň jedno dieťa.' });
+    }
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -1112,7 +1121,7 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
       );
 
       if (trainingResult.rows.length === 0) {
-        throw new Error('Tréning alebo cena pre tento počet detí neexistuje.');
+        throw new Error('Pre tento termín sa nenašiel záznam alebo platná cena.');
       }
       const training = trainingResult.rows[0];
 
@@ -2387,14 +2396,14 @@ app.get('/api/booking/refund', async (req, res) => {
 // Alternative credit processing endpoint that doesn't depend on training_availability
 app.get('/api/booking/credit', async (req, res) => {
   const { bookingId } = req.query;
-  if (!bookingId) return res.status(400).send('Missing bookingId.');
+  if (!bookingId) return res.status(400).json({ message: 'Missing bookingId.' });
 
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
-    // Try to find the booking
+    // 1. Získanie informácií o rezervácii
     const bookingRes = await client.query(`
       SELECT 
         b.user_id, 
@@ -2412,26 +2421,28 @@ app.get('/api/booking/credit', async (req, res) => {
       WHERE b.id = $1 AND b.active = true
     `, [bookingId]);
 
-    let firstTimeCredit = false;
+    let actionStatus = ''; // 'processed' alebo 'already'
+    let creditIdReturn = null;
 
-    // ✅ CASE 1: Active booking exists → create new credit and deactivate booking
+    // ✅ CASE 1: Existuje aktívna rezervácia
     if (bookingRes.rows.length > 0) {
       const b = bookingRes.rows[0];
 
-      // Check if credit already exists for this user/session
+      // Check, či už kredit náhodou neexistuje
       const existingCredit = await client.query(
         `SELECT id FROM credits WHERE user_id = $1 AND session_id = $2`,
         [b.user_id, b.training_id]
       );
 
       if (existingCredit.rows.length === 0) {
-        // Create credit record
-        await client.query(`
+        // Vytvoríme nový kredit
+        const insertRes = await client.query(`
           INSERT INTO credits (
             user_id, session_id, child_count, accompanying_person, children_ages, photo_consent,
             mobile, note, training_type, original_date, reason, status, created_at
           )
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'User selected credit', 'active', NOW())
+          RETURNING id
         `, [
           b.user_id,
           b.training_id,
@@ -2445,101 +2456,62 @@ app.get('/api/booking/credit', async (req, res) => {
           b.training_date || new Date()
         ]);
 
-        // ✅ NEW: Deactivate the booking but keep original booking_type
+        creditIdReturn = insertRes.rows[0].id;
+
+        // Deaktivujeme booking
         await client.query(
           'UPDATE bookings SET active = false WHERE id = $1 AND user_id = $2',
           [bookingId, b.user_id]
         );
 
-        firstTimeCredit = true;
+        actionStatus = 'processed';
+      } else {
+        // Kredit už existuje, len vrátime info
+        creditIdReturn = existingCredit.rows[0].id;
+        actionStatus = 'already';
       }
+    } else {
+        // Tu by sme mohli riešiť, ak booking neexistuje alebo už nie je active (napr. bol už refundovaný)
+        // Pre jednoduchosť predpokladáme, že ak nie je active, možno už bol spracovaný skôr.
+        // Skontrolujeme, či existuje kredit pre tento bookingId (ak by sme mali priamy link, ale tu joinujeme cez user/session)
+        // Ak sa nenájde booking, vrátime chybu alebo 'already' ak nájdeme kredit inou cestou.
+        // Pre bezpečnosť teraz vrátime error, ak sa nenájde active booking:
+        await client.query('ROLLBACK');
+        return res.status(404).json({ 
+            status: 'error', 
+            message: 'Booking not found or already processed/cancelled.' 
+        });
     }
 
     await client.query('COMMIT');
 
-    // ✅ Success response (same as before)
-    if (firstTimeCredit) {
-      return res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Credit Added Successfully</title>
-            <meta http-equiv="refresh" content="4;url=${process.env.FRONTEND_URL}/booking" />
-            <style>
-                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-                .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
-                .success-icon { font-size: 60px; margin-bottom: 20px; }
-                .countdown { margin-top: 20px; font-size: 14px; color: #666; }
-            </style>
-        </head>
-        <body>
-            <div class="success-container">
-                <div class="success-icon">🎫</div>
-                <h2>Credit Added Successfully!</h2>
-                <p>Your credit has been added to your account and is ready to use.</p>
-                <p>You'll be automatically redirected in <span id="countdown">4</span> seconds...</p>
-                <div class="countdown">
-                    <a href="${process.env.FRONTEND_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
-                </div>
-            </div>
-            <script>
-                let seconds = 4;
-                const el = document.getElementById('countdown');
-                const timer = setInterval(() => {
-                    seconds--; el.textContent = seconds;
-                    if (seconds <= 0) clearInterval(timer);
-                }, 1000);
-            </script>
-        </body>
-        </html>
-      `);
+    // ✅ ODPOVEĎ PRE FRONTEND (JSON, nie HTML)
+    if (actionStatus === 'processed') {
+      return res.json({
+        status: 'processed',
+        message: 'Credit added successfully',
+        creditId: creditIdReturn
+      });
+    } else if (actionStatus === 'already') {
+      return res.json({
+        status: 'already',
+        message: 'Credit already exists',
+        creditId: creditIdReturn
+      });
     }
-
-    // ✅ Already processed response
-    return res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-          <title>Credit Already Processed</title>
-          <meta http-equiv="refresh" content="4;url=${process.env.FRONTEND_URL}/booking" />
-          <style>
-              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-              .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
-              .success-icon { font-size: 60px; margin-bottom: 20px; }
-              .countdown { margin-top: 20px; font-size: 14px; color: #666; }
-          </style>
-      </head>
-      <body>
-          <div class="success-container">
-              <div class="success-icon">✅</div>
-              <h2>Credit Already Processed</h2>
-              <p>Your credit was already added earlier and is ready to use.</p>
-              <p>You'll be redirected in <span id="countdown">4</span> seconds...</p>
-              <div class="countdown">
-                  <a href="${process.env.FRONTEND_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
-              </div>
-          </div>
-          <script>
-              let seconds = 4;
-              const el = document.getElementById('countdown');
-              const timer = setInterval(() => {
-                  seconds--; el.textContent = seconds;
-                  if (seconds <= 0) clearInterval(timer);
-              }, 1000);
-          </script>
-      </body>
-      </html>
-    `);
 
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Credit error:', err);
-    res.redirect(`${process.env.FRONTEND_URL}/error?reason=credit_failed`);
+    // Vrátime JSON error, aby to frontend zachytil a zobrazil červenú ikonku
+    return res.status(500).json({ 
+        status: 'error', 
+        message: 'Internal Server Error during credit creation.' 
+    });
   } finally {
     client.release();
   }
 });
-
 
 // Endpoint to use credit for new booking
 app.post('/api/bookings/use-credit', async (req, res) => {

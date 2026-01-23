@@ -30,6 +30,7 @@ const RefundOption = lazy(() => import('./components/RefundOption'));
 const Schedule = lazy(() => import('./components/Schedule'));
 const FAQ = lazy(() => import('./components/FAQ'));
 const Gdpr = lazy(() => import('./components/Gdpr'));
+const CreditOption = lazy(() => import('./components/CreditOption'));
 
 // Inicializácia dayjs s lokálnym nastavením
 const initializeDayJS = () => {
@@ -75,6 +76,7 @@ const AppContent = () => {
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/gdpr" element={<Gdpr />} />
+            <Route path="/credit-option" element={<CreditOption />} />
           </Routes>
         </Suspense>
       </main>
