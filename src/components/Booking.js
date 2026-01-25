@@ -1494,34 +1494,37 @@ const Booking = () => {
                   <span className="text-sm text-gray-700 leading-relaxed">
                     {t.booking.consentText
                       .split('{terms}')
-                      .map((part, index) =>
-                        index === 0 ? (
-                          <>
-                            {part}
-                            <a
-                              href="/terms"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary-600 hover:text-primary-700 underline font-medium"
-                            >
-                              {t.booking.terms}
-                            </a>
-                          </>
-                        ) : (
-                          <>
-                            {part.split('{privacy}')[0]}
-                            <a
-                              href="/gdpr"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary-600 hover:text-primary-700 underline font-medium"
-                            >
-                              {t.booking.privacy}
-                            </a>
-                            {part.split('{privacy}')[1]}
-                          </>
-                        )
-                      )}
+                      .map((part, index) => (
+                        /* ZMENA: Použitie React.Fragment s kľúčom namiesto <> */
+                        <React.Fragment key={index}>
+                          {index === 0 ? (
+                            <>
+                              {part}
+                              <a
+                                href="/terms"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary-600 hover:text-primary-700 underline font-medium"
+                              >
+                                {t.booking.terms}
+                              </a>
+                            </>
+                          ) : (
+                            <>
+                              {part.split('{privacy}')[0]}
+                              <a
+                                href="/gdpr"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary-600 hover:text-primary-700 underline font-medium"
+                              >
+                                {t.booking.privacy}
+                              </a>
+                              {part.split('{privacy}')[1]}
+                            </>
+                          )}
+                        </React.Fragment>
+                      ))}
                   </span>
                 }
               />

@@ -74,6 +74,7 @@ const UserProfile = () => {
     setTimeout(() => setAlertMessage(''), 5000);
   };
 
+
   useEffect(() => {
     const checkAdmin = async () => {
       try {
@@ -384,6 +385,7 @@ const UserProfile = () => {
 
     if (filtered.length === 0) return null;
 
+
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 mb-8">
         <h4 className="text-xl font-bold text-gray-800 dark:text-white px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -418,36 +420,36 @@ const UserProfile = () => {
                 const sessionTime = new Date(session.training_date);
                 const currentTime = new Date();
                 const hoursDifference = (sessionTime - currentTime) / (1000 * 60 * 60);
-                
+
                 // PODMIENKY PRE STAV
                 const isWithin10Hours = hoursDifference <= 10;
                 const isCancelled = session.cancelled === true;
                 const remainingBookings = session.participants.filter(p => p.active === true).length;
                 const totalChildren = session.participants.reduce((sum, participant) => sum + participant.children, 0);
 
-                // LOGIKA PRE AKTIVITU TLAČIDIEL
+                // --- LOGIKA PRE AKTIVITU TLAČIDIEL ---
+
                 // 1. Checklist: Aktívny len ak nie je zrušený
                 const canChecklist = !isCancelled;
-                
-                // 2. Cancel: Aktívny len ak nie je zrušený
-                const canCancel = !isCancelled;
-                
-                // 3. Force Cancel: Aktívny len ak nie je zrušený A je menej ako 10 hodín
+
+                // 2. Cancel: Aktívny len ak nie je zrušený A ZÁROVEŇ je viac ako 10 hodín do začiatku
+                const canCancel = !isCancelled && !isWithin10Hours;
+
+                // 3. Force Cancel: Aktívny len ak nie je zrušený A ZÁROVEŇ je menej ako 10 hodín
                 const canForceCancel = !isCancelled && isWithin10Hours;
-                
+
                 // 4. Delete: Aktívny len ak JE zrušený A nemá žiadnych aktívnych účastníkov
                 const canDelete = isCancelled && remainingBookings === 0;
 
                 return (
                   <tr
-                    key={`${session.training_date}-${session.training_type}`}
+                    key={session.training_id}
                     className={`
                       ${isCancelled ? 'bg-gray-100 dark:bg-gray-700 text-gray-400' : ''}
                       ${isWithin10Hours && !isCancelled ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}
                       hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors
                     `}
                   >
-                    {/* ... OSTATNÉ STĹPCE BEZ ZMENY ... */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="font-semibold text-gray-900 dark:text-white">
                         {formatSlovakDate(session.training_date)}
@@ -479,15 +481,35 @@ const UserProfile = () => {
                     <td className="px-6 py-4">
                       <div className="space-y-2 max-w-xs">
                         {session.participants.map((participant, index) => (
-                          <div key={`${participant.email}-${index}`} className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3">
+                          <div key={participant.id} className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3">
                             <div className="space-y-1">
                               <div className="font-medium text-gray-900 dark:text-white">{participant.first_name} {participant.last_name}</div>
                               <div className="text-sm text-gray-600 dark:text-gray-300">{participant.email}</div>
                               <div className="flex flex-wrap gap-2 items-center">
-                                {/* Badges logic here... keeping it short for copy-paste */}
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                   {participant.booking_type}
+                                <span className={`
+                                  inline-flex items-center px-2 py-1 rounded text-xs font-medium
+                                  ${participant.booking_type === 'credit'
+                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                    : participant.booking_type === 'season_ticket'
+                                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                      : participant.booking_type === 'paid' && participant.active === false
+                                        ? 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200'
+                                        : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                  }
+                                `}>
+                                  {participant.booking_type === 'credit'
+                                    ? '💳 Credit'
+                                    : participant.booking_type === 'season_ticket'
+                                      ? '🎫 Season Ticket'
+                                      : participant.booking_type === 'paid' && participant.active === false
+                                        ? '❌ Cancelled'
+                                        : '💰 Paid'}
                                 </span>
+                                {participant.amount_paid > 0 && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                    €{participant.amount_paid}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -501,37 +523,39 @@ const UserProfile = () => {
                       </div>
                     </td>
 
-
                     {/* --- UPRAVENÁ SEKCIA S IKONAMI --- */}
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="flex justify-end items-center gap-2">
-                        
+
                         {/* 1. CHECKLIST IKONA */}
                         <button
-                            disabled={!canChecklist}
-                            className={`p-2 rounded-full transition-all ${
-                                canChecklist 
-                                ? 'text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer' 
-                                : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                          disabled={!canChecklist}
+                          className={`p-2 rounded-full transition-all ${canChecklist
+                            ? 'text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer'
+                            : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
                             }`}
-                            onClick={() => canChecklist && navigate(`/admin/checklist/${session.training_id}`)}
-                            title={canChecklist ? "Otvoriť Checklist" : "Nedostupné (Zrušené)"}
+                          onClick={() => canChecklist && navigate(`/admin/checklist/${session.training_id}`)}
+                          title={canChecklist ? "Otvoriť Checklist" : "Nedostupné (Zrušené)"}
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                            </svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                          </svg>
                         </button>
 
-                        {/* 2. CANCEL SESSION IKONA */}
+                        {/* 2. CANCEL SESSION IKONA (Teraz sivá ak je < 10h) */}
                         <button
                           disabled={!canCancel}
-                          className={`p-2 rounded-full transition-all ${
-                              canCancel 
-                              ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer' 
-                              : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
-                          }`}
+                          className={`p-2 rounded-full transition-all ${canCancel
+                            ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer'
+                            : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                            }`}
                           onClick={() => canCancel && handleAdminCancelSession(session.training_id, session.training_type, session.training_date, false)}
-                          title={canCancel ? (t?.profile?.cancelSession || "Cancel Session") : "Už zrušené"}
+                          title={canCancel
+                            ? (t?.profile?.cancelSession || "Cancel Session")
+                            : isWithin10Hours
+                              ? "Menej ako 10h (Použi Force Cancel)"
+                              : "Už zrušené"
+                          }
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -541,11 +565,10 @@ const UserProfile = () => {
                         {/* 3. FORCE CANCEL IKONA */}
                         <button
                           disabled={!canForceCancel}
-                          className={`p-2 rounded-full transition-all ${
-                              canForceCancel 
-                              ? 'text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 cursor-pointer' 
-                              : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
-                          }`}
+                          className={`p-2 rounded-full transition-all ${canForceCancel
+                            ? 'text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 cursor-pointer'
+                            : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                            }`}
                           onClick={() => canForceCancel && handleAdminCancelSession(session.training_id, session.training_type, session.training_date, true)}
                           title={canForceCancel ? "Force Cancel" : "Dostupné len 10h pred tréningom"}
                         >
@@ -557,11 +580,10 @@ const UserProfile = () => {
                         {/* 4. DELETE SESSION IKONA */}
                         <button
                           disabled={!canDelete}
-                          className={`p-2 rounded-full transition-all ${
-                              canDelete 
-                              ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer' 
-                              : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
-                          }`}
+                          className={`p-2 rounded-full transition-all ${canDelete
+                            ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer'
+                            : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                            }`}
                           onClick={() => canDelete && handleDeleteSession(session.training_id, session.training_type, session.training_date)}
                           title={canDelete ? "Delete Session" : isCancelled ? `Čakám na zrušenie ${remainingBookings} rezervácií` : "Session musí byť najprv zrušený"}
                         >
@@ -580,7 +602,7 @@ const UserProfile = () => {
         </div>
       </div>
     );
-};
+  };
 
   const handleAdminCancelSession = (id, type, date, useForceCancel = false) => {
     setSelectedSession({ id, type, date });
@@ -947,7 +969,7 @@ const UserProfile = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {adminSeasonTickets.map((ticket) => (
-                      <tr key={ticket.user_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <tr key={ticket.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                           {ticket.first_name} {ticket.last_name}
                         </td>
@@ -966,6 +988,25 @@ const UserProfile = () => {
                 </table>
               </div>
             )}
+          </div>
+          {/* TLAČIDLO ARCHÍV - pridaj za Season Ticket Holders sekciou */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
+                  📦 {t?.archive?.title || 'Archív hodín'}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400">
+                  {t?.archive?.description || 'Zobraziť uskutočnené tréningy z minulosti'}
+                </p>
+              </div>
+              <button
+                onClick={() => navigate('/archive')}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              >
+                {t?.archive?.open || 'Otvoriť archív'} →
+              </button>
+            </div>
           </div>
         </div>
       ) : (
@@ -1085,6 +1126,26 @@ const UserProfile = () => {
                 )}
               </div>
             )}
+          </div>
+
+          {/*  ARCHÍV TLAČIDLO  */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
+                  📦 {t?.archive?.title || 'Archív hodín'}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400">
+                  {t?.archive?.userDescription || 'Zobraziť históriu vašich absolvovaných hodín'}
+                </p>
+              </div>
+              <button
+                onClick={() => navigate('/archive')}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              >
+                {t?.archive?.open || 'Otvoriť archív'} →
+              </button>
+            </div>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
@@ -1264,7 +1325,7 @@ const UserProfile = () => {
                     {showCityDropdown && citySuggestions.length > 0 && (
                       <ul className="absolute z-50 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
                         {citySuggestions.map((city, idx) => (
-                          <li key={idx} onClick={() => handleSelectCity(city)} className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200">
+                          <li key={city.place_id || idx} onClick={() => handleSelectCity(city)} className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200">
                             {city.display_name}
                           </li>
                         ))}
@@ -1291,7 +1352,7 @@ const UserProfile = () => {
                     {showStreetDropdown && streetSuggestions.length > 0 && !hasNoStreet && (
                       <ul className="absolute z-50 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
                         {streetSuggestions.map((street, idx) => (
-                          <li key={idx} onClick={() => handleSelectStreet(street)} className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200">
+                          <li key={street.place_id || idx} onClick={() => handleSelectStreet(street)} className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200">
                             {street.display_name.split(',')[0]}
                           </li>
                         ))}

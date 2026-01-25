@@ -78,17 +78,24 @@ const Checklist = () => {
             <div className="checklist-header mb-4 border-bottom pb-2">
                 <h2>Prezenčná listina (Checklist)</h2>
                 <h4 className="text-muted">{data.training?.training_type} - {formattedDate}</h4>
+                {/* Zobrazenie max kapacity ak ju backend posiela */}
+                {data.training?.max_participants && (
+                    <span className="badge bg-secondary">
+                        Kapacita: {data.participants.length} / {data.training.max_participants}
+                    </span>
+                )}
             </div>
 
             <Table bordered hover responsive>
                 <thead className="table-dark">
                     <tr>
-                        <th>#</th>
+                        <th style={{width: '50px'}}>#</th>
                         <th>Meno</th>
-                        <th className="text-center">Deti</th>
+                        <th className="text-center">Deti (Vek)</th>
                         <th className="text-center">Sprievod</th>
-                        <th>Poznámka</th>
-                        <th>Typ platby</th>
+                        <th className="text-center">Foto</th> 
+                        <th className="text-center">Poznámka</th>
+                        <th className="text-center">Typ platby</th>
                         <th className="text-center">CHECK</th>
                     </tr>
                 </thead>
@@ -98,28 +105,55 @@ const Checklist = () => {
                             <tr 
                                 key={p.booking_id}
                                 className={p.checked_in ? "table-success" : ""}
-                                style={{ transition: 'background-color 0.2s' }}
+                                style={{ transition: 'background-color 0.2s', verticalAlign: 'middle' }}
                             >
                                 <td>{index + 1}</td>
-                                <td className="fw-bold">{p.first_name} {p.last_name}</td>
-                                <td className="text-center">{p.number_of_children}</td>
+                                <td className="fw-bold">
+                                    {p.first_name} {p.last_name}
+                                </td>
                                 
-                                {/* SPRIEVOD: Tu bola chyba, teraz mapujeme b.accompanying_person z DB */}
+                                {/* DETI + VEK (Pridal som aj vek, keďže ho backend posiela) */}
+                                <td className="text-center">
+                                    <div className="fw-bold" style={{fontSize: '1.1em'}}>{p.number_of_children}</div>
+                                    {p.children_ages && (
+                                        <div className="text-muted small" style={{fontSize: '0.85em'}}>
+                                            ({p.children_ages})
+                                        </div>
+                                    )}
+                                </td>
+                                
+                                {/* SPRIEVOD */}
                                 <td className="text-center">
                                     {p.accompanying_person ? (
                                         <span className="badge bg-info text-dark">ÁNO</span>
                                     ) : (
-                                        <span className="text-muted small">nie</span>
+                                        <span className="text-muted small">-</span>
                                     )}
                                 </td>
 
-                                <td>
-                                    {p.note ? (
-                                        <span className="text-danger fw-bold">{p.note}</span>
+                                {/* FOTO SÚHLAS (NOVÉ) */}
+                                <td className="text-center">
+                                    {p.photo_consent ? (
+                                        <span className="text-success" title="Súhlasí s fotením">
+                                            ✅ <small>Áno</small>
+                                        </span>
                                     ) : (
-                                        <span className="text-muted small italic">Bez poznámky</span>
+                                        <span className="badge bg-danger" title="NESÚHLASÍ s fotením!">
+                                            ⛔ NIE
+                                        </span>
                                     )}
                                 </td>
+
+                                {/* POZNÁMKA */}
+                                <td>
+                                    {p.note ? (
+                                        <span className="text-danger fw-bold small">{p.note}</span>
+                                    ) : (
+                                        <span className="text-muted small italic">-</span>
+                                    )}
+                                </td>
+
+                                {/* PLATBA */}
                                 <td>
                                     <span className={`badge ${
                                         p.payment_display === 'Platba' ? 'bg-success' : 
@@ -129,20 +163,22 @@ const Checklist = () => {
                                         {p.payment_display}
                                     </span>
                                 </td>
+
+                                {/* CHECKBOX */}
                                 <td className="text-center">
                                     <input 
                                         type="checkbox" 
                                         className="form-check-input" 
                                         checked={!!p.checked_in}
                                         onChange={() => handleCheckInToggle(p.booking_id, p.checked_in)}
-                                        style={{ transform: "scale(1.7)", cursor: "pointer" }} 
+                                        style={{ transform: "scale(1.7)", cursor: "pointer", marginTop: '5px' }} 
                                     />
                                 </td>
                             </tr>
                         ))
                     ) : (
                         <tr>
-                            <td colSpan="7" className="text-center text-muted">
+                            <td colSpan="8" className="text-center text-muted">
                                 Žiadni účastníci na tento termín.
                             </td>
                         </tr>
@@ -155,6 +191,8 @@ const Checklist = () => {
                     .no-print { display: none !important; }
                     .container { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
                     h2 { font-size: 20px; }
+                    .badge { border: 1px solid #000; color: black !important; }
+                    .table-success td { background-color: #eee !important; }
                 }
                 /* Bootstrap trieda pre zelený riadok */
                 .table-success td {

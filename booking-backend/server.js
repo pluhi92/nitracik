@@ -421,7 +421,7 @@ app.get('/api/admin/bookings', isAdmin, async (req, res) => {
         ON ta.id = b.training_id
       LEFT JOIN users u 
         ON b.user_id = u.id
-      WHERE ta.training_date >= NOW()
+      WHERE ta.training_date >= NOW() - INTERVAL '60 minutes'
         AND (
           b.active = true
           OR NOT EXISTS (
@@ -456,6 +456,56 @@ app.get('/api/admin/season-tickets', async (req, res) => {
   }
 });
 
+// GET archived sessions for admin
+app.get('/api/admin/archived-sessions', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        ts.id as training_id,
+        ts.training_type,
+        ts.training_date,
+        COUNT(DISTINCT b.id) as participant_count,
+        SUM(b.number_of_children) as total_children
+      FROM training_availability ts   -- <--- ZMENA TU (pôvodne training_sessions)
+      LEFT JOIN bookings b ON ts.id = b.training_id AND b.active = true
+      WHERE ts.training_date < NOW() - INTERVAL '1 hour'
+      GROUP BY ts.id, ts.training_type, ts.training_date
+      ORDER BY ts.training_date DESC
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching archived sessions:', error);
+    res.status(500).json({ error: 'Failed to fetch archived sessions' });
+  }
+});
+
+// GET archived sessions for specific user
+app.get('/api/archived-sessions/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const query = `
+      SELECT 
+        b.id as booking_id,
+        b.training_id,
+        b.booking_type,
+        ts.training_type,
+        ts.training_date
+      FROM bookings b
+      JOIN training_availability ts ON b.training_id = ts.id  -- <--- ZMENA TU
+      WHERE b.user_id = $1 
+        AND b.active = true
+        AND ts.training_date < NOW() - INTERVAL '1 hour'
+      ORDER BY ts.training_date DESC
+    `;
+    const result = await pool.query(query, [userId]);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching user archived sessions:', error);
+    res.status(500).json({ error: 'Failed to fetch archived sessions' });
+  }
+});
 
 // Update /api/admin/payment-report endpoint
 app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
@@ -638,7 +688,8 @@ app.get('/api/admin/checklist/:trainingId', isAdmin, async (req, res) => {
         b.amount_paid,
         b.credit_id,
         b.checked_in,  
-        b.accompanying_person,  
+        b.accompanying_person,
+        b.photo_consent,  
         CASE 
             WHEN b.booking_type = 'paid' THEN 'Platba'
             WHEN b.booking_type = 'season_ticket' THEN 'Permanentka'
