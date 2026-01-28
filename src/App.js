@@ -33,6 +33,7 @@ const Gdpr = lazy(() => import('./components/Gdpr'));
 const CreditOption = lazy(() => import('./components/CreditOption'));
 const Checklist = lazy(() => import('./components/Checklist'));
 const Archive = lazy(() => import('./components/Archive'));
+const BlogPage = lazy(() => import('./components/BlogPage'));
 
 // Inicializácia dayjs s lokálnym nastavením
 const initializeDayJS = () => {
@@ -81,6 +82,7 @@ const AppContent = () => {
             <Route path="/credit-option" element={<CreditOption />} />
             <Route path="/admin/checklist/:trainingId" element={<Checklist />} />
             <Route path="/archive" element={<Archive />} />
+            <Route path="/blog" element={<BlogPage />} />
           </Routes>
         </Suspense>
       </main>

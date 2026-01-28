@@ -1,11 +1,12 @@
 // Blog.js - WITH IMAGE DELETE & THUMBNAIL SUPPORT
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Modal, Button, Form, Spinner, Alert } from 'react-bootstrap';
 import api from '../api/api';
 import { useUser } from '../contexts/UserContext';
 
-const Blog = () => {
+const Blog = ({ limit = null, showViewAll = true }) => {
   const { t } = useTranslation();
   const { user } = useUser();
   const [posts, setPosts] = useState([]);
@@ -21,7 +22,7 @@ const Blog = () => {
     image_url: ''
   });
   const [error, setError] = useState('');
-  
+
   // Upload states
   const [selectedFile, setSelectedFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -37,7 +38,7 @@ const Blog = () => {
       setIsAdmin(false);
       return;
     }
-    
+
     try {
       const response = await api.get(`/api/users/${userId}`);
       if (response.data.email === process.env.REACT_APP_ADMIN_EMAIL) {
@@ -77,13 +78,13 @@ const Blog = () => {
         setError('Prosím vyberte obrázok (JPG, PNG, GIF, WebP, atď.)');
         return;
       }
-      
+
       const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
       console.log(`📤 Vybraný obrázok: ${file.name} (${fileSizeMB} MB)`);
 
       setSelectedFile(file);
       setCompressionInfo(null);
-      
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -105,9 +106,9 @@ const Blog = () => {
           'Content-Type': 'multipart/form-data',
         },
       });
-      
+
       setUploading(false);
-      
+
       if (response.data.compression) {
         setCompressionInfo({
           originalSize: (response.data.originalSize / (1024 * 1024)).toFixed(2),
@@ -116,7 +117,7 @@ const Blog = () => {
         });
         console.log(`✅ Kompresia: ${response.data.compression} úspora`);
       }
-      
+
       return response.data.imageUrl;
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -139,7 +140,7 @@ const Blog = () => {
           });
           console.log('🗑️ Obrázok zmazaný zo servera');
         }
-        
+
         // Aktualizuj článok v DB (odstráň URL)
         await api.put(`/api/admin/blog-posts/${currentPost.id}`, {
           ...formData,
@@ -150,10 +151,10 @@ const Blog = () => {
         setFormData({ ...formData, image_url: '' });
         setImagePreview(null);
         setSelectedFile(null);
-        
+
         // Refresh zoznamu
         fetchPosts();
-        
+
         console.log('✅ Obrázok úspešne odstránený');
       } catch (error) {
         console.error('Error deleting image:', error);
@@ -164,7 +165,7 @@ const Blog = () => {
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
-    
+
     try {
       let finalImageUrl = formData.image_url;
 
@@ -179,7 +180,7 @@ const Blog = () => {
         ...formData,
         image_url: finalImageUrl || null
       });
-      
+
       setShowCreateModal(false);
       setFormData({ title: '', perex: '', content: '', image_url: '' });
       setSelectedFile(null);
@@ -195,7 +196,7 @@ const Blog = () => {
 
   const handleUpdatePost = async (e) => {
     e.preventDefault();
-    
+
     try {
       let finalImageUrl = formData.image_url;
 
@@ -210,7 +211,7 @@ const Blog = () => {
         ...formData,
         image_url: finalImageUrl || null
       });
-      
+
       setShowEditModal(false);
       setCurrentPost(null);
       setSelectedFile(null);
@@ -268,12 +269,12 @@ const Blog = () => {
   // ✅ B) HELPER: Získa thumbnail URL (ak existuje)
   const getThumbnailUrl = (imageUrl) => {
     if (!imageUrl) return null;
-    
+
     // Ak backend vytvára thumbnaily s príponou -thumb.webp
     if (imageUrl.includes('/uploads/blog/')) {
       return imageUrl.replace('.webp', '-thumb.webp');
     }
-    
+
     // Pre externé URL použijeme originál
     return imageUrl;
   };
@@ -291,8 +292,8 @@ const Blog = () => {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="section-title">{t?.blog?.title || 'Blog & Aktuality'}</h2>
         {isAdmin && (
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={handleOpenCreateModal}
           >
             + {t?.blog?.newPost || 'Nový článok'}
@@ -321,7 +322,7 @@ const Blog = () => {
         <div className="text-center py-5">
           <p className="text-muted">{t?.blog?.noPosts || 'Žiadne články na zobrazenie'}</p>
           {isAdmin && (
-            <Button 
+            <Button
               variant="outline-primary"
               onClick={handleOpenCreateModal}
             >
@@ -330,72 +331,87 @@ const Blog = () => {
           )}
         </div>
       ) : (
-        <div className="row">
-          {posts.slice(0, 3).map(post => (
-            <div key={post.id} className="col-lg-4 col-md-6 mb-4">
-              <div className="card h-100 shadow-sm">
-                {post.image_url && (
-                  <img 
-                    src={api.makeImageUrl(getThumbnailUrl(post.image_url))}
-                    className="card-img-top" 
-                    alt={post.title}
-                    style={{ height: '200px', objectFit: 'cover' }}
-                    onError={(e) => {
-                      console.error('Thumbnail failed, trying full image:', post.image_url);
-                      // Fallback na full image ak thumbnail neexistuje
-                      e.target.src = api.makeImageUrl(post.image_url);
-                      e.target.onerror = () => {
-                        // Ak aj full image zlyhá, použijeme placeholder
-                        e.target.src = 'https://picsum.photos/400/200?random=' + post.id;
-                      };
-                    }}
-                  />
-                )}
-                <div className="card-body d-flex flex-column">
-                  <h5 className="card-title">{post.title}</h5>
-                  <p className="card-text text-muted">{post.perex}</p>
-                  <div className="mt-auto">
-                    <small className="text-muted">
-                      {formatDate(post.created_at)}
-                    </small>
-                    <div className="mt-2">
-                      <Button 
-                        variant="outline-primary" 
-                        size="sm"
-                        onClick={() => {
-                          setCurrentPost(post);
-                          setShowReadModal(true);
-                        }}
-                      >
-                        {t?.blog?.readMore || 'Čítať viac'}
-                      </Button>
-                      {isAdmin && (
-                        <>
-                          <Button 
-                            variant="outline-secondary" 
-                            size="sm" 
-                            className="ms-2"
-                            onClick={() => handleOpenEditModal(post)}
-                          >
-                            {t?.blog?.edit || 'Upraviť'}
-                          </Button>
-                          <Button 
-                            variant="outline-danger" 
-                            size="sm" 
-                            className="ms-2"
-                            onClick={() => handleDeletePost(post.id)}
-                          >
-                            {t?.blog?.delete || 'Zmazať'}
-                          </Button>
-                        </>
-                      )}
+        <>
+          <div className="row">
+            {(limit ? posts.slice(0, limit) : posts).map(post => (
+              <div key={post.id} className="col-lg-4 col-md-6 mb-4">
+                <div className="card h-100 shadow-sm">
+                  {post.image_url && (
+                    <img
+                      src={api.makeImageUrl(getThumbnailUrl(post.image_url))}
+                      className="card-img-top"
+                      alt={post.title}
+                      style={{ height: '200px', objectFit: 'cover' }}
+                      onError={(e) => {
+                        e.target.src = api.makeImageUrl(post.image_url);
+                        e.target.onerror = () => {
+                          e.target.src = 'https://picsum.photos/400/200?random=' + post.id;
+                        };
+                      }}
+                    />
+                  )}
+                  <div className="card-body d-flex flex-column">
+                    <h5 className="card-title">{post.title}</h5>
+                    <p className="card-text text-muted">{post.perex}</p>
+                    <div className="mt-auto">
+                      <small className="text-muted">
+                        {formatDate(post.created_at)}
+                      </small>
+                      <div className="mt-2">
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() => {
+                            setCurrentPost(post);
+                            setShowReadModal(true);
+                          }}
+                        >
+                          {t?.blog?.readMore || 'Čítať viac'}
+                        </Button>
+                        {isAdmin && (
+                          <>
+                            <Button
+                              variant="outline-secondary"
+                              size="sm"
+                              className="ms-2"
+                              onClick={() => handleOpenEditModal(post)}
+                            >
+                              {t?.blog?.edit || 'Upraviť'}
+                            </Button>
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              className="ms-2"
+                              onClick={() => handleDeletePost(post.id)}
+                            >
+                              {t?.blog?.delete || 'Zmazať'}
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+            ))}
+          </div>
+
+          {/* ✅ TLAČIDLO  */}
+          {showViewAll && limit && posts.length > limit && (
+            <div className="text-center mt-4">
+              <Link
+                to="/blog"
+                className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors shadow-md hover:shadow-lg"
+                style={{ textDecoration: 'none', display: 'inline-flex' }}
+              >
+                📚 Pozrieť všetky články ({posts.length})
+                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '20px' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {/* Create Post Modal */}
@@ -410,7 +426,7 @@ const Blog = () => {
               <Form.Control
                 required
                 value={formData.title}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               />
             </Form.Group>
             <Form.Group className="mb-3">
@@ -420,7 +436,7 @@ const Blog = () => {
                 as="textarea"
                 rows={3}
                 value={formData.perex}
-                onChange={(e) => setFormData({...formData, perex: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, perex: e.target.value })}
               />
             </Form.Group>
             <Form.Group className="mb-3">
@@ -429,7 +445,7 @@ const Blog = () => {
                 as="textarea"
                 rows={6}
                 value={formData.content}
-                onChange={(e) => setFormData({...formData, content: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
               />
             </Form.Group>
 
@@ -454,7 +470,7 @@ const Blog = () => {
                   checked={uploadMethod === 'upload'}
                   onChange={() => {
                     setUploadMethod('upload');
-                    setFormData({...formData, image_url: ''});
+                    setFormData({ ...formData, image_url: '' });
                   }}
                 />
               </div>
@@ -463,7 +479,7 @@ const Blog = () => {
                 <Form.Control
                   type="text"
                   value={formData.image_url}
-                  onChange={(e) => setFormData({...formData, image_url: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
                   placeholder="https://example.com/image.jpg"
                 />
               ) : (
@@ -476,12 +492,12 @@ const Blog = () => {
                   <Form.Text className="text-muted">
                     ✨ Obrázky sú automaticky optimalizované do WebP formátu. Nahrajte ľubovoľne veľkú fotku - náš systém ju bezpečne spracuje!
                   </Form.Text>
-                  
+
                   {imagePreview && (
                     <div className="mt-3">
-                      <img 
-                        src={imagePreview} 
-                        alt="Preview" 
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
                         style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px' }}
                       />
                       {selectedFile && (
@@ -525,7 +541,7 @@ const Blog = () => {
         </Modal.Header>
         <Modal.Body>
           {currentPost?.image_url && (
-            <img 
+            <img
               src={api.makeImageUrl(currentPost.image_url)}
               alt={currentPost.title}
               className="img-fluid mb-4 rounded"
@@ -537,7 +553,15 @@ const Blog = () => {
           <div className="text-muted mb-4">
             <small>{formatDate(currentPost?.created_at)}</small>
           </div>
-          <div className="blog-content" style={{ whiteSpace: 'pre-wrap' }}>
+          <div className="blog-content"
+            style={{
+              whiteSpace: 'pre-wrap',       
+              wordWrap: 'break-word',       
+              overflowWrap: 'break-word',   
+              maxWidth: '100%',             
+              overflowX: 'hidden'           
+            }}
+          >
             {currentPost?.content}
           </div>
         </Modal.Body>
@@ -560,7 +584,7 @@ const Blog = () => {
               <Form.Control
                 required
                 value={formData.title}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               />
             </Form.Group>
             <Form.Group className="mb-3">
@@ -570,7 +594,7 @@ const Blog = () => {
                 as="textarea"
                 rows={3}
                 value={formData.perex}
-                onChange={(e) => setFormData({...formData, perex: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, perex: e.target.value })}
               />
             </Form.Group>
             <Form.Group className="mb-3">
@@ -579,21 +603,21 @@ const Blog = () => {
                 as="textarea"
                 rows={8}
                 value={formData.content}
-                onChange={(e) => setFormData({...formData, content: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
               />
             </Form.Group>
 
             <Form.Group className="mb-3">
               <Form.Label>Obrázok</Form.Label>
-              
+
               {/* ✅ A) Tlačidlo na zmazanie obrázka */}
               {formData.image_url && (
                 <div className="mb-3 p-3 border rounded bg-light">
                   <div className="d-flex align-items-center justify-content-between">
                     <div className="d-flex align-items-center">
-                      <img 
+                      <img
                         src={api.makeImageUrl(formData.image_url)}
-                        alt="Current" 
+                        alt="Current"
                         style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }}
                         onError={(e) => {
                           e.target.style.display = 'none';
@@ -606,8 +630,8 @@ const Blog = () => {
                         </p>
                       </div>
                     </div>
-                    <Button 
-                      variant="outline-danger" 
+                    <Button
+                      variant="outline-danger"
                       size="sm"
                       onClick={handleDeleteImage}
                       title="Odstrániť obrázok"
@@ -644,7 +668,7 @@ const Blog = () => {
                 <Form.Control
                   type="text"
                   value={formData.image_url}
-                  onChange={(e) => setFormData({...formData, image_url: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
                   placeholder="https://example.com/image.jpg"
                 />
               ) : (
@@ -657,13 +681,13 @@ const Blog = () => {
                   <Form.Text className="text-muted">
                     ✨ Obrázky sú automaticky optimalizované do WebP formátu
                   </Form.Text>
-                  
+
                   {selectedFile && imagePreview && (
                     <div className="mt-3">
                       <p className="text-muted small">Nový obrázok (preview):</p>
-                      <img 
-                        src={imagePreview} 
-                        alt="Preview" 
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
                         style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px' }}
                       />
                     </div>

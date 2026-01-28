@@ -326,7 +326,7 @@ useEffect(() => {
 
       {/* Blog Section */}
       <section className="max-w-6xl mx-auto px-6 py-12 mb-16 bg-white rounded-xl shadow-lg">
-        <Blog />
+        <Blog limit={3} showViewAll={true} />
       </section>
 
       {/* Google Ratings Section */}
