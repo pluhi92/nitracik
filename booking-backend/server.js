@@ -25,6 +25,8 @@ const dayjs = require('dayjs');
 require('dayjs/locale/sk');
 dayjs.locale('sk');
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.,])[A-Za-z\d@$!%*?&.,]{8,}$/;
+const multer = require('multer');
+const sharp = require('sharp');
 
 app.set('trust proxy', 1);
 
@@ -42,6 +44,101 @@ const registerLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+//upload directory setup
+const uploadDir = path.join(__dirname, 'public', 'uploads', 'blog');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// ✅ SHARP: Memory storage namiesto disk storage
+const storage = multer.memoryStorage();
+
+// ✅ SHARP: Rozšírený filter pre všetky bežné formáty
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png|gif|webp|bmp|tiff|svg/;
+  const mimetype = allowedTypes.test(file.mimetype);
+
+  if (mimetype) {
+    return cb(null, true);
+  } else {
+    cb(new Error('Len obrázky sú povolené'));
+  }
+};
+
+// ✅ SHARP: Zvýšený buffer limit (Sharp potom skomprimuje)
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB buffer
+  },
+  fileFilter: fileFilter
+});
+
+// ✅ UPRAVENÁ FUNKCIA processImage s THUMBNAIL podporou
+async function processImage(buffer, filename) {
+  try {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    
+    const webpFilename = `blog-${uniqueSuffix}.webp`;
+    const outputPath = path.join(uploadDir, webpFilename);
+    
+    const thumbFilename = `blog-${uniqueSuffix}-thumb.webp`;
+    const thumbPath = path.join(uploadDir, thumbFilename);
+
+    // ✅ FIX: .rotate() opraví EXIF orientáciu
+    await sharp(buffer)
+      .rotate() // ← PRIDAJ TOTO - opraví orientáciu podľa EXIF
+      .resize({
+        width: 1200,
+        height: 1200,
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .webp({
+        quality: 90,
+        effort: 6
+      })
+      .toFile(outputPath);
+
+    // ✅ FIX: Pre thumbnail použij 'cover' a 'centre' pre lepší crop
+    await sharp(buffer)
+      .rotate() // ← PRIDAJ TOTO aj sem
+      .resize({
+        width: 300,
+        height: 200, // ← Zmeň na 200 pre landscape format (3:2 ratio)
+        fit: 'cover',
+        position: 'centre' // ← Vycentruje obrázok, zoberie hornú/strednú časť
+      })
+      .webp({
+        quality: 80,
+        effort: 6
+      })
+      .toFile(thumbPath);
+
+    const stats = fs.statSync(outputPath);
+    const thumbStats = fs.statSync(thumbPath);
+    const fileSizeKB = (stats.size / 1024).toFixed(2);
+    const thumbSizeKB = (thumbStats.size / 1024).toFixed(2);
+
+    console.log(`✅ Obrázok spracovaný:`);
+    console.log(`   - Full: ${webpFilename} (${fileSizeKB} KB)`);
+    console.log(`   - Thumb: ${thumbFilename} (${thumbSizeKB} KB)`);
+
+    return {
+      filename: webpFilename,
+      thumbnailFilename: thumbFilename,
+      path: outputPath,
+      thumbnailPath: thumbPath,
+      size: stats.size,
+      thumbnailSize: thumbStats.size
+    };
+  } catch (error) {
+    console.error('❌ Chyba pri spracovaní obrázka:', error);
+    throw error;
+  }
+}
+
 
 
 app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -280,6 +377,7 @@ app.post('/stripe-refund-webhook', express.raw({ type: 'application/json' }), as
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
@@ -311,19 +409,31 @@ app.use(session({
   },
 }));
 
+app.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        error: 'Súbor je príliš veľký. Maximálna veľkosť je 5MB.'
+      });
+    }
+  }
+  next(error);
+});
+
+
 const isAdmin = async (req, res, next) => {
   try {
     // console.log('[DEBUG] Session userId:', req.session.userId);
 
     if (!req.session.userId) {
-       return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     const userResult = await pool.query(
       'SELECT email, role FROM users WHERE id = $1',
       [req.session.userId]
     );
-    
+
     // console.log('[DEBUG] User query result:', userResult.rows[0]);
 
     // --- ZMENA TU ---
@@ -484,7 +594,7 @@ app.get('/api/admin/archived-sessions', async (req, res) => {
 app.get('/api/archived-sessions/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     const query = `
       SELECT 
         b.id as booking_id,
@@ -711,8 +821,8 @@ app.get('/api/admin/checklist/:trainingId', isAdmin, async (req, res) => {
     `, [trainingId]);
 
     res.json({
-        participants: result.rows,
-        training: trainingInfo.rows[0]
+      participants: result.rows,
+      training: trainingInfo.rows[0]
     });
 
   } catch (error) {
@@ -1213,12 +1323,12 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
     // --- 1. VALIDÁCIA VSTUPOV (FIX) ---
     // Skôr než začneme transakciu, overíme, či máme to najhlavnejšie - ID tréningu
     if (!trainingId) {
-       // Tu vrátime 400 (Bad Request) a jasnú hlášku pre užívateľa
-       return res.status(400).json({ error: 'Nebol vybratý konkrétny termín (čas). Prosím, kliknite na požadovaný čas tréningu.' });
+      // Tu vrátime 400 (Bad Request) a jasnú hlášku pre užívateľa
+      return res.status(400).json({ error: 'Nebol vybratý konkrétny termín (čas). Prosím, kliknite na požadovaný čas tréningu.' });
     }
 
     if (!childrenCount || childrenCount < 1) {
-       return res.status(400).json({ error: 'Musíte zvoliť aspoň jedno dieťa.' });
+      return res.status(400).json({ error: 'Musíte zvoliť aspoň jedno dieťa.' });
     }
     const client = await pool.connect();
     try {
@@ -2026,7 +2136,7 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
 
       refundData = { type: 'season_ticket_returned' };
 
-    // --- B. CREDIT RETURN ---
+      // --- B. CREDIT RETURN ---
     } else if (booking.booking_type === 'credit' || booking.credit_id) {
       console.log('[DEBUG] Returning credit to user:', booking.user_id);
 
@@ -2036,15 +2146,15 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
           [booking.credit_id]
         );
       }
-      
+
       refundData = { type: 'credit_returned' };
 
-    // --- C. PAID BOOKING: REFUND OR CREDIT ---
+      // --- C. PAID BOOKING: REFUND OR CREDIT ---
     } else {
       // NEW: Check if user requested credit instead of refund
       if (requestCredit) {
         console.log('[DEBUG] User requested CREDIT instead of refund for booking:', bookingId);
-        
+
         // Create credit record
         await client.query(`
           INSERT INTO credits (
@@ -2320,64 +2430,64 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
 
     // 4. Spracovanie bookingov (IBA DB OPERÁCIE)
     for (const booking of bookings) {
-      
+
       // --- A: PERMANENTKA ---
       if (booking.booking_type === 'season_ticket' || booking.season_ticket_id) {
         if (booking.season_ticket_id) {
-            // Vrátiť vstupy
-            await client.query(
-                'UPDATE season_tickets SET entries_remaining = entries_remaining + $1 WHERE id = $2',
-                [booking.number_of_children, booking.season_ticket_id]
-            );
-            // Zmazať záznam o použití a booking
-            await client.query('DELETE FROM season_ticket_usage WHERE booking_id = $1', [booking.booking_id]);
-            await client.query('DELETE FROM bookings WHERE id = $1', [booking.booking_id]);
+          // Vrátiť vstupy
+          await client.query(
+            'UPDATE season_tickets SET entries_remaining = entries_remaining + $1 WHERE id = $2',
+            [booking.number_of_children, booking.season_ticket_id]
+          );
+          // Zmazať záznam o použití a booking
+          await client.query('DELETE FROM season_ticket_usage WHERE booking_id = $1', [booking.booking_id]);
+          await client.query('DELETE FROM bookings WHERE id = $1', [booking.booking_id]);
 
-            // Pridať email do fronty
-            emailQueue.push({
-                type: 'season',
-                email: booking.email,
-                firstName: booking.first_name,
-                trainingType: trainingTypeStr,
-                dateObj: trainingDateObj,
-                reason: reason
-            });
-        }
-
-      // --- B: KREDIT (OPRAVENÁ LOGIKA) ---
-      } else if (booking.booking_type === 'credit' || booking.credit_id) {
-        if (booking.credit_id) {
-             // !!! OPRAVA !!!
-             // Namiesto pripočítavania sumy, len "ožívíme" existujúci kredit
-             console.log(`[DEBUG] Reactivating credit ID: ${booking.credit_id}`);
-             await client.query(
-                "UPDATE credits SET status = 'active', used_at = NULL WHERE id = $1",
-                [booking.credit_id] 
-             );
-        }
-        
-        // Zmažeme booking, aby nevisel v systéme
-        await client.query('DELETE FROM bookings WHERE id = $1', [booking.booking_id]);
-
-        // Pridať email do fronty
-        emailQueue.push({
-            type: 'credit',
+          // Pridať email do fronty
+          emailQueue.push({
+            type: 'season',
             email: booking.email,
             firstName: booking.first_name,
             trainingType: trainingTypeStr,
             dateObj: trainingDateObj,
             reason: reason
+          });
+        }
+
+        // --- B: KREDIT (OPRAVENÁ LOGIKA) ---
+      } else if (booking.booking_type === 'credit' || booking.credit_id) {
+        if (booking.credit_id) {
+          // !!! OPRAVA !!!
+          // Namiesto pripočítavania sumy, len "ožívíme" existujúci kredit
+          console.log(`[DEBUG] Reactivating credit ID: ${booking.credit_id}`);
+          await client.query(
+            "UPDATE credits SET status = 'active', used_at = NULL WHERE id = $1",
+            [booking.credit_id]
+          );
+        }
+
+        // Zmažeme booking, aby nevisel v systéme
+        await client.query('DELETE FROM bookings WHERE id = $1', [booking.booking_id]);
+
+        // Pridať email do fronty
+        emailQueue.push({
+          type: 'credit',
+          email: booking.email,
+          firstName: booking.first_name,
+          trainingType: trainingTypeStr,
+          dateObj: trainingDateObj,
+          reason: reason
         });
 
-      // --- C: PLATBA KARTOU (ŠTANDARD) ---
+        // --- C: PLATBA KARTOU (ŠTANDARD) ---
       } else {
         // Títo ostávajú, kým si nevyberú možnosť
         emailQueue.push({
-            type: 'card',
-            email: booking.email,
-            booking: booking, 
-            reason: reason,
-            frontendUrl: FRONTEND_URL
+          type: 'card',
+          email: booking.email,
+          booking: booking,
+          reason: reason,
+          frontendUrl: FRONTEND_URL
         });
       }
     }
@@ -2388,15 +2498,15 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
 
     // 6. ODOSLANIE EMAILOV (Až teraz, keď je DB v poriadku)
     const emailPromises = emailQueue.map(task => {
-        // Používame try-catch vnútri mapy, aby jeden zlyhaný email nezhodil ostatné
-        // (alebo Promise.allSettled nižšie to rieši tiež)
-        if (task.type === 'season') {
-            return emailService.sendMassCancellationSeasonTicket(task.email, task.firstName, task.trainingType, task.dateObj, task.reason);
-        } else if (task.type === 'credit') {
-            return emailService.sendMassCancellationCredit(task.email, task.firstName, task.trainingType, task.dateObj, task.reason);
-        } else if (task.type === 'card') {
-            return emailService.sendMassCancellationEmail(task.email, task.booking, task.reason, task.frontendUrl);
-        }
+      // Používame try-catch vnútri mapy, aby jeden zlyhaný email nezhodil ostatné
+      // (alebo Promise.allSettled nižšie to rieši tiež)
+      if (task.type === 'season') {
+        return emailService.sendMassCancellationSeasonTicket(task.email, task.firstName, task.trainingType, task.dateObj, task.reason);
+      } else if (task.type === 'credit') {
+        return emailService.sendMassCancellationCredit(task.email, task.firstName, task.trainingType, task.dateObj, task.reason);
+      } else if (task.type === 'card') {
+        return emailService.sendMassCancellationEmail(task.email, task.booking, task.reason, task.frontendUrl);
+      }
     });
 
     await Promise.allSettled(emailPromises);
@@ -2587,16 +2697,16 @@ app.get('/api/booking/credit', async (req, res) => {
         actionStatus = 'already';
       }
     } else {
-        // Tu by sme mohli riešiť, ak booking neexistuje alebo už nie je active (napr. bol už refundovaný)
-        // Pre jednoduchosť predpokladáme, že ak nie je active, možno už bol spracovaný skôr.
-        // Skontrolujeme, či existuje kredit pre tento bookingId (ak by sme mali priamy link, ale tu joinujeme cez user/session)
-        // Ak sa nenájde booking, vrátime chybu alebo 'already' ak nájdeme kredit inou cestou.
-        // Pre bezpečnosť teraz vrátime error, ak sa nenájde active booking:
-        await client.query('ROLLBACK');
-        return res.status(404).json({ 
-            status: 'error', 
-            message: 'Booking not found or already processed/cancelled.' 
-        });
+      // Tu by sme mohli riešiť, ak booking neexistuje alebo už nie je active (napr. bol už refundovaný)
+      // Pre jednoduchosť predpokladáme, že ak nie je active, možno už bol spracovaný skôr.
+      // Skontrolujeme, či existuje kredit pre tento bookingId (ak by sme mali priamy link, ale tu joinujeme cez user/session)
+      // Ak sa nenájde booking, vrátime chybu alebo 'already' ak nájdeme kredit inou cestou.
+      // Pre bezpečnosť teraz vrátime error, ak sa nenájde active booking:
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        status: 'error',
+        message: 'Booking not found or already processed/cancelled.'
+      });
     }
 
     await client.query('COMMIT');
@@ -2620,9 +2730,9 @@ app.get('/api/booking/credit', async (req, res) => {
     await client.query('ROLLBACK');
     console.error('Credit error:', err);
     // Vrátime JSON error, aby to frontend zachytil a zobrazil červenú ikonku
-    return res.status(500).json({ 
-        status: 'error', 
-        message: 'Internal Server Error during credit creation.' 
+    return res.status(500).json({
+      status: 'error',
+      message: 'Internal Server Error during credit creation.'
     });
   } finally {
     client.release();
@@ -2733,39 +2843,39 @@ app.post('/api/bookings/use-credit', async (req, res) => {
     const user = userResult.rows[0];
 
     // --- COMMIT TRANSAKCIE ---
-    await client.query('COMMIT'); 
+    await client.query('COMMIT');
     // Teraz je booking reálne v DB a getAttendeesList ho uvidí
 
     // --- ODOSLANIE EMAILOV (Až po commite) ---
     try {
-        // 1. User Email
-        await emailService.sendUserBookingEmail(user.email, {
-          date: training.training_date,
-          start_time: dayjs(training.training_date).format('HH:mm'), // Alebo ak máš selectedTime v body
-          trainingType: training.training_type,
-          userName: user.first_name,
-          paymentType: 'credit'
-        });
+      // 1. User Email
+      await emailService.sendUserBookingEmail(user.email, {
+        date: training.training_date,
+        start_time: dayjs(training.training_date).format('HH:mm'), // Alebo ak máš selectedTime v body
+        trainingType: training.training_type,
+        userName: user.first_name,
+        paymentType: 'credit'
+      });
 
-        // 2. Admin Email
-        await emailService.sendAdminCreditUsage(process.env.ADMIN_EMAIL, {
-          user, 
-          training, 
-          credit, 
-          finalChildrenAges, 
-          finalMobile, 
-          finalPhotoConsent: finalPhotoConsent, // Pozor na názov premennej v emailService
-          finalNote, 
-          bookingId, 
-          creditId, 
-          originalSessionId,
-          trainingId: training.id // <--- TOTO JE KĽÚČOVÉ PRE TABUĽKU
-        });
+      // 2. Admin Email
+      await emailService.sendAdminCreditUsage(process.env.ADMIN_EMAIL, {
+        user,
+        training,
+        credit,
+        finalChildrenAges,
+        finalMobile,
+        finalPhotoConsent: finalPhotoConsent, // Pozor na názov premennej v emailService
+        finalNote,
+        bookingId,
+        creditId,
+        originalSessionId,
+        trainingId: training.id // <--- TOTO JE KĽÚČOVÉ PRE TABUĽKU
+      });
 
-        console.log('[DEBUG] Credit confirmation emails sent.');
+      console.log('[DEBUG] Credit confirmation emails sent.');
     } catch (emailError) {
-        console.error('[DEBUG] Error sending confirmation emails:', emailError.message);
-        // Nezastavujeme response, lebo booking už prebehol
+      console.error('[DEBUG] Error sending confirmation emails:', emailError.message);
+      // Nezastavujeme response, lebo booking už prebehol
     }
 
     res.json({
@@ -2876,6 +2986,233 @@ app.delete('/api/admin/faqs/:id', isAdmin, async (req, res) => {
     res.status(500).json({ error: 'Failed to delete FAQ' });
   }
 });
+
+// --- ABOUT CONTENT ENDPOINTS ---
+
+app.get('/api/about-content', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM about_content WHERE id = 1');
+    if (result.rows.length === 0) {
+      // Vrátiť predvolený obsah, ak neexistuje
+      return res.json({
+        title: 'O nás',
+        description: 'Vitajte v Nitráčiku! Sme lokalný projekt zameraný na kreatívny rozvoj detí. Naša misia je vytvárať priestor, kde sa deti môžu slobodne vyjadrovať, objavovať a učiť sa prostredníctvom hry a kreativity.',
+        description2: 'Ponúkame rôzne programy a workshopy navrhnuté tak, aby podporovali motorické zručnosti, sociálnu interakciu a tvorivé myslenie u detí všetkých vekových kategórií.'
+      });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching about content:', error);
+    res.status(500).json({ error: 'Failed to fetch about content' });
+  }
+});
+
+app.post('/api/admin/about-content', isAdmin, async (req, res) => {
+  try {
+    const { title, description, description2 } = req.body;
+    const result = await pool.query(
+      `INSERT INTO about_content (id, title, description, description2, updated_at)
+       VALUES (1, $1, $2, $3, NOW())
+       ON CONFLICT (id) 
+       DO UPDATE SET 
+         title = EXCLUDED.title, 
+         description = EXCLUDED.description, 
+         description2 = EXCLUDED.description2,
+         updated_at = NOW()
+       RETURNING *`,
+      [title, description, description2]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error saving about content:', error);
+    res.status(500).json({ error: 'Failed to save about content' });
+  }
+});
+
+// --- BLOG ENDPOINTS ---
+
+app.get('/api/blog-posts', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, title, perex, content, image_url, created_at, updated_at
+      FROM blog_posts 
+      ORDER BY created_at DESC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching blog posts:', error);
+    res.status(500).json({ error: 'Failed to fetch blog posts' });
+  }
+});
+
+app.post('/api/admin/blog-posts', isAdmin, async (req, res) => {
+  try {
+    const { title, perex, content, image_url } = req.body;
+    const result = await pool.query(
+      `INSERT INTO blog_posts (title, perex, content, image_url, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, NOW(), NOW())
+       RETURNING *`,
+      [title, perex, content || null, image_url || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating blog post:', error);
+    res.status(500).json({ error: 'Failed to create blog post' });
+  }
+});
+
+app.put('/api/admin/blog-posts/:id', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, perex, content, image_url } = req.body;
+    const result = await pool.query(
+      `UPDATE blog_posts 
+       SET title = $1, perex = $2, content = $3, image_url = $4, updated_at = NOW()
+       WHERE id = $5
+       RETURNING *`,
+      [title, perex, content || null, image_url || null, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating blog post:', error);
+    res.status(500).json({ error: 'Failed to update blog post' });
+  }
+});
+
+app.delete('/api/admin/blog-posts/:id', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM blog_posts WHERE id = $1 RETURNING id', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
+    res.json({ message: 'Post deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting blog post:', error);
+    res.status(500).json({ error: 'Failed to delete blog post' });
+  }
+});
+
+// --- GOOGLE RATINGS ENDPOINTS ---
+
+app.get('/api/admin/google-ratings', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT business_id, api_key, enabled FROM google_ratings_config WHERE id = 1');
+    if (result.rows.length === 0) {
+      return res.json({ businessId: '', apiKey: '', enabled: false });
+    }
+    // Mapovanie snake_case z DB na camelCase pre frontend
+    res.json({
+      businessId: result.rows[0].business_id || '',
+      apiKey: result.rows[0].api_key || '',
+      enabled: result.rows[0].enabled || false
+    });
+  } catch (error) {
+    console.error('Error fetching Google ratings config:', error);
+    res.status(500).json({ error: 'Failed to fetch config' });
+  }
+});
+
+app.post('/api/admin/google-ratings', isAdmin, async (req, res) => {
+  try {
+    const { businessId, apiKey, enabled } = req.body;
+
+    await pool.query(
+      `INSERT INTO google_ratings_config (id, business_id, api_key, enabled, updated_at)
+       VALUES (1, $1, $2, $3, NOW())
+       ON CONFLICT (id) 
+       DO UPDATE SET 
+         business_id = EXCLUDED.business_id, 
+         api_key = EXCLUDED.api_key, 
+         enabled = EXCLUDED.enabled,
+         updated_at = NOW()`,
+      [businessId, apiKey, enabled]
+    );
+
+    res.json({ success: true, message: 'Configuration saved' });
+  } catch (error) {
+    console.error('Error saving Google ratings config:', error);
+    res.status(500).json({ error: 'Failed to save configuration' });
+  }
+});
+
+// 7. ENDPOINT PRE UPLOAD OBRÁZKA
+app.post('/api/admin/upload-blog-image', isAdmin, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Žiadny súbor nebol nahraný' });
+    }
+
+    console.log(`📤 Prijatý obrázok: ${req.file.originalname} (${(req.file.size / 1024).toFixed(2)} KB)`);
+
+    // Spracuj obrázok pomocou Sharp
+    const processedImage = await processImage(req.file.buffer, req.file.originalname);
+
+    // URL obrázka, ktorý bude prístupný cez web
+    const imageUrl = `/uploads/blog/${processedImage.filename}`;
+
+    console.log(`✅ Upload dokončený: ${imageUrl}`);
+
+    res.json({
+      success: true,
+      imageUrl: imageUrl,
+      filename: processedImage.filename,
+      originalSize: req.file.size,
+      processedSize: processedImage.size,
+      compression: ((1 - processedImage.size / req.file.size) * 100).toFixed(2) + '%'
+    });
+  } catch (error) {
+    console.error('❌ Error uploading image:', error);
+    res.status(500).json({ error: 'Nepodarilo sa nahrať obrázok' });
+  }
+});
+
+app.delete('/api/admin/delete-blog-image', isAdmin, async (req, res) => {
+  try {
+    const { imageUrl } = req.body;
+    
+    if (!imageUrl) {
+      return res.status(400).json({ error: 'Chýba URL obrázka' });
+    }
+
+    const filename = path.basename(imageUrl);
+    const filePath = path.join(uploadDir, filename);
+    
+    // ✅ Zmaž aj thumbnail
+    const thumbFilename = filename.replace('.webp', '-thumb.webp');
+    const thumbPath = path.join(uploadDir, thumbFilename);
+    
+    let deletedFiles = [];
+    
+    // Zmaž hlavný obrázok
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      deletedFiles.push(filename);
+      console.log(`🗑️ Obrázok zmazaný: ${filename}`);
+    }
+    
+    // ✅ Zmaž thumbnail ak existuje
+    if (fs.existsSync(thumbPath)) {
+      fs.unlinkSync(thumbPath);
+      deletedFiles.push(thumbFilename);
+      console.log(`🗑️ Thumbnail zmazaný: ${thumbFilename}`);
+    }
+    
+    if (deletedFiles.length > 0) {
+      res.json({ 
+        success: true, 
+        message: 'Obrázok bol zmazaný',
+        deletedFiles: deletedFiles
+      });
+    } else {
+      res.status(404).json({ error: 'Obrázok nebol nájdený' });
+    }
+  } catch (error) {
+    console.error('❌ Error deleting image:', error);
+    res.status(500).json({ error: 'Nepodarilo sa zmazať obrázok' });
+  }
+});
+
+
 
 // Contact form endpoint
 app.post('/api/contact', async (req, res) => {

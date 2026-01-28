@@ -1,1 +1,0 @@
-ALTER TABLE "bookings" ADD COLUMN "checked_in" BOOLEAN NOT NULL DEFAULT false;
