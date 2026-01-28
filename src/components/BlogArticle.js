@@ -6,7 +6,7 @@ import api from '../api/api';
 import ShareModal from './ShareModal';
 
 const BlogArticle = () => {
-  const { id } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -17,7 +17,12 @@ const BlogArticle = () => {
     const fetchPost = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/api/blog-posts/${id}`);
+        
+        // 2. ZMENA: V API volaní použi premennú slug
+        // Log pre kontrolu (uvidíš ho v konzole prehliadača - F12)
+        console.log("Fetching slug:", slug); 
+
+        const response = await api.get(`/api/blog-posts/${slug}`);
         setPost(response.data);
       } catch (error) {
         console.error('Error fetching blog post:', error);
@@ -27,10 +32,11 @@ const BlogArticle = () => {
       }
     };
 
-    if (id) {
+    // 3. ZMENA: Kontrolujeme slug, nie id
+    if (slug) {
       fetchPost();
     }
-  }, [id]);
+  }, [slug]); // 4. ZMENA: Dependency array
 
   const formatDate = (dateString) => {
     if (!dateString) return '';

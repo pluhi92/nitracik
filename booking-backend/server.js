@@ -66,6 +66,18 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+const createSlug = (title) => {
+  return title
+    .toString()
+    .normalize('NFD')                   
+    .replace(/[\u0300-\u036f]/g, '')   
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')               
+    .replace(/[^\w\-]+/g, '')           
+    .replace(/\-\-+/g, '-');            
+};
+
 // ✅ SHARP: Zvýšený buffer limit (Sharp potom skomprimuje)
 const upload = multer({
   storage: storage,
@@ -86,9 +98,12 @@ async function processImage(buffer, filename) {
     const thumbFilename = `blog-${uniqueSuffix}-thumb.webp`;
     const thumbPath = path.join(uploadDir, thumbFilename);
 
-    // ✅ FIX: .rotate() opraví EXIF orientáciu
-    await sharp(buffer)
-      .rotate() // ← PRIDAJ TOTO - opraví orientáciu podľa EXIF
+    // ✅ HLAVNÁ ÚPRAVA: pridané { failOnError: false }
+    // Toto zabezpečí, že Sharp ignoruje chybu "Invalid SOS parameters"
+    
+    // 1. Spracovanie hlavného obrázka
+    await sharp(buffer, { failOnError: false }) 
+      .rotate() 
       .resize({
         width: 1200,
         height: 1200,
@@ -101,14 +116,14 @@ async function processImage(buffer, filename) {
       })
       .toFile(outputPath);
 
-    // ✅ FIX: Pre thumbnail použij 'cover' a 'centre' pre lepší crop
-    await sharp(buffer)
-      .rotate() // ← PRIDAJ TOTO aj sem
+    // 2. Spracovanie thumbnailu (tiež pridaj failOnError)
+    await sharp(buffer, { failOnError: false }) 
+      .rotate() 
       .resize({
         width: 300,
-        height: 200, // ← Zmeň na 200 pre landscape format (3:2 ratio)
+        height: 200, 
         fit: 'cover',
-        position: 'centre' // ← Vycentruje obrázok, zoberie hornú/strednú časť
+        position: 'centre' 
       })
       .webp({
         quality: 80,
@@ -3032,7 +3047,7 @@ app.post('/api/admin/about-content', isAdmin, async (req, res) => {
 app.get('/api/blog-posts', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT id, title, perex, content, image_url, created_at, updated_at
+      SELECT id, title, slug, perex, content, image_url, created_at, updated_at
       FROM blog_posts 
       ORDER BY created_at DESC
     `);
@@ -3046,11 +3061,22 @@ app.get('/api/blog-posts', async (req, res) => {
 app.post('/api/admin/blog-posts', isAdmin, async (req, res) => {
   try {
     const { title, perex, content, image_url } = req.body;
+    
+    // 1. Vytvoríme slug
+    let slug = createSlug(title);
+    
+    // (Voliteľné) Ošetrenie unikátnosti: Ak už taký slug existuje, pridáme k nemu čas
+    const check = await pool.query('SELECT id FROM blog_posts WHERE slug = $1', [slug]);
+    if (check.rows.length > 0) {
+      slug = `${slug}-${Date.now()}`;
+    }
+
+    // 2. Pridáme slug do INSERT príkazu
     const result = await pool.query(
-      `INSERT INTO blog_posts (title, perex, content, image_url, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, NOW(), NOW())
+      `INSERT INTO blog_posts (title, slug, perex, content, image_url, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
        RETURNING *`,
-      [title, perex, content || null, image_url || null]
+      [title, slug, perex, content || null, image_url || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -3063,12 +3089,15 @@ app.put('/api/admin/blog-posts/:id', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, perex, content, image_url } = req.body;
+    
+    const slug = createSlug(title);
+
     const result = await pool.query(
       `UPDATE blog_posts 
-       SET title = $1, perex = $2, content = $3, image_url = $4, updated_at = NOW()
-       WHERE id = $5
+       SET title = $1, slug = $2, perex = $3, content = $4, image_url = $5, updated_at = NOW()
+       WHERE id = $6
        RETURNING *`,
-      [title, perex, content || null, image_url || null, id]
+      [title, slug, perex, content || null, image_url || null, id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
     res.json(result.rows[0]);
@@ -3090,64 +3119,43 @@ app.delete('/api/admin/blog-posts/:id', isAdmin, async (req, res) => {
   }
 });
 
-// --- GOOGLE RATINGS ENDPOINTS ---
-
-app.get('/api/admin/google-ratings', async (req, res) => {
+// GET ONE POST BY ID OR SLUG
+app.get('/api/blog-posts/:idOrSlug', async (req, res) => {
   try {
-    const result = await pool.query('SELECT business_id, api_key, enabled FROM google_ratings_config WHERE id = 1');
-    if (result.rows.length === 0) {
-      return res.json({ businessId: '', apiKey: '', enabled: false });
+    const { idOrSlug } = req.params;
+    
+    console.log(`🔍 Hľadám článok podľa: "${idOrSlug}"`); // Debug log
+
+    let query;
+    let params;
+
+    // VYLEPŠENÁ KONTROLA: Použijeme Regex, ktorý overí, či reťazec obsahuje LEN čísla
+    // To je bezpečnejšie ako parseFloat
+    const isId = /^\d+$/.test(idOrSlug);
+
+    if (isId) {
+       console.log('👉 Detekované ako ID (číslo)');
+       query = 'SELECT * FROM blog_posts WHERE id = $1';
+       params = [parseInt(idOrSlug)];
+    } else {
+       console.log('👉 Detekované ako SLUG (text)');
+       query = 'SELECT * FROM blog_posts WHERE slug = $1';
+       params = [idOrSlug];
     }
-    // Mapovanie snake_case z DB na camelCase pre frontend
-    res.json({
-      businessId: result.rows[0].business_id || '',
-      apiKey: result.rows[0].api_key || '',
-      enabled: result.rows[0].enabled || false
-    });
-  } catch (error) {
-    console.error('Error fetching Google ratings config:', error);
-    res.status(500).json({ error: 'Failed to fetch config' });
-  }
-});
 
-app.post('/api/admin/google-ratings', isAdmin, async (req, res) => {
-  try {
-    const { businessId, apiKey, enabled } = req.body;
-
-    await pool.query(
-      `INSERT INTO google_ratings_config (id, business_id, api_key, enabled, updated_at)
-       VALUES (1, $1, $2, $3, NOW())
-       ON CONFLICT (id) 
-       DO UPDATE SET 
-         business_id = EXCLUDED.business_id, 
-         api_key = EXCLUDED.api_key, 
-         enabled = EXCLUDED.enabled,
-         updated_at = NOW()`,
-      [businessId, apiKey, enabled]
-    );
-
-    res.json({ success: true, message: 'Configuration saved' });
-  } catch (error) {
-    console.error('Error saving Google ratings config:', error);
-    res.status(500).json({ error: 'Failed to save configuration' });
-  }
-});
-
-app.get('/api/blog-posts/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await pool.query(
-      'SELECT id, title, perex, content, image_url, created_at, updated_at FROM blog_posts WHERE id = $1',
-      [id]
-    );
+    const result = await pool.query(query, params);
     
     if (result.rows.length === 0) {
+      console.log('❌ Článok nebol nájdený v DB');
       return res.status(404).json({ error: 'Post not found' });
     }
     
+    console.log(`✅ Článok nájdený: ${result.rows[0].title}`);
     res.json(result.rows[0]);
+
   } catch (error) {
     console.error('Error fetching blog post:', error);
+    // Tu je dôležité odchytiť chybu syntaxe pre UUID/Integer ak by sa niečo pokazilo
     res.status(500).json({ error: 'Failed to fetch blog post' });
   }
 });
@@ -3226,6 +3234,49 @@ app.delete('/api/admin/delete-blog-image', isAdmin, async (req, res) => {
   } catch (error) {
     console.error('❌ Error deleting image:', error);
     res.status(500).json({ error: 'Nepodarilo sa zmazať obrázok' });
+  }
+});
+
+// --- GOOGLE RATINGS ENDPOINTS ---
+
+app.get('/api/admin/google-ratings', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT business_id, api_key, enabled FROM google_ratings_config WHERE id = 1');
+    if (result.rows.length === 0) {
+      return res.json({ businessId: '', apiKey: '', enabled: false });
+    }
+    // Mapovanie snake_case z DB na camelCase pre frontend
+    res.json({
+      businessId: result.rows[0].business_id || '',
+      apiKey: result.rows[0].api_key || '',
+      enabled: result.rows[0].enabled || false
+    });
+  } catch (error) {
+    console.error('Error fetching Google ratings config:', error);
+    res.status(500).json({ error: 'Failed to fetch config' });
+  }
+});
+
+app.post('/api/admin/google-ratings', isAdmin, async (req, res) => {
+  try {
+    const { businessId, apiKey, enabled } = req.body;
+
+    await pool.query(
+      `INSERT INTO google_ratings_config (id, business_id, api_key, enabled, updated_at)
+       VALUES (1, $1, $2, $3, NOW())
+       ON CONFLICT (id) 
+       DO UPDATE SET 
+         business_id = EXCLUDED.business_id, 
+         api_key = EXCLUDED.api_key, 
+         enabled = EXCLUDED.enabled,
+         updated_at = NOW()`,
+      [businessId, apiKey, enabled]
+    );
+
+    res.json({ success: true, message: 'Configuration saved' });
+  } catch (error) {
+    console.error('Error saving Google ratings config:', error);
+    res.status(500).json({ error: 'Failed to save configuration' });
   }
 });
 

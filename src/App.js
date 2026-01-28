@@ -36,6 +36,7 @@ const Archive = lazy(() => import('./components/Archive'));
 const BlogPage = lazy(() => import('./components/BlogPage'));
 const BlogArticle = lazy(() => import('./components/BlogArticle'));
 
+
 // Inicializácia dayjs s lokálnym nastavením
 const initializeDayJS = () => {
   dayjs.locale('sk');
@@ -84,7 +85,7 @@ const AppContent = () => {
             <Route path="/admin/checklist/:trainingId" element={<Checklist />} />
             <Route path="/archive" element={<Archive />} />
             <Route path="/blog" element={<BlogPage />} />
-            <Route path="/blog/:id" element={<BlogArticle />} />
+            <Route path="/blog/:slug" element={<BlogArticle />} />
           </Routes>
         </Suspense>
       </main>

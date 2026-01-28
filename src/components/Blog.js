@@ -356,16 +356,12 @@ const Blog = ({ limit = null, showViewAll = true }) => {
                         {formatDate(post.created_at)}
                       </small>
                       <div className="mt-2 d-flex flex-wrap gap-2">
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={() => {
-                            setCurrentPost(post);
-                            setShowReadModal(true);
-                          }}
+                        <Link
+                          to={`/blog/${post.slug}`}
+                          className="btn btn-outline-primary btn-sm"
                         >
                           {t?.blog?.readMore || 'Čítať viac'}
-                        </Button>
+                        </Link>
                         <Button
                           variant="outline-info"
                           size="sm"
@@ -557,19 +553,19 @@ const Blog = ({ limit = null, showViewAll = true }) => {
           </div>
           <div className="blog-content"
             style={{
-              whiteSpace: 'pre-wrap',       
-              wordWrap: 'break-word',       
-              overflowWrap: 'break-word',   
-              maxWidth: '100%',             
-              overflowX: 'hidden'           
+              whiteSpace: 'pre-wrap',
+              wordWrap: 'break-word',
+              overflowWrap: 'break-word',
+              maxWidth: '100%',
+              overflowX: 'hidden'
             }}
           >
             {currentPost?.content}
           </div>
         </Modal.Body>
         <Modal.Footer>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={() => handleOpenShareModal(currentPost)}
           >
             🔗 Zdieľať

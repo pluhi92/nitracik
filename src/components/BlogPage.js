@@ -364,10 +364,7 @@ const BlogPage = () => {
                                                     <Button
                                                         variant="outline-primary"
                                                         size="sm"
-                                                        onClick={() => {
-                                                            setCurrentPost(post);
-                                                            setShowReadModal(true);
-                                                        }}
+                                                        onClick={() => navigate(`/blog/${post.slug}`)}
                                                     >
                                                         {t?.blog?.readMore || 'Čítať viac'}
                                                     </Button>

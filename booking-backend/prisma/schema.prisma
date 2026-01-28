@@ -179,6 +179,7 @@ model users {
 model blog_posts {
   id          Int       @id @default(autoincrement())
   title       String    @db.VarChar(255)
+  slug        String    @unique
   perex       String    @db.Text
   content     String?   @db.Text
   image_url   String?   @db.VarChar(255)
