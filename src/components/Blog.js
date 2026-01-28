@@ -1,10 +1,11 @@
-// Blog.js - WITH IMAGE DELETE & THUMBNAIL SUPPORT
+// Blog.js - WITH IMAGE DELETE & THUMBNAIL SUPPORT & SHARE BUTTON
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Modal, Button, Form, Spinner, Alert } from 'react-bootstrap';
 import api from '../api/api';
 import { useUser } from '../contexts/UserContext';
+import ShareModal from './ShareModal';
 
 const Blog = ({ limit = null, showViewAll = true }) => {
   const { t } = useTranslation();
@@ -14,6 +15,7 @@ const Blog = ({ limit = null, showViewAll = true }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showReadModal, setShowReadModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [currentPost, setCurrentPost] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
@@ -127,13 +129,11 @@ const Blog = ({ limit = null, showViewAll = true }) => {
     }
   };
 
-  // ✅ A) NOVÁ FUNKCIA: Zmazanie obrázka
   const handleDeleteImage = async () => {
     if (!formData.image_url) return;
 
     if (window.confirm('Naozaj chcete zmazať tento obrázok?')) {
       try {
-        // Zmaž zo servera (ak je to lokálny súbor)
         if (formData.image_url.startsWith('/uploads/')) {
           await api.delete('/api/admin/delete-blog-image', {
             data: { imageUrl: formData.image_url }
@@ -141,18 +141,14 @@ const Blog = ({ limit = null, showViewAll = true }) => {
           console.log('🗑️ Obrázok zmazaný zo servera');
         }
 
-        // Aktualizuj článok v DB (odstráň URL)
         await api.put(`/api/admin/blog-posts/${currentPost.id}`, {
           ...formData,
           image_url: null
         });
 
-        // Resetuj lokálne stavy
         setFormData({ ...formData, image_url: '' });
         setImagePreview(null);
         setSelectedFile(null);
-
-        // Refresh zoznamu
         fetchPosts();
 
         console.log('✅ Obrázok úspešne odstránený');
@@ -266,16 +262,18 @@ const Blog = ({ limit = null, showViewAll = true }) => {
     setShowEditModal(true);
   };
 
-  // ✅ B) HELPER: Získa thumbnail URL (ak existuje)
+  const handleOpenShareModal = (post) => {
+    setCurrentPost(post);
+    setShowShareModal(true);
+  };
+
   const getThumbnailUrl = (imageUrl) => {
     if (!imageUrl) return null;
 
-    // Ak backend vytvára thumbnaily s príponou -thumb.webp
     if (imageUrl.includes('/uploads/blog/')) {
       return imageUrl.replace('.webp', '-thumb.webp');
     }
 
-    // Pre externé URL použijeme originál
     return imageUrl;
   };
 
@@ -357,7 +355,7 @@ const Blog = ({ limit = null, showViewAll = true }) => {
                       <small className="text-muted">
                         {formatDate(post.created_at)}
                       </small>
-                      <div className="mt-2">
+                      <div className="mt-2 d-flex flex-wrap gap-2">
                         <Button
                           variant="outline-primary"
                           size="sm"
@@ -368,12 +366,19 @@ const Blog = ({ limit = null, showViewAll = true }) => {
                         >
                           {t?.blog?.readMore || 'Čítať viac'}
                         </Button>
+                        <Button
+                          variant="outline-info"
+                          size="sm"
+                          onClick={() => handleOpenShareModal(post)}
+                          title="Zdieľať článok"
+                        >
+                          🔗
+                        </Button>
                         {isAdmin && (
                           <>
                             <Button
                               variant="outline-secondary"
                               size="sm"
-                              className="ms-2"
                               onClick={() => handleOpenEditModal(post)}
                             >
                               {t?.blog?.edit || 'Upraviť'}
@@ -381,7 +386,6 @@ const Blog = ({ limit = null, showViewAll = true }) => {
                             <Button
                               variant="outline-danger"
                               size="sm"
-                              className="ms-2"
                               onClick={() => handleDeletePost(post.id)}
                             >
                               {t?.blog?.delete || 'Zmazať'}
@@ -396,7 +400,6 @@ const Blog = ({ limit = null, showViewAll = true }) => {
             ))}
           </div>
 
-          {/* ✅ TLAČIDLO  */}
           {showViewAll && limit && posts.length > limit && (
             <div className="text-center mt-4">
               <Link
@@ -443,7 +446,7 @@ const Blog = ({ limit = null, showViewAll = true }) => {
               <Form.Label>{t?.blog?.contentLabel || 'Obsah'}</Form.Label>
               <Form.Control
                 as="textarea"
-                rows={6}
+                rows={8}
                 value={formData.content}
                 onChange={(e) => setFormData({ ...formData, content: e.target.value })}
               />
@@ -454,18 +457,17 @@ const Blog = ({ limit = null, showViewAll = true }) => {
               <div className="mb-2">
                 <Form.Check
                   type="radio"
-                  id="upload-method-url"
+                  id="create-upload-method-url"
                   label="📎 Vložiť URL adresu obrázka"
                   checked={uploadMethod === 'url'}
                   onChange={() => {
                     setUploadMethod('url');
                     setSelectedFile(null);
-                    setImagePreview(null);
                   }}
                 />
                 <Form.Check
                   type="radio"
-                  id="upload-method-upload"
+                  id="create-upload-method-upload"
                   label="📱 Nahrať obrázok zo zariadenia"
                   checked={uploadMethod === 'upload'}
                   onChange={() => {
@@ -566,6 +568,12 @@ const Blog = ({ limit = null, showViewAll = true }) => {
           </div>
         </Modal.Body>
         <Modal.Footer>
+          <Button 
+            variant="primary" 
+            onClick={() => handleOpenShareModal(currentPost)}
+          >
+            🔗 Zdieľať
+          </Button>
           <Button variant="secondary" onClick={() => setShowReadModal(false)}>
             {t?.blog?.close || 'Zavrieť'}
           </Button>
@@ -610,7 +618,6 @@ const Blog = ({ limit = null, showViewAll = true }) => {
             <Form.Group className="mb-3">
               <Form.Label>Obrázok</Form.Label>
 
-              {/* ✅ A) Tlačidlo na zmazanie obrázka */}
               {formData.image_url && (
                 <div className="mb-3 p-3 border rounded bg-light">
                   <div className="d-flex align-items-center justify-content-between">
@@ -713,6 +720,14 @@ const Blog = ({ limit = null, showViewAll = true }) => {
           </Modal.Footer>
         </Form>
       </Modal>
+
+      {/* Share Modal */}
+      <ShareModal
+        show={showShareModal}
+        onHide={() => setShowShareModal(false)}
+        postId={currentPost?.id}
+        postTitle={currentPost?.title}
+      />
     </div>
   );
 };

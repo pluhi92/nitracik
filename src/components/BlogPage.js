@@ -1,10 +1,12 @@
-// BlogPage.js - Samostatná stránka so všetkými článkami
+// BlogPage.js - Samostatná stránka so všetkými článkami + SHARE BUTTON
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Modal, Button, Form, Spinner, Alert, Pagination } from 'react-bootstrap';
 import api from '../api/api';
 import { useUser } from '../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
+import ShareModal from './ShareModal';
+
 
 const POSTS_PER_PAGE = 9; // 9 článkov na stránku (3x3 grid)
 
@@ -17,6 +19,7 @@ const BlogPage = () => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showReadModal, setShowReadModal] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
     const [currentPost, setCurrentPost] = useState(null);
     const [formData, setFormData] = useState({
         title: '',
@@ -83,13 +86,8 @@ const BlogPage = () => {
                 setError('Prosím vyberte obrázok (JPG, PNG, GIF, WebP, atď.)');
                 return;
             }
-
-            const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-            console.log(`📤 Vybraný obrázok: ${file.name} (${fileSizeMB} MB)`);
-
             setSelectedFile(file);
             setCompressionInfo(null);
-
             const reader = new FileReader();
             reader.onloadend = () => {
                 setImagePreview(reader.result);
@@ -100,20 +98,14 @@ const BlogPage = () => {
 
     const uploadImage = async () => {
         if (!selectedFile) return null;
-
         setUploading(true);
         const formDataUpload = new FormData();
         formDataUpload.append('image', selectedFile);
-
         try {
             const response = await api.post('/api/admin/upload-blog-image', formDataUpload, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
+                headers: { 'Content-Type': 'multipart/form-data' },
             });
-
             setUploading(false);
-
             if (response.data.compression) {
                 setCompressionInfo({
                     originalSize: (response.data.originalSize / (1024 * 1024)).toFixed(2),
@@ -121,7 +113,6 @@ const BlogPage = () => {
                     compression: response.data.compression
                 });
             }
-
             return response.data.imageUrl;
         } catch (error) {
             console.error('Error uploading image:', error);
@@ -133,7 +124,6 @@ const BlogPage = () => {
 
     const handleDeleteImage = async () => {
         if (!formData.image_url) return;
-
         if (window.confirm('Naozaj chcete zmazať tento obrázok?')) {
             try {
                 if (formData.image_url.startsWith('/uploads/')) {
@@ -141,12 +131,10 @@ const BlogPage = () => {
                         data: { imageUrl: formData.image_url }
                     });
                 }
-
                 await api.put(`/api/admin/blog-posts/${currentPost.id}`, {
                     ...formData,
                     image_url: null
                 });
-
                 setFormData({ ...formData, image_url: '' });
                 setImagePreview(null);
                 setSelectedFile(null);
@@ -160,22 +148,16 @@ const BlogPage = () => {
 
     const handleCreatePost = async (e) => {
         e.preventDefault();
-
         try {
             let finalImageUrl = formData.image_url;
-
             if (uploadMethod === 'upload' && selectedFile) {
                 const uploadedUrl = await uploadImage();
-                if (uploadedUrl) {
-                    finalImageUrl = uploadedUrl;
-                }
+                if (uploadedUrl) finalImageUrl = uploadedUrl;
             }
-
             await api.post('/api/admin/blog-posts', {
                 ...formData,
                 image_url: finalImageUrl || null
             });
-
             setShowCreateModal(false);
             setFormData({ title: '', perex: '', content: '', image_url: '' });
             setSelectedFile(null);
@@ -191,22 +173,16 @@ const BlogPage = () => {
 
     const handleUpdatePost = async (e) => {
         e.preventDefault();
-
         try {
             let finalImageUrl = formData.image_url;
-
             if (uploadMethod === 'upload' && selectedFile) {
                 const uploadedUrl = await uploadImage();
-                if (uploadedUrl) {
-                    finalImageUrl = uploadedUrl;
-                }
+                if (uploadedUrl) finalImageUrl = uploadedUrl;
             }
-
             await api.put(`/api/admin/blog-posts/${currentPost.id}`, {
                 ...formData,
                 image_url: finalImageUrl || null
             });
-
             setShowEditModal(false);
             setCurrentPost(null);
             setSelectedFile(null);
@@ -261,6 +237,11 @@ const BlogPage = () => {
         setShowEditModal(true);
     };
 
+    const handleOpenShareModal = (post) => {
+        setCurrentPost(post);
+        setShowShareModal(true);
+    };
+
     const getThumbnailUrl = (imageUrl) => {
         if (!imageUrl) return null;
         if (imageUrl.includes('/uploads/blog/')) {
@@ -269,7 +250,6 @@ const BlogPage = () => {
         return imageUrl;
     };
 
-    // Pagination logic
     const indexOfLastPost = currentPage * POSTS_PER_PAGE;
     const indexOfFirstPost = indexOfLastPost - POSTS_PER_PAGE;
     const currentPosts = posts.slice(indexOfFirstPost, indexOfLastPost);
@@ -291,7 +271,6 @@ const BlogPage = () => {
     return (
         <div className="min-h-screen bg-gray-50 py-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                {/* Header */}
                 <div className="mb-8">
                     <div className="d-flex justify-content-between align-items-center mb-4">
                         <div>
@@ -303,22 +282,13 @@ const BlogPage = () => {
                             </p>
                         </div>
                         {isAdmin && (
-                            <Button
-                                variant="primary"
-                                onClick={handleOpenCreateModal}
-                            >
+                            <Button variant="primary" onClick={handleOpenCreateModal}>
                                 + {t?.blog?.newPost || 'Nový článok'}
                             </Button>
                         )}
                     </div>
-
-                    {/* Breadcrumb */}
                     <nav className="text-sm">
-                        <Button
-                            variant="link"
-                            onClick={() => navigate('/')}
-                            className="text-blue-600 hover:text-blue-800 p-0"
-                        >
+                        <Button variant="link" onClick={() => navigate('/')} className="text-blue-600 hover:text-blue-800 p-0">
                             ← Späť na hlavnú stránku
                         </Button>
                     </nav>
@@ -341,7 +311,6 @@ const BlogPage = () => {
                     </Alert>
                 )}
 
-                {/* Stats */}
                 <div className="mb-6 text-center">
                     <p className="text-gray-600">
                         Celkom článkov: <strong>{posts.length}</strong>
@@ -353,17 +322,13 @@ const BlogPage = () => {
                     </p>
                 </div>
 
-                {/* Posts Grid */}
                 {currentPosts.length === 0 ? (
                     <div className="text-center py-12 bg-white rounded-lg shadow">
                         <p className="text-gray-500 mb-4">
                             {t?.blog?.noPosts || 'Žiadne články na zobrazenie'}
                         </p>
                         {isAdmin && (
-                            <Button
-                                variant="outline-primary"
-                                onClick={handleOpenCreateModal}
-                            >
+                            <Button variant="outline-primary" onClick={handleOpenCreateModal}>
                                 {t?.blog?.createFirstPost || 'Vytvoriť prvý článok'}
                             </Button>
                         )}
@@ -395,7 +360,7 @@ const BlogPage = () => {
                                                 <small className="text-muted">
                                                     {formatDate(post.created_at)}
                                                 </small>
-                                                <div className="mt-2">
+                                                <div className="mt-2 d-flex flex-wrap gap-2">
                                                     <Button
                                                         variant="outline-primary"
                                                         size="sm"
@@ -406,12 +371,19 @@ const BlogPage = () => {
                                                     >
                                                         {t?.blog?.readMore || 'Čítať viac'}
                                                     </Button>
+                                                    <Button
+                                                        variant="outline-info"
+                                                        size="sm"
+                                                        onClick={() => handleOpenShareModal(post)}
+                                                        title="Zdieľať článok"
+                                                    >
+                                                        🔗
+                                                    </Button>
                                                     {isAdmin && (
                                                         <>
                                                             <Button
                                                                 variant="outline-secondary"
                                                                 size="sm"
-                                                                className="ms-2"
                                                                 onClick={() => handleOpenEditModal(post)}
                                                             >
                                                                 {t?.blog?.edit || 'Upraviť'}
@@ -419,7 +391,6 @@ const BlogPage = () => {
                                                             <Button
                                                                 variant="outline-danger"
                                                                 size="sm"
-                                                                className="ms-2"
                                                                 onClick={() => handleDeletePost(post.id)}
                                                             >
                                                                 {t?.blog?.delete || 'Zmazať'}
@@ -434,19 +405,11 @@ const BlogPage = () => {
                             ))}
                         </div>
 
-                        {/* Pagination */}
                         {totalPages > 1 && (
                             <div className="d-flex justify-content-center mt-6">
                                 <Pagination>
-                                    <Pagination.First
-                                        onClick={() => paginate(1)}
-                                        disabled={currentPage === 1}
-                                    />
-                                    <Pagination.Prev
-                                        onClick={() => paginate(currentPage - 1)}
-                                        disabled={currentPage === 1}
-                                    />
-
+                                    <Pagination.First onClick={() => paginate(1)} disabled={currentPage === 1} />
+                                    <Pagination.Prev onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1} />
                                     {[...Array(totalPages)].map((_, index) => (
                                         <Pagination.Item
                                             key={index + 1}
@@ -456,15 +419,8 @@ const BlogPage = () => {
                                             {index + 1}
                                         </Pagination.Item>
                                     ))}
-
-                                    <Pagination.Next
-                                        onClick={() => paginate(currentPage + 1)}
-                                        disabled={currentPage === totalPages}
-                                    />
-                                    <Pagination.Last
-                                        onClick={() => paginate(totalPages)}
-                                        disabled={currentPage === totalPages}
-                                    />
+                                    <Pagination.Next onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages} />
+                                    <Pagination.Last onClick={() => paginate(totalPages)} disabled={currentPage === totalPages} />
                                 </Pagination>
                             </div>
                         )}
@@ -607,11 +563,11 @@ const BlogPage = () => {
                         </div>
                         <div className="blog-content"
                             style={{
-                                whiteSpace: 'pre-wrap',       
-                                wordWrap: 'break-word',       
-                                overflowWrap: 'break-word',   
-                                maxWidth: '100%',             
-                                overflowX: 'hidden'           
+                                whiteSpace: 'pre-wrap',
+                                wordWrap: 'break-word',
+                                overflowWrap: 'break-word',
+                                maxWidth: '100%',
+                                overflowX: 'hidden'
                             }}
                         >
                             {currentPost?.content}
@@ -764,8 +720,17 @@ const BlogPage = () => {
                         </Modal.Footer>
                     </Form>
                 </Modal>
+
+                {/* Share Modal */}
+                <ShareModal
+                    show={showShareModal}
+                    onHide={() => setShowShareModal(false)}
+                    postId={currentPost?.id}
+                    postTitle={currentPost?.title}
+                />
             </div>
         </div>
+
     );
 };
 

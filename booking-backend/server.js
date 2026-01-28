@@ -139,8 +139,6 @@ async function processImage(buffer, filename) {
   }
 }
 
-
-
 app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   console.log('🔹 [DEBUG] Webhook hit!'); // 1. Zistíme, či sem vôbec Stripe trafí
   const sig = req.headers['stripe-signature'];
@@ -3135,7 +3133,26 @@ app.post('/api/admin/google-ratings', isAdmin, async (req, res) => {
   }
 });
 
-// 7. ENDPOINT PRE UPLOAD OBRÁZKA
+app.get('/api/blog-posts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'SELECT id, title, perex, content, image_url, created_at, updated_at FROM blog_posts WHERE id = $1',
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching blog post:', error);
+    res.status(500).json({ error: 'Failed to fetch blog post' });
+  }
+});
+
+// ENDPOINT PRE UPLOAD OBRÁZKA
 app.post('/api/admin/upload-blog-image', isAdmin, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
@@ -3211,8 +3228,6 @@ app.delete('/api/admin/delete-blog-image', isAdmin, async (req, res) => {
     res.status(500).json({ error: 'Nepodarilo sa zmazať obrázok' });
   }
 });
-
-
 
 // Contact form endpoint
 app.post('/api/contact', async (req, res) => {
