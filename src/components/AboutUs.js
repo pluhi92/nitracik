@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { Button, Modal, Form, Alert } from 'react-bootstrap';
 import api from '../api/api';
 import Blog from './Blog'; // Import the Blog component
+import ownerImage from '../assets/owner.jpg';
 
 const carouselItems = [
   {
@@ -409,13 +410,13 @@ useEffect(() => {
         </div>
 
         {/* Tu sme odstránili bg-white shadow-lg p-8, aby sa to "nezdvojovalo" */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center p-4 lg:p-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center p-0 lg:p-8">
           {/* Fotka */}
-          <div className="rounded-lg overflow-hidden shadow-xl">
+          <div className="rounded-lg overflow-hidden shadow-xl mx-0">
             <img
-              src="/images/owner_default.jpg"
+              src={ownerImage}
               alt="Saška - Majiteľka Nitráčika"
-              className="w-full h-[400px] object-cover"
+              className="w-full h-[580px] object-cover"
               onError={(e) => {
                 e.target.src = 'https://picsum.photos/500/400?random=owner';
               }}

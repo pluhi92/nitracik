@@ -254,6 +254,13 @@ exports.Prisma.UsersScalarFieldEnum = {
   mobile: 'mobile'
 };
 
+exports.Prisma.Blog_labelsScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  color: 'color',
+  created_at: 'created_at'
+};
+
 exports.Prisma.Blog_postsScalarFieldEnum = {
   id: 'id',
   title: 'title',
@@ -262,7 +269,8 @@ exports.Prisma.Blog_postsScalarFieldEnum = {
   content: 'content',
   image_url: 'image_url',
   created_at: 'created_at',
-  updated_at: 'updated_at'
+  updated_at: 'updated_at',
+  label_id: 'label_id'
 };
 
 exports.Prisma.Google_ratings_configScalarFieldEnum = {
@@ -319,6 +327,7 @@ exports.Prisma.ModelName = {
   training_types: 'training_types',
   user_sessions: 'user_sessions',
   users: 'users',
+  blog_labels: 'blog_labels',
   blog_posts: 'blog_posts',
   google_ratings_config: 'google_ratings_config',
   about_content: 'about_content'

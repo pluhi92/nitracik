@@ -69,6 +69,11 @@ export type user_sessions = $Result.DefaultSelection<Prisma.$user_sessionsPayloa
  */
 export type users = $Result.DefaultSelection<Prisma.$usersPayload>
 /**
+ * Model blog_labels
+ * 
+ */
+export type blog_labels = $Result.DefaultSelection<Prisma.$blog_labelsPayload>
+/**
  * Model blog_posts
  * 
  */
@@ -311,6 +316,16 @@ export class PrismaClient<
     * ```
     */
   get users(): Prisma.usersDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.blog_labels`: Exposes CRUD operations for the **blog_labels** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Blog_labels
+    * const blog_labels = await prisma.blog_labels.findMany()
+    * ```
+    */
+  get blog_labels(): Prisma.blog_labelsDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.blog_posts`: Exposes CRUD operations for the **blog_posts** model.
@@ -793,6 +808,7 @@ export namespace Prisma {
     training_types: 'training_types',
     user_sessions: 'user_sessions',
     users: 'users',
+    blog_labels: 'blog_labels',
     blog_posts: 'blog_posts',
     google_ratings_config: 'google_ratings_config',
     about_content: 'about_content'
@@ -814,7 +830,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "bookings" | "credits" | "faqs" | "refunds" | "season_ticket_usage" | "season_tickets" | "training_availability" | "training_prices" | "training_types" | "user_sessions" | "users" | "blog_posts" | "google_ratings_config" | "about_content"
+      modelProps: "bookings" | "credits" | "faqs" | "refunds" | "season_ticket_usage" | "season_tickets" | "training_availability" | "training_prices" | "training_types" | "user_sessions" | "users" | "blog_labels" | "blog_posts" | "google_ratings_config" | "about_content"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1632,6 +1648,80 @@ export namespace Prisma {
           }
         }
       }
+      blog_labels: {
+        payload: Prisma.$blog_labelsPayload<ExtArgs>
+        fields: Prisma.blog_labelsFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.blog_labelsFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$blog_labelsPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.blog_labelsFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$blog_labelsPayload>
+          }
+          findFirst: {
+            args: Prisma.blog_labelsFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$blog_labelsPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.blog_labelsFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$blog_labelsPayload>
+          }
+          findMany: {
+            args: Prisma.blog_labelsFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$blog_labelsPayload>[]
+          }
+          create: {
+            args: Prisma.blog_labelsCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$blog_labelsPayload>
+          }
+          createMany: {
+            args: Prisma.blog_labelsCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.blog_labelsCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$blog_labelsPayload>[]
+          }
+          delete: {
+            args: Prisma.blog_labelsDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$blog_labelsPayload>
+          }
+          update: {
+            args: Prisma.blog_labelsUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$blog_labelsPayload>
+          }
+          deleteMany: {
+            args: Prisma.blog_labelsDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.blog_labelsUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.blog_labelsUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$blog_labelsPayload>[]
+          }
+          upsert: {
+            args: Prisma.blog_labelsUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$blog_labelsPayload>
+          }
+          aggregate: {
+            args: Prisma.Blog_labelsAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateBlog_labels>
+          }
+          groupBy: {
+            args: Prisma.blog_labelsGroupByArgs<ExtArgs>
+            result: $Utils.Optional<Blog_labelsGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.blog_labelsCountArgs<ExtArgs>
+            result: $Utils.Optional<Blog_labelsCountAggregateOutputType> | number
+          }
+        }
+      }
       blog_posts: {
         payload: Prisma.$blog_postsPayload<ExtArgs>
         fields: Prisma.blog_postsFieldRefs
@@ -1961,6 +2051,7 @@ export namespace Prisma {
     training_types?: training_typesOmit
     user_sessions?: user_sessionsOmit
     users?: usersOmit
+    blog_labels?: blog_labelsOmit
     blog_posts?: blog_postsOmit
     google_ratings_config?: google_ratings_configOmit
     about_content?: about_contentOmit
@@ -2267,6 +2358,37 @@ export namespace Prisma {
    */
   export type UsersCountOutputTypeCountSeason_ticketsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: season_ticketsWhereInput
+  }
+
+
+  /**
+   * Count Type Blog_labelsCountOutputType
+   */
+
+  export type Blog_labelsCountOutputType = {
+    blog_posts: number
+  }
+
+  export type Blog_labelsCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    blog_posts?: boolean | Blog_labelsCountOutputTypeCountBlog_postsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * Blog_labelsCountOutputType without action
+   */
+  export type Blog_labelsCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Blog_labelsCountOutputType
+     */
+    select?: Blog_labelsCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * Blog_labelsCountOutputType without action
+   */
+  export type Blog_labelsCountOutputTypeCountBlog_postsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: blog_postsWhereInput
   }
 
 
@@ -15291,6 +15413,1097 @@ export namespace Prisma {
 
 
   /**
+   * Model blog_labels
+   */
+
+  export type AggregateBlog_labels = {
+    _count: Blog_labelsCountAggregateOutputType | null
+    _avg: Blog_labelsAvgAggregateOutputType | null
+    _sum: Blog_labelsSumAggregateOutputType | null
+    _min: Blog_labelsMinAggregateOutputType | null
+    _max: Blog_labelsMaxAggregateOutputType | null
+  }
+
+  export type Blog_labelsAvgAggregateOutputType = {
+    id: number | null
+  }
+
+  export type Blog_labelsSumAggregateOutputType = {
+    id: number | null
+  }
+
+  export type Blog_labelsMinAggregateOutputType = {
+    id: number | null
+    name: string | null
+    color: string | null
+    created_at: Date | null
+  }
+
+  export type Blog_labelsMaxAggregateOutputType = {
+    id: number | null
+    name: string | null
+    color: string | null
+    created_at: Date | null
+  }
+
+  export type Blog_labelsCountAggregateOutputType = {
+    id: number
+    name: number
+    color: number
+    created_at: number
+    _all: number
+  }
+
+
+  export type Blog_labelsAvgAggregateInputType = {
+    id?: true
+  }
+
+  export type Blog_labelsSumAggregateInputType = {
+    id?: true
+  }
+
+  export type Blog_labelsMinAggregateInputType = {
+    id?: true
+    name?: true
+    color?: true
+    created_at?: true
+  }
+
+  export type Blog_labelsMaxAggregateInputType = {
+    id?: true
+    name?: true
+    color?: true
+    created_at?: true
+  }
+
+  export type Blog_labelsCountAggregateInputType = {
+    id?: true
+    name?: true
+    color?: true
+    created_at?: true
+    _all?: true
+  }
+
+  export type Blog_labelsAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which blog_labels to aggregate.
+     */
+    where?: blog_labelsWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of blog_labels to fetch.
+     */
+    orderBy?: blog_labelsOrderByWithRelationInput | blog_labelsOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: blog_labelsWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` blog_labels from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` blog_labels.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned blog_labels
+    **/
+    _count?: true | Blog_labelsCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: Blog_labelsAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: Blog_labelsSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: Blog_labelsMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: Blog_labelsMaxAggregateInputType
+  }
+
+  export type GetBlog_labelsAggregateType<T extends Blog_labelsAggregateArgs> = {
+        [P in keyof T & keyof AggregateBlog_labels]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateBlog_labels[P]>
+      : GetScalarType<T[P], AggregateBlog_labels[P]>
+  }
+
+
+
+
+  export type blog_labelsGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: blog_labelsWhereInput
+    orderBy?: blog_labelsOrderByWithAggregationInput | blog_labelsOrderByWithAggregationInput[]
+    by: Blog_labelsScalarFieldEnum[] | Blog_labelsScalarFieldEnum
+    having?: blog_labelsScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: Blog_labelsCountAggregateInputType | true
+    _avg?: Blog_labelsAvgAggregateInputType
+    _sum?: Blog_labelsSumAggregateInputType
+    _min?: Blog_labelsMinAggregateInputType
+    _max?: Blog_labelsMaxAggregateInputType
+  }
+
+  export type Blog_labelsGroupByOutputType = {
+    id: number
+    name: string
+    color: string
+    created_at: Date | null
+    _count: Blog_labelsCountAggregateOutputType | null
+    _avg: Blog_labelsAvgAggregateOutputType | null
+    _sum: Blog_labelsSumAggregateOutputType | null
+    _min: Blog_labelsMinAggregateOutputType | null
+    _max: Blog_labelsMaxAggregateOutputType | null
+  }
+
+  type GetBlog_labelsGroupByPayload<T extends blog_labelsGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<Blog_labelsGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof Blog_labelsGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], Blog_labelsGroupByOutputType[P]>
+            : GetScalarType<T[P], Blog_labelsGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type blog_labelsSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    color?: boolean
+    created_at?: boolean
+    blog_posts?: boolean | blog_labels$blog_postsArgs<ExtArgs>
+    _count?: boolean | Blog_labelsCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["blog_labels"]>
+
+  export type blog_labelsSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    color?: boolean
+    created_at?: boolean
+  }, ExtArgs["result"]["blog_labels"]>
+
+  export type blog_labelsSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    color?: boolean
+    created_at?: boolean
+  }, ExtArgs["result"]["blog_labels"]>
+
+  export type blog_labelsSelectScalar = {
+    id?: boolean
+    name?: boolean
+    color?: boolean
+    created_at?: boolean
+  }
+
+  export type blog_labelsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "color" | "created_at", ExtArgs["result"]["blog_labels"]>
+  export type blog_labelsInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    blog_posts?: boolean | blog_labels$blog_postsArgs<ExtArgs>
+    _count?: boolean | Blog_labelsCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type blog_labelsIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type blog_labelsIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+
+  export type $blog_labelsPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "blog_labels"
+    objects: {
+      blog_posts: Prisma.$blog_postsPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      name: string
+      color: string
+      created_at: Date | null
+    }, ExtArgs["result"]["blog_labels"]>
+    composites: {}
+  }
+
+  type blog_labelsGetPayload<S extends boolean | null | undefined | blog_labelsDefaultArgs> = $Result.GetResult<Prisma.$blog_labelsPayload, S>
+
+  type blog_labelsCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<blog_labelsFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: Blog_labelsCountAggregateInputType | true
+    }
+
+  export interface blog_labelsDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['blog_labels'], meta: { name: 'blog_labels' } }
+    /**
+     * Find zero or one Blog_labels that matches the filter.
+     * @param {blog_labelsFindUniqueArgs} args - Arguments to find a Blog_labels
+     * @example
+     * // Get one Blog_labels
+     * const blog_labels = await prisma.blog_labels.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends blog_labelsFindUniqueArgs>(args: SelectSubset<T, blog_labelsFindUniqueArgs<ExtArgs>>): Prisma__blog_labelsClient<$Result.GetResult<Prisma.$blog_labelsPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one Blog_labels that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {blog_labelsFindUniqueOrThrowArgs} args - Arguments to find a Blog_labels
+     * @example
+     * // Get one Blog_labels
+     * const blog_labels = await prisma.blog_labels.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends blog_labelsFindUniqueOrThrowArgs>(args: SelectSubset<T, blog_labelsFindUniqueOrThrowArgs<ExtArgs>>): Prisma__blog_labelsClient<$Result.GetResult<Prisma.$blog_labelsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Blog_labels that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {blog_labelsFindFirstArgs} args - Arguments to find a Blog_labels
+     * @example
+     * // Get one Blog_labels
+     * const blog_labels = await prisma.blog_labels.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends blog_labelsFindFirstArgs>(args?: SelectSubset<T, blog_labelsFindFirstArgs<ExtArgs>>): Prisma__blog_labelsClient<$Result.GetResult<Prisma.$blog_labelsPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Blog_labels that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {blog_labelsFindFirstOrThrowArgs} args - Arguments to find a Blog_labels
+     * @example
+     * // Get one Blog_labels
+     * const blog_labels = await prisma.blog_labels.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends blog_labelsFindFirstOrThrowArgs>(args?: SelectSubset<T, blog_labelsFindFirstOrThrowArgs<ExtArgs>>): Prisma__blog_labelsClient<$Result.GetResult<Prisma.$blog_labelsPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more Blog_labels that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {blog_labelsFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Blog_labels
+     * const blog_labels = await prisma.blog_labels.findMany()
+     * 
+     * // Get first 10 Blog_labels
+     * const blog_labels = await prisma.blog_labels.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const blog_labelsWithIdOnly = await prisma.blog_labels.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends blog_labelsFindManyArgs>(args?: SelectSubset<T, blog_labelsFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$blog_labelsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a Blog_labels.
+     * @param {blog_labelsCreateArgs} args - Arguments to create a Blog_labels.
+     * @example
+     * // Create one Blog_labels
+     * const Blog_labels = await prisma.blog_labels.create({
+     *   data: {
+     *     // ... data to create a Blog_labels
+     *   }
+     * })
+     * 
+     */
+    create<T extends blog_labelsCreateArgs>(args: SelectSubset<T, blog_labelsCreateArgs<ExtArgs>>): Prisma__blog_labelsClient<$Result.GetResult<Prisma.$blog_labelsPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many Blog_labels.
+     * @param {blog_labelsCreateManyArgs} args - Arguments to create many Blog_labels.
+     * @example
+     * // Create many Blog_labels
+     * const blog_labels = await prisma.blog_labels.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends blog_labelsCreateManyArgs>(args?: SelectSubset<T, blog_labelsCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Blog_labels and returns the data saved in the database.
+     * @param {blog_labelsCreateManyAndReturnArgs} args - Arguments to create many Blog_labels.
+     * @example
+     * // Create many Blog_labels
+     * const blog_labels = await prisma.blog_labels.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Blog_labels and only return the `id`
+     * const blog_labelsWithIdOnly = await prisma.blog_labels.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends blog_labelsCreateManyAndReturnArgs>(args?: SelectSubset<T, blog_labelsCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$blog_labelsPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a Blog_labels.
+     * @param {blog_labelsDeleteArgs} args - Arguments to delete one Blog_labels.
+     * @example
+     * // Delete one Blog_labels
+     * const Blog_labels = await prisma.blog_labels.delete({
+     *   where: {
+     *     // ... filter to delete one Blog_labels
+     *   }
+     * })
+     * 
+     */
+    delete<T extends blog_labelsDeleteArgs>(args: SelectSubset<T, blog_labelsDeleteArgs<ExtArgs>>): Prisma__blog_labelsClient<$Result.GetResult<Prisma.$blog_labelsPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one Blog_labels.
+     * @param {blog_labelsUpdateArgs} args - Arguments to update one Blog_labels.
+     * @example
+     * // Update one Blog_labels
+     * const blog_labels = await prisma.blog_labels.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends blog_labelsUpdateArgs>(args: SelectSubset<T, blog_labelsUpdateArgs<ExtArgs>>): Prisma__blog_labelsClient<$Result.GetResult<Prisma.$blog_labelsPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more Blog_labels.
+     * @param {blog_labelsDeleteManyArgs} args - Arguments to filter Blog_labels to delete.
+     * @example
+     * // Delete a few Blog_labels
+     * const { count } = await prisma.blog_labels.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends blog_labelsDeleteManyArgs>(args?: SelectSubset<T, blog_labelsDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Blog_labels.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {blog_labelsUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Blog_labels
+     * const blog_labels = await prisma.blog_labels.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends blog_labelsUpdateManyArgs>(args: SelectSubset<T, blog_labelsUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Blog_labels and returns the data updated in the database.
+     * @param {blog_labelsUpdateManyAndReturnArgs} args - Arguments to update many Blog_labels.
+     * @example
+     * // Update many Blog_labels
+     * const blog_labels = await prisma.blog_labels.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more Blog_labels and only return the `id`
+     * const blog_labelsWithIdOnly = await prisma.blog_labels.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends blog_labelsUpdateManyAndReturnArgs>(args: SelectSubset<T, blog_labelsUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$blog_labelsPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one Blog_labels.
+     * @param {blog_labelsUpsertArgs} args - Arguments to update or create a Blog_labels.
+     * @example
+     * // Update or create a Blog_labels
+     * const blog_labels = await prisma.blog_labels.upsert({
+     *   create: {
+     *     // ... data to create a Blog_labels
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Blog_labels we want to update
+     *   }
+     * })
+     */
+    upsert<T extends blog_labelsUpsertArgs>(args: SelectSubset<T, blog_labelsUpsertArgs<ExtArgs>>): Prisma__blog_labelsClient<$Result.GetResult<Prisma.$blog_labelsPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of Blog_labels.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {blog_labelsCountArgs} args - Arguments to filter Blog_labels to count.
+     * @example
+     * // Count the number of Blog_labels
+     * const count = await prisma.blog_labels.count({
+     *   where: {
+     *     // ... the filter for the Blog_labels we want to count
+     *   }
+     * })
+    **/
+    count<T extends blog_labelsCountArgs>(
+      args?: Subset<T, blog_labelsCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], Blog_labelsCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Blog_labels.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {Blog_labelsAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends Blog_labelsAggregateArgs>(args: Subset<T, Blog_labelsAggregateArgs>): Prisma.PrismaPromise<GetBlog_labelsAggregateType<T>>
+
+    /**
+     * Group by Blog_labels.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {blog_labelsGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends blog_labelsGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: blog_labelsGroupByArgs['orderBy'] }
+        : { orderBy?: blog_labelsGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, blog_labelsGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetBlog_labelsGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the blog_labels model
+   */
+  readonly fields: blog_labelsFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for blog_labels.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__blog_labelsClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    blog_posts<T extends blog_labels$blog_postsArgs<ExtArgs> = {}>(args?: Subset<T, blog_labels$blog_postsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$blog_postsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the blog_labels model
+   */
+  interface blog_labelsFieldRefs {
+    readonly id: FieldRef<"blog_labels", 'Int'>
+    readonly name: FieldRef<"blog_labels", 'String'>
+    readonly color: FieldRef<"blog_labels", 'String'>
+    readonly created_at: FieldRef<"blog_labels", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * blog_labels findUnique
+   */
+  export type blog_labelsFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the blog_labels
+     */
+    select?: blog_labelsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the blog_labels
+     */
+    omit?: blog_labelsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_labelsInclude<ExtArgs> | null
+    /**
+     * Filter, which blog_labels to fetch.
+     */
+    where: blog_labelsWhereUniqueInput
+  }
+
+  /**
+   * blog_labels findUniqueOrThrow
+   */
+  export type blog_labelsFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the blog_labels
+     */
+    select?: blog_labelsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the blog_labels
+     */
+    omit?: blog_labelsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_labelsInclude<ExtArgs> | null
+    /**
+     * Filter, which blog_labels to fetch.
+     */
+    where: blog_labelsWhereUniqueInput
+  }
+
+  /**
+   * blog_labels findFirst
+   */
+  export type blog_labelsFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the blog_labels
+     */
+    select?: blog_labelsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the blog_labels
+     */
+    omit?: blog_labelsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_labelsInclude<ExtArgs> | null
+    /**
+     * Filter, which blog_labels to fetch.
+     */
+    where?: blog_labelsWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of blog_labels to fetch.
+     */
+    orderBy?: blog_labelsOrderByWithRelationInput | blog_labelsOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for blog_labels.
+     */
+    cursor?: blog_labelsWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` blog_labels from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` blog_labels.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of blog_labels.
+     */
+    distinct?: Blog_labelsScalarFieldEnum | Blog_labelsScalarFieldEnum[]
+  }
+
+  /**
+   * blog_labels findFirstOrThrow
+   */
+  export type blog_labelsFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the blog_labels
+     */
+    select?: blog_labelsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the blog_labels
+     */
+    omit?: blog_labelsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_labelsInclude<ExtArgs> | null
+    /**
+     * Filter, which blog_labels to fetch.
+     */
+    where?: blog_labelsWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of blog_labels to fetch.
+     */
+    orderBy?: blog_labelsOrderByWithRelationInput | blog_labelsOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for blog_labels.
+     */
+    cursor?: blog_labelsWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` blog_labels from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` blog_labels.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of blog_labels.
+     */
+    distinct?: Blog_labelsScalarFieldEnum | Blog_labelsScalarFieldEnum[]
+  }
+
+  /**
+   * blog_labels findMany
+   */
+  export type blog_labelsFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the blog_labels
+     */
+    select?: blog_labelsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the blog_labels
+     */
+    omit?: blog_labelsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_labelsInclude<ExtArgs> | null
+    /**
+     * Filter, which blog_labels to fetch.
+     */
+    where?: blog_labelsWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of blog_labels to fetch.
+     */
+    orderBy?: blog_labelsOrderByWithRelationInput | blog_labelsOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing blog_labels.
+     */
+    cursor?: blog_labelsWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` blog_labels from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` blog_labels.
+     */
+    skip?: number
+    distinct?: Blog_labelsScalarFieldEnum | Blog_labelsScalarFieldEnum[]
+  }
+
+  /**
+   * blog_labels create
+   */
+  export type blog_labelsCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the blog_labels
+     */
+    select?: blog_labelsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the blog_labels
+     */
+    omit?: blog_labelsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_labelsInclude<ExtArgs> | null
+    /**
+     * The data needed to create a blog_labels.
+     */
+    data: XOR<blog_labelsCreateInput, blog_labelsUncheckedCreateInput>
+  }
+
+  /**
+   * blog_labels createMany
+   */
+  export type blog_labelsCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many blog_labels.
+     */
+    data: blog_labelsCreateManyInput | blog_labelsCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * blog_labels createManyAndReturn
+   */
+  export type blog_labelsCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the blog_labels
+     */
+    select?: blog_labelsSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the blog_labels
+     */
+    omit?: blog_labelsOmit<ExtArgs> | null
+    /**
+     * The data used to create many blog_labels.
+     */
+    data: blog_labelsCreateManyInput | blog_labelsCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * blog_labels update
+   */
+  export type blog_labelsUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the blog_labels
+     */
+    select?: blog_labelsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the blog_labels
+     */
+    omit?: blog_labelsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_labelsInclude<ExtArgs> | null
+    /**
+     * The data needed to update a blog_labels.
+     */
+    data: XOR<blog_labelsUpdateInput, blog_labelsUncheckedUpdateInput>
+    /**
+     * Choose, which blog_labels to update.
+     */
+    where: blog_labelsWhereUniqueInput
+  }
+
+  /**
+   * blog_labels updateMany
+   */
+  export type blog_labelsUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update blog_labels.
+     */
+    data: XOR<blog_labelsUpdateManyMutationInput, blog_labelsUncheckedUpdateManyInput>
+    /**
+     * Filter which blog_labels to update
+     */
+    where?: blog_labelsWhereInput
+    /**
+     * Limit how many blog_labels to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * blog_labels updateManyAndReturn
+   */
+  export type blog_labelsUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the blog_labels
+     */
+    select?: blog_labelsSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the blog_labels
+     */
+    omit?: blog_labelsOmit<ExtArgs> | null
+    /**
+     * The data used to update blog_labels.
+     */
+    data: XOR<blog_labelsUpdateManyMutationInput, blog_labelsUncheckedUpdateManyInput>
+    /**
+     * Filter which blog_labels to update
+     */
+    where?: blog_labelsWhereInput
+    /**
+     * Limit how many blog_labels to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * blog_labels upsert
+   */
+  export type blog_labelsUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the blog_labels
+     */
+    select?: blog_labelsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the blog_labels
+     */
+    omit?: blog_labelsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_labelsInclude<ExtArgs> | null
+    /**
+     * The filter to search for the blog_labels to update in case it exists.
+     */
+    where: blog_labelsWhereUniqueInput
+    /**
+     * In case the blog_labels found by the `where` argument doesn't exist, create a new blog_labels with this data.
+     */
+    create: XOR<blog_labelsCreateInput, blog_labelsUncheckedCreateInput>
+    /**
+     * In case the blog_labels was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<blog_labelsUpdateInput, blog_labelsUncheckedUpdateInput>
+  }
+
+  /**
+   * blog_labels delete
+   */
+  export type blog_labelsDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the blog_labels
+     */
+    select?: blog_labelsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the blog_labels
+     */
+    omit?: blog_labelsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_labelsInclude<ExtArgs> | null
+    /**
+     * Filter which blog_labels to delete.
+     */
+    where: blog_labelsWhereUniqueInput
+  }
+
+  /**
+   * blog_labels deleteMany
+   */
+  export type blog_labelsDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which blog_labels to delete
+     */
+    where?: blog_labelsWhereInput
+    /**
+     * Limit how many blog_labels to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * blog_labels.blog_posts
+   */
+  export type blog_labels$blog_postsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the blog_posts
+     */
+    select?: blog_postsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the blog_posts
+     */
+    omit?: blog_postsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_postsInclude<ExtArgs> | null
+    where?: blog_postsWhereInput
+    orderBy?: blog_postsOrderByWithRelationInput | blog_postsOrderByWithRelationInput[]
+    cursor?: blog_postsWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: Blog_postsScalarFieldEnum | Blog_postsScalarFieldEnum[]
+  }
+
+  /**
+   * blog_labels without action
+   */
+  export type blog_labelsDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the blog_labels
+     */
+    select?: blog_labelsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the blog_labels
+     */
+    omit?: blog_labelsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_labelsInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Model blog_posts
    */
 
@@ -15304,10 +16517,12 @@ export namespace Prisma {
 
   export type Blog_postsAvgAggregateOutputType = {
     id: number | null
+    label_id: number | null
   }
 
   export type Blog_postsSumAggregateOutputType = {
     id: number | null
+    label_id: number | null
   }
 
   export type Blog_postsMinAggregateOutputType = {
@@ -15319,6 +16534,7 @@ export namespace Prisma {
     image_url: string | null
     created_at: Date | null
     updated_at: Date | null
+    label_id: number | null
   }
 
   export type Blog_postsMaxAggregateOutputType = {
@@ -15330,6 +16546,7 @@ export namespace Prisma {
     image_url: string | null
     created_at: Date | null
     updated_at: Date | null
+    label_id: number | null
   }
 
   export type Blog_postsCountAggregateOutputType = {
@@ -15341,16 +16558,19 @@ export namespace Prisma {
     image_url: number
     created_at: number
     updated_at: number
+    label_id: number
     _all: number
   }
 
 
   export type Blog_postsAvgAggregateInputType = {
     id?: true
+    label_id?: true
   }
 
   export type Blog_postsSumAggregateInputType = {
     id?: true
+    label_id?: true
   }
 
   export type Blog_postsMinAggregateInputType = {
@@ -15362,6 +16582,7 @@ export namespace Prisma {
     image_url?: true
     created_at?: true
     updated_at?: true
+    label_id?: true
   }
 
   export type Blog_postsMaxAggregateInputType = {
@@ -15373,6 +16594,7 @@ export namespace Prisma {
     image_url?: true
     created_at?: true
     updated_at?: true
+    label_id?: true
   }
 
   export type Blog_postsCountAggregateInputType = {
@@ -15384,6 +16606,7 @@ export namespace Prisma {
     image_url?: true
     created_at?: true
     updated_at?: true
+    label_id?: true
     _all?: true
   }
 
@@ -15482,6 +16705,7 @@ export namespace Prisma {
     image_url: string | null
     created_at: Date | null
     updated_at: Date | null
+    label_id: number | null
     _count: Blog_postsCountAggregateOutputType | null
     _avg: Blog_postsAvgAggregateOutputType | null
     _sum: Blog_postsSumAggregateOutputType | null
@@ -15512,6 +16736,8 @@ export namespace Prisma {
     image_url?: boolean
     created_at?: boolean
     updated_at?: boolean
+    label_id?: boolean
+    label?: boolean | blog_posts$labelArgs<ExtArgs>
   }, ExtArgs["result"]["blog_posts"]>
 
   export type blog_postsSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -15523,6 +16749,8 @@ export namespace Prisma {
     image_url?: boolean
     created_at?: boolean
     updated_at?: boolean
+    label_id?: boolean
+    label?: boolean | blog_posts$labelArgs<ExtArgs>
   }, ExtArgs["result"]["blog_posts"]>
 
   export type blog_postsSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -15534,6 +16762,8 @@ export namespace Prisma {
     image_url?: boolean
     created_at?: boolean
     updated_at?: boolean
+    label_id?: boolean
+    label?: boolean | blog_posts$labelArgs<ExtArgs>
   }, ExtArgs["result"]["blog_posts"]>
 
   export type blog_postsSelectScalar = {
@@ -15545,13 +16775,25 @@ export namespace Prisma {
     image_url?: boolean
     created_at?: boolean
     updated_at?: boolean
+    label_id?: boolean
   }
 
-  export type blog_postsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "title" | "slug" | "perex" | "content" | "image_url" | "created_at" | "updated_at", ExtArgs["result"]["blog_posts"]>
+  export type blog_postsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "title" | "slug" | "perex" | "content" | "image_url" | "created_at" | "updated_at" | "label_id", ExtArgs["result"]["blog_posts"]>
+  export type blog_postsInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    label?: boolean | blog_posts$labelArgs<ExtArgs>
+  }
+  export type blog_postsIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    label?: boolean | blog_posts$labelArgs<ExtArgs>
+  }
+  export type blog_postsIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    label?: boolean | blog_posts$labelArgs<ExtArgs>
+  }
 
   export type $blog_postsPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "blog_posts"
-    objects: {}
+    objects: {
+      label: Prisma.$blog_labelsPayload<ExtArgs> | null
+    }
     scalars: $Extensions.GetPayloadResult<{
       id: number
       title: string
@@ -15561,6 +16803,7 @@ export namespace Prisma {
       image_url: string | null
       created_at: Date | null
       updated_at: Date | null
+      label_id: number | null
     }, ExtArgs["result"]["blog_posts"]>
     composites: {}
   }
@@ -15955,6 +17198,7 @@ export namespace Prisma {
    */
   export interface Prisma__blog_postsClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    label<T extends blog_posts$labelArgs<ExtArgs> = {}>(args?: Subset<T, blog_posts$labelArgs<ExtArgs>>): Prisma__blog_labelsClient<$Result.GetResult<Prisma.$blog_labelsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -15992,6 +17236,7 @@ export namespace Prisma {
     readonly image_url: FieldRef<"blog_posts", 'String'>
     readonly created_at: FieldRef<"blog_posts", 'DateTime'>
     readonly updated_at: FieldRef<"blog_posts", 'DateTime'>
+    readonly label_id: FieldRef<"blog_posts", 'Int'>
   }
     
 
@@ -16008,6 +17253,10 @@ export namespace Prisma {
      * Omit specific fields from the blog_posts
      */
     omit?: blog_postsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_postsInclude<ExtArgs> | null
     /**
      * Filter, which blog_posts to fetch.
      */
@@ -16027,6 +17276,10 @@ export namespace Prisma {
      */
     omit?: blog_postsOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_postsInclude<ExtArgs> | null
+    /**
      * Filter, which blog_posts to fetch.
      */
     where: blog_postsWhereUniqueInput
@@ -16044,6 +17297,10 @@ export namespace Prisma {
      * Omit specific fields from the blog_posts
      */
     omit?: blog_postsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_postsInclude<ExtArgs> | null
     /**
      * Filter, which blog_posts to fetch.
      */
@@ -16093,6 +17350,10 @@ export namespace Prisma {
      */
     omit?: blog_postsOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_postsInclude<ExtArgs> | null
+    /**
      * Filter, which blog_posts to fetch.
      */
     where?: blog_postsWhereInput
@@ -16141,6 +17402,10 @@ export namespace Prisma {
      */
     omit?: blog_postsOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_postsInclude<ExtArgs> | null
+    /**
      * Filter, which blog_posts to fetch.
      */
     where?: blog_postsWhereInput
@@ -16184,6 +17449,10 @@ export namespace Prisma {
      */
     omit?: blog_postsOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_postsInclude<ExtArgs> | null
+    /**
      * The data needed to create a blog_posts.
      */
     data: XOR<blog_postsCreateInput, blog_postsUncheckedCreateInput>
@@ -16217,6 +17486,10 @@ export namespace Prisma {
      */
     data: blog_postsCreateManyInput | blog_postsCreateManyInput[]
     skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_postsIncludeCreateManyAndReturn<ExtArgs> | null
   }
 
   /**
@@ -16231,6 +17504,10 @@ export namespace Prisma {
      * Omit specific fields from the blog_posts
      */
     omit?: blog_postsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_postsInclude<ExtArgs> | null
     /**
      * The data needed to update a blog_posts.
      */
@@ -16283,6 +17560,10 @@ export namespace Prisma {
      * Limit how many blog_posts to update.
      */
     limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_postsIncludeUpdateManyAndReturn<ExtArgs> | null
   }
 
   /**
@@ -16297,6 +17578,10 @@ export namespace Prisma {
      * Omit specific fields from the blog_posts
      */
     omit?: blog_postsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_postsInclude<ExtArgs> | null
     /**
      * The filter to search for the blog_posts to update in case it exists.
      */
@@ -16324,6 +17609,10 @@ export namespace Prisma {
      */
     omit?: blog_postsOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_postsInclude<ExtArgs> | null
+    /**
      * Filter which blog_posts to delete.
      */
     where: blog_postsWhereUniqueInput
@@ -16344,6 +17633,25 @@ export namespace Prisma {
   }
 
   /**
+   * blog_posts.label
+   */
+  export type blog_posts$labelArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the blog_labels
+     */
+    select?: blog_labelsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the blog_labels
+     */
+    omit?: blog_labelsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_labelsInclude<ExtArgs> | null
+    where?: blog_labelsWhereInput
+  }
+
+  /**
    * blog_posts without action
    */
   export type blog_postsDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -16355,6 +17663,10 @@ export namespace Prisma {
      * Omit specific fields from the blog_posts
      */
     omit?: blog_postsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: blog_postsInclude<ExtArgs> | null
   }
 
 
@@ -18596,6 +19908,16 @@ export namespace Prisma {
   export type UsersScalarFieldEnum = (typeof UsersScalarFieldEnum)[keyof typeof UsersScalarFieldEnum]
 
 
+  export const Blog_labelsScalarFieldEnum: {
+    id: 'id',
+    name: 'name',
+    color: 'color',
+    created_at: 'created_at'
+  };
+
+  export type Blog_labelsScalarFieldEnum = (typeof Blog_labelsScalarFieldEnum)[keyof typeof Blog_labelsScalarFieldEnum]
+
+
   export const Blog_postsScalarFieldEnum: {
     id: 'id',
     title: 'title',
@@ -18604,7 +19926,8 @@ export namespace Prisma {
     content: 'content',
     image_url: 'image_url',
     created_at: 'created_at',
-    updated_at: 'updated_at'
+    updated_at: 'updated_at',
+    label_id: 'label_id'
   };
 
   export type Blog_postsScalarFieldEnum = (typeof Blog_postsScalarFieldEnum)[keyof typeof Blog_postsScalarFieldEnum]
@@ -19655,6 +20978,58 @@ export namespace Prisma {
     mobile?: StringNullableWithAggregatesFilter<"users"> | string | null
   }
 
+  export type blog_labelsWhereInput = {
+    AND?: blog_labelsWhereInput | blog_labelsWhereInput[]
+    OR?: blog_labelsWhereInput[]
+    NOT?: blog_labelsWhereInput | blog_labelsWhereInput[]
+    id?: IntFilter<"blog_labels"> | number
+    name?: StringFilter<"blog_labels"> | string
+    color?: StringFilter<"blog_labels"> | string
+    created_at?: DateTimeNullableFilter<"blog_labels"> | Date | string | null
+    blog_posts?: Blog_postsListRelationFilter
+  }
+
+  export type blog_labelsOrderByWithRelationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    color?: SortOrder
+    created_at?: SortOrderInput | SortOrder
+    blog_posts?: blog_postsOrderByRelationAggregateInput
+  }
+
+  export type blog_labelsWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    name?: string
+    AND?: blog_labelsWhereInput | blog_labelsWhereInput[]
+    OR?: blog_labelsWhereInput[]
+    NOT?: blog_labelsWhereInput | blog_labelsWhereInput[]
+    color?: StringFilter<"blog_labels"> | string
+    created_at?: DateTimeNullableFilter<"blog_labels"> | Date | string | null
+    blog_posts?: Blog_postsListRelationFilter
+  }, "id" | "name">
+
+  export type blog_labelsOrderByWithAggregationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    color?: SortOrder
+    created_at?: SortOrderInput | SortOrder
+    _count?: blog_labelsCountOrderByAggregateInput
+    _avg?: blog_labelsAvgOrderByAggregateInput
+    _max?: blog_labelsMaxOrderByAggregateInput
+    _min?: blog_labelsMinOrderByAggregateInput
+    _sum?: blog_labelsSumOrderByAggregateInput
+  }
+
+  export type blog_labelsScalarWhereWithAggregatesInput = {
+    AND?: blog_labelsScalarWhereWithAggregatesInput | blog_labelsScalarWhereWithAggregatesInput[]
+    OR?: blog_labelsScalarWhereWithAggregatesInput[]
+    NOT?: blog_labelsScalarWhereWithAggregatesInput | blog_labelsScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"blog_labels"> | number
+    name?: StringWithAggregatesFilter<"blog_labels"> | string
+    color?: StringWithAggregatesFilter<"blog_labels"> | string
+    created_at?: DateTimeNullableWithAggregatesFilter<"blog_labels"> | Date | string | null
+  }
+
   export type blog_postsWhereInput = {
     AND?: blog_postsWhereInput | blog_postsWhereInput[]
     OR?: blog_postsWhereInput[]
@@ -19667,6 +21042,8 @@ export namespace Prisma {
     image_url?: StringNullableFilter<"blog_posts"> | string | null
     created_at?: DateTimeNullableFilter<"blog_posts"> | Date | string | null
     updated_at?: DateTimeNullableFilter<"blog_posts"> | Date | string | null
+    label_id?: IntNullableFilter<"blog_posts"> | number | null
+    label?: XOR<Blog_labelsNullableScalarRelationFilter, blog_labelsWhereInput> | null
   }
 
   export type blog_postsOrderByWithRelationInput = {
@@ -19678,6 +21055,8 @@ export namespace Prisma {
     image_url?: SortOrderInput | SortOrder
     created_at?: SortOrderInput | SortOrder
     updated_at?: SortOrderInput | SortOrder
+    label_id?: SortOrderInput | SortOrder
+    label?: blog_labelsOrderByWithRelationInput
   }
 
   export type blog_postsWhereUniqueInput = Prisma.AtLeast<{
@@ -19692,6 +21071,8 @@ export namespace Prisma {
     image_url?: StringNullableFilter<"blog_posts"> | string | null
     created_at?: DateTimeNullableFilter<"blog_posts"> | Date | string | null
     updated_at?: DateTimeNullableFilter<"blog_posts"> | Date | string | null
+    label_id?: IntNullableFilter<"blog_posts"> | number | null
+    label?: XOR<Blog_labelsNullableScalarRelationFilter, blog_labelsWhereInput> | null
   }, "id" | "slug">
 
   export type blog_postsOrderByWithAggregationInput = {
@@ -19703,6 +21084,7 @@ export namespace Prisma {
     image_url?: SortOrderInput | SortOrder
     created_at?: SortOrderInput | SortOrder
     updated_at?: SortOrderInput | SortOrder
+    label_id?: SortOrderInput | SortOrder
     _count?: blog_postsCountOrderByAggregateInput
     _avg?: blog_postsAvgOrderByAggregateInput
     _max?: blog_postsMaxOrderByAggregateInput
@@ -19722,6 +21104,7 @@ export namespace Prisma {
     image_url?: StringNullableWithAggregatesFilter<"blog_posts"> | string | null
     created_at?: DateTimeNullableWithAggregatesFilter<"blog_posts"> | Date | string | null
     updated_at?: DateTimeNullableWithAggregatesFilter<"blog_posts"> | Date | string | null
+    label_id?: IntNullableWithAggregatesFilter<"blog_posts"> | number | null
   }
 
   export type google_ratings_configWhereInput = {
@@ -20766,6 +22149,56 @@ export namespace Prisma {
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
+  export type blog_labelsCreateInput = {
+    name: string
+    color?: string
+    created_at?: Date | string | null
+    blog_posts?: blog_postsCreateNestedManyWithoutLabelInput
+  }
+
+  export type blog_labelsUncheckedCreateInput = {
+    id?: number
+    name: string
+    color?: string
+    created_at?: Date | string | null
+    blog_posts?: blog_postsUncheckedCreateNestedManyWithoutLabelInput
+  }
+
+  export type blog_labelsUpdateInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    color?: StringFieldUpdateOperationsInput | string
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    blog_posts?: blog_postsUpdateManyWithoutLabelNestedInput
+  }
+
+  export type blog_labelsUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    color?: StringFieldUpdateOperationsInput | string
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    blog_posts?: blog_postsUncheckedUpdateManyWithoutLabelNestedInput
+  }
+
+  export type blog_labelsCreateManyInput = {
+    id?: number
+    name: string
+    color?: string
+    created_at?: Date | string | null
+  }
+
+  export type blog_labelsUpdateManyMutationInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    color?: StringFieldUpdateOperationsInput | string
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type blog_labelsUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    color?: StringFieldUpdateOperationsInput | string
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
   export type blog_postsCreateInput = {
     title: string
     slug: string
@@ -20774,6 +22207,7 @@ export namespace Prisma {
     image_url?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
+    label?: blog_labelsCreateNestedOneWithoutBlog_postsInput
   }
 
   export type blog_postsUncheckedCreateInput = {
@@ -20785,6 +22219,7 @@ export namespace Prisma {
     image_url?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
+    label_id?: number | null
   }
 
   export type blog_postsUpdateInput = {
@@ -20795,6 +22230,7 @@ export namespace Prisma {
     image_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    label?: blog_labelsUpdateOneWithoutBlog_postsNestedInput
   }
 
   export type blog_postsUncheckedUpdateInput = {
@@ -20806,6 +22242,7 @@ export namespace Prisma {
     image_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    label_id?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type blog_postsCreateManyInput = {
@@ -20817,6 +22254,7 @@ export namespace Prisma {
     image_url?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
+    label_id?: number | null
   }
 
   export type blog_postsUpdateManyMutationInput = {
@@ -20838,6 +22276,7 @@ export namespace Prisma {
     image_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    label_id?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type google_ratings_configCreateInput = {
@@ -21896,6 +23335,50 @@ export namespace Prisma {
     id?: SortOrder
   }
 
+  export type Blog_postsListRelationFilter = {
+    every?: blog_postsWhereInput
+    some?: blog_postsWhereInput
+    none?: blog_postsWhereInput
+  }
+
+  export type blog_postsOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type blog_labelsCountOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    color?: SortOrder
+    created_at?: SortOrder
+  }
+
+  export type blog_labelsAvgOrderByAggregateInput = {
+    id?: SortOrder
+  }
+
+  export type blog_labelsMaxOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    color?: SortOrder
+    created_at?: SortOrder
+  }
+
+  export type blog_labelsMinOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    color?: SortOrder
+    created_at?: SortOrder
+  }
+
+  export type blog_labelsSumOrderByAggregateInput = {
+    id?: SortOrder
+  }
+
+  export type Blog_labelsNullableScalarRelationFilter = {
+    is?: blog_labelsWhereInput | null
+    isNot?: blog_labelsWhereInput | null
+  }
+
   export type blog_postsCountOrderByAggregateInput = {
     id?: SortOrder
     title?: SortOrder
@@ -21905,10 +23388,12 @@ export namespace Prisma {
     image_url?: SortOrder
     created_at?: SortOrder
     updated_at?: SortOrder
+    label_id?: SortOrder
   }
 
   export type blog_postsAvgOrderByAggregateInput = {
     id?: SortOrder
+    label_id?: SortOrder
   }
 
   export type blog_postsMaxOrderByAggregateInput = {
@@ -21920,6 +23405,7 @@ export namespace Prisma {
     image_url?: SortOrder
     created_at?: SortOrder
     updated_at?: SortOrder
+    label_id?: SortOrder
   }
 
   export type blog_postsMinOrderByAggregateInput = {
@@ -21931,10 +23417,12 @@ export namespace Prisma {
     image_url?: SortOrder
     created_at?: SortOrder
     updated_at?: SortOrder
+    label_id?: SortOrder
   }
 
   export type blog_postsSumOrderByAggregateInput = {
     id?: SortOrder
+    label_id?: SortOrder
   }
 
   export type google_ratings_configCountOrderByAggregateInput = {
@@ -22689,6 +24177,64 @@ export namespace Prisma {
     update?: season_ticketsUpdateWithWhereUniqueWithoutUsersInput | season_ticketsUpdateWithWhereUniqueWithoutUsersInput[]
     updateMany?: season_ticketsUpdateManyWithWhereWithoutUsersInput | season_ticketsUpdateManyWithWhereWithoutUsersInput[]
     deleteMany?: season_ticketsScalarWhereInput | season_ticketsScalarWhereInput[]
+  }
+
+  export type blog_postsCreateNestedManyWithoutLabelInput = {
+    create?: XOR<blog_postsCreateWithoutLabelInput, blog_postsUncheckedCreateWithoutLabelInput> | blog_postsCreateWithoutLabelInput[] | blog_postsUncheckedCreateWithoutLabelInput[]
+    connectOrCreate?: blog_postsCreateOrConnectWithoutLabelInput | blog_postsCreateOrConnectWithoutLabelInput[]
+    createMany?: blog_postsCreateManyLabelInputEnvelope
+    connect?: blog_postsWhereUniqueInput | blog_postsWhereUniqueInput[]
+  }
+
+  export type blog_postsUncheckedCreateNestedManyWithoutLabelInput = {
+    create?: XOR<blog_postsCreateWithoutLabelInput, blog_postsUncheckedCreateWithoutLabelInput> | blog_postsCreateWithoutLabelInput[] | blog_postsUncheckedCreateWithoutLabelInput[]
+    connectOrCreate?: blog_postsCreateOrConnectWithoutLabelInput | blog_postsCreateOrConnectWithoutLabelInput[]
+    createMany?: blog_postsCreateManyLabelInputEnvelope
+    connect?: blog_postsWhereUniqueInput | blog_postsWhereUniqueInput[]
+  }
+
+  export type blog_postsUpdateManyWithoutLabelNestedInput = {
+    create?: XOR<blog_postsCreateWithoutLabelInput, blog_postsUncheckedCreateWithoutLabelInput> | blog_postsCreateWithoutLabelInput[] | blog_postsUncheckedCreateWithoutLabelInput[]
+    connectOrCreate?: blog_postsCreateOrConnectWithoutLabelInput | blog_postsCreateOrConnectWithoutLabelInput[]
+    upsert?: blog_postsUpsertWithWhereUniqueWithoutLabelInput | blog_postsUpsertWithWhereUniqueWithoutLabelInput[]
+    createMany?: blog_postsCreateManyLabelInputEnvelope
+    set?: blog_postsWhereUniqueInput | blog_postsWhereUniqueInput[]
+    disconnect?: blog_postsWhereUniqueInput | blog_postsWhereUniqueInput[]
+    delete?: blog_postsWhereUniqueInput | blog_postsWhereUniqueInput[]
+    connect?: blog_postsWhereUniqueInput | blog_postsWhereUniqueInput[]
+    update?: blog_postsUpdateWithWhereUniqueWithoutLabelInput | blog_postsUpdateWithWhereUniqueWithoutLabelInput[]
+    updateMany?: blog_postsUpdateManyWithWhereWithoutLabelInput | blog_postsUpdateManyWithWhereWithoutLabelInput[]
+    deleteMany?: blog_postsScalarWhereInput | blog_postsScalarWhereInput[]
+  }
+
+  export type blog_postsUncheckedUpdateManyWithoutLabelNestedInput = {
+    create?: XOR<blog_postsCreateWithoutLabelInput, blog_postsUncheckedCreateWithoutLabelInput> | blog_postsCreateWithoutLabelInput[] | blog_postsUncheckedCreateWithoutLabelInput[]
+    connectOrCreate?: blog_postsCreateOrConnectWithoutLabelInput | blog_postsCreateOrConnectWithoutLabelInput[]
+    upsert?: blog_postsUpsertWithWhereUniqueWithoutLabelInput | blog_postsUpsertWithWhereUniqueWithoutLabelInput[]
+    createMany?: blog_postsCreateManyLabelInputEnvelope
+    set?: blog_postsWhereUniqueInput | blog_postsWhereUniqueInput[]
+    disconnect?: blog_postsWhereUniqueInput | blog_postsWhereUniqueInput[]
+    delete?: blog_postsWhereUniqueInput | blog_postsWhereUniqueInput[]
+    connect?: blog_postsWhereUniqueInput | blog_postsWhereUniqueInput[]
+    update?: blog_postsUpdateWithWhereUniqueWithoutLabelInput | blog_postsUpdateWithWhereUniqueWithoutLabelInput[]
+    updateMany?: blog_postsUpdateManyWithWhereWithoutLabelInput | blog_postsUpdateManyWithWhereWithoutLabelInput[]
+    deleteMany?: blog_postsScalarWhereInput | blog_postsScalarWhereInput[]
+  }
+
+  export type blog_labelsCreateNestedOneWithoutBlog_postsInput = {
+    create?: XOR<blog_labelsCreateWithoutBlog_postsInput, blog_labelsUncheckedCreateWithoutBlog_postsInput>
+    connectOrCreate?: blog_labelsCreateOrConnectWithoutBlog_postsInput
+    connect?: blog_labelsWhereUniqueInput
+  }
+
+  export type blog_labelsUpdateOneWithoutBlog_postsNestedInput = {
+    create?: XOR<blog_labelsCreateWithoutBlog_postsInput, blog_labelsUncheckedCreateWithoutBlog_postsInput>
+    connectOrCreate?: blog_labelsCreateOrConnectWithoutBlog_postsInput
+    upsert?: blog_labelsUpsertWithoutBlog_postsInput
+    disconnect?: blog_labelsWhereInput | boolean
+    delete?: blog_labelsWhereInput | boolean
+    connect?: blog_labelsWhereUniqueInput
+    update?: XOR<XOR<blog_labelsUpdateToOneWithWhereWithoutBlog_postsInput, blog_labelsUpdateWithoutBlog_postsInput>, blog_labelsUncheckedUpdateWithoutBlog_postsInput>
   }
 
   export type NestedIntFilter<$PrismaModel = never> = {
@@ -24574,6 +26120,110 @@ export namespace Prisma {
     payment_time?: DateTimeNullableFilter<"season_tickets"> | Date | string | null
   }
 
+  export type blog_postsCreateWithoutLabelInput = {
+    title: string
+    slug: string
+    perex: string
+    content?: string | null
+    image_url?: string | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+  }
+
+  export type blog_postsUncheckedCreateWithoutLabelInput = {
+    id?: number
+    title: string
+    slug: string
+    perex: string
+    content?: string | null
+    image_url?: string | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+  }
+
+  export type blog_postsCreateOrConnectWithoutLabelInput = {
+    where: blog_postsWhereUniqueInput
+    create: XOR<blog_postsCreateWithoutLabelInput, blog_postsUncheckedCreateWithoutLabelInput>
+  }
+
+  export type blog_postsCreateManyLabelInputEnvelope = {
+    data: blog_postsCreateManyLabelInput | blog_postsCreateManyLabelInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type blog_postsUpsertWithWhereUniqueWithoutLabelInput = {
+    where: blog_postsWhereUniqueInput
+    update: XOR<blog_postsUpdateWithoutLabelInput, blog_postsUncheckedUpdateWithoutLabelInput>
+    create: XOR<blog_postsCreateWithoutLabelInput, blog_postsUncheckedCreateWithoutLabelInput>
+  }
+
+  export type blog_postsUpdateWithWhereUniqueWithoutLabelInput = {
+    where: blog_postsWhereUniqueInput
+    data: XOR<blog_postsUpdateWithoutLabelInput, blog_postsUncheckedUpdateWithoutLabelInput>
+  }
+
+  export type blog_postsUpdateManyWithWhereWithoutLabelInput = {
+    where: blog_postsScalarWhereInput
+    data: XOR<blog_postsUpdateManyMutationInput, blog_postsUncheckedUpdateManyWithoutLabelInput>
+  }
+
+  export type blog_postsScalarWhereInput = {
+    AND?: blog_postsScalarWhereInput | blog_postsScalarWhereInput[]
+    OR?: blog_postsScalarWhereInput[]
+    NOT?: blog_postsScalarWhereInput | blog_postsScalarWhereInput[]
+    id?: IntFilter<"blog_posts"> | number
+    title?: StringFilter<"blog_posts"> | string
+    slug?: StringFilter<"blog_posts"> | string
+    perex?: StringFilter<"blog_posts"> | string
+    content?: StringNullableFilter<"blog_posts"> | string | null
+    image_url?: StringNullableFilter<"blog_posts"> | string | null
+    created_at?: DateTimeNullableFilter<"blog_posts"> | Date | string | null
+    updated_at?: DateTimeNullableFilter<"blog_posts"> | Date | string | null
+    label_id?: IntNullableFilter<"blog_posts"> | number | null
+  }
+
+  export type blog_labelsCreateWithoutBlog_postsInput = {
+    name: string
+    color?: string
+    created_at?: Date | string | null
+  }
+
+  export type blog_labelsUncheckedCreateWithoutBlog_postsInput = {
+    id?: number
+    name: string
+    color?: string
+    created_at?: Date | string | null
+  }
+
+  export type blog_labelsCreateOrConnectWithoutBlog_postsInput = {
+    where: blog_labelsWhereUniqueInput
+    create: XOR<blog_labelsCreateWithoutBlog_postsInput, blog_labelsUncheckedCreateWithoutBlog_postsInput>
+  }
+
+  export type blog_labelsUpsertWithoutBlog_postsInput = {
+    update: XOR<blog_labelsUpdateWithoutBlog_postsInput, blog_labelsUncheckedUpdateWithoutBlog_postsInput>
+    create: XOR<blog_labelsCreateWithoutBlog_postsInput, blog_labelsUncheckedCreateWithoutBlog_postsInput>
+    where?: blog_labelsWhereInput
+  }
+
+  export type blog_labelsUpdateToOneWithWhereWithoutBlog_postsInput = {
+    where?: blog_labelsWhereInput
+    data: XOR<blog_labelsUpdateWithoutBlog_postsInput, blog_labelsUncheckedUpdateWithoutBlog_postsInput>
+  }
+
+  export type blog_labelsUpdateWithoutBlog_postsInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    color?: StringFieldUpdateOperationsInput | string
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type blog_labelsUncheckedUpdateWithoutBlog_postsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    color?: StringFieldUpdateOperationsInput | string
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
   export type refundsCreateManyBookingsInput = {
     id?: number
     refund_id?: string | null
@@ -25199,6 +26849,49 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type blog_postsCreateManyLabelInput = {
+    id?: number
+    title: string
+    slug: string
+    perex: string
+    content?: string | null
+    image_url?: string | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+  }
+
+  export type blog_postsUpdateWithoutLabelInput = {
+    title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
+    perex?: StringFieldUpdateOperationsInput | string
+    content?: NullableStringFieldUpdateOperationsInput | string | null
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type blog_postsUncheckedUpdateWithoutLabelInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
+    perex?: StringFieldUpdateOperationsInput | string
+    content?: NullableStringFieldUpdateOperationsInput | string | null
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type blog_postsUncheckedUpdateManyWithoutLabelInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
+    perex?: StringFieldUpdateOperationsInput | string
+    content?: NullableStringFieldUpdateOperationsInput | string | null
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
 

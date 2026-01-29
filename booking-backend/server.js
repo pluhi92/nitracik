@@ -3047,9 +3047,21 @@ app.post('/api/admin/about-content', isAdmin, async (req, res) => {
 app.get('/api/blog-posts', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT id, title, slug, perex, content, image_url, created_at, updated_at
-      FROM blog_posts 
-      ORDER BY created_at DESC
+      SELECT 
+        bp.id, 
+        bp.title, 
+        bp.slug, 
+        bp.perex, 
+        bp.content, 
+        bp.image_url, 
+        bp.label_id,
+        bp.created_at, 
+        bp.updated_at,
+        bl.name as label_name,
+        bl.color as label_color
+      FROM blog_posts bp
+      LEFT JOIN blog_labels bl ON bp.label_id = bl.id
+      ORDER BY bp.created_at DESC
     `);
     res.json(result.rows);
   } catch (error) {
@@ -3060,24 +3072,23 @@ app.get('/api/blog-posts', async (req, res) => {
 
 app.post('/api/admin/blog-posts', isAdmin, async (req, res) => {
   try {
-    const { title, perex, content, image_url } = req.body;
+    const { title, perex, content, image_url, label_id } = req.body;
     
-    // 1. Vytvoríme slug
     let slug = createSlug(title);
     
-    // (Voliteľné) Ošetrenie unikátnosti: Ak už taký slug existuje, pridáme k nemu čas
     const check = await pool.query('SELECT id FROM blog_posts WHERE slug = $1', [slug]);
     if (check.rows.length > 0) {
       slug = `${slug}-${Date.now()}`;
     }
 
-    // 2. Pridáme slug do INSERT príkazu
     const result = await pool.query(
-      `INSERT INTO blog_posts (title, slug, perex, content, image_url, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+      `INSERT INTO blog_posts (title, slug, perex, content, image_url, label_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
        RETURNING *`,
-      [title, slug, perex, content || null, image_url || null]
+      [title, slug, perex, content || null, image_url || null, label_id || null]
     );
+    
+    console.log(`✅ Blog post created: ${title} with label_id: ${label_id}`);
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Error creating blog post:', error);
@@ -3088,24 +3099,30 @@ app.post('/api/admin/blog-posts', isAdmin, async (req, res) => {
 app.put('/api/admin/blog-posts/:id', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, perex, content, image_url } = req.body;
+    const { title, perex, content, image_url, label_id } = req.body;
     
     const slug = createSlug(title);
 
     const result = await pool.query(
       `UPDATE blog_posts 
-       SET title = $1, slug = $2, perex = $3, content = $4, image_url = $5, updated_at = NOW()
-       WHERE id = $6
+       SET title = $1, slug = $2, perex = $3, content = $4, image_url = $5, label_id = $6, updated_at = NOW()
+       WHERE id = $7
        RETURNING *`,
-      [title, slug, perex, content || null, image_url || null, id]
+      [title, slug, perex, content || null, image_url || null, label_id || null, id]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    console.log(`✅ Blog post updated: ${title} with label_id: ${label_id}`);
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error updating blog post:', error);
     res.status(500).json({ error: 'Failed to update blog post' });
   }
 });
+
 
 app.delete('/api/admin/blog-posts/:id', isAdmin, async (req, res) => {
   try {
@@ -3124,22 +3141,36 @@ app.get('/api/blog-posts/:idOrSlug', async (req, res) => {
   try {
     const { idOrSlug } = req.params;
     
-    console.log(`🔍 Hľadám článok podľa: "${idOrSlug}"`); // Debug log
+    console.log(`🔍 Hľadám článok podľa: "${idOrSlug}"`);
 
     let query;
     let params;
 
-    // VYLEPŠENÁ KONTROLA: Použijeme Regex, ktorý overí, či reťazec obsahuje LEN čísla
-    // To je bezpečnejšie ako parseFloat
     const isId = /^\d+$/.test(idOrSlug);
 
     if (isId) {
        console.log('👉 Detekované ako ID (číslo)');
-       query = 'SELECT * FROM blog_posts WHERE id = $1';
+       query = `
+         SELECT 
+           bp.*, 
+           bl.name as label_name,
+           bl.color as label_color
+         FROM blog_posts bp
+         LEFT JOIN blog_labels bl ON bp.label_id = bl.id
+         WHERE bp.id = $1
+       `;
        params = [parseInt(idOrSlug)];
     } else {
        console.log('👉 Detekované ako SLUG (text)');
-       query = 'SELECT * FROM blog_posts WHERE slug = $1';
+       query = `
+         SELECT 
+           bp.*,
+           bl.name as label_name,
+           bl.color as label_color
+         FROM blog_posts bp
+         LEFT JOIN blog_labels bl ON bp.label_id = bl.id
+         WHERE bp.slug = $1
+       `;
        params = [idOrSlug];
     }
 
@@ -3155,7 +3186,6 @@ app.get('/api/blog-posts/:idOrSlug', async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching blog post:', error);
-    // Tu je dôležité odchytiť chybu syntaxe pre UUID/Integer ak by sa niečo pokazilo
     res.status(500).json({ error: 'Failed to fetch blog post' });
   }
 });
@@ -3236,6 +3266,152 @@ app.delete('/api/admin/delete-blog-image', isAdmin, async (req, res) => {
     res.status(500).json({ error: 'Nepodarilo sa zmazať obrázok' });
   }
 });
+
+// ============================================
+// BLOG LABELS ENDPOINTS
+// ============================================
+
+// GET ALL LABELS
+app.get('/api/blog-labels', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, color, created_at
+      FROM blog_labels 
+      ORDER BY name ASC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching blog labels:', error);
+    res.status(500).json({ error: 'Failed to fetch blog labels' });
+  }
+});
+
+// GET ONE LABEL BY ID
+app.get('/api/blog-labels/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'SELECT id, name, color, created_at FROM blog_labels WHERE id = $1',
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Label not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching blog label:', error);
+    res.status(500).json({ error: 'Failed to fetch blog label' });
+  }
+});
+
+// CREATE NEW LABEL (ADMIN ONLY)
+app.post('/api/admin/blog-labels', isAdmin, async (req, res) => {
+  try {
+    const { name, color } = req.body;
+    
+    if (!name || !color) {
+      return res.status(400).json({ error: 'Name and color are required' });
+    }
+
+    // Check if label with same name already exists
+    const checkExisting = await pool.query(
+      'SELECT id FROM blog_labels WHERE LOWER(name) = LOWER($1)',
+      [name]
+    );
+
+    if (checkExisting.rows.length > 0) {
+      return res.status(400).json({ error: 'Label with this name already exists' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO blog_labels (name, color, created_at)
+       VALUES ($1, $2, NOW())
+       RETURNING *`,
+      [name.trim(), color]
+    );
+    
+    console.log(`✅ Label created: ${name} (${color})`);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating blog label:', error);
+    res.status(500).json({ error: 'Failed to create blog label' });
+  }
+});
+
+// UPDATE LABEL (ADMIN ONLY)
+app.put('/api/admin/blog-labels/:id', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, color } = req.body;
+
+    if (!name || !color) {
+      return res.status(400).json({ error: 'Name and color are required' });
+    }
+
+    // Check if another label with same name exists
+    const checkExisting = await pool.query(
+      'SELECT id FROM blog_labels WHERE LOWER(name) = LOWER($1) AND id != $2',
+      [name, id]
+    );
+
+    if (checkExisting.rows.length > 0) {
+      return res.status(400).json({ error: 'Label with this name already exists' });
+    }
+
+    const result = await pool.query(
+      `UPDATE blog_labels 
+       SET name = $1, color = $2
+       WHERE id = $3
+       RETURNING *`,
+      [name.trim(), color, id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Label not found' });
+    }
+    
+    console.log(`✅ Label updated: ${name} (${color})`);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating blog label:', error);
+    res.status(500).json({ error: 'Failed to update blog label' });
+  }
+});
+
+// DELETE LABEL (ADMIN ONLY)
+app.delete('/api/admin/blog-labels/:id', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // First, remove label_id from all posts that use this label
+    await pool.query(
+      'UPDATE blog_posts SET label_id = NULL WHERE label_id = $1',
+      [id]
+    );
+    
+    // Then delete the label
+    const result = await pool.query(
+      'DELETE FROM blog_labels WHERE id = $1 RETURNING id, name',
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Label not found' });
+    }
+    
+    console.log(`🗑️ Label deleted: ${result.rows[0].name}`);
+    res.json({ 
+      message: 'Label deleted successfully',
+      deletedLabel: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error deleting blog label:', error);
+    res.status(500).json({ error: 'Failed to delete blog label' });
+  }
+});
+
 
 // --- GOOGLE RATINGS ENDPOINTS ---
 

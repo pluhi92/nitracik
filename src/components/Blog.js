@@ -12,6 +12,7 @@ const Blog = ({ limit = null, showViewAll = true }) => {
   const { t } = useTranslation();
   const { user } = useUser();
   const [posts, setPosts] = useState([]);
+  const [labels, setLabels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -22,7 +23,8 @@ const Blog = ({ limit = null, showViewAll = true }) => {
     title: '',
     perex: '',
     content: '',
-    image_url: ''
+    image_url: '',
+    label_id: null
   });
   const [error, setError] = useState('');
 
@@ -59,7 +61,6 @@ const Blog = ({ limit = null, showViewAll = true }) => {
     try {
       setLoading(true);
       const response = await api.get('/api/blog-posts');
-      console.log('📥 Loaded posts:', response.data);
       setPosts(response.data);
     } catch (error) {
       console.error('Error fetching blog posts:', error);
@@ -69,10 +70,20 @@ const Blog = ({ limit = null, showViewAll = true }) => {
     }
   }, [t?.blog?.fetchError]);
 
+  const fetchLabels = useCallback(async () => {
+    try {
+      const response = await api.get('/api/blog-labels');
+      setLabels(response.data);
+    } catch (error) {
+      console.error('Error fetching labels:', error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchPosts();
+    fetchLabels();
     checkAdminStatus();
-  }, [fetchPosts, checkAdminStatus]);
+  }, [fetchPosts, fetchLabels, checkAdminStatus]);
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
@@ -179,7 +190,7 @@ const Blog = ({ limit = null, showViewAll = true }) => {
       });
 
       setShowCreateModal(false);
-      setFormData({ title: '', perex: '', content: '', image_url: '' });
+      setFormData({ title: '', perex: '', content: '', image_url: '', label_id: null });
       setSelectedFile(null);
       setImagePreview(null);
       setUploadMethod('url');
@@ -239,8 +250,12 @@ const Blog = ({ limit = null, showViewAll = true }) => {
     return new Date(dateString).toLocaleDateString('sk-SK', options);
   };
 
+  const getLabelById = (labelId) => {
+    return labels.find(label => label.id === labelId);
+  };
+
   const handleOpenCreateModal = () => {
-    setFormData({ title: '', perex: '', content: '', image_url: '' });
+    setFormData({ title: '', perex: '', content: '', image_url: '', label_id: null });
     setSelectedFile(null);
     setImagePreview(null);
     setUploadMethod('url');
@@ -254,7 +269,8 @@ const Blog = ({ limit = null, showViewAll = true }) => {
       title: post.title,
       perex: post.perex,
       content: post.content || '',
-      image_url: post.image_url || ''
+      image_url: post.image_url || '',
+      label_id: post.label_id || null
     });
     setSelectedFile(null);
     setImagePreview(post.image_url);
@@ -289,7 +305,7 @@ const Blog = ({ limit = null, showViewAll = true }) => {
   return (
     <div className="blog-section">
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="section-title">{t?.blog?.title || 'Blog & Aktuality'}</h2>
+        <h2 className="section-title">{t?.blog?.title || 'Aktuality & Blog'}</h2>
         {isAdmin && (
           <div
             onClick={handleOpenCreateModal}
@@ -352,6 +368,25 @@ const Blog = ({ limit = null, showViewAll = true }) => {
                     />
                   )}
                   <div className="card-body d-flex flex-column">
+                    {/* Label Badge */}
+                    {post.label_id && (
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          backgroundColor: getLabelById(post.label_id)?.color || '#3b82f6',
+                          color: '#fff',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: '500',
+                          marginBottom: '8px',
+                          width: 'fit-content',
+                          textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
+                        }}
+                      >
+                        {getLabelById(post.label_id)?.name || 'Label'}
+                      </span>
+                    )}
                     <h5 className="card-title">{post.title}</h5>
                     <p className="card-text text-muted">{post.perex}</p>
                     <div className="mt-auto">
@@ -465,7 +500,21 @@ const Blog = ({ limit = null, showViewAll = true }) => {
                 onChange={(e) => setFormData({ ...formData, content: e.target.value })}
               />
             </Form.Group>
-
+            {/* LABEL SELECTOR */}
+            <Form.Group className="mb-3">
+              <Form.Label>Kategória článku</Form.Label>
+              <Form.Select
+                value={formData.label_id || ''}
+                onChange={(e) => setFormData({ ...formData, label_id: e.target.value ? parseInt(e.target.value) : null })}
+              >
+                <option value="">Bez kategórie</option>
+                {labels.map(label => (
+                  <option key={label.id} value={label.id}>
+                    {label.name}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
             <Form.Group className="mb-4">
               <Form.Label className="fw-bold mb-3">Obrázok článku</Form.Label>
 
@@ -649,7 +698,39 @@ const Blog = ({ limit = null, showViewAll = true }) => {
                 onChange={(e) => setFormData({ ...formData, content: e.target.value })}
               />
             </Form.Group>
-
+            {/* LABEL SELECTOR */}
+            <Form.Group className="mb-3">
+              <Form.Label>Kategória články</Form.Label>
+              <Form.Select
+                value={formData.label_id || ''}
+                onChange={(e) => setFormData({ ...formData, label_id: e.target.value ? parseInt(e.target.value) : null })}
+              >
+                <option value="">Bez kategórie</option>
+                {labels.map(label => (
+                  <option key={label.id} value={label.id}>
+                    {label.name}
+                  </option>
+                ))}
+              </Form.Select>
+              {formData.label_id && (
+                <div className="mt-2">
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      backgroundColor: getLabelById(parseInt(formData.label_id))?.color || '#3b82f6',
+                      color: '#fff',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
+                    }}
+                  >
+                    {getLabelById(parseInt(formData.label_id))?.name}
+                  </span>
+                </div>
+              )}
+            </Form.Group>
             <Form.Group className="mb-4">
               <Form.Label className="fw-bold mb-3">Obrázok článku</Form.Label>
 

@@ -1,4 +1,4 @@
-// BlogArticle.js - Samostatná stránka pre jeden článok
+// BlogArticle.js - Samostatná stránka pre jeden článok + LABEL
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Button, Spinner, Alert } from 'react-bootstrap';
@@ -9,6 +9,7 @@ const BlogArticle = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [post, setPost] = useState(null);
+  const [label, setLabel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showShareModal, setShowShareModal] = useState(false);
@@ -18,12 +19,21 @@ const BlogArticle = () => {
       try {
         setLoading(true);
         
-        // 2. ZMENA: V API volaní použi premennú slug
-        // Log pre kontrolu (uvidíš ho v konzole prehliadača - F12)
         console.log("Fetching slug:", slug); 
 
         const response = await api.get(`/api/blog-posts/${slug}`);
         setPost(response.data);
+
+        // Fetch label if post has one
+        if (response.data.label_id) {
+          try {
+            const labelResponse = await api.get(`/api/blog-labels/${response.data.label_id}`);
+            setLabel(labelResponse.data);
+          } catch (labelError) {
+            console.error('Error fetching label:', labelError);
+            // Continue without label if fetch fails
+          }
+        }
       } catch (error) {
         console.error('Error fetching blog post:', error);
         setError('Článok sa nepodarilo načítať');
@@ -32,11 +42,10 @@ const BlogArticle = () => {
       }
     };
 
-    // 3. ZMENA: Kontrolujeme slug, nie id
     if (slug) {
       fetchPost();
     }
-  }, [slug]); // 4. ZMENA: Dependency array
+  }, [slug]);
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -84,6 +93,25 @@ const BlogArticle = () => {
       </div>
 
       <article className="bg-white rounded shadow-sm p-4">
+        {/* Label Badge */}
+        {label && (
+          <span
+            style={{
+              display: 'inline-block',
+              backgroundColor: label.color || '#3b82f6',
+              color: '#fff',
+              fontSize: '0.9rem',
+              padding: '0.5rem 1rem',
+              borderRadius: '4px',
+              fontWeight: '500',
+              marginBottom: '1rem',
+              textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
+            }}
+          >
+            {label.name}
+          </span>
+        )}
+
         {/* Titulok */}
         <h1 className="mb-3">{post.title}</h1>
 
