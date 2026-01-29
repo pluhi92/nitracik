@@ -6,6 +6,7 @@ import { Modal, Button, Form, Spinner, Alert } from 'react-bootstrap';
 import api from '../api/api';
 import { useUser } from '../contexts/UserContext';
 import ShareModal from './ShareModal';
+import { ArrowRightCircle, Share, Pencil, Trash, PlusCircle, Link45deg, CloudArrowUp } from 'react-bootstrap-icons';
 
 const Blog = ({ limit = null, showViewAll = true }) => {
   const { t } = useTranslation();
@@ -290,12 +291,14 @@ const Blog = ({ limit = null, showViewAll = true }) => {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="section-title">{t?.blog?.title || 'Blog & Aktuality'}</h2>
         {isAdmin && (
-          <Button
-            variant="primary"
+          <div
             onClick={handleOpenCreateModal}
+            title={t?.blog?.newPost || 'Nový článok'}
+            className="cursor-pointer text-secondary-500 hover:text-secondary-800 transition-all duration-300 hover:drop-shadow-md"
           >
-            + {t?.blog?.newPost || 'Nový článok'}
-          </Button>
+            {/* Veľkosť 40, aby to bolo výrazné vedľa nadpisu */}
+            <PlusCircle size={40} />
+          </div>
         )}
       </div>
 
@@ -355,37 +358,52 @@ const Blog = ({ limit = null, showViewAll = true }) => {
                       <small className="text-muted">
                         {formatDate(post.created_at)}
                       </small>
-                      <div className="mt-2 d-flex flex-wrap gap-2">
+                      <div className="mt-4 flex justify-center items-center gap-6">
+
+                        {/* 1. Ikona Čítať viac (Šedá -> Tmavšia + Tieň) */}
                         <Link
                           to={`/blog/${post.slug}`}
-                          className="btn btn-outline-primary btn-sm"
+                          title={t?.blog?.readMore || 'Čítať viac'}
+                          className="text-gray-400 hover:text-gray-600 hover:drop-shadow-md transition-all duration-300"
                         >
-                          {t?.blog?.readMore || 'Čítať viac'}
+                          <ArrowRightCircle size={28} />
                         </Link>
-                        <Button
-                          variant="outline-info"
-                          size="sm"
-                          onClick={() => handleOpenShareModal(post)}
+
+                        {/* 2. Ikona Zdieľať (Šedá -> Tmavšia + Tieň) */}
+                        <div
                           title="Zdieľať článok"
+                          onClick={() => {
+                            setCurrentPost(post);
+                            setShowShareModal(true);
+                          }}
+                          className="cursor-pointer text-gray-400 hover:text-gray-600 hover:drop-shadow-md transition-all duration-300"
                         >
-                          🔗
-                        </Button>
+                          <Share size={26} />
+                        </div>
+
+                        {/* 3. Admin nástroje */}
                         {isAdmin && (
                           <>
-                            <Button
-                              variant="outline-secondary"
-                              size="sm"
+                            {/* Zvislá čiara (Tailwind verzia) */}
+                            <div className="w-px h-6 bg-gray-300 mx-2"></div>
+
+                            {/* Ikona Upraviť (Zelená -> Tmavšia) */}
+                            <div
+                              title={t?.blog?.edit || 'Upraviť'}
                               onClick={() => handleOpenEditModal(post)}
+                              className="cursor-pointer text-green-600 hover:text-green-800 hover:drop-shadow-md transition-all duration-300"
                             >
-                              {t?.blog?.edit || 'Upraviť'}
-                            </Button>
-                            <Button
-                              variant="outline-danger"
-                              size="sm"
+                              <Pencil size={24} />
+                            </div>
+
+                            {/* Ikona Zmazať (Červená -> Tmavšia) */}
+                            <div
+                              title={t?.blog?.delete || 'Zmazať'}
                               onClick={() => handleDeletePost(post.id)}
+                              className="cursor-pointer text-red-600 hover:text-red-800 hover:drop-shadow-md transition-all duration-300"
                             >
-                              {t?.blog?.delete || 'Zmazať'}
-                            </Button>
+                              <Trash size={24} />
+                            </div>
                           </>
                         )}
                       </div>
@@ -448,65 +466,86 @@ const Blog = ({ limit = null, showViewAll = true }) => {
               />
             </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Obrázok</Form.Label>
-              <div className="mb-2">
-                <Form.Check
-                  type="radio"
-                  id="create-upload-method-url"
-                  label="📎 Vložiť URL adresu obrázka"
-                  checked={uploadMethod === 'url'}
-                  onChange={() => {
+            <Form.Group className="mb-4">
+              <Form.Label className="fw-bold mb-3">Obrázok článku</Form.Label>
+
+              {/* Výber metódy - Dizajn dlaždíc */}
+              <div className="d-flex gap-3 mb-3">
+
+                {/* 1. Karta: URL Adresa */}
+                <div
+                  onClick={() => {
                     setUploadMethod('url');
                     setSelectedFile(null);
                   }}
-                />
-                <Form.Check
-                  type="radio"
-                  id="create-upload-method-upload"
-                  label="📱 Nahrať obrázok zo zariadenia"
-                  checked={uploadMethod === 'upload'}
-                  onChange={() => {
+                  className={`flex-1 p-3 border rounded cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-2
+        ${uploadMethod === 'url'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500'
+                      : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+                    }`}
+                >
+                  <Link45deg size={24} />
+                  <span className="text-sm font-medium">Vložiť URL odkazu</span>
+                </div>
+
+                {/* 2. Karta: Upload zo zariadenia */}
+                <div
+                  onClick={() => {
                     setUploadMethod('upload');
                     setFormData({ ...formData, image_url: '' });
                   }}
-                />
+                  className={`flex-1 p-3 border rounded cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-2
+        ${uploadMethod === 'upload'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500'
+                      : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+                    }`}
+                >
+                  <CloudArrowUp size={24} />
+                  <span className="text-sm font-medium">Nahrať zo zariadenia</span>
+                </div>
               </div>
 
+              {/* Obsah podľa výberu */}
               {uploadMethod === 'url' ? (
-                <Form.Control
-                  type="text"
-                  value={formData.image_url}
-                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  placeholder="https://example.com/image.jpg"
-                />
+                <div className="animate-fadeIn">
+                  <Form.Control
+                    type="text"
+                    value={formData.image_url}
+                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                    placeholder="https://priklad.sk/obrazok.jpg"
+                    className="bg-gray-50 border-gray-300 focus:bg-white transition-colors"
+                  />
+                  <Form.Text className="text-muted">
+                    Vložte priamy odkaz na obrázok z internetu.
+                  </Form.Text>
+                </div>
               ) : (
-                <div>
+                <div className="animate-fadeIn p-3 bg-gray-50 rounded border border-dashed border-gray-300">
                   <Form.Control
                     type="file"
                     accept="image/*"
                     onChange={handleFileSelect}
+                    className="mb-2"
                   />
-                  <Form.Text className="text-muted">
-                    ✨ Obrázky sú automaticky optimalizované do WebP formátu. Nahrajte ľubovoľne veľkú fotku - náš systém ju bezpečne spracuje!
-                  </Form.Text>
 
+                  <div className="text-xs text-gray-500 mt-2">
+                    ✨ Obrázky sú automaticky optimalizované do WebP formátu.
+                  </div>
+
+                  {/* Preview obrázka */}
                   {imagePreview && (
-                    <div className="mt-3">
+                    <div className="mt-3 relative inline-block">
                       <img
                         src={imagePreview}
                         alt="Preview"
-                        style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px' }}
+                        className="rounded shadow-sm border"
+                        style={{ maxHeight: '150px', objectFit: 'cover' }}
                       />
                       {selectedFile && (
-                        <p className="text-muted small mt-2">
-                          📦 Veľkosť: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
-                          {selectedFile.size > 1024 * 1024 && (
-                            <span className="text-success ms-2">
-                              → Bude automaticky skomprimovaný ✓
-                            </span>
-                          )}
-                        </p>
+                        <div className="mt-1 text-xs font-mono text-gray-500">
+                          {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                          {selectedFile.size > 1024 * 1024 && <span className="text-green-600 ml-1">→ Auto-kompresia</span>}
+                        </div>
                       )}
                     </div>
                   )}
@@ -611,87 +650,106 @@ const Blog = ({ limit = null, showViewAll = true }) => {
               />
             </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Obrázok</Form.Label>
+            <Form.Group className="mb-4">
+              <Form.Label className="fw-bold mb-3">Obrázok článku</Form.Label>
 
+              {/* 1. Zobrazenie AKTUÁLNEHO obrázka (ak existuje) */}
               {formData.image_url && (
-                <div className="mb-3 p-3 border rounded bg-light">
-                  <div className="d-flex align-items-center justify-content-between">
-                    <div className="d-flex align-items-center">
-                      <img
-                        src={api.makeImageUrl(formData.image_url)}
-                        alt="Current"
-                        style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }}
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                        }}
-                      />
-                      <div className="ms-3">
-                        <p className="mb-0 text-muted small">Aktuálny obrázok:</p>
-                        <p className="mb-0 small text-truncate" style={{ maxWidth: '200px' }}>
-                          {formData.image_url}
-                        </p>
-                      </div>
+                <div className="mb-4 p-3 border rounded bg-gray-50 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {/* Náhľad */}
+                    <img
+                      src={api.makeImageUrl(formData.image_url)}
+                      alt="Current"
+                      className="w-16 h-16 rounded object-cover border"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                    {/* Info */}
+                    <div>
+                      <p className="mb-0 text-sm font-bold text-gray-700">Aktuálny obrázok</p>
+                      <p className="mb-0 text-xs text-gray-500 truncate max-w-[200px]">
+                        {formData.image_url}
+                      </p>
                     </div>
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      onClick={handleDeleteImage}
-                      title="Odstrániť obrázok"
-                    >
-                      🗑️ Zmazať
-                    </Button>
+                  </div>
+
+                  {/* Tlačidlo Zmazať (Ikona) */}
+                  <div
+                    onClick={handleDeleteImage}
+                    title="Odstrániť obrázok"
+                    className="cursor-pointer p-2 text-red-500 hover:bg-red-100 hover:text-red-700 rounded-full transition-all duration-200"
+                  >
+                    <Trash size={20} />
                   </div>
                 </div>
               )}
 
-              <div className="mb-2">
-                <Form.Check
-                  type="radio"
-                  id="edit-upload-method-url"
-                  label="📎 Vložiť URL adresu obrázka"
-                  checked={uploadMethod === 'url'}
-                  onChange={() => {
+              {/* 2. Výber metódy pre NOVÝ obrázok (Dlaždice) */}
+              <div className="d-flex gap-3 mb-3">
+                {/* Karta: URL */}
+                <div
+                  onClick={() => {
                     setUploadMethod('url');
                     setSelectedFile(null);
                   }}
-                />
-                <Form.Check
-                  type="radio"
-                  id="edit-upload-method-upload"
-                  label="📱 Nahrať nový obrázok zo zariadenia"
-                  checked={uploadMethod === 'upload'}
-                  onChange={() => {
+                  className={`flex-1 p-3 border rounded cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-2
+        ${uploadMethod === 'url'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500'
+                      : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+                    }`}
+                >
+                  <Link45deg size={24} />
+                  <span className="text-sm font-medium">Vložiť URL odkazu</span>
+                </div>
+
+                {/* Karta: Upload */}
+                <div
+                  onClick={() => {
                     setUploadMethod('upload');
                   }}
-                />
+                  className={`flex-1 p-3 border rounded cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-2
+        ${uploadMethod === 'upload'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500'
+                      : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+                    }`}
+                >
+                  <CloudArrowUp size={24} />
+                  <span className="text-sm font-medium">Nahrať zo zariadenia</span>
+                </div>
               </div>
 
+              {/* 3. Vstupy podľa výberu */}
               {uploadMethod === 'url' ? (
-                <Form.Control
-                  type="text"
-                  value={formData.image_url}
-                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  placeholder="https://example.com/image.jpg"
-                />
+                <div className="animate-fadeIn">
+                  <Form.Control
+                    type="text"
+                    value={formData.image_url}
+                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                    placeholder="https://example.com/image.jpg"
+                    className="bg-gray-50 border-gray-300 focus:bg-white transition-colors"
+                  />
+                </div>
               ) : (
-                <div>
+                <div className="animate-fadeIn p-3 bg-gray-50 rounded border border-dashed border-gray-300">
                   <Form.Control
                     type="file"
                     accept="image/*"
                     onChange={handleFileSelect}
+                    className="mb-2"
                   />
-                  <Form.Text className="text-muted">
-                    ✨ Obrázky sú automaticky optimalizované do WebP formátu
-                  </Form.Text>
+                  <div className="text-xs text-gray-500 mt-1">
+                    ✨ Obrázky sú automaticky optimalizované do WebP.
+                  </div>
 
+                  {/* Preview NOVÉHO súboru */}
                   {selectedFile && imagePreview && (
-                    <div className="mt-3">
-                      <p className="text-muted small">Nový obrázok (preview):</p>
+                    <div className="mt-3 relative inline-block">
+                      <p className="text-xs font-bold text-green-600 mb-1">Nový výber:</p>
                       <img
                         src={imagePreview}
                         alt="Preview"
-                        style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px' }}
+                        className="rounded shadow-sm border"
+                        style={{ maxHeight: '150px', objectFit: 'cover' }}
                       />
                     </div>
                   )}
@@ -721,7 +779,7 @@ const Blog = ({ limit = null, showViewAll = true }) => {
       <ShareModal
         show={showShareModal}
         onHide={() => setShowShareModal(false)}
-        postId={currentPost?.id}
+        postId={currentPost?.slug}
         postTitle={currentPost?.title}
       />
     </div>

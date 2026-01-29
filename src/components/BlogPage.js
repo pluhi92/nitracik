@@ -6,6 +6,7 @@ import api from '../api/api';
 import { useUser } from '../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
 import ShareModal from './ShareModal';
+import { ArrowRightCircle, Share, Pencil, Trash, Link45deg, CloudArrowUp } from 'react-bootstrap-icons';
 
 
 const POSTS_PER_PAGE = 9; // 9 článkov na stránku (3x3 grid)
@@ -269,7 +270,7 @@ const BlogPage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-12">
+        <div className="min-h-screen bg-background py-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="mb-8">
                     <div className="d-flex justify-content-between align-items-center mb-4">
@@ -360,41 +361,52 @@ const BlogPage = () => {
                                                 <small className="text-muted">
                                                     {formatDate(post.created_at)}
                                                 </small>
-                                                <div className="mt-2 d-flex flex-wrap gap-2">
-                                                    <Button
-                                                        variant="outline-primary"
-                                                        size="sm"
-                                                        onClick={() => navigate(`/blog/${post.slug}`)}
-                                                    >
-                                                        {t?.blog?.readMore || 'Čítať viac'}
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline-info"
-                                                        size="sm"
-                                                        onClick={() => handleOpenShareModal(post)}
-                                                        title="Zdieľať článok"
-                                                    >
-                                                        🔗
-                                                    </Button>
-                                                    {isAdmin && (
-                                                        <>
-                                                            <Button
-                                                                variant="outline-secondary"
-                                                                size="sm"
-                                                                onClick={() => handleOpenEditModal(post)}
-                                                            >
-                                                                {t?.blog?.edit || 'Upraviť'}
-                                                            </Button>
-                                                            <Button
-                                                                variant="outline-danger"
-                                                                size="sm"
-                                                                onClick={() => handleDeletePost(post.id)}
-                                                            >
-                                                                {t?.blog?.delete || 'Zmazať'}
-                                                            </Button>
-                                                        </>
-                                                    )}
+                                                <div className="mt-4 flex justify-center items-center gap-6">
+
+                                                {/* 1. Ikona Čítať viac (Šedá -> Tmavšia + Tieň) */}
+                                                <div
+                                                    title={t?.blog?.readMore || 'Čítať viac'}
+                                                    onClick={() => navigate(`/blog/${post.slug}`)}
+                                                    className="cursor-pointer text-gray-400 hover:text-gray-600 hover:drop-shadow-md transition-all duration-300"
+                                                >
+                                                    <ArrowRightCircle size={28} />
                                                 </div>
+
+                                                {/* 2. Ikona Zdieľať (Šedá -> Tmavšia + Tieň) */}
+                                                <div
+                                                    title="Zdieľať článok"
+                                                    onClick={() => handleOpenShareModal(post)}
+                                                    className="cursor-pointer text-gray-400 hover:text-gray-600 hover:drop-shadow-md transition-all duration-300"
+                                                >
+                                                    <Share size={26} />
+                                                </div>
+
+                                                {/* 3. Admin nástroje */}
+                                                {isAdmin && (
+                                                    <>
+                                                        {/* Zvislá čiara (Tailwind verzia) */}
+                                                        <div className="w-px h-6 bg-gray-300 mx-2"></div>
+
+                                                        {/* Ikona Upraviť (Zelená -> Tmavšia) */}
+                                                        <div
+                                                            title={t?.blog?.edit || 'Upraviť'}
+                                                            onClick={() => handleOpenEditModal(post)}
+                                                            className="cursor-pointer text-green-600 hover:text-green-800 hover:drop-shadow-md transition-all duration-300"
+                                                        >
+                                                            <Pencil size={24} />
+                                                        </div>
+
+                                                        {/* Ikona Zmazať (Červená -> Tmavšia) */}
+                                                        <div
+                                                            title={t?.blog?.delete || 'Zmazať'}
+                                                            onClick={() => handleDeletePost(post.id)}
+                                                            className="cursor-pointer text-red-600 hover:text-red-800 hover:drop-shadow-md transition-all duration-300"
+                                                        >
+                                                            <Trash size={24} />
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
                                             </div>
                                         </div>
                                     </div>
@@ -571,6 +583,12 @@ const BlogPage = () => {
                         </div>
                     </Modal.Body>
                     <Modal.Footer>
+                        <Button
+                            variant="primary"
+                            onClick={() => handleOpenShareModal(currentPost)}
+                        >
+                            🔗 {t?.blog?.share || 'Zdieľať'}
+                        </Button>
                         <Button variant="secondary" onClick={() => setShowReadModal(false)}>
                             {t?.blog?.close || 'Zavrieť'}
                         </Button>
@@ -612,87 +630,106 @@ const BlogPage = () => {
                                 />
                             </Form.Group>
 
-                            <Form.Group className="mb-3">
-                                <Form.Label>Obrázok</Form.Label>
+                            <Form.Group className="mb-4">
+                                <Form.Label className="fw-bold mb-3">Obrázok článku</Form.Label>
 
+                                {/* 1. Zobrazenie AKTUÁLNEHO obrázka (ak existuje) */}
                                 {formData.image_url && (
-                                    <div className="mb-3 p-3 border rounded bg-light">
-                                        <div className="d-flex align-items-center justify-content-between">
-                                            <div className="d-flex align-items-center">
-                                                <img
-                                                    src={api.makeImageUrl(formData.image_url)}
-                                                    alt="Current"
-                                                    style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }}
-                                                    onError={(e) => {
-                                                        e.target.style.display = 'none';
-                                                    }}
-                                                />
-                                                <div className="ms-3">
-                                                    <p className="mb-0 text-muted small">Aktuálny obrázok:</p>
-                                                    <p className="mb-0 small text-truncate" style={{ maxWidth: '200px' }}>
-                                                        {formData.image_url}
-                                                    </p>
-                                                </div>
+                                    <div className="mb-4 p-3 border rounded bg-gray-50 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            {/* Náhľad */}
+                                            <img
+                                                src={api.makeImageUrl(formData.image_url)}
+                                                alt="Current"
+                                                className="w-16 h-16 rounded object-cover border"
+                                                onError={(e) => { e.target.style.display = 'none'; }}
+                                            />
+                                            {/* Info */}
+                                            <div>
+                                                <p className="mb-0 text-sm font-bold text-gray-700">Aktuálny obrázok</p>
+                                                <p className="mb-0 text-xs text-gray-500 truncate max-w-[200px]">
+                                                    {formData.image_url}
+                                                </p>
                                             </div>
-                                            <Button
-                                                variant="outline-danger"
-                                                size="sm"
-                                                onClick={handleDeleteImage}
-                                                title="Odstrániť obrázok"
-                                            >
-                                                🗑️ Zmazať
-                                            </Button>
+                                        </div>
+
+                                        {/* Tlačidlo Zmazať (Ikona) */}
+                                        <div
+                                            onClick={handleDeleteImage}
+                                            title="Odstrániť obrázok"
+                                            className="cursor-pointer p-2 text-red-500 hover:bg-red-100 hover:text-red-700 rounded-full transition-all duration-200"
+                                        >
+                                            <Trash size={20} />
                                         </div>
                                     </div>
                                 )}
 
-                                <div className="mb-2">
-                                    <Form.Check
-                                        type="radio"
-                                        id="page-edit-upload-method-url"
-                                        label="📎 Vložiť URL adresu obrázka"
-                                        checked={uploadMethod === 'url'}
-                                        onChange={() => {
+                                {/* 2. Výber metódy pre NOVÝ obrázok (Dlaždice) */}
+                                <div className="d-flex gap-3 mb-3">
+                                    {/* Karta: URL */}
+                                    <div
+                                        onClick={() => {
                                             setUploadMethod('url');
                                             setSelectedFile(null);
                                         }}
-                                    />
-                                    <Form.Check
-                                        type="radio"
-                                        id="page-edit-upload-method-upload"
-                                        label="📱 Nahrať nový obrázok zo zariadenia"
-                                        checked={uploadMethod === 'upload'}
-                                        onChange={() => {
+                                        className={`flex-1 p-3 border rounded cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-2
+        ${uploadMethod === 'url'
+                                            ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500'
+                                            : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+                                        }`}
+                                    >
+                                        <Link45deg size={24} />
+                                        <span className="text-sm font-medium">Vložiť URL odkazu</span>
+                                    </div>
+
+                                    {/* Karta: Upload */}
+                                    <div
+                                        onClick={() => {
                                             setUploadMethod('upload');
                                         }}
-                                    />
+                                        className={`flex-1 p-3 border rounded cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-2
+        ${uploadMethod === 'upload'
+                                            ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500'
+                                            : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+                                        }`}
+                                    >
+                                        <CloudArrowUp size={24} />
+                                        <span className="text-sm font-medium">Nahrať zo zariadenia</span>
+                                    </div>
                                 </div>
 
+                                {/* 3. Vstupy podľa výberu */}
                                 {uploadMethod === 'url' ? (
-                                    <Form.Control
-                                        type="text"
-                                        value={formData.image_url}
-                                        onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                                        placeholder="https://example.com/image.jpg"
-                                    />
+                                    <div className="animate-fadeIn">
+                                        <Form.Control
+                                            type="text"
+                                            value={formData.image_url}
+                                            onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                                            placeholder="https://example.com/image.jpg"
+                                            className="bg-gray-50 border-gray-300 focus:bg-white transition-colors"
+                                        />
+                                    </div>
                                 ) : (
-                                    <div>
+                                    <div className="animate-fadeIn p-3 bg-gray-50 rounded border border-dashed border-gray-300">
                                         <Form.Control
                                             type="file"
                                             accept="image/*"
                                             onChange={handleFileSelect}
+                                            className="mb-2"
                                         />
-                                        <Form.Text className="text-muted">
-                                            ✨ Obrázky sú automaticky optimalizované do WebP formátu
-                                        </Form.Text>
+                                        <div className="text-xs text-gray-500 mt-1">
+                                            ✨ Obrázky sú automaticky optimalizované do WebP.
+                                        </div>
 
+                                        {/* Preview NOVÉHO súboru */}
                                         {selectedFile && imagePreview && (
-                                            <div className="mt-3">
-                                                <p className="text-muted small">Nový obrázok (preview):</p>
+                                            <div className="mt-3 relative inline-block">
+                                                <p className="text-xs font-bold text-green-600 mb-1">Nový výber:</p>
                                                 <img
                                                     src={imagePreview}
                                                     alt="Preview"
-                                                    style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px' }}
+                                                    className="rounded shadow-sm border"
+                                                    style={{ maxHeight: '150px', objectFit: 'cover' }}
                                                 />
                                             </div>
                                         )}
@@ -722,7 +759,7 @@ const BlogPage = () => {
                 <ShareModal
                     show={showShareModal}
                     onHide={() => setShowShareModal(false)}
-                    postId={currentPost?.id}
+                    postId={currentPost?.slug}
                     postTitle={currentPost?.title}
                 />
             </div>

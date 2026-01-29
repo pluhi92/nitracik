@@ -150,7 +150,7 @@ const BlogArticle = () => {
       <ShareModal
         show={showShareModal}
         onHide={() => setShowShareModal(false)}
-        postId={post.id}
+        postId={post?.slug}
         postTitle={post.title}
       />
     </Container>
