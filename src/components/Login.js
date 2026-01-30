@@ -40,26 +40,34 @@ const Login = ({ onLoginSuccess }) => {
       // Send login request to the backend
       const response = await api.post(
         '/api/login',
-        { email, password }
+        { email, password },
+        { withCredentials: true }
       );
 
       console.log('Login successful:', response.data);
 
+      // Uložíme si rolu z odpovede
+      const { userId, userName, role } = response.data;
+      const firstName = userName.split(' ')[0];
+
       // Store userId, userName, and isLoggedIn in localStorage
-      localStorage.setItem('userId', response.data.userId);
-      localStorage.setItem('userName', response.data.userName || 'Unknown User');
+      localStorage.setItem('userId', userId);
+      localStorage.setItem('userName', userName || 'Unknown User');
       localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('authToken', response.data.token || 'dummy');
+      localStorage.setItem('userRole', role || 'user'); // Uloženie roly
       localStorage.setItem('user', JSON.stringify({
-        userId: response.data.userId,
-        userName: response.data.userName
+        userId: userId,
+        userName: userName,
+        role: role || 'user'
       }));
 
       // Update the global user context immediately
       updateUser({
         isLoggedIn: true,
-        firstName: response.data.userName?.split(' ')[0] || 'User',
-        userId: response.data.userId
+        firstName: firstName,
+        userId: userId,
+        role: role || 'user' // Poslanie roly do contextu
       });
 
       // Show success alert

@@ -1,4 +1,11 @@
 require('dotenv').config();
+
+// Rozdelenie ADMIN_EMAIL stringu na pole pre jednoduchú kontrolu
+const ADMIN_EMAILS = process.env.ADMIN_EMAIL 
+  ? process.env.ADMIN_EMAIL.split(',').map(email => email.trim().toLowerCase()) 
+  : [];
+console.log('Povolené admin maily:', ADMIN_EMAILS);
+
 const emailService = require('./services/emailService');
 console.log('ADMIN_EMAIL:', process.env.ADMIN_EMAIL);
 
@@ -24,7 +31,7 @@ const path = require('path');
 const dayjs = require('dayjs');
 require('dayjs/locale/sk');
 dayjs.locale('sk');
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.,])[A-Za-z\d@$!%*?&.,]{8,}$/;
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.,:])[A-Za-z\d@$!%*?&.,:]{8,}$/;
 const multer = require('multer');
 const sharp = require('sharp');
 
@@ -436,33 +443,57 @@ app.use((error, req, res, next) => {
 
 const isAdmin = async (req, res, next) => {
   try {
-    // console.log('[DEBUG] Session userId:', req.session.userId);
-
+    console.log(`[isAdmin] Checking admin access for userId=${req.session.userId}, session.role=${req.session.role}`);
+    
     if (!req.session.userId) {
+      console.log(`[isAdmin] ❌ DENIED: No userId in session`);
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const userResult = await pool.query(
-      'SELECT email, role FROM users WHERE id = $1',
-      [req.session.userId]
-    );
-
-    // console.log('[DEBUG] User query result:', userResult.rows[0]);
-
-    // --- ZMENA TU ---
-    // Nekontrolujeme či sa email rovná tomu v .env, ale či má užívateľ v databáze rolu 'admin'
-    const user = userResult.rows[0];
-
-    if (user && user.role === 'admin') {
-      next(); // Je to admin, pustíme ho ďalej
-    } else {
-      console.log('[DEBUG] Admin check failed. User role:', user?.role);
-      res.status(403).json({ error: 'Admin privileges required' });
+    // 1. PRIORITA 1: Kontrola role v session (najrýchlejšie, nastavená pri login)
+    if (req.session.role === 'admin') {
+      console.log(`[isAdmin] ✅ ALLOWED: session.role === 'admin' (userId=${req.session.userId})`);
+      return next();
     }
 
-  } catch (error) {
-    console.error('Admin check error:', error);
-    res.status(500).json({ error: 'Server error during admin check' });
+    const client = await pool.connect();
+    try {
+      // 2. PRIORITA 2: Kontrola role z DB
+      const result = await client.query(
+        'SELECT role, email FROM users WHERE id = $1',
+        [req.session.userId]
+      );
+
+      if (!result.rows.length) {
+        console.log(`[isAdmin] ❌ DENIED: User not found in DB (userId=${req.session.userId})`);
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      const user = result.rows[0];
+      console.log(`[isAdmin] User found: email=${user.email}, role=${user.role}`);
+
+      // Check DB role
+      if (user.role === 'admin') {
+        console.log(`[isAdmin] ✅ ALLOWED: DB role === 'admin' (email=${user.email})`);
+        return next();
+      }
+
+      // 3. PRIORITA 3: Fallback na ADMIN_EMAILS (starší sistem pre spätnu kompatibilitu)
+      if (ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+        console.log(`[isAdmin] ✅ ALLOWED: Email found in ADMIN_EMAILS (email=${user.email})`);
+        return next();
+      }
+
+      // Žiadna podmienka nesplnená → pristup odmietnutý
+      console.log(`[isAdmin] ❌ DENIED: User ${user.email} is not admin (role=${user.role}, not in ADMIN_EMAILS=[${ADMIN_EMAILS.join(', ')}])`);
+      return res.status(403).json({ error: 'Forbidden: Admin access required' });
+
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('[isAdmin] ERROR:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 };
 
@@ -1739,13 +1770,33 @@ app.post('/api/login', async (req, res) => {
     if (result.rows.length > 0) {
       const user = result.rows[0];
       const validPassword = await bcrypt.compare(password, user.password);
+      
       if (validPassword) {
         if (!user.verified) {
           return res.status(403).json({ message: 'Please verify your email before logging in.' });
         }
+
+        // --- NOVÁ LOGIKA PRE ROLU ---
+        // Skontrolujeme, či je v .env zozname adminov
+        let userRole = user.role; 
+        if (ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+          userRole = 'admin';
+        }
+
+        // Uložíme do session (pre backend checky)
         req.session.userId = user.id;
+        req.session.role = userRole; 
+
         console.log('Session after login:', req.session);
-        res.json({ message: 'Login successful', userId: user.id, userName: `${user.first_name} ${user.last_name}` });
+
+        // VRÁTIME ROLE FRONTENDU (aby React vedel zobraziť menu)
+        res.json({ 
+          message: 'Login successful', 
+          userId: user.id, 
+          userName: `${user.first_name} ${user.last_name}`,
+          role: userRole // <--- TOTO JE KĽÚČOVÉ
+        });
+
       } else {
         res.status(400).json({ message: 'Invalid password' });
       }
@@ -1803,7 +1854,19 @@ app.get('/api/users/:id', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
     if (result.rows.length > 0) {
-      res.json(result.rows[0]);
+      const user = result.rows[0];
+
+      // APLIKUJEME ADMIN LOGIKU PODĽA EMAILU
+      let userRole = user.role;
+      if (ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+        userRole = 'admin';
+      }
+
+      // Vrátime dáta, ale prepíšeme rolu tou správnou
+      res.json({
+        ...user,
+        role: userRole
+      });
     } else {
       res.status(404).json({ message: 'User not found' });
     }

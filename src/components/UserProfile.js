@@ -79,7 +79,7 @@ const UserProfile = () => {
     const checkAdmin = async () => {
       try {
         const response = await api.get(`/api/users/${userId}`);
-        setIsAdmin(response.data.email === process.env.REACT_APP_ADMIN_EMAIL);
+        setIsAdmin(response.data.role === 'admin' || localStorage.getItem('userRole') === 'admin');
       } catch (error) {
         console.error('Admin check failed:', error);
       }

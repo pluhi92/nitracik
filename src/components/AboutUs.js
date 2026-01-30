@@ -86,8 +86,8 @@ const AboutUs = () => {
 
     try {
       const response = await api.get(`/api/users/${userId}`);
-      // Porovnáme email s admin emailom (z .env premennej)
-      if (response.data.email === process.env.REACT_APP_ADMIN_EMAIL) {
+      // Kontrola podľa role (fallback na localStorage pre staršie sesie)
+      if (response.data.role === 'admin' || localStorage.getItem('userRole') === 'admin') {
         setIsAdmin(true);
       } else {
         setIsAdmin(false);

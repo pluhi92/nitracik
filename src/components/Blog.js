@@ -46,7 +46,7 @@ const Blog = ({ limit = null, showViewAll = true }) => {
 
     try {
       const response = await api.get(`/api/users/${userId}`);
-      if (response.data.email === process.env.REACT_APP_ADMIN_EMAIL) {
+      if (response.data.role === 'admin' || localStorage.getItem('userRole') === 'admin') {
         setIsAdmin(true);
       } else {
         setIsAdmin(false);

@@ -5,6 +5,9 @@ const dayjs = require('dayjs');
 require('dayjs/locale/sk');
 dayjs.locale('sk');
 
+// Nastavenie adresy odosielateľa z Google Workspace
+const SENDER = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+
 // Konfigurácia odosielateľa
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com', // Explicitný host namiesto service: 'gmail'
@@ -162,7 +165,7 @@ module.exports = {
   sendVerificationEmail: async (userEmail, userName, verificationLink) => {
     const subject = 'Vitajte v Nitráčiku - Overenie emailu';
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: userEmail,
       subject,
       html: `
@@ -265,7 +268,7 @@ module.exports = {
     // ================================
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: userEmail,
       subject,
       html: `
@@ -347,7 +350,7 @@ module.exports = {
   sendAccountDeletedEmail: async (userEmail, userName) => {
     const subject = 'Rozlúčka s Nitráčikom - Potvrdenie zrušenia účtu';
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: userEmail,
       subject,
       html: `
@@ -418,7 +421,7 @@ module.exports = {
     const subject = 'Potvrdenie nákupu permanentky | Nitráčik';
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: userEmail,
       subject,
       html: `
@@ -500,7 +503,7 @@ module.exports = {
     const attendeesData = await getAttendeesList(data.trainingId);
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: adminEmail,
       subject: 'Nová rezervácia - Nitráčik (Platba)',
       html: `
@@ -583,7 +586,7 @@ module.exports = {
     const attendeesData = await getAttendeesList(data.trainingId);
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: adminEmail,
       subject: 'Nová rezervácia - Nitráčik (Permanentka)',
       html: `
@@ -664,9 +667,8 @@ module.exports = {
 
     // Formátovanie dátumu
     const dateStr = new Date(data.training.training_date).toLocaleString('sk-SK');
-
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: adminEmail,
       subject: 'Nová rezervácia - Nitráčik (Kredit)',
       html: `
@@ -917,7 +919,7 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
     return Promise.all([
         // Admin email
         transporter.sendMail({
-            from: process.env.EMAIL_USER,
+            from: SENDER,
             to: adminEmail,
             subject: `❌ Zrušená rezervácia: ${booking.first_name} ${booking.last_name}`,
             html: adminHtml,
@@ -925,7 +927,7 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
         }),
         // User email
         transporter.sendMail({
-            from: process.env.EMAIL_USER,
+            from: SENDER,
             to: userEmail,
             subject: 'Potvrdenie zrušenia rezervácie | Nitráčik',
             html: userHtml,
@@ -1050,10 +1052,9 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
       </body>
       </html>
     `;
-
     // Odoslanie emailu s prílohami (logo, ikonky)
     return transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: userEmail,
       subject: `ZRUŠENÉ: ${trainingType} (${formattedDateString})`,
       html,
@@ -1151,7 +1152,7 @@ sendMassCancellationSeasonTicket: async (userEmail, firstName, trainingType, dat
     `;
 
     return transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: userEmail,
       subject: `ZRUŠENÉ: ${trainingType} (${formattedDateString})`,
       html,
@@ -1249,7 +1250,7 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
     `;
 
     return transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: userEmail,
       subject: `ZRUŠENÉ: ${trainingType} (${formattedDateString})`,
       html,
@@ -1368,7 +1369,7 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
 
     return Promise.all([
       transporter.sendMail({
-        from: process.env.EMAIL_USER,
+        from: SENDER,
         to: adminEmail,
         replyTo: email,
         subject: `Nová správa: ${name}`,
@@ -1376,7 +1377,7 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
         attachments: getCommonAttachments()
       }),
       transporter.sendMail({
-        from: process.env.EMAIL_USER,
+        from: SENDER,
         to: email,
         subject: 'Prijali sme vašu správu - Nitráčik',
         html: userHtml,
@@ -1388,7 +1389,7 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
   // --- 11. TEST EMAIL (Voliteľné) ---
   sendTestEmail: async (toEmail) => {
     return transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: toEmail,
       subject: 'Test Email',
       text: 'This is a test email from Nitracik.',
@@ -1398,7 +1399,7 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
   // 12. RESET HESLA
   sendPasswordResetEmail: async (userEmail, resetLink) => {
     return transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: userEmail,
       subject: 'Password Reset',
       text: `Click the following link to reset your password: ${resetLink}`,

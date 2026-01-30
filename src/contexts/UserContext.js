@@ -13,7 +13,8 @@ export const UserProvider = ({ children }) => {
   const [user, setUser] = useState({
     isLoggedIn: !!localStorage.getItem('isLoggedIn'),
     firstName: savedName,
-    userId: localStorage.getItem('userId')
+    userId: localStorage.getItem('userId'),
+    role: localStorage.getItem('userRole') || 'user'
   });
 
   // Uloží referenciu na časovač, aby sme ho mohli resetovať
@@ -40,8 +41,9 @@ export const UserProvider = ({ children }) => {
       localStorage.removeItem('userName');
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
+      localStorage.removeItem('userRole');
 
-      setUser({ isLoggedIn: false, firstName: '', userId: null });
+      setUser({ isLoggedIn: false, firstName: '', userId: null, role: 'user' });
     }
   };
 
@@ -118,6 +120,7 @@ export const UserProvider = ({ children }) => {
         const newIsLoggedIn = !!localStorage.getItem('isLoggedIn');
         const newUserId = localStorage.getItem('userId');
         const newUserName = localStorage.getItem('userName');
+        const newRole = localStorage.getItem('userRole') || 'user';
 
         const newSavedFirstName = localStorage.getItem('userFirstName') || newUserName?.split(' ')[0] || '';
 
@@ -125,6 +128,7 @@ export const UserProvider = ({ children }) => {
           isLoggedIn: newIsLoggedIn,
           firstName: newSavedFirstName,
           userId: newUserId,
+          role: newRole
         });
 
         console.log('User state synchronized across tabs due to storage change.');
