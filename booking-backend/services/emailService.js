@@ -6,7 +6,7 @@ require('dayjs/locale/sk');
 dayjs.locale('sk');
 
 // Nastavenie adresy odosielateľa z Google Workspace
-const SENDER = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+const SENDER = 'Nitráčik <info@nitracik.sk>';
 
 // Konfigurácia odosielateľa
 const transporter = nodemailer.createTransport({

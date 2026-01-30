@@ -1,13 +1,6 @@
 require('dotenv').config();
 
-// Rozdelenie ADMIN_EMAIL stringu na pole pre jednoduchú kontrolu
-const ADMIN_EMAILS = process.env.ADMIN_EMAIL 
-  ? process.env.ADMIN_EMAIL.split(',').map(email => email.trim().toLowerCase()) 
-  : [];
-console.log('Povolené admin maily:', ADMIN_EMAILS);
-
 const emailService = require('./services/emailService');
-console.log('ADMIN_EMAIL:', process.env.ADMIN_EMAIL);
 
 const PORT = process.env.PORT || 5000;
 
@@ -343,7 +336,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         }
 
         // 3. ODOSLANIE EMAILU ADMINOVI (pôvodný kód)
-        await emailService.sendAdminNewBookingNotification(process.env.ADMIN_EMAIL, {
+        await emailService.sendAdminNewBookingNotification('info@nitracik.sk', {
           user, mobile, childrenCount, childrenAge, trainingType, selectedDate, selectedTime, photoConsent, accompanyingPerson, note, totalPrice, paymentIntentId, trainingId: training.id
         });
 
@@ -478,14 +471,8 @@ const isAdmin = async (req, res, next) => {
         return next();
       }
 
-      // 3. PRIORITA 3: Fallback na ADMIN_EMAILS (starší sistem pre spätnu kompatibilitu)
-      if (ADMIN_EMAILS.includes(user.email.toLowerCase())) {
-        console.log(`[isAdmin] ✅ ALLOWED: Email found in ADMIN_EMAILS (email=${user.email})`);
-        return next();
-      }
-
       // Žiadna podmienka nesplnená → pristup odmietnutý
-      console.log(`[isAdmin] ❌ DENIED: User ${user.email} is not admin (role=${user.role}, not in ADMIN_EMAILS=[${ADMIN_EMAILS.join(', ')}])`);
+      console.log(`[isAdmin] ❌ DENIED: User ${user.email} is not admin (role=${user.role})`);
       return res.status(403).json({ error: 'Forbidden: Admin access required' });
 
     } finally {
@@ -665,7 +652,7 @@ app.get('/api/archived-sessions/user/:userId', async (req, res) => {
 app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
   // Check if user is admin
   const userEmail = req.session.email;
-  if (userEmail !== process.env.ADMIN_EMAIL) {
+  if (userEmail !== 'info@nitracik.sk') {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
@@ -1267,7 +1254,7 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
       });
 
       // 2. Admin Email (s trainingId pre tabuľku)
-      await emailService.sendAdminSeasonTicketUsage(process.env.ADMIN_EMAIL, {
+      await emailService.sendAdminSeasonTicketUsage('info@nitracik.sk', {
         user,
         mobile,
         childrenCount,
@@ -1552,7 +1539,7 @@ validateEnvVariables();
 
 app.get('/api/test-email', async (req, res) => {
   try {
-    await emailService.sendTestEmail(process.env.ADMIN_EMAIL);
+    await emailService.sendTestEmail('info@nitracik.sk');
     res.json({ message: 'Test email sent successfully' });
   } catch (error) {
     console.error('Test email error:', error);
@@ -1779,7 +1766,7 @@ app.post('/api/login', async (req, res) => {
         // --- NOVÁ LOGIKA PRE ROLU ---
         // Skontrolujeme, či je v .env zozname adminov
         let userRole = user.role; 
-        if (ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+        if (user.role === 'admin') {
           userRole = 'admin';
         }
 
@@ -1856,10 +1843,10 @@ app.get('/api/users/:id', async (req, res) => {
     if (result.rows.length > 0) {
       const user = result.rows[0];
 
-      // APLIKUJEME ADMIN LOGIKU PODĽA EMAILU
-      let userRole = user.role;
-      if (ADMIN_EMAILS.includes(user.email.toLowerCase())) {
-        userRole = 'admin';
+// Check DB role
+        let userRole = user.role;
+        if (userRole !== 'admin') {
+          // Role not admin from DB, stay as is
       }
 
       // Vrátime dáta, ale prepíšeme rolu tou správnou
@@ -2296,7 +2283,7 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
     // 5. SEND EMAILS
     try {
       await emailService.sendCancellationEmails(
-        process.env.ADMIN_EMAIL,
+        'info@nitracik.sk',
         booking.email,
         booking,
         refundData,
@@ -2934,7 +2921,7 @@ app.post('/api/bookings/use-credit', async (req, res) => {
       });
 
       // 2. Admin Email
-      await emailService.sendAdminCreditUsage(process.env.ADMIN_EMAIL, {
+      await emailService.sendAdminCreditUsage('info@nitracik.sk', {
         user,
         training,
         credit,
@@ -3534,8 +3521,8 @@ app.post('/api/contact', async (req, res) => {
       return res.status(400).json({ message: 'Invalid email format' });
     }
 
-    // Send email to admin
-    await emailService.sendContactFormEmails(process.env.ADMIN_EMAIL, {
+    // Send email to info@ (main inbox) with reply-to user email
+    await emailService.sendContactFormEmails('info@nitracik.sk', {
       name, email, message
     });
 
