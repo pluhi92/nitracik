@@ -161,8 +161,10 @@
       "repeatPassword": "Zopakujte heslo",
       "address": "Adresa",
       "submit": "Registrovať sa",
-      "gdprConsentText": "Súhlasím s pravidlami o spracovaní osobných údajov",
-      "termsConsentText": "Súhlasím s obchodnými podmienkami",
+      "consentText": "*Vyjadrujem súhlas so {terms} a vyhlasujem, že som sa oboznámil/a so {privacy}.",
+      "terms": "Všeobecnými obchodnými podmienkami",
+      "privacy": "Zásadami ochrany osobných údajov",
+      "noStreetLabel": "Obec nemá ulice (použiť len číslo domu)",
       "passwordRequirements": {
         "length": "Minimálne 8 znakov",
         "upper": "1 veľké písmeno (A-Z)",

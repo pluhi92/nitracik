@@ -441,15 +441,15 @@ useEffect(() => {
             </div>
 
             <div className="mt-6">
-              <a
-                href="mailto:saska@nitracik.sk"
+              <Link
+                to="/contact"
                 className="inline-flex items-center text-primary-600 hover:text-primary-700 font-semibold"
               >
                 <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
                 </svg>
                 Kontaktovať Sašku
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -555,11 +555,12 @@ useEffect(() => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="text-left">
             <h2 className="text-3xl font-bold mb-6 text-secondary">
-              Start Your Journey Today!
+              Nechajte svoje deti objaviť svet Messy & Sensory Play!
             </h2>
             <p className="mb-8 text-neutral-700 dark:text-neutral-300 text-lg leading-relaxed">
-              Join thousands of satisfied members who have transformed their skills
-              with our professional training programs.
+              Doprajte im radosť z tvorenia, farieb a zmyslového objavovania.
+              Čakajú ich hravé aktivity, ktoré podporujú kreativitu, jemnú motoriku
+              aj prirodzenú zvedavosť.
             </p>
 
             <div className="relative inline-block">
@@ -586,7 +587,7 @@ useEffect(() => {
                   to="/register"
                   className="inline-block bg-secondary-500 text-white py-3 px-8 rounded-full text-lg font-semibold shadow-md hover:bg-secondary-700 transition-all hover:-translate-y-1 hover:shadow-lg"
                 >
-                  Join Us Today!
+                  Registrujem sa
                 </Link>
               )}
             </div>

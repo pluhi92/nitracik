@@ -36,12 +36,21 @@ transporter.verify((error, success) => {
   }
 });
 
-// Pomocné konštanty
-const getCommonAttachments = () => [
-  { filename: 'logo_bez.PNG', path: path.join(__dirname, '..', 'public', 'logo_bez.PNG'), cid: 'nitracikLogo' },
-  { filename: 'instagram.png', path: path.join(__dirname, '..', 'public', 'instagram.png'), cid: 'igIcon' },
-  { filename: 'facebook.png', path: path.join(__dirname, '..', 'public', 'facebook.png'), cid: 'fbIcon' }
-];
+// Verejné URL obrázkov (Google Drive)
+const DRIVE_IMAGE_URLS = {
+  logo: 'https://drive.google.com/uc?export=download&id=1nbInbyPigKTRsDwAO_cQp1ICSBgMeH6t',
+  instagram: 'https://drive.google.com/uc?export=download&id=1muus48A-REU7-9xMhcwzGCTgBG8PUwqf',
+  facebook: 'https://drive.google.com/uc?export=download&id=1pGBbpwrRPx1f0h39ky4R5E2O5J9GqE8j'
+};
+
+const injectImageUrls = (html) =>
+  html
+    .replaceAll('cid:nitracikLogo', DRIVE_IMAGE_URLS.logo)
+    .replaceAll('cid:igIcon', DRIVE_IMAGE_URLS.instagram)
+    .replaceAll('cid:fbIcon', DRIVE_IMAGE_URLS.facebook);
+
+// Pomocné konštanty (bez príloh)
+const getCommonAttachments = () => [];
 
 // Pomocná funkcia na získanie zoznamu prihlásených na danú hodinu
 const getAttendeesList = async (trainingId) => {
@@ -168,7 +177,7 @@ module.exports = {
       from: SENDER,
       to: userEmail,
       subject,
-      html: `
+      html: injectImageUrls(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -222,7 +231,7 @@ module.exports = {
           </div>
         </body>
         </html>
-      `,
+      `),
       attachments: getCommonAttachments()
     };
     return transporter.sendMail(mailOptions);
@@ -271,7 +280,7 @@ module.exports = {
       from: SENDER,
       to: userEmail,
       subject,
-      html: `
+      html: injectImageUrls(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -340,7 +349,7 @@ module.exports = {
           </div>
         </body>
         </html>
-      `,
+      `),
       attachments: getCommonAttachments()
     };
     return transporter.sendMail(mailOptions);
@@ -353,7 +362,7 @@ module.exports = {
       from: SENDER,
       to: userEmail,
       subject,
-      html: `
+      html: injectImageUrls(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -406,7 +415,7 @@ module.exports = {
           </div>
         </body>
         </html>
-      `,
+      `),
       attachments: getCommonAttachments()
     };
     return transporter.sendMail(mailOptions);
@@ -424,7 +433,7 @@ module.exports = {
       from: SENDER,
       to: userEmail,
       subject,
-      html: `
+      html: injectImageUrls(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -489,7 +498,7 @@ module.exports = {
           </div>
         </body>
         </html>
-      `,
+      `),
       attachments: getCommonAttachments()
     };
     return transporter.sendMail(mailOptions);
@@ -506,7 +515,7 @@ module.exports = {
       from: SENDER,
       to: adminEmail,
       subject: 'Nová rezervácia - Nitráčik (Platba)',
-      html: `
+      html: injectImageUrls(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -574,7 +583,7 @@ module.exports = {
           </div>
         </body>
         </html>
-      `,
+      `),
       attachments: getCommonAttachments()
     };
     return transporter.sendMail(mailOptions);
@@ -589,7 +598,7 @@ module.exports = {
       from: SENDER,
       to: adminEmail,
       subject: 'Nová rezervácia - Nitráčik (Permanentka)',
-      html: `
+      html: injectImageUrls(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -653,7 +662,7 @@ module.exports = {
           </div>
         </body>
         </html>
-      `,
+      `),
       attachments: getCommonAttachments()
     };
     return transporter.sendMail(mailOptions);
@@ -671,7 +680,7 @@ module.exports = {
       from: SENDER,
       to: adminEmail,
       subject: 'Nová rezervácia - Nitráčik (Kredit)',
-      html: `
+      html: injectImageUrls(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -734,7 +743,7 @@ module.exports = {
           </div>
         </body>
         </html>
-      `,
+      `),
       attachments: getCommonAttachments()
     };
     return transporter.sendMail(mailOptions);
@@ -922,7 +931,7 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
             from: SENDER,
             to: adminEmail,
             subject: `❌ Zrušená rezervácia: ${booking.first_name} ${booking.last_name}`,
-            html: adminHtml,
+        html: injectImageUrls(adminHtml),
             attachments: getCommonAttachments() 
         }),
         // User email
@@ -930,7 +939,7 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
             from: SENDER,
             to: userEmail,
             subject: 'Potvrdenie zrušenia rezervácie | Nitráčik',
-            html: userHtml,
+        html: injectImageUrls(userHtml),
             attachments: getCommonAttachments()
         })
     ]);
@@ -1057,7 +1066,7 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
       from: SENDER,
       to: userEmail,
       subject: `ZRUŠENÉ: ${trainingType} (${formattedDateString})`,
-      html,
+      html: injectImageUrls(html),
       attachments: getCommonAttachments() // Dôležité pre fungovanie cid: obrázkov
     });
   },
@@ -1155,7 +1164,7 @@ sendMassCancellationSeasonTicket: async (userEmail, firstName, trainingType, dat
       from: SENDER,
       to: userEmail,
       subject: `ZRUŠENÉ: ${trainingType} (${formattedDateString})`,
-      html,
+      html: injectImageUrls(html),
       attachments: getCommonAttachments()
     });
 },
@@ -1253,7 +1262,7 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
       from: SENDER,
       to: userEmail,
       subject: `ZRUŠENÉ: ${trainingType} (${formattedDateString})`,
-      html,
+      html: injectImageUrls(html),
       attachments: getCommonAttachments()
     });
 },
@@ -1373,17 +1382,89 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
         to: adminEmail,
         replyTo: email,
         subject: `Nová správa: ${name}`,
-        html: adminHtml,
+        html: injectImageUrls(adminHtml),
         attachments: getCommonAttachments()
       }),
       transporter.sendMail({
         from: SENDER,
         to: email,
         subject: 'Prijali sme vašu správu - Nitráčik',
-        html: userHtml,
+        html: injectImageUrls(userHtml),
         attachments: getCommonAttachments()
       })
     ]);
+  },
+
+  // --- 10a. REFUND CONFIRMATION (USER) ---
+  sendRefundConfirmationEmail: async (userEmail, { userName, refundId, amount, trainingType, trainingDate }) => {
+    const formattedDate = trainingDate ? dayjs(trainingDate).format('DD.MM.YYYY') : null;
+    const subject = 'Potvrdenie refundu | Nitráčik';
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+          .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+          .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #dc2626; }
+          .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
+          .info-box { background-color: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; padding: 20px; margin: 20px 0; }
+          .info-row { margin-bottom: 8px; font-size: 15px; }
+          .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+          p { margin-bottom: 15px; }
+        </style>
+      </head>
+      <body>
+        <div style="background-color: #f4f4f4; padding: 40px 0;">
+          <div class="container">
+            <div class="header">
+              <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+            </div>
+            <div class="content">
+              <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName || 'kamarát'}.</p>
+              <p>Potvrdzujeme prijatie a spracovanie Vašej žiadosti o refund.</p>
+
+              <div class="info-box">
+                <div class="info-row"><strong>Refund ID:</strong> ${refundId}</div>
+                <div class="info-row"><strong>Suma:</strong> ${amount} €</div>
+                ${trainingType ? `<div class="info-row"><strong>Tréning:</strong> ${trainingType}</div>` : ''}
+                ${formattedDate ? `<div class="info-row"><strong>Dátum:</strong> ${formattedDate}</div>` : ''}
+                <div class="info-row" style="font-size: 13px; color: #666; margin-top: 10px;">Peniaze by sa mali vrátiť na Váš účet do 5–10 pracovných dní.</div>
+              </div>
+
+              <p>Ak by ste mali otázky, stačí odpovedať na tento email.</p>
+
+              <div style="margin-top: 30px;">
+                <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
+                <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
+                <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
+              </div>
+            </div>
+            <div class="footer">
+              <div style="margin-bottom: 15px;">
+                <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
+                  <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                </a>
+                <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
+                  <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                </a>
+              </div>
+              <p style="margin: 0;">© 2026 O.z. Nitráčik.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return transporter.sendMail({
+      from: SENDER,
+      to: userEmail,
+      subject,
+      html: injectImageUrls(html),
+      attachments: getCommonAttachments()
+    });
   },
 
   // --- 11. TEST EMAIL (Voliteľné) ---

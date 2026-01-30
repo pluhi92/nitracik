@@ -2616,7 +2616,19 @@ app.get('/api/booking/refund', async (req, res) => {
     }
 
     const bookingRes = await client.query(
-      'SELECT user_id, payment_intent_id, amount_paid FROM bookings WHERE id = $1 AND active = true FOR UPDATE',
+      `SELECT 
+        b.user_id,
+        b.payment_intent_id,
+        b.amount_paid,
+        u.email AS user_email,
+        u.first_name AS user_first_name,
+        ta.training_type,
+        ta.training_date
+      FROM bookings b
+      LEFT JOIN users u ON b.user_id = u.id
+      LEFT JOIN training_availability ta ON b.training_id = ta.id
+      WHERE b.id = $1 AND b.active = true
+      FOR UPDATE OF b`,
       [bookingId]
     );
 
@@ -2625,7 +2637,7 @@ app.get('/api/booking/refund', async (req, res) => {
       return res.status(404).json({ status: 'error', message: 'Booking not active or not found.' });
     }
 
-    const { user_id, payment_intent_id, amount_paid } = bookingRes.rows[0];
+    const { user_id, payment_intent_id, amount_paid, user_email, user_first_name, training_type, training_date } = bookingRes.rows[0];
 
     const idempotencyKey = `refund-${bookingId}-${payment_intent_id}`;
     let refund;
@@ -2665,6 +2677,20 @@ app.get('/api/booking/refund', async (req, res) => {
 
     await client.query('UPDATE bookings SET active = false WHERE id = $1 AND user_id = $2', [bookingId, user_id]);
     await client.query('COMMIT');
+
+    if (user_email) {
+      try {
+        await emailService.sendRefundConfirmationEmail(user_email, {
+          userName: user_first_name,
+          refundId: refund.id,
+          amount: amount_paid,
+          trainingType: training_type,
+          trainingDate: training_date
+        });
+      } catch (emailErr) {
+        console.error('Refund confirmation email error:', emailErr.message);
+      }
+    }
 
     return res.json({
       status: 'processed',
