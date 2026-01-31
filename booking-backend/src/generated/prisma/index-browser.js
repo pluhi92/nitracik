@@ -276,7 +276,6 @@ exports.Prisma.Blog_postsScalarFieldEnum = {
 exports.Prisma.Google_ratings_configScalarFieldEnum = {
   id: 'id',
   business_id: 'business_id',
-  api_key: 'api_key',
   enabled: 'enabled',
   updated_at: 'updated_at'
 };

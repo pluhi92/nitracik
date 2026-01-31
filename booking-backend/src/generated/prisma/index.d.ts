@@ -17693,7 +17693,6 @@ export namespace Prisma {
   export type Google_ratings_configMinAggregateOutputType = {
     id: number | null
     business_id: string | null
-    api_key: string | null
     enabled: boolean | null
     updated_at: Date | null
   }
@@ -17701,7 +17700,6 @@ export namespace Prisma {
   export type Google_ratings_configMaxAggregateOutputType = {
     id: number | null
     business_id: string | null
-    api_key: string | null
     enabled: boolean | null
     updated_at: Date | null
   }
@@ -17709,7 +17707,6 @@ export namespace Prisma {
   export type Google_ratings_configCountAggregateOutputType = {
     id: number
     business_id: number
-    api_key: number
     enabled: number
     updated_at: number
     _all: number
@@ -17727,7 +17724,6 @@ export namespace Prisma {
   export type Google_ratings_configMinAggregateInputType = {
     id?: true
     business_id?: true
-    api_key?: true
     enabled?: true
     updated_at?: true
   }
@@ -17735,7 +17731,6 @@ export namespace Prisma {
   export type Google_ratings_configMaxAggregateInputType = {
     id?: true
     business_id?: true
-    api_key?: true
     enabled?: true
     updated_at?: true
   }
@@ -17743,7 +17738,6 @@ export namespace Prisma {
   export type Google_ratings_configCountAggregateInputType = {
     id?: true
     business_id?: true
-    api_key?: true
     enabled?: true
     updated_at?: true
     _all?: true
@@ -17838,9 +17832,8 @@ export namespace Prisma {
   export type Google_ratings_configGroupByOutputType = {
     id: number
     business_id: string | null
-    api_key: string | null
-    enabled: boolean | null
-    updated_at: Date | null
+    enabled: boolean
+    updated_at: Date
     _count: Google_ratings_configCountAggregateOutputType | null
     _avg: Google_ratings_configAvgAggregateOutputType | null
     _sum: Google_ratings_configSumAggregateOutputType | null
@@ -17865,7 +17858,6 @@ export namespace Prisma {
   export type google_ratings_configSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     business_id?: boolean
-    api_key?: boolean
     enabled?: boolean
     updated_at?: boolean
   }, ExtArgs["result"]["google_ratings_config"]>
@@ -17873,7 +17865,6 @@ export namespace Prisma {
   export type google_ratings_configSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     business_id?: boolean
-    api_key?: boolean
     enabled?: boolean
     updated_at?: boolean
   }, ExtArgs["result"]["google_ratings_config"]>
@@ -17881,7 +17872,6 @@ export namespace Prisma {
   export type google_ratings_configSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     business_id?: boolean
-    api_key?: boolean
     enabled?: boolean
     updated_at?: boolean
   }, ExtArgs["result"]["google_ratings_config"]>
@@ -17889,12 +17879,11 @@ export namespace Prisma {
   export type google_ratings_configSelectScalar = {
     id?: boolean
     business_id?: boolean
-    api_key?: boolean
     enabled?: boolean
     updated_at?: boolean
   }
 
-  export type google_ratings_configOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "business_id" | "api_key" | "enabled" | "updated_at", ExtArgs["result"]["google_ratings_config"]>
+  export type google_ratings_configOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "business_id" | "enabled" | "updated_at", ExtArgs["result"]["google_ratings_config"]>
 
   export type $google_ratings_configPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "google_ratings_config"
@@ -17902,9 +17891,8 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: number
       business_id: string | null
-      api_key: string | null
-      enabled: boolean | null
-      updated_at: Date | null
+      enabled: boolean
+      updated_at: Date
     }, ExtArgs["result"]["google_ratings_config"]>
     composites: {}
   }
@@ -18330,7 +18318,6 @@ export namespace Prisma {
   interface google_ratings_configFieldRefs {
     readonly id: FieldRef<"google_ratings_config", 'Int'>
     readonly business_id: FieldRef<"google_ratings_config", 'String'>
-    readonly api_key: FieldRef<"google_ratings_config", 'String'>
     readonly enabled: FieldRef<"google_ratings_config", 'Boolean'>
     readonly updated_at: FieldRef<"google_ratings_config", 'DateTime'>
   }
@@ -19936,7 +19923,6 @@ export namespace Prisma {
   export const Google_ratings_configScalarFieldEnum: {
     id: 'id',
     business_id: 'business_id',
-    api_key: 'api_key',
     enabled: 'enabled',
     updated_at: 'updated_at'
   };
@@ -21113,17 +21099,15 @@ export namespace Prisma {
     NOT?: google_ratings_configWhereInput | google_ratings_configWhereInput[]
     id?: IntFilter<"google_ratings_config"> | number
     business_id?: StringNullableFilter<"google_ratings_config"> | string | null
-    api_key?: StringNullableFilter<"google_ratings_config"> | string | null
-    enabled?: BoolNullableFilter<"google_ratings_config"> | boolean | null
-    updated_at?: DateTimeNullableFilter<"google_ratings_config"> | Date | string | null
+    enabled?: BoolFilter<"google_ratings_config"> | boolean
+    updated_at?: DateTimeFilter<"google_ratings_config"> | Date | string
   }
 
   export type google_ratings_configOrderByWithRelationInput = {
     id?: SortOrder
     business_id?: SortOrderInput | SortOrder
-    api_key?: SortOrderInput | SortOrder
-    enabled?: SortOrderInput | SortOrder
-    updated_at?: SortOrderInput | SortOrder
+    enabled?: SortOrder
+    updated_at?: SortOrder
   }
 
   export type google_ratings_configWhereUniqueInput = Prisma.AtLeast<{
@@ -21132,17 +21116,15 @@ export namespace Prisma {
     OR?: google_ratings_configWhereInput[]
     NOT?: google_ratings_configWhereInput | google_ratings_configWhereInput[]
     business_id?: StringNullableFilter<"google_ratings_config"> | string | null
-    api_key?: StringNullableFilter<"google_ratings_config"> | string | null
-    enabled?: BoolNullableFilter<"google_ratings_config"> | boolean | null
-    updated_at?: DateTimeNullableFilter<"google_ratings_config"> | Date | string | null
+    enabled?: BoolFilter<"google_ratings_config"> | boolean
+    updated_at?: DateTimeFilter<"google_ratings_config"> | Date | string
   }, "id">
 
   export type google_ratings_configOrderByWithAggregationInput = {
     id?: SortOrder
     business_id?: SortOrderInput | SortOrder
-    api_key?: SortOrderInput | SortOrder
-    enabled?: SortOrderInput | SortOrder
-    updated_at?: SortOrderInput | SortOrder
+    enabled?: SortOrder
+    updated_at?: SortOrder
     _count?: google_ratings_configCountOrderByAggregateInput
     _avg?: google_ratings_configAvgOrderByAggregateInput
     _max?: google_ratings_configMaxOrderByAggregateInput
@@ -21156,9 +21138,8 @@ export namespace Prisma {
     NOT?: google_ratings_configScalarWhereWithAggregatesInput | google_ratings_configScalarWhereWithAggregatesInput[]
     id?: IntWithAggregatesFilter<"google_ratings_config"> | number
     business_id?: StringNullableWithAggregatesFilter<"google_ratings_config"> | string | null
-    api_key?: StringNullableWithAggregatesFilter<"google_ratings_config"> | string | null
-    enabled?: BoolNullableWithAggregatesFilter<"google_ratings_config"> | boolean | null
-    updated_at?: DateTimeNullableWithAggregatesFilter<"google_ratings_config"> | Date | string | null
+    enabled?: BoolWithAggregatesFilter<"google_ratings_config"> | boolean
+    updated_at?: DateTimeWithAggregatesFilter<"google_ratings_config"> | Date | string
   }
 
   export type about_contentWhereInput = {
@@ -22282,57 +22263,50 @@ export namespace Prisma {
   export type google_ratings_configCreateInput = {
     id?: number
     business_id?: string | null
-    api_key?: string | null
-    enabled?: boolean | null
-    updated_at?: Date | string | null
+    enabled?: boolean
+    updated_at?: Date | string
   }
 
   export type google_ratings_configUncheckedCreateInput = {
     id?: number
     business_id?: string | null
-    api_key?: string | null
-    enabled?: boolean | null
-    updated_at?: Date | string | null
+    enabled?: boolean
+    updated_at?: Date | string
   }
 
   export type google_ratings_configUpdateInput = {
     id?: IntFieldUpdateOperationsInput | number
     business_id?: NullableStringFieldUpdateOperationsInput | string | null
-    api_key?: NullableStringFieldUpdateOperationsInput | string | null
-    enabled?: NullableBoolFieldUpdateOperationsInput | boolean | null
-    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    updated_at?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type google_ratings_configUncheckedUpdateInput = {
     id?: IntFieldUpdateOperationsInput | number
     business_id?: NullableStringFieldUpdateOperationsInput | string | null
-    api_key?: NullableStringFieldUpdateOperationsInput | string | null
-    enabled?: NullableBoolFieldUpdateOperationsInput | boolean | null
-    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    updated_at?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type google_ratings_configCreateManyInput = {
     id?: number
     business_id?: string | null
-    api_key?: string | null
-    enabled?: boolean | null
-    updated_at?: Date | string | null
+    enabled?: boolean
+    updated_at?: Date | string
   }
 
   export type google_ratings_configUpdateManyMutationInput = {
     id?: IntFieldUpdateOperationsInput | number
     business_id?: NullableStringFieldUpdateOperationsInput | string | null
-    api_key?: NullableStringFieldUpdateOperationsInput | string | null
-    enabled?: NullableBoolFieldUpdateOperationsInput | boolean | null
-    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    updated_at?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type google_ratings_configUncheckedUpdateManyInput = {
     id?: IntFieldUpdateOperationsInput | number
     business_id?: NullableStringFieldUpdateOperationsInput | string | null
-    api_key?: NullableStringFieldUpdateOperationsInput | string | null
-    enabled?: NullableBoolFieldUpdateOperationsInput | boolean | null
-    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    updated_at?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type about_contentCreateInput = {
@@ -23428,7 +23402,6 @@ export namespace Prisma {
   export type google_ratings_configCountOrderByAggregateInput = {
     id?: SortOrder
     business_id?: SortOrder
-    api_key?: SortOrder
     enabled?: SortOrder
     updated_at?: SortOrder
   }
@@ -23440,7 +23413,6 @@ export namespace Prisma {
   export type google_ratings_configMaxOrderByAggregateInput = {
     id?: SortOrder
     business_id?: SortOrder
-    api_key?: SortOrder
     enabled?: SortOrder
     updated_at?: SortOrder
   }
@@ -23448,7 +23420,6 @@ export namespace Prisma {
   export type google_ratings_configMinOrderByAggregateInput = {
     id?: SortOrder
     business_id?: SortOrder
-    api_key?: SortOrder
     enabled?: SortOrder
     updated_at?: SortOrder
   }

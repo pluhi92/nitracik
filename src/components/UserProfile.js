@@ -416,7 +416,7 @@ const UserProfile = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {filtered.map((session) => {
+              {filtered.map((session, index) => {
                 const sessionTime = new Date(session.training_date);
                 const currentTime = new Date();
                 const hoursDifference = (sessionTime - currentTime) / (1000 * 60 * 60);
@@ -443,7 +443,7 @@ const UserProfile = () => {
 
                 return (
                   <tr
-                    key={session.training_id}
+                    key={`${session.training_id || 'session'}-${session.training_date || ''}-${session.training_type || ''}-${index}`}
                     className={`
                       ${isCancelled ? 'bg-gray-100 dark:bg-gray-700 text-gray-400' : ''}
                       ${isWithin10Hours && !isCancelled ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}
@@ -481,7 +481,7 @@ const UserProfile = () => {
                     <td className="px-6 py-4">
                       <div className="space-y-2 max-w-xs">
                         {session.participants.map((participant, index) => (
-                          <div key={participant.id} className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3">
+                          <div key={`${participant.email || 'participant'}-${participant.first_name || ''}-${participant.last_name || ''}-${index}`} className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3">
                             <div className="space-y-1">
                               <div className="font-medium text-gray-900 dark:text-white">{participant.first_name} {participant.last_name}</div>
                               <div className="text-sm text-gray-600 dark:text-gray-300">{participant.email}</div>
@@ -968,8 +968,8 @@ const UserProfile = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {adminSeasonTickets.map((ticket) => (
-                      <tr key={ticket.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    {adminSeasonTickets.map((ticket, index) => (
+                      <tr key={`${ticket.id || 'ticket'}-${ticket.email || ''}-${index}`} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                           {ticket.first_name} {ticket.last_name}
                         </td>
@@ -1053,8 +1053,8 @@ const UserProfile = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
-                    {activeTickets.map((ticket) => (
-                      <tr key={ticket.id} className="hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors">
+                    {activeTickets.map((ticket, index) => (
+                      <tr key={`${ticket.id || 'ticket'}-${ticket.purchase_date || ''}-${index}`} className="hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">
                           #{ticket.id}
                         </td>
@@ -1101,8 +1101,8 @@ const UserProfile = () => {
                         </tr>
                       </thead>
                       <tbody className="bg-gray-50 dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {historyTickets.map((ticket) => (
-                          <tr key={ticket.id}>
+                        {historyTickets.map((ticket, index) => (
+                          <tr key={`${ticket.id || 'ticket'}-${ticket.purchase_date || ''}-${index}`}>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">#{ticket.id}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
                               {ticket.entries_remaining === 0 ? (
@@ -1158,7 +1158,7 @@ const UserProfile = () => {
               </p>
             ) : (
               <div className="space-y-4">
-                {visibleSessions.map((session) => {
+                {visibleSessions.map((session, index) => {
                   const isCancelled = session.cancelled === true;
                   const canCancel = !isCancelled && canCancelSession(session.training_date);
 
@@ -1210,7 +1210,7 @@ const UserProfile = () => {
 
                   return (
                     <div
-                      key={session.booking_id}
+                      key={`${session.booking_id || 'booking'}-${session.training_date || ''}-${index}`}
                       className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border ${isCancelled
                         ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600'
                         : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
@@ -1759,8 +1759,8 @@ const UserProfile = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">{t?.profile?.cancelModal?.chooseSession || 'Vyberte termín...'}</option>
-                {replacementSessions.map((session) => (
-                  <option key={session.id} value={session.id}>
+                {replacementSessions.map((session, index) => (
+                  <option key={`${session.id || 'replacement'}-${session.training_date || ''}-${index}`} value={session.id}>
                     {new Date(session.training_date).toLocaleString('sk-SK', {
                       day: 'numeric',
                       month: 'numeric',

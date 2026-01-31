@@ -214,7 +214,7 @@ function Contact() {
                       .split('{terms}')
                       .map((part, index) =>
                         index === 0 ? (
-                          <>
+                          <React.Fragment key={`terms-${index}`}>
                             {part}
                             <a
                               href="/terms"
@@ -224,9 +224,9 @@ function Contact() {
                             >
                               {t.contact.form.terms}
                             </a>
-                          </>
+                          </React.Fragment>
                         ) : (
-                          <>
+                          <React.Fragment key={`privacy-${index}`}>
                             {part.split('{privacy}')[0]}
                             <a
                               href="/gdpr"
@@ -237,7 +237,7 @@ function Contact() {
                               {t.contact.form.privacy}
                             </a>
                             {part.split('{privacy}')[1]}
-                          </>
+                          </React.Fragment>
                         )
                       )}
                   </label>

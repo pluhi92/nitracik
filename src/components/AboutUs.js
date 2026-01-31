@@ -58,7 +58,6 @@ const AboutUs = () => {
   const [showGoogleRatingsModal, setShowGoogleRatingsModal] = useState(false);
   const [googleRatingsConfig, setGoogleRatingsConfig] = useState({
     businessId: '',
-    apiKey: '',
     enabled: false
   });
 
@@ -115,6 +114,11 @@ useEffect(() => {
       try {
         const reviewsRes = await api.get('/api/reviews');
         setReviews(reviewsRes.data.reviews || []);
+        setGoogleRatingsConfig((prev) => ({
+          ...prev,
+          enabled: !!reviewsRes.data.enabled,
+          businessId: reviewsRes.data.businessId || prev.businessId
+        }));
       } catch (err) {
         console.error("Nepodarilo sa načítať recenzie:", err);
       }
@@ -151,7 +155,6 @@ useEffect(() => {
       // Resetovať admin config ak nie sme admin alebo sme odhlásený
       setGoogleRatingsConfig({
         businessId: '',
-        apiKey: '',
         enabled: false
       });
     }
@@ -520,15 +523,6 @@ useEffect(() => {
               <Form.Text className="text-muted">
                 Nájdete v Google Business profile
               </Form.Text>
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Google Places API Key</Form.Label>
-              <Form.Control
-                type="password"
-                value={googleRatingsConfig.apiKey}
-                onChange={(e) => setGoogleRatingsConfig({ ...googleRatingsConfig, apiKey: e.target.value })}
-                placeholder="AIzaSy..."
-              />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Check

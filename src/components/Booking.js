@@ -907,7 +907,7 @@ const Booking = () => {
 
       <Modal show={showCreateTypeModal} onHide={() => setShowCreateTypeModal(false)}>
         <Modal.Header closeButton>
-          <Modal.Title>Create New Training Type</Modal.Title>
+          <Modal.Title>Vytvoriť nový typ tréningu</Modal.Title>
         </Modal.Header>
 
         <Form onSubmit={handleCreateType}>
@@ -915,17 +915,17 @@ const Booking = () => {
             {/* 1. Základné info */}
             <div className="grid grid-cols-2 gap-4 mb-3">
               <Form.Group className="col-span-2">
-                <Form.Label>Name</Form.Label>
+                <Form.Label>Názov</Form.Label>
                 <Form.Control
                   required
                   value={newTypeName}
                   onChange={e => setNewTypeName(e.target.value)}
-                  placeholder="e.g. Painting, MIDI, Yoga"
+                  placeholder="napr. Maľovanie, MIDI, Yoga"
                 />
               </Form.Group>
 
               <Form.Group>
-                <Form.Label>Duration (min)</Form.Label>
+                <Form.Label>Trvanie (min)</Form.Label>
                 <Form.Control
                   type="number"
                   required
@@ -935,7 +935,7 @@ const Booking = () => {
               </Form.Group>
 
               <Form.Group>
-                <Form.Label>Accompanying Person (€)</Form.Label>
+                <Form.Label>Sprevádzajúca osoba (€)</Form.Label>
                 <Form.Control
                   type="number"
                   step="0.01"
@@ -946,7 +946,7 @@ const Booking = () => {
             </div>
 
             <Form.Group className="mb-3">
-              <Form.Label>Description</Form.Label>
+              <Form.Label>Popis</Form.Label>
               <Form.Control
                 as="textarea"
                 rows={2}
@@ -957,7 +957,7 @@ const Booking = () => {
 
             {/* --- NOVO PRIDANÁ ČASŤ: COLOR PICKER --- */}
             <Form.Group className="mb-4 relative">
-              <Form.Label className="block font-bold mb-2 text-gray-700">Calendar Color</Form.Label>
+              <Form.Label className="block font-bold mb-2 text-gray-700">Farba v kalendári</Form.Label>
               <div className="flex items-center gap-4">
                 <div
                   onClick={() => setShowColorPicker(!showColorPicker)}
@@ -971,13 +971,13 @@ const Booking = () => {
                     onClick={() => setShowColorPicker(!showColorPicker)}
                     className="text-xs text-blue-600 font-semibold hover:underline text-left"
                   >
-                    {showColorPicker ? 'Close Picker' : 'Choose Color'}
+                    {showColorPicker ? 'Zavrieť výber' : 'Vybrať farbu'}
                   </button>
                 </div>
 
                 {/* Malý náhľad ako to bude vyzerať v Schedule */}
                 <div className="ml-auto hidden sm:block">
-                  <div className="text-[10px] text-gray-400 uppercase font-bold mb-1">Schedule Preview</div>
+                  <div className="text-[10px] text-gray-400 uppercase font-bold mb-1">Náhľad v rozvrhu</div>
                   <div
                     className="px-3 py-1 rounded text-[11px] font-black uppercase border-l-4"
                     style={{
@@ -986,7 +986,7 @@ const Booking = () => {
                       color: '#1f2937'
                     }}
                   >
-                    {newTypeName || 'Training'}
+                    {newTypeName || 'Tréning'}
                   </div>
                 </div>
               </div>
@@ -999,7 +999,7 @@ const Booking = () => {
                     className="w-full mt-3 bg-gray-900 text-white text-xs py-2 rounded-lg font-bold"
                     onClick={() => setShowColorPicker(false)}
                   >
-                    Confirm
+                    Potvrdiť
                   </button>
                 </div>
               )}
@@ -1008,11 +1008,11 @@ const Booking = () => {
             <hr className="my-4" />
 
             {/* 2. Stratégia cien */}
-            <h6 className="font-bold mb-3">Pricing Strategy</h6>
+            <h6 className="font-bold mb-3">Cenová stratégia</h6>
             <div className="flex gap-4 mb-4">
               <Form.Check
                 type="radio"
-                label="Fixed Price per Child"
+                label="Fixná cena za dieťa"
                 name="pricingMode"
                 id="modeFixed"
                 checked={pricingMode === 'fixed'}
@@ -1020,7 +1020,7 @@ const Booking = () => {
               />
               <Form.Check
                 type="radio"
-                label="Custom / Tiered Discounts"
+                label="Vlastné / stupňované zľavy"
                 name="pricingMode"
                 id="modeTiered"
                 checked={pricingMode === 'tiered'}
@@ -1032,7 +1032,7 @@ const Booking = () => {
             <div className="bg-gray-50 p-3 rounded border">
               {pricingMode === 'fixed' ? (
                 <Form.Group>
-                  <Form.Label className="font-bold text-primary-600">Price per 1 Child (€)</Form.Label>
+                  <Form.Label className="font-bold text-primary-600">Cena za 1 dieťa (€)</Form.Label>
                   <Form.Control
                     type="number"
                     step="0.01"
@@ -1040,7 +1040,7 @@ const Booking = () => {
                     onChange={e => setFixedPricePerChild(e.target.value)}
                   />
                   <Form.Text className="text-muted">
-                    System will automatically calculate:
+                    Systém automaticky vypočíta:
                     2 Children = €{(fixedPricePerChild * 2).toFixed(2)},
                     3 Children = €{(fixedPricePerChild * 3).toFixed(2)}
                   </Form.Text>
@@ -1048,7 +1048,7 @@ const Booking = () => {
               ) : (
                 <div className="grid grid-cols-3 gap-3">
                   <Form.Group>
-                    <Form.Label>1 Child (€)</Form.Label>
+                    <Form.Label>1 dieťa (€)</Form.Label>
                     <Form.Control
                       type="number"
                       value={newTypePrice1}
@@ -1057,7 +1057,7 @@ const Booking = () => {
                   </Form.Group>
 
                   <Form.Group>
-                    <Form.Label>2 Children (€)</Form.Label>
+                    <Form.Label>2 deti (€)</Form.Label>
                     <Form.Control
                       type="number"
                       value={newTypePrice2}
@@ -1066,7 +1066,7 @@ const Booking = () => {
                   </Form.Group>
 
                   <Form.Group>
-                    <Form.Label>3 Children (€)</Form.Label>
+                    <Form.Label>3 deti (€)</Form.Label>
                     <Form.Control
                       type="number"
                       value={newTypePrice3}
@@ -1074,7 +1074,7 @@ const Booking = () => {
                     />
                   </Form.Group>
                   <div className="col-span-3">
-                    <Form.Text className="text-muted">Set specific prices to offer discounts for siblings.</Form.Text>
+                    <Form.Text className="text-muted">Nastavte konkrétne ceny pre zľavu súrodencov.</Form.Text>
                   </div>
                 </div>
               )}
@@ -1084,10 +1084,10 @@ const Booking = () => {
 
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowCreateTypeModal(false)}>
-              Close
+              Zavrieť
             </Button>
             <Button type="submit" variant="primary">
-              Create Type
+              Vytvoriť typ
             </Button>
           </Modal.Footer>
         </Form>
@@ -1363,7 +1363,7 @@ const Booking = () => {
                   label={
                     <div>
                       <span className="font-bold text-gray-800">
-                        {t?.booking?.accompanyingPerson || 'Participation of Accompanying Person'}
+                        {t?.booking?.accompanyingPerson || 'Participation of Accompanying Person'} (3€)
                       </span>
                       {isCreditMode && (
                         <div className="text-blue-600 text-sm mt-1">

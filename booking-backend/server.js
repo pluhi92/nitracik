@@ -391,6 +391,13 @@ app.post('/stripe-refund-webhook', express.raw({ type: 'application/json' }), as
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(
+  '/images',
+  express.static(path.join(__dirname, 'public/images'), {
+    maxAge: '30d',
+    immutable: true
+  })
+);
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
@@ -3491,16 +3498,20 @@ app.delete('/api/admin/blog-labels/:id', isAdmin, async (req, res) => {
 
 // --- GOOGLE RATINGS ENDPOINTS ---
 
-app.get('/api/admin/google-ratings', async (req, res) => {
+// Simple in-memory cache for Google reviews
+let googleReviewsCache = null;
+let googleReviewsCacheTime = 0;
+const GOOGLE_REVIEWS_TTL_MS = 60 * 60 * 1000; // 1h
+
+app.get('/api/admin/google-ratings', isAdmin, async (req, res) => {
   try {
-    const result = await pool.query('SELECT business_id, api_key, enabled FROM google_ratings_config WHERE id = 1');
+    const result = await pool.query('SELECT business_id, enabled FROM google_ratings_config WHERE id = 1');
     if (result.rows.length === 0) {
-      return res.json({ businessId: '', apiKey: '', enabled: false });
+      return res.json({ businessId: '', enabled: false });
     }
     // Mapovanie snake_case z DB na camelCase pre frontend
     res.json({
       businessId: result.rows[0].business_id || '',
-      apiKey: result.rows[0].api_key || '',
       enabled: result.rows[0].enabled || false
     });
   } catch (error) {
@@ -3511,24 +3522,96 @@ app.get('/api/admin/google-ratings', async (req, res) => {
 
 app.post('/api/admin/google-ratings', isAdmin, async (req, res) => {
   try {
-    const { businessId, apiKey, enabled } = req.body;
+    const { businessId, enabled } = req.body;
 
     await pool.query(
-      `INSERT INTO google_ratings_config (id, business_id, api_key, enabled, updated_at)
-       VALUES (1, $1, $2, $3, NOW())
+      `INSERT INTO google_ratings_config (id, business_id, enabled, updated_at)
+       VALUES (1, $1, $2, NOW())
        ON CONFLICT (id) 
        DO UPDATE SET 
-         business_id = EXCLUDED.business_id, 
-         api_key = EXCLUDED.api_key, 
+         business_id = EXCLUDED.business_id,
          enabled = EXCLUDED.enabled,
          updated_at = NOW()`,
-      [businessId, apiKey, enabled]
+      [businessId, enabled]
     );
 
     res.json({ success: true, message: 'Configuration saved' });
   } catch (error) {
     console.error('Error saving Google ratings config:', error);
     res.status(500).json({ error: 'Failed to save configuration' });
+  }
+});
+
+// Public Google reviews endpoint
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const configRes = await pool.query('SELECT business_id, enabled FROM google_ratings_config WHERE id = 1');
+
+    if (configRes.rows.length === 0) {
+      return res.json({ reviews: [], enabled: false, businessId: '' });
+    }
+
+    const { business_id: businessId, enabled } = configRes.rows[0];
+    const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+
+    if (!apiKey) {
+      console.error('Missing GOOGLE_PLACES_API_KEY');
+      return res.status(500).json({ enabled: false, reviews: [], businessId: businessId || '' });
+    }
+
+    if (!enabled || !businessId) {
+      return res.json({ reviews: [], enabled: false, businessId: businessId || '' });
+    }
+
+    const now = Date.now();
+    if (
+      googleReviewsCache &&
+      now - googleReviewsCacheTime < GOOGLE_REVIEWS_TTL_MS &&
+      googleReviewsCache.businessId === businessId
+    ) {
+      return res.json(googleReviewsCache.data);
+    }
+
+    const googleRes = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
+      params: {
+        place_id: businessId,
+        fields: 'reviews,rating,user_ratings_total,name',
+        language: 'sk',
+        key: apiKey
+      }
+    });
+
+    if (googleRes.data.status !== 'OK') {
+      console.error('Google reviews API error:', googleRes.data);
+      if (googleReviewsCache && now - googleReviewsCacheTime < GOOGLE_REVIEWS_TTL_MS) {
+        return res.json(googleReviewsCache.data);
+      }
+      return res.status(502).json({ message: 'Failed to fetch reviews', error: googleRes.data.status });
+    }
+
+    const result = googleRes.data.result || {};
+    const reviews = result.reviews || [];
+
+    const payload = {
+      reviews,
+      rating: result.rating ?? null,
+      totalRatings: result.user_ratings_total ?? null,
+      businessName: result.name ?? null,
+      enabled: true,
+      businessId: businessId || ''
+    };
+
+    googleReviewsCache = { data: payload, businessId };
+    googleReviewsCacheTime = now;
+
+    return res.json(payload);
+  } catch (error) {
+    console.error('Error fetching Google reviews:', error);
+    const now = Date.now();
+    if (googleReviewsCache && now - googleReviewsCacheTime < GOOGLE_REVIEWS_TTL_MS) {
+      return res.json(googleReviewsCache.data);
+    }
+    return res.status(500).json({ message: 'Failed to fetch reviews' });
   }
 });
 

@@ -36,18 +36,19 @@ transporter.verify((error, success) => {
   }
 });
 
-// Verejné URL obrázkov (Google Drive)
-const DRIVE_IMAGE_URLS = {
-  logo: 'https://drive.google.com/uc?export=download&id=1nbInbyPigKTRsDwAO_cQp1ICSBgMeH6t',
-  instagram: 'https://drive.google.com/uc?export=download&id=1muus48A-REU7-9xMhcwzGCTgBG8PUwqf',
-  facebook: 'https://drive.google.com/uc?export=download&id=1pGBbpwrRPx1f0h39ky4R5E2O5J9GqE8j'
+// Verejné URL obrázkov (backend static files)
+const IMAGE_BASE_URL = process.env.IMAGE_BASE_URL || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/images`;
+const IMAGE_URLS = {
+  logo: `${IMAGE_BASE_URL}/email/logo_bez.PNG`,
+  instagram: `${IMAGE_BASE_URL}/email/instagram.png`,
+  facebook: `${IMAGE_BASE_URL}/email/facebook.png`
 };
 
 const injectImageUrls = (html) =>
   html
-    .replaceAll('cid:nitracikLogo', DRIVE_IMAGE_URLS.logo)
-    .replaceAll('cid:igIcon', DRIVE_IMAGE_URLS.instagram)
-    .replaceAll('cid:fbIcon', DRIVE_IMAGE_URLS.facebook);
+    .replaceAll('cid:nitracikLogo', IMAGE_URLS.logo)
+    .replaceAll('cid:igIcon', IMAGE_URLS.instagram)
+    .replaceAll('cid:fbIcon', IMAGE_URLS.facebook);
 
 // Pomocné konštanty (bez príloh)
 const getCommonAttachments = () => [];
