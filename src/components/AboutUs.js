@@ -442,6 +442,11 @@ useEffect(() => {
                             </div>
                           )}
                         </div>
+                        <img
+                          src="/google_icon.png"
+                          alt="Google"
+                          className="w-5 h-5 ml-auto"
+                        />
                       </div>
                       <p className="text-gray-600 text-sm italic">
                         "{review.text.length > 150 ? review.text.substring(0, 150) + '...' : review.text}"
