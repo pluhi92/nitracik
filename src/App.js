@@ -30,6 +30,7 @@ const RefundOption = lazy(() => import('./components/RefundOption'));
 const Schedule = lazy(() => import('./components/Schedule'));
 const FAQ = lazy(() => import('./components/FAQ'));
 const Gdpr = lazy(() => import('./components/Gdpr'));
+const Terms = lazy(() => import('./components/Terms'));
 const CreditOption = lazy(() => import('./components/CreditOption'));
 const Checklist = lazy(() => import('./components/Checklist'));
 const Archive = lazy(() => import('./components/Archive'));
@@ -81,6 +82,7 @@ const AppContent = () => {
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/gdpr" element={<Gdpr />} />
+            <Route path="/terms" element={<Terms />} />
             <Route path="/credit-option" element={<CreditOption />} />
             <Route path="/admin/checklist/:trainingId" element={<Checklist />} />
             <Route path="/archive" element={<Archive />} />

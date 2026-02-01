@@ -500,7 +500,13 @@ module.exports = {
         </body>
         </html>
       `),
-      attachments: getCommonAttachments()
+      attachments: [
+        ...getCommonAttachments(),
+        {
+          filename: 'Odstupenie_od_zmluvy_nitracik.pdf',
+          path: path.join(__dirname, '..', '..', 'public', 'Odstupenie_od_zmluvy_nitracik.pdf')
+        }
+      ]
     };
     return transporter.sendMail(mailOptions);
   },
