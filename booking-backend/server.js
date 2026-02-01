@@ -3572,31 +3572,33 @@ app.get('/api/reviews', async (req, res) => {
       return res.json(googleReviewsCache.data);
     }
 
-    const googleRes = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
-      params: {
-        place_id: businessId,
-        fields: 'reviews,rating,user_ratings_total,name',
-        language: 'sk',
-        key: apiKey
+    const googleRes = await axios.get(
+      `https://places.googleapis.com/v1/places/${encodeURIComponent(businessId)}`,
+      {
+        params: {
+          languageCode: 'sk'
+        },
+        headers: {
+          'X-Goog-Api-Key': apiKey,
+          'X-Goog-FieldMask': 'displayName,rating,userRatingCount,reviews'
+        }
       }
-    });
+    );
 
-    if (googleRes.data.status !== 'OK') {
-      console.error('Google reviews API error:', googleRes.data);
-      if (googleReviewsCache && now - googleReviewsCacheTime < GOOGLE_REVIEWS_TTL_MS) {
-        return res.json(googleReviewsCache.data);
-      }
-      return res.status(502).json({ message: 'Failed to fetch reviews', error: googleRes.data.status });
-    }
-
-    const result = googleRes.data.result || {};
-    const reviews = result.reviews || [];
+    const result = googleRes.data || {};
+    const reviews = (result.reviews || []).map((review) => ({
+      author_name: review.authorAttribution?.displayName || 'Google User',
+      profile_photo_url: review.authorAttribution?.photoUri || '',
+      rating: review.rating || 0,
+      text: review.text?.text || '',
+      relative_time_description: review.relativePublishTimeDescription || ''
+    }));
 
     const payload = {
       reviews,
       rating: result.rating ?? null,
-      totalRatings: result.user_ratings_total ?? null,
-      businessName: result.name ?? null,
+      totalRatings: result.userRatingCount ?? null,
+      businessName: result.displayName?.text ?? result.displayName ?? null,
       enabled: true,
       businessId: businessId || ''
     };

@@ -63,6 +63,10 @@ const AboutUs = () => {
 
   // Stavy pre recenzie
   const [reviews, setReviews] = useState([]);
+  const [reviewCarouselIndex, setReviewCarouselIndex] = useState(0);
+  const [reviewCardsPerView, setReviewCardsPerView] = useState(3);
+  const [googleRating, setGoogleRating] = useState(null);
+  const [googleTotalRatings, setGoogleTotalRatings] = useState(null);
 
 
   // --- STAVY PRE EDITOVANIE SEKCII ---
@@ -114,6 +118,12 @@ useEffect(() => {
       try {
         const reviewsRes = await api.get('/api/reviews');
         setReviews(reviewsRes.data.reviews || []);
+        setGoogleRating(
+          typeof reviewsRes.data.rating === 'number' ? reviewsRes.data.rating : null
+        );
+        setGoogleTotalRatings(
+          typeof reviewsRes.data.totalRatings === 'number' ? reviewsRes.data.totalRatings : null
+        );
         setGoogleRatingsConfig((prev) => ({
           ...prev,
           enabled: !!reviewsRes.data.enabled,
@@ -140,6 +150,23 @@ useEffect(() => {
 
   loadData();
 }, [userId, user.isLoggedIn, checkAdminStatus]); // ← Pridané user.isLoggedIn
+
+  useEffect(() => {
+    const updateCardsPerView = () => {
+      const width = window.innerWidth;
+      if (width < 640) {
+        setReviewCardsPerView(1);
+      } else if (width < 1024) {
+        setReviewCardsPerView(2);
+      } else {
+        setReviewCardsPerView(3);
+      }
+    };
+
+    updateCardsPerView();
+    window.addEventListener('resize', updateCardsPerView);
+    return () => window.removeEventListener('resize', updateCardsPerView);
+  }, []);
 
 // ✅ SAMOSTATNÝ EFFECT PRE NAČÍTANIE ADMIN DÁT - updatovaný
 useEffect(() => {
@@ -221,6 +248,8 @@ useEffect(() => {
     }
   }, [showAboutEditModal, aboutContent]);
 
+
+  const reviewGapRem = reviewCardsPerView === 1 ? 0 : reviewCardsPerView === 2 ? 1.5 : 2;
 
   return (
     <section className="px-6 py-12 text-center bg-inherit rounded-xl shadow-xl transition-colors duration-300 text-secondary">
@@ -337,39 +366,102 @@ useEffect(() => {
       <section className="max-w-6xl mx-auto px-6 py-12 mb-16 bg-white rounded-xl shadow-lg relative">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-secondary mb-4">
-            {t?.about?.googleReviews || 'Recenzie na Google'}
+            Napísali ste o nás
           </h2>
           <div className="flex justify-center items-center gap-2 mb-2">
-            <span className="text-yellow-400 text-2xl">★★★★★</span>
+            <span className="text-gray-800 text-sm font-semibold">
+              {typeof googleRating === 'number' ? googleRating.toFixed(1).replace('.', ',') : '5,0'}
+            </span>
+            <span className="text-yellow-400 text-xl">
+              {typeof googleRating === 'number'
+                ? '★'.repeat(Math.round(googleRating)) + '☆'.repeat(5 - Math.round(googleRating))
+                : '★★★★★'}
+            </span>
+            <span className="text-gray-600 text-sm">
+              {typeof googleTotalRatings === 'number' ? googleTotalRatings : ''}{' '}
+              <a
+                href="https://www.google.com/search?client=firefox-b-d&hs=m3Gp&sca_esv=16c10c6f9a01096f&sxsrf=ANbL-n5U7G3pcziy0OKDhVF3ZpucVG3tVg:1769983804289&q=oz+nitracik&si=AL3DRZEsmMGCryMMFSHJ3StBhOdZ2-6yYkXd_doETEE1OR-qORyeFUD8RLlkp1uDMb4_qrz-O-sgmYi0srdiwkjPIwpx0NHh2SWSMQLd9J5Etu_dGxNKLiQ%3D&uds=ALYpb_nDBGPPBSbt_mWAKMakwCMVR6SjXdjOTiVZzrlNPmTabxiI0LnjYcL_Scxb8z1ahXM6oMwKt6POPbGWk76FJyPXXIpE018irVhPA2vdz3VI2ZsWtVA&sa=X&ved=2ahUKEwjUtaa_p7mSAxXRA9sEHWwqJcYQ3PALegQIGxAE&biw=2509&bih=1307&dpr=1&aic=0"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary-600 hover:text-primary-700 underline font-medium"
+              >
+                recenzií
+              </a>
+            </span>
           </div>
           <p className="text-gray-600 mb-6">
-            {t?.about?.googleReviewsSub || 'Pozrite si, čo o nás hovoria naši návštevníci'}
+            Overené recenzie z Google
           </p>
         </div>
 
-        {/* Dynamický výpis recenzií */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4">
+        {/* Dynamický výpis recenzií – carousel */}
+        <div className="p-4">
           {reviews.length > 0 ? (
-            reviews.map((review, index) => (
-              <div key={index} className="border border-neutral-100 rounded-lg p-6 bg-neutral-50 shadow-sm">
-                <div className="flex items-center mb-4">
-                  <img
-                    src={review.profile_photo_url}
-                    alt={review.author_name}
-                    className="w-10 h-10 rounded-full mr-3"
-                  />
-                  <div>
-                    <h4 className="font-semibold text-sm">{review.author_name}</h4>
-                    <div className="text-yellow-400 text-xs">
-                      {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+            <div className="relative">
+              {/* Left arrow – visible only when not at the start */}
+              {reviewCarouselIndex > 0 && (
+                <button
+                  onClick={() => setReviewCarouselIndex((prev) => Math.max(0, prev - 1))}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10 bg-white/90 hover:bg-white border border-gray-200 rounded-full w-9 h-9 flex items-center justify-center shadow-md transition-all hover:scale-110"
+                  style={{ fontSize: '1.4rem', lineHeight: 1 }}
+                >
+                  ‹
+                </button>
+              )}
+
+              {/* Clipping viewport */}
+              <div className="overflow-hidden px-0 sm:px-4">
+                {/* Sliding row – each card is exactly 1/3 of the row (same as Blog col-lg-4) */}
+                <div
+                  className="flex transition-transform duration-300 ease-in-out"
+                  style={{
+                    gap: `${reviewGapRem}rem`,
+                    transform: `translateX(calc(-${reviewCarouselIndex} * ((100% - ${(reviewCardsPerView - 1) * reviewGapRem}rem) / ${reviewCardsPerView} + ${reviewGapRem}rem)))`,
+                  }}
+                >
+                  {reviews.slice(0, 5).map((review, index) => (
+                    <div
+                      key={index}
+                      className="border border-neutral-100 rounded-lg p-4 bg-neutral-50 shadow-sm flex-shrink-0"
+                      style={{ width: `calc((100% - ${(reviewCardsPerView - 1) * reviewGapRem}rem) / ${reviewCardsPerView})` }}
+                    >
+                      <div className="flex items-center mb-4">
+                        <img
+                          src={review.profile_photo_url}
+                          alt={review.author_name}
+                          className="w-10 h-10 rounded-full mr-3"
+                        />
+                        <div>
+                          <h4 className="font-semibold text-sm">{review.author_name}</h4>
+                          <div className="text-yellow-400 text-xs">
+                            {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+                          </div>
+                          {review.relative_time_description && (
+                            <div className="text-gray-400 text-xs mt-1">
+                              {review.relative_time_description}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-gray-600 text-sm italic">
+                        "{review.text.length > 150 ? review.text.substring(0, 150) + '...' : review.text}"
+                      </p>
                     </div>
-                  </div>
+                  ))}
                 </div>
-                <p className="text-gray-600 text-sm italic">
-                  "{review.text.length > 150 ? review.text.substring(0, 150) + '...' : review.text}"
-                </p>
               </div>
-            ))
+
+              {/* Right arrow – visible only when more cards remain */}
+              {reviewCarouselIndex < reviews.slice(0, 5).length - reviewCardsPerView && (
+                <button
+                  onClick={() => setReviewCarouselIndex((prev) => Math.min(reviews.slice(0, 5).length - reviewCardsPerView, prev + 1))}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10 bg-white/90 hover:bg-white border border-gray-200 rounded-full w-9 h-9 flex items-center justify-center shadow-md transition-all hover:scale-110"
+                  style={{ fontSize: '1.4rem', lineHeight: 1 }}
+                >
+                  ›
+                </button>
+              )}
+            </div>
           ) : (
             <div className="col-span-full text-center">
               {googleRatingsConfig.enabled ? (
