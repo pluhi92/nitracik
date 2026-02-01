@@ -59,6 +59,8 @@ const Booking = () => {
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [selectedCredit, setSelectedCredit] = useState(null);
   const [isCreditMode, setIsCreditMode] = useState(false);
+  const [serviceConsent, setServiceConsent] = useState(false);
+  const [showServiceConsentModal, setShowServiceConsentModal] = useState(false);
   const [fillFormPreference, setFillFormPreference] = useState({});
   const [userBookings, setUserBookings] = useState([]);
   const [isAlreadyBooked, setIsAlreadyBooked] = useState(false);
@@ -532,6 +534,13 @@ const Booking = () => {
       return;
     }
 
+    // Validate service consent for card payments (not for season ticket usage and not for credits)
+    if (!useSeasonTicket && !isCreditMode && !serviceConsent) {
+      setWarningMessage('Musíte prijať súhlas so začatím poskytovania služby.');
+      setLoading(false);
+      return;
+    }
+
     const childrenAgeString = childrenAges.join(', ');
 
     try {
@@ -655,6 +664,10 @@ const Booking = () => {
         `Only ${availability.remainingSpots} spot${availability.remainingSpots !== 1 ? 's' : ''} remain (needed ${availability.requestedChildren})`;
     }
     return null;
+  };
+
+  const closeServiceConsentModal = () => {
+    setShowServiceConsentModal(false);
   };
 
   const currentType = trainingTypes.find(t => t.name === trainingType);
@@ -1483,6 +1496,30 @@ const Booking = () => {
               </div>
             </Form.Group>
 
+            {/* Checkbox - Service Consent (only for card payments) */}
+            {!useSeasonTicket && !isCreditMode && (
+              <Form.Group className="mb-4">
+                <Form.Check
+                  type="checkbox"
+                  id="serviceConsent"
+                  checked={serviceConsent}
+                  onChange={() => setServiceConsent(!serviceConsent)}
+                  required
+                  label={
+                    <span className="text-sm text-gray-700 leading-relaxed">
+                      <button
+                        type="button"
+                        onClick={() => setShowServiceConsentModal(true)}
+                        className="text-primary-600 hover:text-primary-700 underline font-medium"
+                      >
+                        Súhlas so začatím poskytovania služby
+                      </button>
+                    </span>
+                  }
+                />
+              </Form.Group>
+            )}
+
             <Form.Group className="mb-4">
               <Form.Check
                 type="checkbox"
@@ -1559,7 +1596,7 @@ const Booking = () => {
             <Button
               type="submit"
               className="w-full py-4 font-bold text-lg bg-green-500 border-green-500 hover:bg-green-600"
-              disabled={!consent || loading || !availability.isAvailable || isAlreadyBooked || (useSeasonTicket && !selectedSeasonTicket) || (isCreditMode && (!selectedDate || !selectedTime))}
+              disabled={!consent || loading || !availability.isAvailable || isAlreadyBooked || (useSeasonTicket && !selectedSeasonTicket) || (isCreditMode && (!selectedDate || !selectedTime)) || (!useSeasonTicket && !isCreditMode && !serviceConsent)}
               data-tooltip-id="booking-tooltip"
               data-tooltip-content={
                 !availability.isAvailable
@@ -1674,6 +1711,41 @@ const Booking = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Service Consent Modal */}
+      {showServiceConsentModal && (
+        <div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-900">Súhlas so začatím poskytovania služby</h2>
+              <button
+                onClick={closeServiceConsentModal}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-6 text-gray-700 leading-relaxed text-sm">
+              <p>
+                Podľa zákona č. 108/2024 Z.z. o ochrane spotrebiteľa týmto žiadam a udeľujem prevádzkovateľovi Nitráčik, o.z., IČO: 56374453 výslovný súhlas so začatím poskytovania služby pred uplynutím lehoty na odstúpenie od zmluvy a súčasne vyhlasujem, že som bol riadne poučený, že udelením tohto súhlasu strácam ako spotrebiteľ právo na odstúpenie od zmluvy po úplnom poskytnutí služby podľa § 19 ods. 1 písm. a) zákona č. 108/2024 Z.z. o ochrane spotrebiteľa v platnom znení.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-end">
+              <button
+                onClick={closeServiceConsentModal}
+                className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium"
+              >
+                Rozumiem
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

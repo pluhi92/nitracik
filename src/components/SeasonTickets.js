@@ -18,6 +18,8 @@ const SeasonTickets = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [ticketToBuy, setTicketToBuy] = useState(null);
   const [agreementChecked, setAgreementChecked] = useState(false);
+  const [serviceConsent, setServiceConsent] = useState(false);
+  const [showServiceConsentModal, setShowServiceConsentModal] = useState(false);
 
   // Pomocná funkcia na výpočet úspory
   const calculateSavings = (price, entries) => {
@@ -87,6 +89,11 @@ const SeasonTickets = () => {
       return;
     }
 
+    if (!serviceConsent) {
+      setError('Musíte súhlasiť so začatím poskytovania služby.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -117,6 +124,10 @@ const SeasonTickets = () => {
     setShowConfirmModal(false);
     setTicketToBuy(null);
     setError('');
+  };
+
+  const closeServiceConsentModal = () => {
+    setShowServiceConsentModal(false);
   };
 
   const getEntriesLabel = (count) => {
@@ -329,6 +340,29 @@ const SeasonTickets = () => {
                 </div>
               )}
 
+              {/* Checkbox - Service Consent */}
+              <div className="mb-6">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="serviceConsent"
+                    checked={serviceConsent}
+                    onChange={(e) => setServiceConsent(e.target.checked)}
+                    required
+                    className="mt-1 w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500 focus:ring-2 flex-shrink-0"
+                  />
+                  <label htmlFor="serviceConsent" className="text-xs sm:text-sm text-gray-700 leading-relaxed">
+                    <button
+                      type="button"
+                      onClick={() => setShowServiceConsentModal(true)}
+                      className="text-primary-500 hover:text-primary-600 underline font-medium"
+                    >
+                      Súhlas so začatím poskytovania služby
+                    </button>
+                  </label>
+                </div>
+              </div>
+
               {/* Checkbox */}
               <div className="mb-6">
                 <div className="flex items-start gap-3">
@@ -341,22 +375,22 @@ const SeasonTickets = () => {
                     className="mt-1 w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500 focus:ring-2 flex-shrink-0"
                   />
                   <label htmlFor="agreementChecked" className="text-xs sm:text-sm text-gray-700 leading-relaxed">
-                    {t?.contact?.form?.consentText?.split('{terms}').map((part, index) =>
+                    {t?.booking?.consentText?.split('{terms}').map((part, index) =>
                       index === 0 ? (
-                        <>
+                        <React.Fragment key={index}>
                           {part}
                           <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:text-primary-600 underline font-medium">
-                            {t?.contact?.form?.terms || 'Všeobecnými obchodnými podmienkami'}
+                            {t?.booking?.terms || 'Všeobecnými obchodnými podmienkami'}
                           </a>
-                        </>
+                        </React.Fragment>
                       ) : (
-                        <>
+                        <React.Fragment key={index}>
                           {part.split('{privacy}')[0]}
                           <a href="/gdpr" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:text-primary-600 underline font-medium">
-                            {t?.contact?.form?.privacy || 'Zásadami ochrany osobných údajov'}
+                            {t?.booking?.privacy || 'Zásadami ochrany osobných údajov'}
                           </a>
                           {part.split('{privacy}')[1]}
-                        </>
+                        </React.Fragment>
                       )
                     )}
                   </label>
@@ -366,7 +400,7 @@ const SeasonTickets = () => {
               {/* Tlačidlo - ZMENA 2: Odstránené uppercase */}
               <button
                 onClick={executePayment}
-                disabled={loading || !agreementChecked}
+                disabled={loading || !agreementChecked || !serviceConsent}
                 className="
                   w-full py-3.5 px-6 rounded-lg font-bold text-white shadow-lg transition-all tracking-wide
                   flex justify-center items-center gap-2
@@ -382,6 +416,34 @@ const SeasonTickets = () => {
                 ) : (
                   t?.seasonTicketsPage?.buyButton || 'Kúpiť permanentku'
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SERVICE CONSENT MODAL */}
+      {showServiceConsentModal && (
+        <div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden border-2 border-gray-200 max-h-[80vh] overflow-y-auto">
+            <div className="px-6 py-4 flex justify-between items-center">
+              <h3 className="font-bold text-lg text-black">
+                Súhlas so začatím poskytovania služby
+              </h3>
+              <button onClick={closeServiceConsentModal} className="text-gray-500 hover:text-gray-700 transition-colors">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </div>
+            <div className="border-b border-gray-300"></div>
+            <div className="p-6 text-gray-700 text-sm leading-relaxed whitespace-pre-line">
+              Podľa zákona č. 108/2024 Z.z. o ochrane spotrebiteľa týmto žiadam a udeľujem prevádzkovateľovi Nitráčik, o.z., IČO: 56374453 výslovný súhlas so začatím poskytovania služby pred uplynutím lehoty na odstúpenie od zmluvy a súčasne vyhlasujem, že som bol riadne poučený, že udelením tohto súhlasu strácam ako spotrebiteľ právo na odstúpenie od zmluvy po úplnom poskytnutí služby podľa § 19 ods. 1 písm. a) zákona č. 108/2024 Z.z. o ochrane spotrebiteľa v platnom znení.
+            </div>
+            <div className="border-t border-gray-300 px-6 py-4 flex justify-end">
+              <button
+                onClick={closeServiceConsentModal}
+                className="px-4 py-2 bg-primary-500 text-white rounded-lg font-medium hover:bg-primary-600 transition-colors"
+              >
+                Rozumiem
               </button>
             </div>
           </div>
