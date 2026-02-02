@@ -1378,6 +1378,11 @@ const Booking = () => {
                       <span className="font-bold text-gray-800">
                         {t?.booking?.accompanyingPerson || 'Participation of Accompanying Person'} (3€)
                       </span>
+                      {accompanyingPerson && (
+                        <div className="text-gray-600 text-sm mt-1">
+                          <i className="bi bi-info-circle"></i> {t?.booking?.accompanyingPersonHelp || 'An accompanying person is someone other than the parent who accompanies the child.'}
+                        </div>
+                      )}
                       {isCreditMode && (
                         <div className="text-blue-600 text-sm mt-1">
                           <i className="bi bi-info-circle"></i> {t?.booking?.creditModeReadOnly || 'Set from original booking - read only'}

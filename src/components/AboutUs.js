@@ -7,42 +7,70 @@ import { Button, Modal, Form, Alert } from 'react-bootstrap';
 import api from '../api/api';
 import Blog from './Blog'; // Import the Blog component
 import ownerImage from '../assets/owner.jpg';
+import googleIcon from '../assets/google_icon.png';
 
-const carouselItems = [
-  {
-    id: 1,
-    image: '/images/close-up-kids-painting-with-brushes-together.jpg',
-    title: 'Professional Training',
-    description: 'Expert-led sessions for all skill levels',
-  },
-  {
-    id: 2,
-    image: '/images/elevated-view-two-boys-gathering-confetti-wooden-floor.jpg',
-    title: 'Modern Facilities',
-    description: 'State-of-the-art equipment and environment',
-  },
-  {
-    id: 3,
-    image: '/images/close-up-kids-painting-with-brushes.jpg',
-    title: 'Certified Instructors',
-    description: 'Qualified professionals with years of experience',
-  },
-  {
-    id: 4,
-    image: '/images/little-boy-playing.jpg',
-    title: 'Community Focus',
-    description: 'Join our growing community of learners',
-  },
-  {
-    id: 5,
-    image: '/images/small-baby-play-with-ribbed-rug.jpg',
-    title: 'Flexible Scheduling',
-    description: 'Sessions available at convenient times',
-  },
-];
+const getInitials = (name = '') => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '•';
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+};
+
+const getColorFromName = (name = '') => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 55%, 55%)`;
+};
+
+const getAvatarDataUri = (name = '') => {
+  const initials = getInitials(name);
+  const bg = getColorFromName(name);
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+    <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80">
+      <rect width="80" height="80" rx="40" fill="${bg}" />
+      <text x="50%" y="52%" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="32" fill="#fff" font-weight="700">${initials}</text>
+    </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
 
 const AboutUs = () => {
   const { t } = useTranslation();
+  const carouselText = t?.about?.carousel || [];
+  const carouselItems = [
+    {
+      id: 1,
+      image: '/images/close-up-kids-painting-with-brushes-together.jpg',
+      title: carouselText[0]?.title || 'Profesionálne tréningy',
+      description: carouselText[0]?.description || 'Tréningy vedené odborníkmi pre všetky úrovne',
+    },
+    {
+      id: 2,
+      image: '/images/elevated-view-two-boys-gathering-confetti-wooden-floor.jpg',
+      title: carouselText[1]?.title || 'Moderné priestory',
+      description: carouselText[1]?.description || 'Špičkové vybavenie a príjemné prostredie',
+    },
+    {
+      id: 3,
+      image: '/images/close-up-kids-painting-with-brushes.jpg',
+      title: carouselText[2]?.title || 'Certifikovaní inštruktori',
+      description: carouselText[2]?.description || 'Skúsení profesionáli s dlhoročnou praxou',
+    },
+    {
+      id: 4,
+      image: '/images/little-boy-playing.jpg',
+      title: carouselText[3]?.title || 'Komunita a podpora',
+      description: carouselText[3]?.description || 'Staňte sa súčasťou našej rastúcej komunity',
+    },
+    {
+      id: 5,
+      image: '/images/small-baby-play-with-ribbed-rug.jpg',
+      title: carouselText[4]?.title || 'Flexibilné termíny',
+      description: carouselText[4]?.description || 'Hodiny v časoch, ktoré vám vyhovujú',
+    },
+  ];
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showTooltip, setShowTooltip] = useState(false);
 
@@ -67,6 +95,7 @@ const AboutUs = () => {
   const [reviewCardsPerView, setReviewCardsPerView] = useState(3);
   const [googleRating, setGoogleRating] = useState(null);
   const [googleTotalRatings, setGoogleTotalRatings] = useState(null);
+  const [expandedReviewIndex, setExpandedReviewIndex] = useState(null);
 
 
   // --- STAVY PRE EDITOVANIE SEKCII ---
@@ -218,7 +247,7 @@ useEffect(() => {
 
   const nextSlide = useCallback(() => {
     setCurrentSlide((prev) => (prev + 1) % carouselItems.length);
-  }, []);
+  }, [carouselItems.length]);
 
   const prevSlide = () =>
     setCurrentSlide(
@@ -333,7 +362,7 @@ useEffect(() => {
           </div>
           <div className="rounded-lg shadow-xl overflow-hidden">
             <img
-              src="/images/nitracik_about.jpg"
+              src="/images/nitracik_o_nas.jpg"
               alt="Children enjoying activities at Nitracik"
               className="w-full h-[400px] object-cover"
               onError={(e) => {
@@ -413,46 +442,65 @@ useEffect(() => {
               <div className="overflow-hidden px-0 sm:px-4">
                 {/* Sliding row – each card is exactly 1/3 of the row (same as Blog col-lg-4) */}
                 <div
-                  className="flex transition-transform duration-300 ease-in-out"
+                  className="flex items-start transition-transform duration-300 ease-in-out"
                   style={{
                     gap: `${reviewGapRem}rem`,
                     transform: `translateX(calc(-${reviewCarouselIndex} * ((100% - ${(reviewCardsPerView - 1) * reviewGapRem}rem) / ${reviewCardsPerView} + ${reviewGapRem}rem)))`,
                   }}
                 >
-                  {reviews.slice(0, 5).map((review, index) => (
-                    <div
-                      key={index}
-                      className="border border-neutral-100 rounded-lg p-4 bg-neutral-50 shadow-sm flex-shrink-0"
-                      style={{ width: `calc((100% - ${(reviewCardsPerView - 1) * reviewGapRem}rem) / ${reviewCardsPerView})` }}
-                    >
-                      <div className="flex items-center mb-4">
-                        <img
-                          src={review.profile_photo_url}
-                          alt={review.author_name}
-                          className="w-10 h-10 rounded-full mr-3"
-                        />
-                        <div>
-                          <h4 className="font-semibold text-sm">{review.author_name}</h4>
-                          <div className="text-yellow-400 text-xs">
-                            {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+                  {reviews.slice(0, 5).map((review, index) => {
+                    const isExpanded = expandedReviewIndex === index;
+
+                    return (
+                      <div
+                        key={index}
+                        className="border border-neutral-100 rounded-lg p-4 bg-neutral-50 shadow-sm flex-shrink-0 cursor-pointer flex flex-col"
+                        style={{ width: `calc((100% - ${(reviewCardsPerView - 1) * reviewGapRem}rem) / ${reviewCardsPerView})` }}
+                        onClick={() => setExpandedReviewIndex(isExpanded ? null : index)}
+                      >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center">
+                          <img
+                            src={review.profile_photo_url || getAvatarDataUri(review.author_name)}
+                            alt=""
+                            className="w-10 h-10 rounded-full mr-3"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = getAvatarDataUri(review.author_name);
+                            }}
+                          />
+                          <div>
+                            <h4 className="font-semibold text-sm">{review.author_name}</h4>
+                            {review.relative_time_description && (
+                              <div className="text-gray-400 text-xs mt-1">
+                                {review.relative_time_description}
+                              </div>
+                            )}
                           </div>
-                          {review.relative_time_description && (
-                            <div className="text-gray-400 text-xs mt-1">
-                              {review.relative_time_description}
-                            </div>
-                          )}
+                        </div>
+                      </div>
+                      <p className="text-gray-600 text-sm italic mb-4">
+                        "{isExpanded ? review.text : (review.text.length > 200 ? review.text.substring(0, 200) + '...' : review.text)}"
+                        {review.text.length > 200 && (
+                          <span className="text-primary-600 font-semibold not-italic ml-1">
+                            {isExpanded ? 'menej' : 'viac'}
+                          </span>
+                        )}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <div className="text-yellow-400 text-base">
+                          {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
                         </div>
                         <img
-                          src="/google_icon.png"
+                          src={googleIcon}
                           alt="Google"
-                          className="w-5 h-5 ml-auto"
+                          className="w-5 h-5"
                         />
                       </div>
-                      <p className="text-gray-600 text-sm italic">
-                        "{review.text.length > 150 ? review.text.substring(0, 150) + '...' : review.text}"
-                      </p>
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
