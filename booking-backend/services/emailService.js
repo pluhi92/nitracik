@@ -333,6 +333,11 @@ module.exports = {
                   <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
                   <p style="font-size: 13px; color: #666; margin: 0;">+421 949 584 576</p>
                 </div>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; line-height: 1.5;">
+                  <p style="margin: 0 0 8px 0;"><strong>Súhlas so začatím poskytovania služby:</strong></p>
+                  <p style="margin: 0;">Týmto potvrdzujem, že som pri objednávke udelil/a súhlas so začatím poskytovania služby pred uplynutím lehoty na odstúpenie od zmluvy v zmysle § 7 ods. 1 zákona č. 102/2014 Z.z. o ochrane spotrebiteľa pri predaji tovaru alebo poskytovaní služieb na základe zmluvy uzavretej na diaľku alebo zmluvy uzavretej mimo prevádzkových priestorov predávajúceho a o zmene a doplnení niektorých zákonov. Bol/a som poučený/á o tom, že v prípade uplatnenia tohto súhlasu stratím právo odstúpiť od zmluvy v zmysle § 7 ods. 6 písm. l) uvedeného zákona, ak bude služba v plnom rozsahu poskytnutá.</p>
+                </div>
               </div>
               <div class="footer">
                 <div style="margin-bottom: 15px;">
@@ -482,6 +487,11 @@ module.exports = {
                   <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
                   <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
                 </div>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; line-height: 1.5;">
+                  <p style="margin: 0 0 8px 0;"><strong>Súhlas so začatím poskytovania služby:</strong></p>
+                  <p style="margin: 0;">Týmto potvrdzujem, že som pri objednávke udelil/a súhlas so začatím poskytovania služby pred uplynutím lehoty na odstúpenie od zmluvy v zmysle § 7 ods. 1 zákona č. 102/2014 Z.z. o ochrane spotrebiteľa pri predaji tovaru alebo poskytovaní služieb na základe zmluvy uzavretej na diaľku alebo zmluvy uzavretej mimo prevádzkových priestorov predávajúceho a o zmene a doplnení niektorých zákonov. Bol/a som poučený/á o tom, že v prípade uplatnenia tohto súhlasu stratím právo odstúpiť od zmluvy v zmysle § 7 ods. 6 písm. l) uvedeného zákona, ak bude služba v plnom rozsahu poskytnutá.</p>
+                </div>
               </div>
               <div class="footer">
                 <div style="margin-bottom: 15px;">
@@ -507,6 +517,81 @@ module.exports = {
           path: path.join(__dirname, '..', '..', 'public', 'Odstupenie_od_zmluvy_nitracik.pdf')
         }
       ]
+    };
+    return transporter.sendMail(mailOptions);
+  },
+
+  // --- 4b. ADMIN: SEASON TICKET PURCHASE NOTIFICATION ---
+  sendAdminSeasonTicketPurchase: async (adminEmail, data) => {
+    const formattedPurchaseDate = dayjs().format('DD.MM.YYYY');
+    const formattedExpiryDate = dayjs(data.expiryDate).format('DD.MM.YYYY');
+
+    const mailOptions = {
+      from: SENDER,
+      to: adminEmail,
+      subject: 'Nový nákup permanentky - Nitráčik',
+      html: injectImageUrls(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+             body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: sans-serif; }
+             .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; }
+             .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #eab308; }
+             .content { padding: 30px; color: #333; }
+             .info-box { background-color: #f3f4f6; padding: 20px; border-radius: 6px; margin: 20px 0; border: 1px solid #e5e7eb; }
+             .info-row { margin-bottom: 12px; font-size: 15px; }
+             .info-label { font-weight: bold; color: #1f2937; }
+             .divider { border: 0; border-top: 1px solid #d1d5db; margin: 15px 0; }
+             .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+          </style>
+        </head>
+        <body>
+          <div style="background-color: #f4f4f4; padding: 40px 0;">
+            <div class="container">
+              <div class="header">
+                 <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+              </div>
+              <div class="content">
+                <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #9333ea;">🎫 Nový nákup permanentky!</p>
+                
+                <div class="info-box">
+                  <p style="font-size: 16px; font-weight: bold; margin-bottom: 15px; color: #2563eb;">Informácie o užívateľovi</p>
+                  <div class="info-row"><span class="info-label">👤 Meno:</span> ${data.user.first_name} ${data.user.last_name}</div>
+                  <div class="info-row"><span class="info-label">📧 Email:</span> <a href="mailto:${data.user.email}" style="color: #2563eb;">${data.user.email}</a></div>
+                  <div class="info-row"><span class="info-label">📍 Adresa:</span> ${data.user.address}</div>
+                  
+                  <hr class="divider">
+                  
+                  <p style="font-size: 16px; font-weight: bold; margin-bottom: 15px; margin-top: 20px; color: #2563eb;">Detaily permanentky</p>
+                  <div class="info-row"><span class="info-label">🎟️ Počet vstupov:</span> ${data.entries}</div>
+                  <div class="info-row"><span class="info-label">💰 Cena:</span> ${data.totalPrice} €</div>
+                  <div class="info-row"><span class="info-label">📅 Dátum nákupu:</span> ${formattedPurchaseDate}</div>
+                  <div class="info-row"><span class="info-label">⏳ Platnosť do:</span> ${formattedExpiryDate}</div>
+                  
+                  <hr class="divider">
+                  
+                  <div class="info-row">
+                    <span class="info-label">🔑 Stripe Payment ID:</span> <span style="font-size: 12px; color: #6b7280;">${data.stripePaymentId || 'N/A'}</span>
+                  </div>
+                  
+                  <hr class="divider">
+                  
+                  <div class="info-row" style="background-color: #fef3c7; padding: 12px; border-radius: 6px; margin-top: 15px;">
+                    <span style="font-size: 13px; color: #92400e;">✅ Zákazník pri objednávke zaškrtol súhlas so začatím poskytovania služby pred uplynutím lehoty na odstúpenie a bol poučený o strate práva na odstúpenie.</span>
+                  </div>
+                </div>
+
+              </div>
+              <div class="footer">
+                <p>© 2026 O.z. Nitráčik.</p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `),
+      attachments: getCommonAttachments()
     };
     return transporter.sendMail(mailOptions);
   },
@@ -577,6 +662,12 @@ module.exports = {
                   </div>
                   <div class="info-row">
                     <span class="info-label">🔑 Payment Intent:</span> <span style="font-size: 12px; color: #6b7280;">${data.paymentIntentId}</span>
+                  </div>
+                  
+                  <hr class="divider">
+                  
+                  <div class="info-row" style="background-color: #fef3c7; padding: 12px; border-radius: 6px; margin-top: 15px;">
+                    <span style="font-size: 13px; color: #92400e;">✅ Zákazník pri objednávke zaškrtol súhlas so začatím poskytovania služby pred uplynutím lehoty na odstúpenie a bol poučený o strate práva na odstúpenie.</span>
                   </div>
                 </div>
 

@@ -184,14 +184,14 @@ const CookieConsent = () => {
               </div>
             </div>
 
-            <div className="p-4 border-t flex flex-wrap justify-end gap-3 bg-white sticky bottom-0 z-20">
-              <button onClick={handleAcceptAll} className="px-4 py-2 bg-secondary-600 hover:bg-secondary-800 text-white font-bold rounded-lg text-[10px] transition-colors shadow-sm uppercase tracking-wider">
+            <div className="p-4 border-t bg-white sticky bottom-0 z-20 flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3">
+              <button onClick={handleAcceptAll} className="w-full sm:w-auto px-4 py-2 bg-secondary-600 hover:bg-secondary-800 text-white font-bold rounded-lg text-[11px] transition-colors shadow-sm uppercase tracking-wider">
                 Prijať všetky
               </button>
-              <button onClick={handleRejectAll} className="px-4 py-2 bg-secondary-600 hover:bg-secondary-800 text-white font-bold rounded-lg text-[10px] transition-colors shadow-sm uppercase tracking-wider">
+              <button onClick={handleRejectAll} className="w-full sm:w-auto px-4 py-2 bg-secondary-600 hover:bg-secondary-800 text-white font-bold rounded-lg text-[11px] transition-colors shadow-sm uppercase tracking-wider">
                 Odmietnuť všetky
               </button>
-              <button onClick={handleSaveSelection} className="px-6 py-2 bg-secondary-600 hover:bg-secondary-500 text-white font-bold rounded-lg text-[10px] transition-colors shadow-sm uppercase tracking-wider">
+              <button onClick={handleSaveSelection} className="w-full sm:w-auto px-6 py-2 bg-secondary-600 hover:bg-secondary-500 text-white font-bold rounded-lg text-[11px] transition-colors shadow-sm uppercase tracking-wider">
                 Uložiť výber
               </button>
             </div>

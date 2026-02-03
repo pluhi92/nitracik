@@ -241,6 +241,16 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
             expiryDate
           });
           console.log('[DEBUG] Confirmation email sent to:', user.email);
+          
+          // Odoslanie admin notifikácie
+          await emailService.sendAdminSeasonTicketPurchase('info@nitracik.sk', {
+            user: user,
+            entries: entriesInt,
+            totalPrice: priceFloat,
+            expiryDate,
+            stripePaymentId: session.id
+          });
+          console.log('[DEBUG] Admin notification sent for season ticket purchase');
         }
 
       } else if (session.metadata.type === 'training_session') {
