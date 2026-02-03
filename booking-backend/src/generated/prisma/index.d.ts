@@ -2372,6 +2372,7 @@ export namespace Prisma {
     training_prices: number
     season_tickets: number
     season_ticket_offers: number
+    season_ticket_usage: number
   }
 
   export type Training_typesCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -2379,6 +2380,7 @@ export namespace Prisma {
     training_prices?: boolean | Training_typesCountOutputTypeCountTraining_pricesArgs
     season_tickets?: boolean | Training_typesCountOutputTypeCountSeason_ticketsArgs
     season_ticket_offers?: boolean | Training_typesCountOutputTypeCountSeason_ticket_offersArgs
+    season_ticket_usage?: boolean | Training_typesCountOutputTypeCountSeason_ticket_usageArgs
   }
 
   // Custom InputTypes
@@ -2418,6 +2420,13 @@ export namespace Prisma {
    */
   export type Training_typesCountOutputTypeCountSeason_ticket_offersArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: season_ticket_offersWhereInput
+  }
+
+  /**
+   * Training_typesCountOutputType without action
+   */
+  export type Training_typesCountOutputTypeCountSeason_ticket_usageArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: season_ticket_usageWhereInput
   }
 
 
@@ -7441,20 +7450,22 @@ export namespace Prisma {
     id: number | null
     season_ticket_id: number | null
     booking_id: number | null
+    training_type_id: number | null
   }
 
   export type Season_ticket_usageSumAggregateOutputType = {
     id: number | null
     season_ticket_id: number | null
     booking_id: number | null
+    training_type_id: number | null
   }
 
   export type Season_ticket_usageMinAggregateOutputType = {
     id: number | null
     season_ticket_id: number | null
     booking_id: number | null
+    training_type_id: number | null
     used_date: Date | null
-    training_type: string | null
     created_at: Date | null
   }
 
@@ -7462,8 +7473,8 @@ export namespace Prisma {
     id: number | null
     season_ticket_id: number | null
     booking_id: number | null
+    training_type_id: number | null
     used_date: Date | null
-    training_type: string | null
     created_at: Date | null
   }
 
@@ -7471,8 +7482,8 @@ export namespace Prisma {
     id: number
     season_ticket_id: number
     booking_id: number
+    training_type_id: number
     used_date: number
-    training_type: number
     created_at: number
     _all: number
   }
@@ -7482,20 +7493,22 @@ export namespace Prisma {
     id?: true
     season_ticket_id?: true
     booking_id?: true
+    training_type_id?: true
   }
 
   export type Season_ticket_usageSumAggregateInputType = {
     id?: true
     season_ticket_id?: true
     booking_id?: true
+    training_type_id?: true
   }
 
   export type Season_ticket_usageMinAggregateInputType = {
     id?: true
     season_ticket_id?: true
     booking_id?: true
+    training_type_id?: true
     used_date?: true
-    training_type?: true
     created_at?: true
   }
 
@@ -7503,8 +7516,8 @@ export namespace Prisma {
     id?: true
     season_ticket_id?: true
     booking_id?: true
+    training_type_id?: true
     used_date?: true
-    training_type?: true
     created_at?: true
   }
 
@@ -7512,8 +7525,8 @@ export namespace Prisma {
     id?: true
     season_ticket_id?: true
     booking_id?: true
+    training_type_id?: true
     used_date?: true
-    training_type?: true
     created_at?: true
     _all?: true
   }
@@ -7608,8 +7621,8 @@ export namespace Prisma {
     id: number
     season_ticket_id: number | null
     booking_id: number | null
+    training_type_id: number | null
     used_date: Date
-    training_type: string
     created_at: Date | null
     _count: Season_ticket_usageCountAggregateOutputType | null
     _avg: Season_ticket_usageAvgAggregateOutputType | null
@@ -7636,56 +7649,62 @@ export namespace Prisma {
     id?: boolean
     season_ticket_id?: boolean
     booking_id?: boolean
+    training_type_id?: boolean
     used_date?: boolean
-    training_type?: boolean
     created_at?: boolean
     bookings?: boolean | season_ticket_usage$bookingsArgs<ExtArgs>
     season_tickets?: boolean | season_ticket_usage$season_ticketsArgs<ExtArgs>
+    training_types?: boolean | season_ticket_usage$training_typesArgs<ExtArgs>
   }, ExtArgs["result"]["season_ticket_usage"]>
 
   export type season_ticket_usageSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     season_ticket_id?: boolean
     booking_id?: boolean
+    training_type_id?: boolean
     used_date?: boolean
-    training_type?: boolean
     created_at?: boolean
     bookings?: boolean | season_ticket_usage$bookingsArgs<ExtArgs>
     season_tickets?: boolean | season_ticket_usage$season_ticketsArgs<ExtArgs>
+    training_types?: boolean | season_ticket_usage$training_typesArgs<ExtArgs>
   }, ExtArgs["result"]["season_ticket_usage"]>
 
   export type season_ticket_usageSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     season_ticket_id?: boolean
     booking_id?: boolean
+    training_type_id?: boolean
     used_date?: boolean
-    training_type?: boolean
     created_at?: boolean
     bookings?: boolean | season_ticket_usage$bookingsArgs<ExtArgs>
     season_tickets?: boolean | season_ticket_usage$season_ticketsArgs<ExtArgs>
+    training_types?: boolean | season_ticket_usage$training_typesArgs<ExtArgs>
   }, ExtArgs["result"]["season_ticket_usage"]>
 
   export type season_ticket_usageSelectScalar = {
     id?: boolean
     season_ticket_id?: boolean
     booking_id?: boolean
+    training_type_id?: boolean
     used_date?: boolean
-    training_type?: boolean
     created_at?: boolean
   }
 
-  export type season_ticket_usageOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "season_ticket_id" | "booking_id" | "used_date" | "training_type" | "created_at", ExtArgs["result"]["season_ticket_usage"]>
+  export type season_ticket_usageOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "season_ticket_id" | "booking_id" | "training_type_id" | "used_date" | "created_at", ExtArgs["result"]["season_ticket_usage"]>
   export type season_ticket_usageInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     bookings?: boolean | season_ticket_usage$bookingsArgs<ExtArgs>
     season_tickets?: boolean | season_ticket_usage$season_ticketsArgs<ExtArgs>
+    training_types?: boolean | season_ticket_usage$training_typesArgs<ExtArgs>
   }
   export type season_ticket_usageIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     bookings?: boolean | season_ticket_usage$bookingsArgs<ExtArgs>
     season_tickets?: boolean | season_ticket_usage$season_ticketsArgs<ExtArgs>
+    training_types?: boolean | season_ticket_usage$training_typesArgs<ExtArgs>
   }
   export type season_ticket_usageIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     bookings?: boolean | season_ticket_usage$bookingsArgs<ExtArgs>
     season_tickets?: boolean | season_ticket_usage$season_ticketsArgs<ExtArgs>
+    training_types?: boolean | season_ticket_usage$training_typesArgs<ExtArgs>
   }
 
   export type $season_ticket_usagePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -7693,13 +7712,14 @@ export namespace Prisma {
     objects: {
       bookings: Prisma.$bookingsPayload<ExtArgs> | null
       season_tickets: Prisma.$season_ticketsPayload<ExtArgs> | null
+      training_types: Prisma.$training_typesPayload<ExtArgs> | null
     }
     scalars: $Extensions.GetPayloadResult<{
       id: number
       season_ticket_id: number | null
       booking_id: number | null
+      training_type_id: number | null
       used_date: Date
-      training_type: string
       created_at: Date | null
     }, ExtArgs["result"]["season_ticket_usage"]>
     composites: {}
@@ -8097,6 +8117,7 @@ export namespace Prisma {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     bookings<T extends season_ticket_usage$bookingsArgs<ExtArgs> = {}>(args?: Subset<T, season_ticket_usage$bookingsArgs<ExtArgs>>): Prisma__bookingsClient<$Result.GetResult<Prisma.$bookingsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     season_tickets<T extends season_ticket_usage$season_ticketsArgs<ExtArgs> = {}>(args?: Subset<T, season_ticket_usage$season_ticketsArgs<ExtArgs>>): Prisma__season_ticketsClient<$Result.GetResult<Prisma.$season_ticketsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    training_types<T extends season_ticket_usage$training_typesArgs<ExtArgs> = {}>(args?: Subset<T, season_ticket_usage$training_typesArgs<ExtArgs>>): Prisma__training_typesClient<$Result.GetResult<Prisma.$training_typesPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -8129,8 +8150,8 @@ export namespace Prisma {
     readonly id: FieldRef<"season_ticket_usage", 'Int'>
     readonly season_ticket_id: FieldRef<"season_ticket_usage", 'Int'>
     readonly booking_id: FieldRef<"season_ticket_usage", 'Int'>
+    readonly training_type_id: FieldRef<"season_ticket_usage", 'Int'>
     readonly used_date: FieldRef<"season_ticket_usage", 'DateTime'>
-    readonly training_type: FieldRef<"season_ticket_usage", 'String'>
     readonly created_at: FieldRef<"season_ticket_usage", 'DateTime'>
   }
     
@@ -8563,6 +8584,25 @@ export namespace Prisma {
      */
     include?: season_ticketsInclude<ExtArgs> | null
     where?: season_ticketsWhereInput
+  }
+
+  /**
+   * season_ticket_usage.training_types
+   */
+  export type season_ticket_usage$training_typesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the training_types
+     */
+    select?: training_typesSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the training_types
+     */
+    omit?: training_typesOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: training_typesInclude<ExtArgs> | null
+    where?: training_typesWhereInput
   }
 
   /**
@@ -13521,6 +13561,7 @@ export namespace Prisma {
     training_prices?: boolean | training_types$training_pricesArgs<ExtArgs>
     season_tickets?: boolean | training_types$season_ticketsArgs<ExtArgs>
     season_ticket_offers?: boolean | training_types$season_ticket_offersArgs<ExtArgs>
+    season_ticket_usage?: boolean | training_types$season_ticket_usageArgs<ExtArgs>
     _count?: boolean | Training_typesCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["training_types"]>
 
@@ -13563,6 +13604,7 @@ export namespace Prisma {
     training_prices?: boolean | training_types$training_pricesArgs<ExtArgs>
     season_tickets?: boolean | training_types$season_ticketsArgs<ExtArgs>
     season_ticket_offers?: boolean | training_types$season_ticket_offersArgs<ExtArgs>
+    season_ticket_usage?: boolean | training_types$season_ticket_usageArgs<ExtArgs>
     _count?: boolean | Training_typesCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type training_typesIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -13575,6 +13617,7 @@ export namespace Prisma {
       training_prices: Prisma.$training_pricesPayload<ExtArgs>[]
       season_tickets: Prisma.$season_ticketsPayload<ExtArgs>[]
       season_ticket_offers: Prisma.$season_ticket_offersPayload<ExtArgs>[]
+      season_ticket_usage: Prisma.$season_ticket_usagePayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: number
@@ -13983,6 +14026,7 @@ export namespace Prisma {
     training_prices<T extends training_types$training_pricesArgs<ExtArgs> = {}>(args?: Subset<T, training_types$training_pricesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$training_pricesPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     season_tickets<T extends training_types$season_ticketsArgs<ExtArgs> = {}>(args?: Subset<T, training_types$season_ticketsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$season_ticketsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     season_ticket_offers<T extends training_types$season_ticket_offersArgs<ExtArgs> = {}>(args?: Subset<T, training_types$season_ticket_offersArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$season_ticket_offersPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    season_ticket_usage<T extends training_types$season_ticket_usageArgs<ExtArgs> = {}>(args?: Subset<T, training_types$season_ticket_usageArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$season_ticket_usagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -14501,6 +14545,30 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: Season_ticket_offersScalarFieldEnum | Season_ticket_offersScalarFieldEnum[]
+  }
+
+  /**
+   * training_types.season_ticket_usage
+   */
+  export type training_types$season_ticket_usageArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the season_ticket_usage
+     */
+    select?: season_ticket_usageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the season_ticket_usage
+     */
+    omit?: season_ticket_usageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: season_ticket_usageInclude<ExtArgs> | null
+    where?: season_ticket_usageWhereInput
+    orderBy?: season_ticket_usageOrderByWithRelationInput | season_ticket_usageOrderByWithRelationInput[]
+    cursor?: season_ticket_usageWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: Season_ticket_usageScalarFieldEnum | Season_ticket_usageScalarFieldEnum[]
   }
 
   /**
@@ -21144,8 +21212,8 @@ export namespace Prisma {
     id: 'id',
     season_ticket_id: 'season_ticket_id',
     booking_id: 'booking_id',
+    training_type_id: 'training_type_id',
     used_date: 'used_date',
-    training_type: 'training_type',
     created_at: 'created_at'
   };
 
@@ -21823,22 +21891,24 @@ export namespace Prisma {
     id?: IntFilter<"season_ticket_usage"> | number
     season_ticket_id?: IntNullableFilter<"season_ticket_usage"> | number | null
     booking_id?: IntNullableFilter<"season_ticket_usage"> | number | null
+    training_type_id?: IntNullableFilter<"season_ticket_usage"> | number | null
     used_date?: DateTimeFilter<"season_ticket_usage"> | Date | string
-    training_type?: StringFilter<"season_ticket_usage"> | string
     created_at?: DateTimeNullableFilter<"season_ticket_usage"> | Date | string | null
     bookings?: XOR<BookingsNullableScalarRelationFilter, bookingsWhereInput> | null
     season_tickets?: XOR<Season_ticketsNullableScalarRelationFilter, season_ticketsWhereInput> | null
+    training_types?: XOR<Training_typesNullableScalarRelationFilter, training_typesWhereInput> | null
   }
 
   export type season_ticket_usageOrderByWithRelationInput = {
     id?: SortOrder
     season_ticket_id?: SortOrderInput | SortOrder
     booking_id?: SortOrderInput | SortOrder
+    training_type_id?: SortOrderInput | SortOrder
     used_date?: SortOrder
-    training_type?: SortOrder
     created_at?: SortOrderInput | SortOrder
     bookings?: bookingsOrderByWithRelationInput
     season_tickets?: season_ticketsOrderByWithRelationInput
+    training_types?: training_typesOrderByWithRelationInput
   }
 
   export type season_ticket_usageWhereUniqueInput = Prisma.AtLeast<{
@@ -21848,19 +21918,20 @@ export namespace Prisma {
     NOT?: season_ticket_usageWhereInput | season_ticket_usageWhereInput[]
     season_ticket_id?: IntNullableFilter<"season_ticket_usage"> | number | null
     booking_id?: IntNullableFilter<"season_ticket_usage"> | number | null
+    training_type_id?: IntNullableFilter<"season_ticket_usage"> | number | null
     used_date?: DateTimeFilter<"season_ticket_usage"> | Date | string
-    training_type?: StringFilter<"season_ticket_usage"> | string
     created_at?: DateTimeNullableFilter<"season_ticket_usage"> | Date | string | null
     bookings?: XOR<BookingsNullableScalarRelationFilter, bookingsWhereInput> | null
     season_tickets?: XOR<Season_ticketsNullableScalarRelationFilter, season_ticketsWhereInput> | null
+    training_types?: XOR<Training_typesNullableScalarRelationFilter, training_typesWhereInput> | null
   }, "id">
 
   export type season_ticket_usageOrderByWithAggregationInput = {
     id?: SortOrder
     season_ticket_id?: SortOrderInput | SortOrder
     booking_id?: SortOrderInput | SortOrder
+    training_type_id?: SortOrderInput | SortOrder
     used_date?: SortOrder
-    training_type?: SortOrder
     created_at?: SortOrderInput | SortOrder
     _count?: season_ticket_usageCountOrderByAggregateInput
     _avg?: season_ticket_usageAvgOrderByAggregateInput
@@ -21876,8 +21947,8 @@ export namespace Prisma {
     id?: IntWithAggregatesFilter<"season_ticket_usage"> | number
     season_ticket_id?: IntNullableWithAggregatesFilter<"season_ticket_usage"> | number | null
     booking_id?: IntNullableWithAggregatesFilter<"season_ticket_usage"> | number | null
+    training_type_id?: IntNullableWithAggregatesFilter<"season_ticket_usage"> | number | null
     used_date?: DateTimeWithAggregatesFilter<"season_ticket_usage"> | Date | string
-    training_type?: StringWithAggregatesFilter<"season_ticket_usage"> | string
     created_at?: DateTimeNullableWithAggregatesFilter<"season_ticket_usage"> | Date | string | null
   }
 
@@ -22189,6 +22260,7 @@ export namespace Prisma {
     training_prices?: Training_pricesListRelationFilter
     season_tickets?: Season_ticketsListRelationFilter
     season_ticket_offers?: Season_ticket_offersListRelationFilter
+    season_ticket_usage?: Season_ticket_usageListRelationFilter
   }
 
   export type training_typesOrderByWithRelationInput = {
@@ -22204,6 +22276,7 @@ export namespace Prisma {
     training_prices?: training_pricesOrderByRelationAggregateInput
     season_tickets?: season_ticketsOrderByRelationAggregateInput
     season_ticket_offers?: season_ticket_offersOrderByRelationAggregateInput
+    season_ticket_usage?: season_ticket_usageOrderByRelationAggregateInput
   }
 
   export type training_typesWhereUniqueInput = Prisma.AtLeast<{
@@ -22222,6 +22295,7 @@ export namespace Prisma {
     training_prices?: Training_pricesListRelationFilter
     season_tickets?: Season_ticketsListRelationFilter
     season_ticket_offers?: Season_ticket_offersListRelationFilter
+    season_ticket_usage?: Season_ticket_usageListRelationFilter
   }, "id" | "name">
 
   export type training_typesOrderByWithAggregationInput = {
@@ -23047,35 +23121,35 @@ export namespace Prisma {
 
   export type season_ticket_usageCreateInput = {
     used_date: Date | string
-    training_type: string
     created_at?: Date | string | null
     bookings?: bookingsCreateNestedOneWithoutSeason_ticket_usageInput
     season_tickets?: season_ticketsCreateNestedOneWithoutSeason_ticket_usageInput
+    training_types?: training_typesCreateNestedOneWithoutSeason_ticket_usageInput
   }
 
   export type season_ticket_usageUncheckedCreateInput = {
     id?: number
     season_ticket_id?: number | null
     booking_id?: number | null
+    training_type_id?: number | null
     used_date: Date | string
-    training_type: string
     created_at?: Date | string | null
   }
 
   export type season_ticket_usageUpdateInput = {
     used_date?: DateTimeFieldUpdateOperationsInput | Date | string
-    training_type?: StringFieldUpdateOperationsInput | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     bookings?: bookingsUpdateOneWithoutSeason_ticket_usageNestedInput
     season_tickets?: season_ticketsUpdateOneWithoutSeason_ticket_usageNestedInput
+    training_types?: training_typesUpdateOneWithoutSeason_ticket_usageNestedInput
   }
 
   export type season_ticket_usageUncheckedUpdateInput = {
     id?: IntFieldUpdateOperationsInput | number
     season_ticket_id?: NullableIntFieldUpdateOperationsInput | number | null
     booking_id?: NullableIntFieldUpdateOperationsInput | number | null
+    training_type_id?: NullableIntFieldUpdateOperationsInput | number | null
     used_date?: DateTimeFieldUpdateOperationsInput | Date | string
-    training_type?: StringFieldUpdateOperationsInput | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
@@ -23083,14 +23157,13 @@ export namespace Prisma {
     id?: number
     season_ticket_id?: number | null
     booking_id?: number | null
+    training_type_id?: number | null
     used_date: Date | string
-    training_type: string
     created_at?: Date | string | null
   }
 
   export type season_ticket_usageUpdateManyMutationInput = {
     used_date?: DateTimeFieldUpdateOperationsInput | Date | string
-    training_type?: StringFieldUpdateOperationsInput | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
@@ -23098,8 +23171,8 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     season_ticket_id?: NullableIntFieldUpdateOperationsInput | number | null
     booking_id?: NullableIntFieldUpdateOperationsInput | number | null
+    training_type_id?: NullableIntFieldUpdateOperationsInput | number | null
     used_date?: DateTimeFieldUpdateOperationsInput | Date | string
-    training_type?: StringFieldUpdateOperationsInput | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
@@ -23404,6 +23477,7 @@ export namespace Prisma {
     training_prices?: training_pricesCreateNestedManyWithoutTraining_typesInput
     season_tickets?: season_ticketsCreateNestedManyWithoutTraining_typesInput
     season_ticket_offers?: season_ticket_offersCreateNestedManyWithoutTraining_typesInput
+    season_ticket_usage?: season_ticket_usageCreateNestedManyWithoutTraining_typesInput
   }
 
   export type training_typesUncheckedCreateInput = {
@@ -23419,6 +23493,7 @@ export namespace Prisma {
     training_prices?: training_pricesUncheckedCreateNestedManyWithoutTraining_typesInput
     season_tickets?: season_ticketsUncheckedCreateNestedManyWithoutTraining_typesInput
     season_ticket_offers?: season_ticket_offersUncheckedCreateNestedManyWithoutTraining_typesInput
+    season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutTraining_typesInput
   }
 
   export type training_typesUpdateInput = {
@@ -23433,6 +23508,7 @@ export namespace Prisma {
     training_prices?: training_pricesUpdateManyWithoutTraining_typesNestedInput
     season_tickets?: season_ticketsUpdateManyWithoutTraining_typesNestedInput
     season_ticket_offers?: season_ticket_offersUpdateManyWithoutTraining_typesNestedInput
+    season_ticket_usage?: season_ticket_usageUpdateManyWithoutTraining_typesNestedInput
   }
 
   export type training_typesUncheckedUpdateInput = {
@@ -23448,6 +23524,7 @@ export namespace Prisma {
     training_prices?: training_pricesUncheckedUpdateManyWithoutTraining_typesNestedInput
     season_tickets?: season_ticketsUncheckedUpdateManyWithoutTraining_typesNestedInput
     season_ticket_offers?: season_ticket_offersUncheckedUpdateManyWithoutTraining_typesNestedInput
+    season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutTraining_typesNestedInput
   }
 
   export type training_typesCreateManyInput = {
@@ -24402,12 +24479,17 @@ export namespace Prisma {
     isNot?: season_ticketsWhereInput | null
   }
 
+  export type Training_typesNullableScalarRelationFilter = {
+    is?: training_typesWhereInput | null
+    isNot?: training_typesWhereInput | null
+  }
+
   export type season_ticket_usageCountOrderByAggregateInput = {
     id?: SortOrder
     season_ticket_id?: SortOrder
     booking_id?: SortOrder
+    training_type_id?: SortOrder
     used_date?: SortOrder
-    training_type?: SortOrder
     created_at?: SortOrder
   }
 
@@ -24415,14 +24497,15 @@ export namespace Prisma {
     id?: SortOrder
     season_ticket_id?: SortOrder
     booking_id?: SortOrder
+    training_type_id?: SortOrder
   }
 
   export type season_ticket_usageMaxOrderByAggregateInput = {
     id?: SortOrder
     season_ticket_id?: SortOrder
     booking_id?: SortOrder
+    training_type_id?: SortOrder
     used_date?: SortOrder
-    training_type?: SortOrder
     created_at?: SortOrder
   }
 
@@ -24430,8 +24513,8 @@ export namespace Prisma {
     id?: SortOrder
     season_ticket_id?: SortOrder
     booking_id?: SortOrder
+    training_type_id?: SortOrder
     used_date?: SortOrder
-    training_type?: SortOrder
     created_at?: SortOrder
   }
 
@@ -24439,11 +24522,7 @@ export namespace Prisma {
     id?: SortOrder
     season_ticket_id?: SortOrder
     booking_id?: SortOrder
-  }
-
-  export type Training_typesNullableScalarRelationFilter = {
-    is?: training_typesWhereInput | null
-    isNot?: training_typesWhereInput | null
+    training_type_id?: SortOrder
   }
 
   export type season_ticketsCountOrderByAggregateInput = {
@@ -25319,6 +25398,12 @@ export namespace Prisma {
     connect?: season_ticketsWhereUniqueInput
   }
 
+  export type training_typesCreateNestedOneWithoutSeason_ticket_usageInput = {
+    create?: XOR<training_typesCreateWithoutSeason_ticket_usageInput, training_typesUncheckedCreateWithoutSeason_ticket_usageInput>
+    connectOrCreate?: training_typesCreateOrConnectWithoutSeason_ticket_usageInput
+    connect?: training_typesWhereUniqueInput
+  }
+
   export type bookingsUpdateOneWithoutSeason_ticket_usageNestedInput = {
     create?: XOR<bookingsCreateWithoutSeason_ticket_usageInput, bookingsUncheckedCreateWithoutSeason_ticket_usageInput>
     connectOrCreate?: bookingsCreateOrConnectWithoutSeason_ticket_usageInput
@@ -25337,6 +25422,16 @@ export namespace Prisma {
     delete?: season_ticketsWhereInput | boolean
     connect?: season_ticketsWhereUniqueInput
     update?: XOR<XOR<season_ticketsUpdateToOneWithWhereWithoutSeason_ticket_usageInput, season_ticketsUpdateWithoutSeason_ticket_usageInput>, season_ticketsUncheckedUpdateWithoutSeason_ticket_usageInput>
+  }
+
+  export type training_typesUpdateOneWithoutSeason_ticket_usageNestedInput = {
+    create?: XOR<training_typesCreateWithoutSeason_ticket_usageInput, training_typesUncheckedCreateWithoutSeason_ticket_usageInput>
+    connectOrCreate?: training_typesCreateOrConnectWithoutSeason_ticket_usageInput
+    upsert?: training_typesUpsertWithoutSeason_ticket_usageInput
+    disconnect?: training_typesWhereInput | boolean
+    delete?: training_typesWhereInput | boolean
+    connect?: training_typesWhereUniqueInput
+    update?: XOR<XOR<training_typesUpdateToOneWithWhereWithoutSeason_ticket_usageInput, training_typesUpdateWithoutSeason_ticket_usageInput>, training_typesUncheckedUpdateWithoutSeason_ticket_usageInput>
   }
 
   export type season_ticket_usageCreateNestedManyWithoutSeason_ticketsInput = {
@@ -25577,6 +25672,13 @@ export namespace Prisma {
     connect?: season_ticket_offersWhereUniqueInput | season_ticket_offersWhereUniqueInput[]
   }
 
+  export type season_ticket_usageCreateNestedManyWithoutTraining_typesInput = {
+    create?: XOR<season_ticket_usageCreateWithoutTraining_typesInput, season_ticket_usageUncheckedCreateWithoutTraining_typesInput> | season_ticket_usageCreateWithoutTraining_typesInput[] | season_ticket_usageUncheckedCreateWithoutTraining_typesInput[]
+    connectOrCreate?: season_ticket_usageCreateOrConnectWithoutTraining_typesInput | season_ticket_usageCreateOrConnectWithoutTraining_typesInput[]
+    createMany?: season_ticket_usageCreateManyTraining_typesInputEnvelope
+    connect?: season_ticket_usageWhereUniqueInput | season_ticket_usageWhereUniqueInput[]
+  }
+
   export type training_availabilityUncheckedCreateNestedManyWithoutTraining_typesInput = {
     create?: XOR<training_availabilityCreateWithoutTraining_typesInput, training_availabilityUncheckedCreateWithoutTraining_typesInput> | training_availabilityCreateWithoutTraining_typesInput[] | training_availabilityUncheckedCreateWithoutTraining_typesInput[]
     connectOrCreate?: training_availabilityCreateOrConnectWithoutTraining_typesInput | training_availabilityCreateOrConnectWithoutTraining_typesInput[]
@@ -25603,6 +25705,13 @@ export namespace Prisma {
     connectOrCreate?: season_ticket_offersCreateOrConnectWithoutTraining_typesInput | season_ticket_offersCreateOrConnectWithoutTraining_typesInput[]
     createMany?: season_ticket_offersCreateManyTraining_typesInputEnvelope
     connect?: season_ticket_offersWhereUniqueInput | season_ticket_offersWhereUniqueInput[]
+  }
+
+  export type season_ticket_usageUncheckedCreateNestedManyWithoutTraining_typesInput = {
+    create?: XOR<season_ticket_usageCreateWithoutTraining_typesInput, season_ticket_usageUncheckedCreateWithoutTraining_typesInput> | season_ticket_usageCreateWithoutTraining_typesInput[] | season_ticket_usageUncheckedCreateWithoutTraining_typesInput[]
+    connectOrCreate?: season_ticket_usageCreateOrConnectWithoutTraining_typesInput | season_ticket_usageCreateOrConnectWithoutTraining_typesInput[]
+    createMany?: season_ticket_usageCreateManyTraining_typesInputEnvelope
+    connect?: season_ticket_usageWhereUniqueInput | season_ticket_usageWhereUniqueInput[]
   }
 
   export type training_availabilityUpdateManyWithoutTraining_typesNestedInput = {
@@ -25661,6 +25770,20 @@ export namespace Prisma {
     deleteMany?: season_ticket_offersScalarWhereInput | season_ticket_offersScalarWhereInput[]
   }
 
+  export type season_ticket_usageUpdateManyWithoutTraining_typesNestedInput = {
+    create?: XOR<season_ticket_usageCreateWithoutTraining_typesInput, season_ticket_usageUncheckedCreateWithoutTraining_typesInput> | season_ticket_usageCreateWithoutTraining_typesInput[] | season_ticket_usageUncheckedCreateWithoutTraining_typesInput[]
+    connectOrCreate?: season_ticket_usageCreateOrConnectWithoutTraining_typesInput | season_ticket_usageCreateOrConnectWithoutTraining_typesInput[]
+    upsert?: season_ticket_usageUpsertWithWhereUniqueWithoutTraining_typesInput | season_ticket_usageUpsertWithWhereUniqueWithoutTraining_typesInput[]
+    createMany?: season_ticket_usageCreateManyTraining_typesInputEnvelope
+    set?: season_ticket_usageWhereUniqueInput | season_ticket_usageWhereUniqueInput[]
+    disconnect?: season_ticket_usageWhereUniqueInput | season_ticket_usageWhereUniqueInput[]
+    delete?: season_ticket_usageWhereUniqueInput | season_ticket_usageWhereUniqueInput[]
+    connect?: season_ticket_usageWhereUniqueInput | season_ticket_usageWhereUniqueInput[]
+    update?: season_ticket_usageUpdateWithWhereUniqueWithoutTraining_typesInput | season_ticket_usageUpdateWithWhereUniqueWithoutTraining_typesInput[]
+    updateMany?: season_ticket_usageUpdateManyWithWhereWithoutTraining_typesInput | season_ticket_usageUpdateManyWithWhereWithoutTraining_typesInput[]
+    deleteMany?: season_ticket_usageScalarWhereInput | season_ticket_usageScalarWhereInput[]
+  }
+
   export type training_availabilityUncheckedUpdateManyWithoutTraining_typesNestedInput = {
     create?: XOR<training_availabilityCreateWithoutTraining_typesInput, training_availabilityUncheckedCreateWithoutTraining_typesInput> | training_availabilityCreateWithoutTraining_typesInput[] | training_availabilityUncheckedCreateWithoutTraining_typesInput[]
     connectOrCreate?: training_availabilityCreateOrConnectWithoutTraining_typesInput | training_availabilityCreateOrConnectWithoutTraining_typesInput[]
@@ -25715,6 +25838,20 @@ export namespace Prisma {
     update?: season_ticket_offersUpdateWithWhereUniqueWithoutTraining_typesInput | season_ticket_offersUpdateWithWhereUniqueWithoutTraining_typesInput[]
     updateMany?: season_ticket_offersUpdateManyWithWhereWithoutTraining_typesInput | season_ticket_offersUpdateManyWithWhereWithoutTraining_typesInput[]
     deleteMany?: season_ticket_offersScalarWhereInput | season_ticket_offersScalarWhereInput[]
+  }
+
+  export type season_ticket_usageUncheckedUpdateManyWithoutTraining_typesNestedInput = {
+    create?: XOR<season_ticket_usageCreateWithoutTraining_typesInput, season_ticket_usageUncheckedCreateWithoutTraining_typesInput> | season_ticket_usageCreateWithoutTraining_typesInput[] | season_ticket_usageUncheckedCreateWithoutTraining_typesInput[]
+    connectOrCreate?: season_ticket_usageCreateOrConnectWithoutTraining_typesInput | season_ticket_usageCreateOrConnectWithoutTraining_typesInput[]
+    upsert?: season_ticket_usageUpsertWithWhereUniqueWithoutTraining_typesInput | season_ticket_usageUpsertWithWhereUniqueWithoutTraining_typesInput[]
+    createMany?: season_ticket_usageCreateManyTraining_typesInputEnvelope
+    set?: season_ticket_usageWhereUniqueInput | season_ticket_usageWhereUniqueInput[]
+    disconnect?: season_ticket_usageWhereUniqueInput | season_ticket_usageWhereUniqueInput[]
+    delete?: season_ticket_usageWhereUniqueInput | season_ticket_usageWhereUniqueInput[]
+    connect?: season_ticket_usageWhereUniqueInput | season_ticket_usageWhereUniqueInput[]
+    update?: season_ticket_usageUpdateWithWhereUniqueWithoutTraining_typesInput | season_ticket_usageUpdateWithWhereUniqueWithoutTraining_typesInput[]
+    updateMany?: season_ticket_usageUpdateManyWithWhereWithoutTraining_typesInput | season_ticket_usageUpdateManyWithWhereWithoutTraining_typesInput[]
+    deleteMany?: season_ticket_usageScalarWhereInput | season_ticket_usageScalarWhereInput[]
   }
 
   export type bookingsCreateNestedManyWithoutUsersInput = {
@@ -26329,16 +26466,16 @@ export namespace Prisma {
 
   export type season_ticket_usageCreateWithoutBookingsInput = {
     used_date: Date | string
-    training_type: string
     created_at?: Date | string | null
     season_tickets?: season_ticketsCreateNestedOneWithoutSeason_ticket_usageInput
+    training_types?: training_typesCreateNestedOneWithoutSeason_ticket_usageInput
   }
 
   export type season_ticket_usageUncheckedCreateWithoutBookingsInput = {
     id?: number
     season_ticket_id?: number | null
+    training_type_id?: number | null
     used_date: Date | string
-    training_type: string
     created_at?: Date | string | null
   }
 
@@ -26529,8 +26666,8 @@ export namespace Prisma {
     id?: IntFilter<"season_ticket_usage"> | number
     season_ticket_id?: IntNullableFilter<"season_ticket_usage"> | number | null
     booking_id?: IntNullableFilter<"season_ticket_usage"> | number | null
+    training_type_id?: IntNullableFilter<"season_ticket_usage"> | number | null
     used_date?: DateTimeFilter<"season_ticket_usage"> | Date | string
-    training_type?: StringFilter<"season_ticket_usage"> | string
     created_at?: DateTimeNullableFilter<"season_ticket_usage"> | Date | string | null
   }
 
@@ -26973,6 +27110,40 @@ export namespace Prisma {
     create: XOR<season_ticketsCreateWithoutSeason_ticket_usageInput, season_ticketsUncheckedCreateWithoutSeason_ticket_usageInput>
   }
 
+  export type training_typesCreateWithoutSeason_ticket_usageInput = {
+    name: string
+    description?: string | null
+    duration_minutes?: number
+    accompanying_person_price?: Decimal | DecimalJsLike | number | string | null
+    active?: boolean | null
+    created_at?: Date | string | null
+    color_hex?: string | null
+    training_availability?: training_availabilityCreateNestedManyWithoutTraining_typesInput
+    training_prices?: training_pricesCreateNestedManyWithoutTraining_typesInput
+    season_tickets?: season_ticketsCreateNestedManyWithoutTraining_typesInput
+    season_ticket_offers?: season_ticket_offersCreateNestedManyWithoutTraining_typesInput
+  }
+
+  export type training_typesUncheckedCreateWithoutSeason_ticket_usageInput = {
+    id?: number
+    name: string
+    description?: string | null
+    duration_minutes?: number
+    accompanying_person_price?: Decimal | DecimalJsLike | number | string | null
+    active?: boolean | null
+    created_at?: Date | string | null
+    color_hex?: string | null
+    training_availability?: training_availabilityUncheckedCreateNestedManyWithoutTraining_typesInput
+    training_prices?: training_pricesUncheckedCreateNestedManyWithoutTraining_typesInput
+    season_tickets?: season_ticketsUncheckedCreateNestedManyWithoutTraining_typesInput
+    season_ticket_offers?: season_ticket_offersUncheckedCreateNestedManyWithoutTraining_typesInput
+  }
+
+  export type training_typesCreateOrConnectWithoutSeason_ticket_usageInput = {
+    where: training_typesWhereUniqueInput
+    create: XOR<training_typesCreateWithoutSeason_ticket_usageInput, training_typesUncheckedCreateWithoutSeason_ticket_usageInput>
+  }
+
   export type bookingsUpsertWithoutSeason_ticket_usageInput = {
     update: XOR<bookingsUpdateWithoutSeason_ticket_usageInput, bookingsUncheckedUpdateWithoutSeason_ticket_usageInput>
     create: XOR<bookingsCreateWithoutSeason_ticket_usageInput, bookingsUncheckedCreateWithoutSeason_ticket_usageInput>
@@ -27071,18 +27242,58 @@ export namespace Prisma {
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
+  export type training_typesUpsertWithoutSeason_ticket_usageInput = {
+    update: XOR<training_typesUpdateWithoutSeason_ticket_usageInput, training_typesUncheckedUpdateWithoutSeason_ticket_usageInput>
+    create: XOR<training_typesCreateWithoutSeason_ticket_usageInput, training_typesUncheckedCreateWithoutSeason_ticket_usageInput>
+    where?: training_typesWhereInput
+  }
+
+  export type training_typesUpdateToOneWithWhereWithoutSeason_ticket_usageInput = {
+    where?: training_typesWhereInput
+    data: XOR<training_typesUpdateWithoutSeason_ticket_usageInput, training_typesUncheckedUpdateWithoutSeason_ticket_usageInput>
+  }
+
+  export type training_typesUpdateWithoutSeason_ticket_usageInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    duration_minutes?: IntFieldUpdateOperationsInput | number
+    accompanying_person_price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    active?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    color_hex?: NullableStringFieldUpdateOperationsInput | string | null
+    training_availability?: training_availabilityUpdateManyWithoutTraining_typesNestedInput
+    training_prices?: training_pricesUpdateManyWithoutTraining_typesNestedInput
+    season_tickets?: season_ticketsUpdateManyWithoutTraining_typesNestedInput
+    season_ticket_offers?: season_ticket_offersUpdateManyWithoutTraining_typesNestedInput
+  }
+
+  export type training_typesUncheckedUpdateWithoutSeason_ticket_usageInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    duration_minutes?: IntFieldUpdateOperationsInput | number
+    accompanying_person_price?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    active?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    color_hex?: NullableStringFieldUpdateOperationsInput | string | null
+    training_availability?: training_availabilityUncheckedUpdateManyWithoutTraining_typesNestedInput
+    training_prices?: training_pricesUncheckedUpdateManyWithoutTraining_typesNestedInput
+    season_tickets?: season_ticketsUncheckedUpdateManyWithoutTraining_typesNestedInput
+    season_ticket_offers?: season_ticket_offersUncheckedUpdateManyWithoutTraining_typesNestedInput
+  }
+
   export type season_ticket_usageCreateWithoutSeason_ticketsInput = {
     used_date: Date | string
-    training_type: string
     created_at?: Date | string | null
     bookings?: bookingsCreateNestedOneWithoutSeason_ticket_usageInput
+    training_types?: training_typesCreateNestedOneWithoutSeason_ticket_usageInput
   }
 
   export type season_ticket_usageUncheckedCreateWithoutSeason_ticketsInput = {
     id?: number
     booking_id?: number | null
+    training_type_id?: number | null
     used_date: Date | string
-    training_type: string
     created_at?: Date | string | null
   }
 
@@ -27147,6 +27358,7 @@ export namespace Prisma {
     training_availability?: training_availabilityCreateNestedManyWithoutTraining_typesInput
     training_prices?: training_pricesCreateNestedManyWithoutTraining_typesInput
     season_ticket_offers?: season_ticket_offersCreateNestedManyWithoutTraining_typesInput
+    season_ticket_usage?: season_ticket_usageCreateNestedManyWithoutTraining_typesInput
   }
 
   export type training_typesUncheckedCreateWithoutSeason_ticketsInput = {
@@ -27161,6 +27373,7 @@ export namespace Prisma {
     training_availability?: training_availabilityUncheckedCreateNestedManyWithoutTraining_typesInput
     training_prices?: training_pricesUncheckedCreateNestedManyWithoutTraining_typesInput
     season_ticket_offers?: season_ticket_offersUncheckedCreateNestedManyWithoutTraining_typesInput
+    season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutTraining_typesInput
   }
 
   export type training_typesCreateOrConnectWithoutSeason_ticketsInput = {
@@ -27252,6 +27465,7 @@ export namespace Prisma {
     training_availability?: training_availabilityUpdateManyWithoutTraining_typesNestedInput
     training_prices?: training_pricesUpdateManyWithoutTraining_typesNestedInput
     season_ticket_offers?: season_ticket_offersUpdateManyWithoutTraining_typesNestedInput
+    season_ticket_usage?: season_ticket_usageUpdateManyWithoutTraining_typesNestedInput
   }
 
   export type training_typesUncheckedUpdateWithoutSeason_ticketsInput = {
@@ -27266,6 +27480,7 @@ export namespace Prisma {
     training_availability?: training_availabilityUncheckedUpdateManyWithoutTraining_typesNestedInput
     training_prices?: training_pricesUncheckedUpdateManyWithoutTraining_typesNestedInput
     season_ticket_offers?: season_ticket_offersUncheckedUpdateManyWithoutTraining_typesNestedInput
+    season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutTraining_typesNestedInput
   }
 
   export type training_typesCreateWithoutSeason_ticket_offersInput = {
@@ -27279,6 +27494,7 @@ export namespace Prisma {
     training_availability?: training_availabilityCreateNestedManyWithoutTraining_typesInput
     training_prices?: training_pricesCreateNestedManyWithoutTraining_typesInput
     season_tickets?: season_ticketsCreateNestedManyWithoutTraining_typesInput
+    season_ticket_usage?: season_ticket_usageCreateNestedManyWithoutTraining_typesInput
   }
 
   export type training_typesUncheckedCreateWithoutSeason_ticket_offersInput = {
@@ -27293,6 +27509,7 @@ export namespace Prisma {
     training_availability?: training_availabilityUncheckedCreateNestedManyWithoutTraining_typesInput
     training_prices?: training_pricesUncheckedCreateNestedManyWithoutTraining_typesInput
     season_tickets?: season_ticketsUncheckedCreateNestedManyWithoutTraining_typesInput
+    season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutTraining_typesInput
   }
 
   export type training_typesCreateOrConnectWithoutSeason_ticket_offersInput = {
@@ -27322,6 +27539,7 @@ export namespace Prisma {
     training_availability?: training_availabilityUpdateManyWithoutTraining_typesNestedInput
     training_prices?: training_pricesUpdateManyWithoutTraining_typesNestedInput
     season_tickets?: season_ticketsUpdateManyWithoutTraining_typesNestedInput
+    season_ticket_usage?: season_ticket_usageUpdateManyWithoutTraining_typesNestedInput
   }
 
   export type training_typesUncheckedUpdateWithoutSeason_ticket_offersInput = {
@@ -27336,6 +27554,7 @@ export namespace Prisma {
     training_availability?: training_availabilityUncheckedUpdateManyWithoutTraining_typesNestedInput
     training_prices?: training_pricesUncheckedUpdateManyWithoutTraining_typesNestedInput
     season_tickets?: season_ticketsUncheckedUpdateManyWithoutTraining_typesNestedInput
+    season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutTraining_typesNestedInput
   }
 
   export type bookingsCreateWithoutTraining_availabilityInput = {
@@ -27451,6 +27670,7 @@ export namespace Prisma {
     training_prices?: training_pricesCreateNestedManyWithoutTraining_typesInput
     season_tickets?: season_ticketsCreateNestedManyWithoutTraining_typesInput
     season_ticket_offers?: season_ticket_offersCreateNestedManyWithoutTraining_typesInput
+    season_ticket_usage?: season_ticket_usageCreateNestedManyWithoutTraining_typesInput
   }
 
   export type training_typesUncheckedCreateWithoutTraining_availabilityInput = {
@@ -27465,6 +27685,7 @@ export namespace Prisma {
     training_prices?: training_pricesUncheckedCreateNestedManyWithoutTraining_typesInput
     season_tickets?: season_ticketsUncheckedCreateNestedManyWithoutTraining_typesInput
     season_ticket_offers?: season_ticket_offersUncheckedCreateNestedManyWithoutTraining_typesInput
+    season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutTraining_typesInput
   }
 
   export type training_typesCreateOrConnectWithoutTraining_availabilityInput = {
@@ -27547,6 +27768,7 @@ export namespace Prisma {
     training_prices?: training_pricesUpdateManyWithoutTraining_typesNestedInput
     season_tickets?: season_ticketsUpdateManyWithoutTraining_typesNestedInput
     season_ticket_offers?: season_ticket_offersUpdateManyWithoutTraining_typesNestedInput
+    season_ticket_usage?: season_ticket_usageUpdateManyWithoutTraining_typesNestedInput
   }
 
   export type training_typesUncheckedUpdateWithoutTraining_availabilityInput = {
@@ -27561,6 +27783,7 @@ export namespace Prisma {
     training_prices?: training_pricesUncheckedUpdateManyWithoutTraining_typesNestedInput
     season_tickets?: season_ticketsUncheckedUpdateManyWithoutTraining_typesNestedInput
     season_ticket_offers?: season_ticket_offersUncheckedUpdateManyWithoutTraining_typesNestedInput
+    season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutTraining_typesNestedInput
   }
 
   export type training_typesCreateWithoutTraining_pricesInput = {
@@ -27574,6 +27797,7 @@ export namespace Prisma {
     training_availability?: training_availabilityCreateNestedManyWithoutTraining_typesInput
     season_tickets?: season_ticketsCreateNestedManyWithoutTraining_typesInput
     season_ticket_offers?: season_ticket_offersCreateNestedManyWithoutTraining_typesInput
+    season_ticket_usage?: season_ticket_usageCreateNestedManyWithoutTraining_typesInput
   }
 
   export type training_typesUncheckedCreateWithoutTraining_pricesInput = {
@@ -27588,6 +27812,7 @@ export namespace Prisma {
     training_availability?: training_availabilityUncheckedCreateNestedManyWithoutTraining_typesInput
     season_tickets?: season_ticketsUncheckedCreateNestedManyWithoutTraining_typesInput
     season_ticket_offers?: season_ticket_offersUncheckedCreateNestedManyWithoutTraining_typesInput
+    season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutTraining_typesInput
   }
 
   export type training_typesCreateOrConnectWithoutTraining_pricesInput = {
@@ -27617,6 +27842,7 @@ export namespace Prisma {
     training_availability?: training_availabilityUpdateManyWithoutTraining_typesNestedInput
     season_tickets?: season_ticketsUpdateManyWithoutTraining_typesNestedInput
     season_ticket_offers?: season_ticket_offersUpdateManyWithoutTraining_typesNestedInput
+    season_ticket_usage?: season_ticket_usageUpdateManyWithoutTraining_typesNestedInput
   }
 
   export type training_typesUncheckedUpdateWithoutTraining_pricesInput = {
@@ -27631,6 +27857,7 @@ export namespace Prisma {
     training_availability?: training_availabilityUncheckedUpdateManyWithoutTraining_typesNestedInput
     season_tickets?: season_ticketsUncheckedUpdateManyWithoutTraining_typesNestedInput
     season_ticket_offers?: season_ticket_offersUncheckedUpdateManyWithoutTraining_typesNestedInput
+    season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutTraining_typesNestedInput
   }
 
   export type training_availabilityCreateWithoutTraining_typesInput = {
@@ -27751,6 +27978,31 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type season_ticket_usageCreateWithoutTraining_typesInput = {
+    used_date: Date | string
+    created_at?: Date | string | null
+    bookings?: bookingsCreateNestedOneWithoutSeason_ticket_usageInput
+    season_tickets?: season_ticketsCreateNestedOneWithoutSeason_ticket_usageInput
+  }
+
+  export type season_ticket_usageUncheckedCreateWithoutTraining_typesInput = {
+    id?: number
+    season_ticket_id?: number | null
+    booking_id?: number | null
+    used_date: Date | string
+    created_at?: Date | string | null
+  }
+
+  export type season_ticket_usageCreateOrConnectWithoutTraining_typesInput = {
+    where: season_ticket_usageWhereUniqueInput
+    create: XOR<season_ticket_usageCreateWithoutTraining_typesInput, season_ticket_usageUncheckedCreateWithoutTraining_typesInput>
+  }
+
+  export type season_ticket_usageCreateManyTraining_typesInputEnvelope = {
+    data: season_ticket_usageCreateManyTraining_typesInput | season_ticket_usageCreateManyTraining_typesInput[]
+    skipDuplicates?: boolean
+  }
+
   export type training_availabilityUpsertWithWhereUniqueWithoutTraining_typesInput = {
     where: training_availabilityWhereUniqueInput
     update: XOR<training_availabilityUpdateWithoutTraining_typesInput, training_availabilityUncheckedUpdateWithoutTraining_typesInput>
@@ -27867,6 +28119,22 @@ export namespace Prisma {
     active?: BoolFilter<"season_ticket_offers"> | boolean
     created_at?: DateTimeNullableFilter<"season_ticket_offers"> | Date | string | null
     updated_at?: DateTimeNullableFilter<"season_ticket_offers"> | Date | string | null
+  }
+
+  export type season_ticket_usageUpsertWithWhereUniqueWithoutTraining_typesInput = {
+    where: season_ticket_usageWhereUniqueInput
+    update: XOR<season_ticket_usageUpdateWithoutTraining_typesInput, season_ticket_usageUncheckedUpdateWithoutTraining_typesInput>
+    create: XOR<season_ticket_usageCreateWithoutTraining_typesInput, season_ticket_usageUncheckedCreateWithoutTraining_typesInput>
+  }
+
+  export type season_ticket_usageUpdateWithWhereUniqueWithoutTraining_typesInput = {
+    where: season_ticket_usageWhereUniqueInput
+    data: XOR<season_ticket_usageUpdateWithoutTraining_typesInput, season_ticket_usageUncheckedUpdateWithoutTraining_typesInput>
+  }
+
+  export type season_ticket_usageUpdateManyWithWhereWithoutTraining_typesInput = {
+    where: season_ticket_usageScalarWhereInput
+    data: XOR<season_ticket_usageUpdateManyMutationInput, season_ticket_usageUncheckedUpdateManyWithoutTraining_typesInput>
   }
 
   export type bookingsCreateWithoutUsersInput = {
@@ -28175,8 +28443,8 @@ export namespace Prisma {
   export type season_ticket_usageCreateManyBookingsInput = {
     id?: number
     season_ticket_id?: number | null
+    training_type_id?: number | null
     used_date: Date | string
-    training_type: string
     created_at?: Date | string | null
   }
 
@@ -28211,24 +28479,24 @@ export namespace Prisma {
 
   export type season_ticket_usageUpdateWithoutBookingsInput = {
     used_date?: DateTimeFieldUpdateOperationsInput | Date | string
-    training_type?: StringFieldUpdateOperationsInput | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     season_tickets?: season_ticketsUpdateOneWithoutSeason_ticket_usageNestedInput
+    training_types?: training_typesUpdateOneWithoutSeason_ticket_usageNestedInput
   }
 
   export type season_ticket_usageUncheckedUpdateWithoutBookingsInput = {
     id?: IntFieldUpdateOperationsInput | number
     season_ticket_id?: NullableIntFieldUpdateOperationsInput | number | null
+    training_type_id?: NullableIntFieldUpdateOperationsInput | number | null
     used_date?: DateTimeFieldUpdateOperationsInput | Date | string
-    training_type?: StringFieldUpdateOperationsInput | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type season_ticket_usageUncheckedUpdateManyWithoutBookingsInput = {
     id?: IntFieldUpdateOperationsInput | number
     season_ticket_id?: NullableIntFieldUpdateOperationsInput | number | null
+    training_type_id?: NullableIntFieldUpdateOperationsInput | number | null
     used_date?: DateTimeFieldUpdateOperationsInput | Date | string
-    training_type?: StringFieldUpdateOperationsInput | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
@@ -28326,31 +28594,31 @@ export namespace Prisma {
   export type season_ticket_usageCreateManySeason_ticketsInput = {
     id?: number
     booking_id?: number | null
+    training_type_id?: number | null
     used_date: Date | string
-    training_type: string
     created_at?: Date | string | null
   }
 
   export type season_ticket_usageUpdateWithoutSeason_ticketsInput = {
     used_date?: DateTimeFieldUpdateOperationsInput | Date | string
-    training_type?: StringFieldUpdateOperationsInput | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     bookings?: bookingsUpdateOneWithoutSeason_ticket_usageNestedInput
+    training_types?: training_typesUpdateOneWithoutSeason_ticket_usageNestedInput
   }
 
   export type season_ticket_usageUncheckedUpdateWithoutSeason_ticketsInput = {
     id?: IntFieldUpdateOperationsInput | number
     booking_id?: NullableIntFieldUpdateOperationsInput | number | null
+    training_type_id?: NullableIntFieldUpdateOperationsInput | number | null
     used_date?: DateTimeFieldUpdateOperationsInput | Date | string
-    training_type?: StringFieldUpdateOperationsInput | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type season_ticket_usageUncheckedUpdateManyWithoutSeason_ticketsInput = {
     id?: IntFieldUpdateOperationsInput | number
     booking_id?: NullableIntFieldUpdateOperationsInput | number | null
+    training_type_id?: NullableIntFieldUpdateOperationsInput | number | null
     used_date?: DateTimeFieldUpdateOperationsInput | Date | string
-    training_type?: StringFieldUpdateOperationsInput | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
@@ -28552,6 +28820,14 @@ export namespace Prisma {
     updated_at?: Date | string | null
   }
 
+  export type season_ticket_usageCreateManyTraining_typesInput = {
+    id?: number
+    season_ticket_id?: number | null
+    booking_id?: number | null
+    used_date: Date | string
+    created_at?: Date | string | null
+  }
+
   export type training_availabilityUpdateWithoutTraining_typesInput = {
     training_type?: StringFieldUpdateOperationsInput | string
     training_date?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -28666,6 +28942,29 @@ export namespace Prisma {
     active?: BoolFieldUpdateOperationsInput | boolean
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type season_ticket_usageUpdateWithoutTraining_typesInput = {
+    used_date?: DateTimeFieldUpdateOperationsInput | Date | string
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    bookings?: bookingsUpdateOneWithoutSeason_ticket_usageNestedInput
+    season_tickets?: season_ticketsUpdateOneWithoutSeason_ticket_usageNestedInput
+  }
+
+  export type season_ticket_usageUncheckedUpdateWithoutTraining_typesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    season_ticket_id?: NullableIntFieldUpdateOperationsInput | number | null
+    booking_id?: NullableIntFieldUpdateOperationsInput | number | null
+    used_date?: DateTimeFieldUpdateOperationsInput | Date | string
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type season_ticket_usageUncheckedUpdateManyWithoutTraining_typesInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    season_ticket_id?: NullableIntFieldUpdateOperationsInput | number | null
+    booking_id?: NullableIntFieldUpdateOperationsInput | number | null
+    used_date?: DateTimeFieldUpdateOperationsInput | Date | string
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type bookingsCreateManyUsersInput = {

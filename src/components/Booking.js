@@ -373,12 +373,19 @@ const Booking = () => {
   };
 
   const handleTypeChange = (e) => {
-    const newId = e.target.value; // Teraz to bude ID (číslo/string)
+    const newId = e.target.value; // Teraz to bude ID (číslo/string) alebo prázdny string
     setTrainingTypeId(newId);     // Nastavíme ID -> useEffect hore sa postará o zvyšok
+
+    // Ak je prázdny value (placeholder), resetujeme všetko
+    if (!newId) {
+      setTrainingType('');
+      setSelectedTypeObj(null);
+    }
 
     // Reset výberov
     setSelectedDate('');
     setSelectedTime('');
+    setTrainingId(null);
   };
 
   useEffect(() => {
@@ -493,18 +500,9 @@ const Booking = () => {
       }
 
       try {
-        const response = await api.get('/api/get-session-id', {
-          params: {
-            training_type: trainingType,
-            date: selectedDate,
-            time: selectedTime,
-          },
-        });
-        const newSessionId = response.data.id;
-
         await api.post('/api/bookings/use-credit', {
           creditId: selectedCredit.id,
-          trainingId: newSessionId,
+          trainingId: trainingId,
           childrenAges: childrenAges.join(', '),
           photoConsent: photoConsent,
           mobile: mobile,
@@ -643,7 +641,7 @@ const Booking = () => {
     setSelectedDate(formattedDate);
     setSelectedTime('');
 
-    // Scroll to time select after state update
+    // Scroll to time select after state update - smooth scroll s väčším delay
     setTimeout(() => {
       if (timeSelectRef.current) {
         timeSelectRef.current.scrollIntoView({
@@ -651,7 +649,7 @@ const Booking = () => {
           block: 'center'
         });
       }
-    }, 100);
+    }, 300);
   };
 
   const formatAvailabilityMessage = () => {
@@ -675,7 +673,14 @@ const Booking = () => {
 
   const selectCredit = (credit, fillForm = false) => {
     setSelectedCredit(credit);
-    setTrainingType(credit.training_type);
+    
+    // Nájdi ID typu na základe mena
+    const creditType = trainingTypes.find(t => t.name === credit.training_type);
+    if (creditType) {
+      setTrainingTypeId(creditType.id);
+      setTrainingType(credit.training_type);
+    }
+    
     setChildrenCount(credit.child_count);
     setAccompanyingPerson(credit.accompanying_person === true);
 

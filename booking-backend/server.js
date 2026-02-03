@@ -1338,11 +1338,11 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
     await client.query('BEGIN');
 
     const {
-      userId, seasonTicketId, trainingTypeId, trainingType, selectedDate, selectedTime,
+      userId, seasonTicketId, trainingTypeId, trainingId,
       childrenCount, childrenAge, photoConsent, mobile, note, accompanyingPerson,
     } = req.body;
 
-    if (!userId || !seasonTicketId || !trainingTypeId || !trainingType || !selectedDate || !selectedTime || !childrenCount) {
+    if (!userId || !seasonTicketId || !trainingTypeId || !trainingId || !childrenCount) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -1368,17 +1368,10 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
       return res.status(400).json({ error: 'Season ticket has expired' });
     }
 
-    // Time parsing
-    const [time, modifier] = selectedTime.split(' ');
-    let [hours, minutes] = time.split(':');
-    if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
-    if (modifier === 'AM' && hours === '12') hours = '00';
-    const trainingDateTime = new Date(`${selectedDate}T${hours}:${minutes}`);
-
-    // Find training
+    // Find training by ID
     const trainingResult = await client.query(
-      `SELECT id, max_participants, training_type, training_date FROM training_availability WHERE training_type = $1 AND training_date = $2`,
-      [trainingType, trainingDateTime]
+      `SELECT id, max_participants, training_type, training_date, training_type_id FROM training_availability WHERE id = $1`,
+      [trainingId]
     );
     if (trainingResult.rows.length === 0) {
       throw new Error('Training session not found');
@@ -1397,9 +1390,9 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
 
     // Insert booking
     const bookingResult = await client.query(
-      `INSERT INTO bookings (user_id, training_id, number_of_children, amount_paid, payment_time, booked_at, active, booking_type)
-       VALUES ($1, $2, $3, 0, NULL, NOW(), true, 'season_ticket') RETURNING id`,
-      [userId, training.id, childrenCount]
+      `INSERT INTO bookings (user_id, training_id, number_of_children, amount_paid, payment_time, booked_at, active, booking_type, children_ages, photo_consent, mobile, note, accompanying_person)
+       VALUES ($1, $2, $3, 0, NULL, NOW(), true, 'season_ticket', $4, $5, $6, $7, $8) RETURNING id`,
+      [userId, training.id, childrenCount, childrenAge, photoConsent, mobile, note, accompanyingPerson]
     );
     const bookingId = bookingResult.rows[0].id;
 
@@ -1412,9 +1405,9 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
 
     // Record usage
     await client.query(
-      `INSERT INTO season_ticket_usage (season_ticket_id, booking_id, training_type, created_at, used_date)
+      `INSERT INTO season_ticket_usage (season_ticket_id, booking_id, training_type_id, created_at, used_date)
        VALUES ($1, $2, $3, NOW(), NOW())`,
-      [seasonTicketId, bookingId, trainingType]
+      [seasonTicketId, bookingId, training.training_type_id]
     );
 
     const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
@@ -1427,8 +1420,7 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
       // 1. User Email (s detailmi o zostatku)
       await emailService.sendUserBookingEmail(user.email, {
         date: training.training_date, // Používame dátum z DB pre istotu
-        start_time: selectedTime,
-        trainingType: trainingType,
+        trainingType: training.training_type,
         userName: user.first_name,
         paymentType: 'season_ticket',
         // Data pre permanentku:
@@ -1444,9 +1436,7 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
         mobile,
         childrenCount,
         childrenAge,
-        trainingType,
-        selectedDate,
-        selectedTime,
+        trainingType: training.training_type,
         photoConsent,
         note,
         seasonTicketId,

@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import { Modal } from "react-bootstrap";
 import logo from "../assets/logo.png";
 import stripeLogo from "../assets/stripe-logo_black.png";
 import { FaInstagram, FaFacebookF } from "react-icons/fa";
@@ -11,6 +12,39 @@ import applepayLogo from "../assets/applePay.png";
 import googlepayLogo from "../assets/googlePay.png";
 
 const Foot = () => {
+  const [showPartnersModal, setShowPartnersModal] = useState(false);
+
+  const partners = [
+    {
+      name: "Raj pre deti",
+      description: "SENZORICKÉ-MOTORICKÉ-EDUKAČNÉ-LOGICKÉ POMÔCKY",
+      url: "https://www.rajpredetisro.sk/",
+      discount: "Nitracik10",
+      image: "raj_pre_deti.png"
+    },
+    {
+      name: "Melian",
+      description: "Montessiri pomôcky s láskou",
+      url: "https://www.melian.sk",
+      discount: "Nitracik10",
+      image: "melian.png"
+    },
+    {
+      name: "Hravé detičky",
+      description: "Všetko pre vaše hravé detičky",
+      url: "https://hravedeticky.sk/",
+      discount: "Nitracik10",
+      image: "hrave_deticky.png"
+    },
+    {
+      name: "Cupilupi",
+      description: "Senzomotorické koberčeky",
+      url: "https://www.cupilupi.sk/",
+      discount: "Nitracik10",
+      image: "cupilupi.png"
+    }
+  ];
+
   const handleCookiePreferences = (e) => {
     e.preventDefault();
     // Odosielame udalosť 'openCookieSettings', ktorú CookieConsent počúva
@@ -77,9 +111,13 @@ const Foot = () => {
               </Link>
             </li>
             <li>
-              <Link to="/partners" className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm">
+              <button
+                type="button"
+                onClick={() => setShowPartnersModal(true)}
+                className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm bg-transparent border-0 p-0 cursor-pointer"
+              >
                 Partneri
-              </Link>
+              </button>
             </li>
           </ul>
         </div>
@@ -163,6 +201,59 @@ const Foot = () => {
         </div>
         <p className="text-secondary-500 text-xs">Designed by Pluhi</p>
       </div>
+
+      {/* Partners Modal */}
+      <Modal
+        show={showPartnersModal}
+        onHide={() => setShowPartnersModal(false)}
+        centered
+        size="lg"
+      >
+        <Modal.Header closeButton className="border-b border-gray-200">
+          <Modal.Title className="text-2xl font-bold text-gray-900">Naši Partneri</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {partners.map((partner, index) => (
+              <div
+                key={index}
+                className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow duration-300"
+              >
+              <div className="mb-4 h-48 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center p-3">
+                  <img
+                    src={`/images/partners/${partner.image}`}
+                    alt={partner.name}
+                    className="max-w-full max-h-full object-contain"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                    }}
+                  />
+                </div>
+
+                {/* Partner Info */}
+                <h3 className="text-lg font-bold text-gray-900 mb-2">{partner.name}</h3>
+                <p className="text-sm text-secondary-500 font-semibold mb-3">{partner.description}</p>
+
+                {/* Website Link */}
+                <a
+                  href={partner.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium mb-3 block hover:underline"
+                >
+                  {partner.url}
+                </a>
+
+                {/* Discount Code */}
+                <div className="bg-gray-100 border border-gray-300 rounded p-3">
+                  <p className="text-xs text-gray-600 mb-1">Zľavový kód:</p>
+                  <p className="text-sm font-bold text-secondary-900">{partner.discount}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Modal.Body>
+      </Modal>
     </footer>
   );
 };

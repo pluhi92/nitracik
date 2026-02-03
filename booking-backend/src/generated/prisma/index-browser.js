@@ -185,8 +185,8 @@ exports.Prisma.Season_ticket_usageScalarFieldEnum = {
   id: 'id',
   season_ticket_id: 'season_ticket_id',
   booking_id: 'booking_id',
+  training_type_id: 'training_type_id',
   used_date: 'used_date',
-  training_type: 'training_type',
   created_at: 'created_at'
 };
 
