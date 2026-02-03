@@ -362,7 +362,7 @@ useEffect(() => {
           </div>
           <div className="rounded-lg shadow-xl overflow-hidden">
             <img
-              src="/images/nitracik_o_nas.jpg"
+              src="/images/nitracik_about_us.jpg"
               alt="Children enjoying activities at Nitracik"
               className="w-full h-[400px] object-cover"
               onError={(e) => {
