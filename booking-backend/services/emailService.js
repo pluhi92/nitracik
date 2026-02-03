@@ -5,6 +5,9 @@ const dayjs = require('dayjs');
 require('dayjs/locale/sk');
 dayjs.locale('sk');
 
+// Nastavenie adresy odosielateľa z Google Workspace
+const SENDER = 'Nitráčik <info@nitracik.sk>';
+
 // Konfigurácia odosielateľa
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com', // Explicitný host namiesto service: 'gmail'
@@ -33,12 +36,22 @@ transporter.verify((error, success) => {
   }
 });
 
-// Pomocné konštanty
-const getCommonAttachments = () => [
-  { filename: 'logo_bez.PNG', path: path.join(__dirname, '..', 'public', 'logo_bez.PNG'), cid: 'nitracikLogo' },
-  { filename: 'instagram.png', path: path.join(__dirname, '..', 'public', 'instagram.png'), cid: 'igIcon' },
-  { filename: 'facebook.png', path: path.join(__dirname, '..', 'public', 'facebook.png'), cid: 'fbIcon' }
-];
+// Verejné URL obrázkov (backend static files)
+const IMAGE_BASE_URL = process.env.IMAGE_BASE_URL || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/images`;
+const IMAGE_URLS = {
+  logo: `${IMAGE_BASE_URL}/email/logo_bez.PNG`,
+  instagram: `${IMAGE_BASE_URL}/email/instagram.png`,
+  facebook: `${IMAGE_BASE_URL}/email/facebook.png`
+};
+
+const injectImageUrls = (html) =>
+  html
+    .replaceAll('cid:nitracikLogo', IMAGE_URLS.logo)
+    .replaceAll('cid:igIcon', IMAGE_URLS.instagram)
+    .replaceAll('cid:fbIcon', IMAGE_URLS.facebook);
+
+// Pomocné konštanty (bez príloh)
+const getCommonAttachments = () => [];
 
 // Pomocná funkcia na získanie zoznamu prihlásených na danú hodinu
 const getAttendeesList = async (trainingId) => {
@@ -162,10 +175,10 @@ module.exports = {
   sendVerificationEmail: async (userEmail, userName, verificationLink) => {
     const subject = 'Vitajte v Nitráčiku - Overenie emailu';
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: userEmail,
       subject,
-      html: `
+      html: injectImageUrls(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -219,7 +232,7 @@ module.exports = {
           </div>
         </body>
         </html>
-      `,
+      `),
       attachments: getCommonAttachments()
     };
     return transporter.sendMail(mailOptions);
@@ -265,10 +278,10 @@ module.exports = {
     // ================================
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: userEmail,
       subject,
-      html: `
+      html: injectImageUrls(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -320,6 +333,11 @@ module.exports = {
                   <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
                   <p style="font-size: 13px; color: #666; margin: 0;">+421 949 584 576</p>
                 </div>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; line-height: 1.5;">
+                  <p style="margin: 0 0 8px 0;"><strong>Súhlas so začatím poskytovania služby:</strong></p>
+                  <p style="margin: 0;">Týmto potvrdzujem, že som pri objednávke udelil/a súhlas so začatím poskytovania služby pred uplynutím lehoty na odstúpenie od zmluvy v zmysle § 7 ods. 1 zákona č. 102/2014 Z.z. o ochrane spotrebiteľa pri predaji tovaru alebo poskytovaní služieb na základe zmluvy uzavretej na diaľku alebo zmluvy uzavretej mimo prevádzkových priestorov predávajúceho a o zmene a doplnení niektorých zákonov. Bol/a som poučený/á o tom, že v prípade uplatnenia tohto súhlasu stratím právo odstúpiť od zmluvy v zmysle § 7 ods. 6 písm. l) uvedeného zákona, ak bude služba v plnom rozsahu poskytnutá.</p>
+                </div>
               </div>
               <div class="footer">
                 <div style="margin-bottom: 15px;">
@@ -331,13 +349,13 @@ module.exports = {
                   </a>
                 </div>
                 <p style="margin: 0;">© 2026 O.z. Nitráčik. Všetky práva vyhradené.</p>
-                <p style="margin: 5px 0 0 0;">oznitracik@gmail.com</p>
+                <p style="margin: 5px 0 0 0;">info@nitracik.sk</p>
               </div>
             </div>
           </div>
         </body>
         </html>
-      `,
+      `),
       attachments: getCommonAttachments()
     };
     return transporter.sendMail(mailOptions);
@@ -347,10 +365,10 @@ module.exports = {
   sendAccountDeletedEmail: async (userEmail, userName) => {
     const subject = 'Rozlúčka s Nitráčikom - Potvrdenie zrušenia účtu';
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: userEmail,
       subject,
-      html: `
+      html: injectImageUrls(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -403,7 +421,7 @@ module.exports = {
           </div>
         </body>
         </html>
-      `,
+      `),
       attachments: getCommonAttachments()
     };
     return transporter.sendMail(mailOptions);
@@ -418,10 +436,10 @@ module.exports = {
     const subject = 'Potvrdenie nákupu permanentky | Nitráčik';
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: userEmail,
       subject,
-      html: `
+      html: injectImageUrls(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -469,6 +487,11 @@ module.exports = {
                   <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
                   <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
                 </div>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; line-height: 1.5;">
+                  <p style="margin: 0 0 8px 0;"><strong>Súhlas so začatím poskytovania služby:</strong></p>
+                  <p style="margin: 0;">Týmto potvrdzujem, že som pri objednávke udelil/a súhlas so začatím poskytovania služby pred uplynutím lehoty na odstúpenie od zmluvy v zmysle § 7 ods. 1 zákona č. 102/2014 Z.z. o ochrane spotrebiteľa pri predaji tovaru alebo poskytovaní služieb na základe zmluvy uzavretej na diaľku alebo zmluvy uzavretej mimo prevádzkových priestorov predávajúceho a o zmene a doplnení niektorých zákonov. Bol/a som poučený/á o tom, že v prípade uplatnenia tohto súhlasu stratím právo odstúpiť od zmluvy v zmysle § 7 ods. 6 písm. l) uvedeného zákona, ak bude služba v plnom rozsahu poskytnutá.</p>
+                </div>
               </div>
               <div class="footer">
                 <div style="margin-bottom: 15px;">
@@ -480,13 +503,94 @@ module.exports = {
                   </a>
                 </div>
                 <p style="margin: 0;">© 2026 O.z. Nitráčik. Všetky práva vyhradené.</p>
-                <p style="margin: 5px 0 0 0;">oznitracik@gmail.com</p>
+                <p style="margin: 5px 0 0 0;">info@nitracik.sk</p>
               </div>
             </div>
           </div>
         </body>
         </html>
-      `,
+      `),
+      attachments: [
+        ...getCommonAttachments(),
+        {
+          filename: 'Odstupenie_od_zmluvy_nitracik.pdf',
+          path: path.join(__dirname, '..', '..', 'public', 'Odstupenie_od_zmluvy_nitracik.pdf')
+        }
+      ]
+    };
+    return transporter.sendMail(mailOptions);
+  },
+
+  // --- 4b. ADMIN: SEASON TICKET PURCHASE NOTIFICATION ---
+  sendAdminSeasonTicketPurchase: async (adminEmail, data) => {
+    const formattedPurchaseDate = dayjs().format('DD.MM.YYYY');
+    const formattedExpiryDate = dayjs(data.expiryDate).format('DD.MM.YYYY');
+
+    const mailOptions = {
+      from: SENDER,
+      to: adminEmail,
+      subject: 'Nový nákup permanentky - Nitráčik',
+      html: injectImageUrls(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+             body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: sans-serif; }
+             .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; }
+             .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #eab308; }
+             .content { padding: 30px; color: #333; }
+             .info-box { background-color: #f3f4f6; padding: 20px; border-radius: 6px; margin: 20px 0; border: 1px solid #e5e7eb; }
+             .info-row { margin-bottom: 12px; font-size: 15px; }
+             .info-label { font-weight: bold; color: #1f2937; }
+             .divider { border: 0; border-top: 1px solid #d1d5db; margin: 15px 0; }
+             .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+          </style>
+        </head>
+        <body>
+          <div style="background-color: #f4f4f4; padding: 40px 0;">
+            <div class="container">
+              <div class="header">
+                 <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+              </div>
+              <div class="content">
+                <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #9333ea;">🎫 Nový nákup permanentky!</p>
+                
+                <div class="info-box">
+                  <p style="font-size: 16px; font-weight: bold; margin-bottom: 15px; color: #2563eb;">Informácie o užívateľovi</p>
+                  <div class="info-row"><span class="info-label">👤 Meno:</span> ${data.user.first_name} ${data.user.last_name}</div>
+                  <div class="info-row"><span class="info-label">📧 Email:</span> <a href="mailto:${data.user.email}" style="color: #2563eb;">${data.user.email}</a></div>
+                  <div class="info-row"><span class="info-label">📍 Adresa:</span> ${data.user.address}</div>
+                  
+                  <hr class="divider">
+                  
+                  <p style="font-size: 16px; font-weight: bold; margin-bottom: 15px; margin-top: 20px; color: #2563eb;">Detaily permanentky</p>
+                  <div class="info-row"><span class="info-label">🎟️ Počet vstupov:</span> ${data.entries}</div>
+                  <div class="info-row"><span class="info-label">💰 Cena:</span> ${data.totalPrice} €</div>
+                  <div class="info-row"><span class="info-label">📅 Dátum nákupu:</span> ${formattedPurchaseDate}</div>
+                  <div class="info-row"><span class="info-label">⏳ Platnosť do:</span> ${formattedExpiryDate}</div>
+                  
+                  <hr class="divider">
+                  
+                  <div class="info-row">
+                    <span class="info-label">🔑 Stripe Payment ID:</span> <span style="font-size: 12px; color: #6b7280;">${data.stripePaymentId || 'N/A'}</span>
+                  </div>
+                  
+                  <hr class="divider">
+                  
+                  <div class="info-row" style="background-color: #fef3c7; padding: 12px; border-radius: 6px; margin-top: 15px;">
+                    <span style="font-size: 13px; color: #92400e;">✅ Zákazník pri objednávke zaškrtol súhlas so začatím poskytovania služby pred uplynutím lehoty na odstúpenie a bol poučený o strate práva na odstúpenie.</span>
+                  </div>
+                </div>
+
+              </div>
+              <div class="footer">
+                <p>© 2026 O.z. Nitráčik.</p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `),
       attachments: getCommonAttachments()
     };
     return transporter.sendMail(mailOptions);
@@ -500,10 +604,10 @@ module.exports = {
     const attendeesData = await getAttendeesList(data.trainingId);
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: adminEmail,
       subject: 'Nová rezervácia - Nitráčik (Platba)',
-      html: `
+      html: injectImageUrls(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -559,6 +663,12 @@ module.exports = {
                   <div class="info-row">
                     <span class="info-label">🔑 Payment Intent:</span> <span style="font-size: 12px; color: #6b7280;">${data.paymentIntentId}</span>
                   </div>
+                  
+                  <hr class="divider">
+                  
+                  <div class="info-row" style="background-color: #fef3c7; padding: 12px; border-radius: 6px; margin-top: 15px;">
+                    <span style="font-size: 13px; color: #92400e;">✅ Zákazník pri objednávke zaškrtol súhlas so začatím poskytovania služby pred uplynutím lehoty na odstúpenie a bol poučený o strate práva na odstúpenie.</span>
+                  </div>
                 </div>
 
                 ${attendeesData.html}
@@ -571,7 +681,7 @@ module.exports = {
           </div>
         </body>
         </html>
-      `,
+      `),
       attachments: getCommonAttachments()
     };
     return transporter.sendMail(mailOptions);
@@ -583,10 +693,10 @@ module.exports = {
     const attendeesData = await getAttendeesList(data.trainingId);
 
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: adminEmail,
       subject: 'Nová rezervácia - Nitráčik (Permanentka)',
-      html: `
+      html: injectImageUrls(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -650,7 +760,7 @@ module.exports = {
           </div>
         </body>
         </html>
-      `,
+      `),
       attachments: getCommonAttachments()
     };
     return transporter.sendMail(mailOptions);
@@ -664,12 +774,11 @@ module.exports = {
 
     // Formátovanie dátumu
     const dateStr = new Date(data.training.training_date).toLocaleString('sk-SK');
-
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: adminEmail,
       subject: 'Nová rezervácia - Nitráčik (Kredit)',
-      html: `
+      html: injectImageUrls(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -732,92 +841,416 @@ module.exports = {
           </div>
         </body>
         </html>
-      `,
+      `),
       attachments: getCommonAttachments()
     };
     return transporter.sendMail(mailOptions);
   },
 
-  // --- 8. CANCELLATION (SINGLE) - ADMIN & USER ---
-  sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usageResult) => {
+ // --- 8. CANCELLATION (SINGLE) - ADMIN & USER ---
+sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usageResult) => {
 
-    // 1. Určenie typu storna pre Admina
+    // --- 1. LOGIKA TYPU STORNA ---
+    const isPass = booking.booking_type === 'season_ticket'; 
+    const isCredit = booking.booking_type === 'credit';
+    
+    // --- 2. Určenie textov pre ADMINA ---
     let cancellationType = 'NEURČENÉ';
+    let typeColor = '#333';
+    
     if (refundData && refundData.id) {
-      cancellationType = 'REFUND (Vrátenie na kartu)';
+        cancellationType = 'REFUND (Vrátenie na kartu)';
+        typeColor = '#dc2626';
     } else if (refundData && refundData.error) {
-      cancellationType = 'CHYBA REFUNDU (Manuálna kontrola nutná)';
+        cancellationType = 'CHYBA REFUNDU (Manuálna kontrola nutná)';
+        typeColor = '#ef4444'; 
     } else {
-      cancellationType = 'KREDIT / PERMANENTKA (Vrátenie)';
+        if (isPass) {
+            cancellationType = 'PERMANENTKA (Vrátenie vstupu)';
+            typeColor = '#d97706';
+        } else if (isCredit) {
+            cancellationType = 'KREDIT (Vrátenie na interný účet)';
+            typeColor = '#2563eb';
+        } else {
+            cancellationType = 'INTERNÝ REFUND (Rezervvácia --> kredit)';
+            typeColor = '#2563eb';
+        }
     }
 
-    // 2. Získanie AKTUÁLNEHO zoznamu (volá sa to až po zmazaní z DB, takže user tam už nebude)
-    // Dôležité: booking objekt musí obsahovať training_id
     const attendeesData = await getAttendeesList(booking.training_id);
     const dateStr = new Date(booking.training_date).toLocaleString('sk-SK');
 
-    // 3. Admin Email (Bez obrázkov/príloh, ale s HTML tabuľkou)
-    const adminHtml = `
-      <div style="font-family: sans-serif; color: #333;">
-        <h2 style="color: #dc2626;">❌ Zrušenie tréningu Userom</h2>
-        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 6px; border: 1px solid #e5e7eb;">
-            <p><strong>Meno usera:</strong> ${booking.first_name} ${booking.last_name}</p>
-            <p><strong>Email:</strong> <a href="mailto:${booking.email}">${booking.email}</a></p>
-            <p><strong>Počet detí:</strong> ${booking.number_of_children}</p>
-            <p><strong>Dátum tréningu:</strong> ${dateStr}</p>
-            <p><strong>Typ tréningu:</strong> ${booking.training_type}</p>
-            <hr>
-            <p style="font-size: 16px;"><strong>Typ zrušenia:</strong> <span style="color: #dc2626; font-weight: bold;">${cancellationType}</span></p>
-            <p><strong>Suma/Hodnota:</strong> ${booking.amount_paid || 0} € (alebo 1 vstup)</p>
-             ${refundData && refundData.id ? `<p style="font-size:12px; color:#666;">Refund ID: ${refundData.id}</p>` : ''}
+    // --- SPOLOČNÝ FOOTER HTML (Aby sme to nepísali 2x) ---
+    const footerHtml = `
+        <div class="footer">
+            <div style="margin-bottom: 15px;">
+              <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
+                <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
+              </a>
+              <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
+                <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
+              </a>
+            </div>
+            <p style="margin: 0;">© 2026 O.z. Nitráčik. Všetky práva vyhradené.</p>
+            <p style="margin: 5px 0 0 0;">info@nitracik.sk</p>
         </div>
-
-        ${attendeesData.html}
-      </div>
     `;
 
-    // 4. User Email logic (Tu necháme pekný dizajn s logom)
+    // --- 3. ADMIN EMAIL HTML ---
+    const adminHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+            .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+            .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #dc2626; }
+            .content { padding: 30px; color: #333333; line-height: 1.6; }
+            .info-box { background-color: #f3f4f6; padding: 20px; border-radius: 6px; margin: 20px 0; border: 1px solid #e5e7eb; }
+            .info-row { margin-bottom: 12px; font-size: 15px; }
+            .info-label { font-weight: bold; color: #1f2937; }
+            .divider { border: 0; border-top: 1px solid #d1d5db; margin: 15px 0; }
+            .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+          </style>
+        </head>
+        <body>
+          <div style="background-color: #f4f4f4; padding: 40px 0;">
+            <div class="container">
+              <div class="header">
+                 <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+              </div>
+              <div class="content">
+                <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #dc2626;">❌ Zrušenie rezervácie užívateľom</p>
+                
+                <div class="info-box">
+                  <p style="font-size: 16px; font-weight: bold; margin-bottom: 15px; color: #1f2937;">Informácie o užívateľovi</p>
+                  <div class="info-row"><span class="info-label">👤 Meno:</span> ${booking.first_name} ${booking.last_name}</div>
+                  <div class="info-row"><span class="info-label">📧 Email:</span> <a href="mailto:${booking.email}" style="color: #2563eb;">${booking.email}</a></div>
+                  
+                  <hr class="divider">
+                  
+                  <p style="font-size: 16px; font-weight: bold; margin-bottom: 15px; margin-top: 20px; color: #1f2937;">Detaily zrušenej rezervácie</p>
+                  <div class="info-row"><span class="info-label">🎨 Typ tréningu:</span> ${booking.training_type}</div>
+                  <div class="info-row"><span class="info-label">📅 Dátum:</span> ${dateStr}</div>
+                  <div class="info-row"><span class="info-label">👶 Počet detí:</span> ${booking.number_of_children}</div>
+                  
+                  <hr class="divider">
+
+                  <div class="info-row"><span class="info-label">ℹ️ Typ zrušenia:</span> <span style="color: ${typeColor}; font-weight: bold;">${cancellationType}</span></div>
+                  <div class="info-row"><span class="info-label">💰 Suma/Hodnota:</span> ${booking.amount_paid} €</div>
+                  
+                  ${refundData && refundData.id ? `<div class="info-row"><span class="info-label">🔑 Refund ID:</span> <span style="font-size: 12px; color: #6b7280;">${refundData.id}</span></div>` : ''}
+                </div>
+
+                ${attendeesData.html}
+
+              </div>
+              
+              ${footerHtml}
+
+            </div>
+          </div>
+        </body>
+        </html>
+    `;
+
+    // --- 4. USER EMAIL LOGIC ---
     let userRefundText = '';
+    
     if (refundData && refundData.id) {
-      userRefundText = `Informácia o vrátení platby:<br>- Suma: ${booking.amount_paid} €<br>- Stav: Odoslané na spracovanie<br>Peniaze by sa mali vrátiť na váš účet do 5-10 pracovných dní.`;
+        // A. REFUND NA KARTU
+        userRefundText = `
+            <strong>Informácia o vrátení platby:</strong><br><br>
+            - Suma: <strong>${booking.amount_paid} €</strong><br>
+            - Stav: Odoslané na spracovanie<br>
+            - ID Transakcie: <span style="font-family:monospace; color:#666;">${refundData.id}</span><br><br>
+            <span style="font-size:13px;">Peniaze by sa mali vrátiť na váš účet do 5-10 pracovných dní.</span>
+        `;
     } else if (refundData && refundData.error) {
-      userRefundText = `Stav vrátenia: Nepodarilo sa automaticky vrátiť platbu. Kontaktujte nás prosím.`;
+        // B. CHYBA
+        userRefundText = `<strong>Stav vrátenia:</strong> Nepodarilo sa automaticky vrátiť platbu na kartu. Kontaktujte nás prosím, vyriešime to manuálne.`;
     } else {
-      userRefundText = `Váš kredit alebo vstup na permanentku bol vrátený na váš účet v Nitráčiku.`;
+        // C. INTERNÝ REFUND
+        if (isPass) {
+             userRefundText = `
+                <strong>Vrátenie vstupu:</strong><br>
+                Váš vstup na permanentku bol úspešne vrátený. Môžete ho použiť na ďalšiu rezerváciu.
+             `;
+        } else {
+             userRefundText = `
+                <strong>Vrátenie kreditu:</strong><br>
+                Kredit v hodnote tréningu bol vrátený na váš účet v Nitráčiku.
+             `;
+        }
     }
 
     const userHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: sans-serif; }
+            .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; }
+            .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #dc2626; }
+            .content { padding: 30px; color: #333; line-height: 1.6; }
+            .info-box { background-color: #fef2f2; border: 1px solid #fca5a5; padding: 15px; border-radius: 6px; margin: 20px 0; }
+            .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+          </style>
+        </head>
+        <body>
+          <div style="background-color: #f4f4f4; padding: 40px 0;">
+            <div class="container">
+              <div class="header">
+                 <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+              </div>
+              <div class="content">
+                <p style="font-size: 18px; font-weight: bold;">Dobrý deň, ${booking.first_name}.</p>
+                <p>Vaša rezervácia na tréning <strong>${booking.training_type}</strong> (Dátum: ${dateStr}) bola úspešne zrušená.</p>
+                
+                <div class="info-box">
+                   ${userRefundText}
+                </div>
+                
+                <p>Dúfame, že sa uvidíme nabudúce.</p>
+                <p>S pozdravom,<br>Tím Nitráčik</p>
+              </div>
+              
+              ${footerHtml}
+              
+            </div>
+          </div>
+        </body>
+        </html>
+    `;
+
+    return Promise.all([
+        // Admin email
+        transporter.sendMail({
+            from: SENDER,
+            to: adminEmail,
+            subject: `❌ Zrušená rezervácia: ${booking.first_name} ${booking.last_name}`,
+        html: injectImageUrls(adminHtml),
+            attachments: getCommonAttachments() 
+        }),
+        // User email
+        transporter.sendMail({
+            from: SENDER,
+            to: userEmail,
+            subject: 'Potvrdenie zrušenia rezervácie | Nitráčik',
+        html: injectImageUrls(userHtml),
+            attachments: getCommonAttachments()
+        })
+    ]);
+},
+
+  // --- 9. MASS CANCELLATION (PLATBA KARTOU - VÝBER) ---
+  sendMassCancellationEmail: async (userEmail, booking, reason, frontendUrl) => {
+    // Dátum formátovanie
+    const dateObj = new Date(booking.training_date || booking.trainingDate);
+    // Formát dátumu podľa dizajnu rezervácie (napr. 30.01.2026 (piatok))
+    const datePart = dateObj.toLocaleDateString('sk-SK', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const dayPart = dateObj.toLocaleDateString('sk-SK', { weekday: 'long' });
+    const timePart = dateObj.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+
+    const formattedDateString = `${datePart} (${dayPart})`;
+
+    // Linky na refund
+    const refundUrl = `${frontendUrl}/refund-option?bookingId=${booking.booking_id}&action=refund`;
+    const creditUrl = `${frontendUrl}/credit-option?bookingId=${booking.booking_id}`;
+
+    const childrenCount = booking.number_of_children || 1;
+    const trainingType = booking.training_type || booking.trainingType;
+    const userName = booking.first_name || 'Osôbka';
+
+    const html = `
       <!DOCTYPE html>
       <html>
       <head>
         <style>
-          body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: sans-serif; }
-          .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; }
-          .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #dc2626; }
-          .content { padding: 30px; color: #333; line-height: 1.6; }
-          .info-box { background-color: #fef2f2; border: 1px solid #fca5a5; padding: 15px; border-radius: 6px; margin: 20px 0; }
-          .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; }
+          body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+          .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+          .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #eab308; }
+          .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
+          
+          /* Box pre zrušenie - červený nádych */
+          .alert-box { background-color: #fef2f2; border: 1px solid #f87171; border-radius: 6px; padding: 15px; margin: 20px 0; text-align: left; }
+          .alert-item { margin-bottom: 5px; font-size: 15px; }
+          
+          /* Boxy pre možnosti */
+          .option-container { margin-top: 25px; }
+          .option-box { border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 15px; background-color: #fafafa; }
+          .option-title { font-weight: bold; display: block; margin-bottom: 8px; font-size: 16px; }
+          .btn { display: inline-block; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 10px; font-size: 14px; text-align: center; }
+          
+          .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+          p { margin-bottom: 15px; }
         </style>
       </head>
       <body>
         <div style="background-color: #f4f4f4; padding: 40px 0;">
           <div class="container">
             <div class="header">
-               <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+              <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
             </div>
+
             <div class="content">
-              <p style="font-size: 18px; font-weight: bold;">Dobrý deň, ${booking.first_name}.</p>
-              <p>Vaša rezervácia na tréning <strong>${booking.training_type}</strong> (Dátum: ${dateStr}) bola úspešne zrušená.</p>
+              <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName}.</p>
               
-              <div class="info-box">
-                 ${userRefundText}
+              <p>S poľutovaním Vám oznamujeme, že Váš plánovaný tréning bol zrušený.</p>
+
+              <div class="alert-box">
+                <div class="alert-item" style="color: #dc2626; font-weight: bold; margin-bottom: 10px;">⚠️ ZRUŠENIE REZERVÁCIE</div>
+                <div class="alert-item">🗓️ <strong>Dátum:</strong> ${formattedDateString}</div>
+                <div class="alert-item">⏰ <strong>Čas:</strong> ${timePart}</div>
+                <div class="alert-item">🧘 <strong>Tréning:</strong> ${trainingType}</div>
+                <div class="alert-item" style="margin-top: 10px; border-top: 1px dashed #fca5a5; padding-top: 10px;">
+                  <strong>Dôvod:</strong> ${reason || 'Prevádzkové dôvody'}
+                </div>
               </div>
-              
-              <p>Dúfame, že sa uvidíme nabudúce.</p>
-              <p>S pozdravom,<br>Tím Nitráčik</p>
+
+              <p>Keďže ste za tréning zaplatili kartou, pripravili sme pre Vás dve možnosti kompenzácie. Vyberte si prosím tú, ktorá Vám viac vyhovuje:</p>
+
+              <div class="option-container">
+                <div class="option-box" style="border-left: 4px solid #10b981; background-color: #ecfdf5;">
+                  <span class="option-title" style="color: #059669;">🎫 Pripísanie kreditu (Odporúčané)</span>
+                  <p style="font-size: 14px; margin: 0 0 10px 0;">
+                    Pohodlnejšie riešenie bez čakania. Hodnota tréningu Vám bude okamžite pripísaná ako <strong>kredit</strong> do Vášho profilu (Typ: ${trainingType}, Deti: ${childrenCount}). Môžete ho použiť na akýkoľvek iný termín bez nutnosti novej platby.
+                  </p>
+                  <div style="text-align: right;">
+                    <a href="${creditUrl}" class="btn" style="background-color: #10b981; color: white;">Pripísať ako kredit</a>
+                  </div>
+                </div>
+
+                <div class="option-box" style="border-left: 4px solid #ef4444; background-color: #fff;">
+                  <span class="option-title" style="color: #dc2626;">💳 Vrátenie peňazí (Refund)</span>
+                  <p style="font-size: 14px; margin: 0 0 10px 0;">
+                    Po kliknutí prebehne automatická požiadavka cez systém Stripe. Vrátenie peňazí na Váš bankový účet zvyčajne trvá <strong>5 až 10 pracovných dní</strong> v závislosti od banky.
+                  </p>
+                  <div style="text-align: right;">
+                    <a href="${refundUrl}" class="btn" style="background-color: #ef4444; color: white;">Vrátiť peniaze na kartu</a>
+                  </div>
+                </div>
+              </div>
+
+              <p>Ospravedlňujeme sa za komplikácie a tešíme sa na Vás v náhradnom termíne.</p>
+
+              <div style="margin-top: 30px;">
+                <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
+                <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
+                <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
+                <p style="font-size: 13px; color: #666; margin: 0;">+421 949 584 576</p>
+              </div>
             </div>
+
             <div class="footer">
-               <p>© 2026 O.z. Nitráčik.</p>
+              <div style="margin-bottom: 15px;">
+                  <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
+                    <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                  </a>
+                  <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
+                    <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                  </a>
+              </div>
+              <p style="margin: 0;">© 2026 O.z. Nitráčik. Všetky práva vyhradené.</p>
+              <p style="margin: 5px 0 0 0;">info@nitracik.sk</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    // Odoslanie emailu s prílohami (logo, ikonky)
+    return transporter.sendMail({
+      from: SENDER,
+      to: userEmail,
+      subject: `ZRUŠENÉ: ${trainingType} (${formattedDateString})`,
+      html: injectImageUrls(html),
+      attachments: getCommonAttachments() // Dôležité pre fungovanie cid: obrázkov
+    });
+  },
+
+ // --- 9a. MASS CANCELLATION (PERMANENTKA - AUTOMATICKY) ---
+sendMassCancellationSeasonTicket: async (userEmail, firstName, trainingType, dateObj, reason) => {
+    // Formátovanie dátumu a času
+    const d = new Date(dateObj);
+    const datePart = d.toLocaleDateString('sk-SK', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const dayPart = d.toLocaleDateString('sk-SK', { weekday: 'long' });
+    const timePart = d.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+    const formattedDateString = `${datePart} (${dayPart})`;
+
+    const userName = firstName || 'Osôbka';
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+          .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+          .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #eab308; }
+          .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
+          
+          /* Box pre zrušenie */
+          .alert-box { background-color: #fef2f2; border: 1px solid #f87171; border-radius: 6px; padding: 15px; margin: 20px 0; text-align: left; }
+          .alert-item { margin-bottom: 5px; font-size: 15px; }
+
+          /* Box pre potvrdenie vrátenia (Zelený pre permanentku) */
+          .success-box { background-color: #ecfdf5; border: 1px solid #10b981; border-radius: 6px; padding: 15px; margin: 20px 0; text-align: left; }
+
+          .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+          p { margin-bottom: 15px; }
+        </style>
+      </head>
+      <body>
+        <div style="background-color: #f4f4f4; padding: 40px 0;">
+          <div class="container">
+            <div class="header">
+              <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+            </div>
+
+            <div class="content">
+              <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName}.</p>
+              
+              <p>S poľutovaním Vám oznamujeme, že Váš plánovaný tréning bol zrušený.</p>
+
+              <div class="alert-box">
+                <div class="alert-item" style="color: #dc2626; font-weight: bold; margin-bottom: 10px;">⚠️ ZRUŠENIE REZERVÁCIE</div>
+                <div class="alert-item">🗓️ <strong>Dátum:</strong> ${formattedDateString}</div>
+                <div class="alert-item">⏰ <strong>Čas:</strong> ${timePart}</div>
+                <div class="alert-item">🧘 <strong>Tréning:</strong> ${trainingType}</div>
+                <div class="alert-item" style="margin-top: 10px; border-top: 1px dashed #fca5a5; padding-top: 10px;">
+                  <strong>Dôvod:</strong> ${reason || 'Prevádzkové dôvody'}
+                </div>
+              </div>
+
+              <div class="success-box">
+                <div style="color: #047857; font-weight: bold; margin-bottom: 5px;">✅ Automatické vrátenie vstupov</div>
+                <p style="margin: 0; font-size: 14px; color: #064e3b;">
+                   Vaše vstupy boli automaticky vrátené na Vašu permanentku. Nemusíte robiť nič ďalšie, vstupy môžete ihneď použiť na novú rezerváciu.
+                </p>
+              </div>
+
+              <p>Ospravedlňujeme sa za komplikácie a tešíme sa na Vás v náhradnom termíne.</p>
+
+              <div style="margin-top: 30px;">
+                <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
+                <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
+                <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
+                <p style="font-size: 13px; color: #666; margin: 0;">+421 949 584 576</p>
+              </div>
+            </div>
+
+            <div class="footer">
+              <div style="margin-bottom: 15px;">
+                  <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
+                    <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                  </a>
+                  <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
+                    <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                  </a>
+              </div>
+              <p style="margin: 0;">© 2026 O.z. Nitráčik. Všetky práva vyhradené.</p>
+              <p style="margin: 5px 0 0 0;">oznitracik@gmail.com</p>
             </div>
           </div>
         </div>
@@ -825,157 +1258,112 @@ module.exports = {
       </html>
     `;
 
-    return Promise.all([
-      // Admin email: HTML ale BEZ príloh (attachments)
-      transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: adminEmail,
-        subject: `❌ Zrušená rezervácia: ${booking.first_name} ${booking.last_name}`,
-        html: adminHtml
-        // ZIADNE attachments: getCommonAttachments()
-      }),
-      // User email: Pekný s logom
-      transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: userEmail,
-        subject: 'Potvrdenie zrušenia rezervácie | Nitráčik',
-        html: userHtml,
-        attachments: getCommonAttachments() // Userovi logo pošleme
-      })
-    ]);
-  },
+    return transporter.sendMail({
+      from: SENDER,
+      to: userEmail,
+      subject: `ZRUŠENÉ: ${trainingType} (${formattedDateString})`,
+      html: injectImageUrls(html),
+      attachments: getCommonAttachments()
+    });
+},
 
-  // --- 9. MASS CANCELLATION (PLATBA KARTOU - VÝBER) ---
-  sendMassCancellationEmail: async (userEmail, booking, reason, frontendUrl) => {
-    // Dátum formátovanie
-    const dateObj = new Date(booking.training_date || booking.trainingDate);
-    const sessionDate = dateObj.toLocaleString('sk-SK', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+// --- 9b. MASS CANCELLATION (KREDIT - AUTOMATICKY) ---
+sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, reason) => {
+    // Formátovanie dátumu a času
+    const d = new Date(dateObj);
+    const datePart = d.toLocaleDateString('sk-SK', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const dayPart = d.toLocaleDateString('sk-SK', { weekday: 'long' });
+    const timePart = d.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+    const formattedDateString = `${datePart} (${dayPart})`;
 
-    // Linky na refund
-    const refundUrl = `${frontendUrl}/refund-option?bookingId=${booking.booking_id}&action=refund`;
-    const creditUrl = `${frontendUrl}/refund-option?bookingId=${booking.booking_id}&action=credit`;
+    const userName = firstName || 'Osôbka';
 
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
-      <style>
-        body { font-family: sans-serif; background-color: #f4f4f4; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; border-top: 4px solid #dc2626; }
-        .btn { display: inline-block; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 10px 5px; }
-        .btn-refund { background-color: #dc2626; color: white; }
-        .btn-credit { background-color: #10b981; color: white; }
-      </style>
+        <style>
+          body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+          .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+          .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #eab308; }
+          .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
+          
+          /* Box pre zrušenie */
+          .alert-box { background-color: #fef2f2; border: 1px solid #f87171; border-radius: 6px; padding: 15px; margin: 20px 0; text-align: left; }
+          .alert-item { margin-bottom: 5px; font-size: 15px; }
+
+          /* Box pre potvrdenie vrátenia (Žltý pre kredit) */
+          .success-box { background-color: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px; padding: 15px; margin: 20px 0; text-align: left; }
+
+          .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+          p { margin-bottom: 15px; }
+        </style>
       </head>
       <body>
-        <div class="container">
-          <h2 style="color: #dc2626;">Zrušenie tréningu</h2>
-          <p>Dobrý deň, ${booking.first_name}.</p>
-          <p>S poľutovaním Vám oznamujeme, že Váš tréning <strong>${booking.training_type || booking.trainingType}</strong> dňa <strong>${sessionDate}</strong> bol zrušený.</p>
-          <p style="background-color: #fee2e2; padding: 10px; border-radius: 4px;"><strong>Dôvod:</strong> ${reason || 'Prevádzkové dôvody'}</p>
-          
-          <p>Keďže ste za tréning zaplatili kartou, vyberte si prosím jednu z možností:</p>
-          
-          <div style="text-align: center; margin: 25px 0;">
-            <a href="${refundUrl}" class="btn btn-refund" style="color: white !important;">💳 Vrátiť peniaze na kartu</a>
-            <a href="${creditUrl}" class="btn btn-credit" style="color: white !important;">🎫 Pripísať ako kredit</a>
+        <div style="background-color: #f4f4f4; padding: 40px 0;">
+          <div class="container">
+            <div class="header">
+              <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+            </div>
+
+            <div class="content">
+              <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName}.</p>
+              
+              <p>S poľutovaním Vám oznamujeme, že Váš plánovaný tréning bol zrušený.</p>
+
+              <div class="alert-box">
+                <div class="alert-item" style="color: #dc2626; font-weight: bold; margin-bottom: 10px;">⚠️ ZRUŠENIE REZERVÁCIE</div>
+                <div class="alert-item">🗓️ <strong>Dátum:</strong> ${formattedDateString}</div>
+                <div class="alert-item">⏰ <strong>Čas:</strong> ${timePart}</div>
+                <div class="alert-item">🧘 <strong>Tréning:</strong> ${trainingType}</div>
+                <div class="alert-item" style="margin-top: 10px; border-top: 1px dashed #fca5a5; padding-top: 10px;">
+                  <strong>Dôvod:</strong> ${reason || 'Prevádzkové dôvody'}
+                </div>
+              </div>
+
+              <div class="success-box">
+                <div style="color: #b45309; font-weight: bold; margin-bottom: 5px;">🎫 Automatické vrátenie kreditu</div>
+                <p style="margin: 0; font-size: 14px; color: #92400e;">
+                   Použitý kredit bol automaticky vrátený na Váš účet. Nemusíte robiť nič ďalšie, kredit môžete ihneď použiť na novú rezerváciu.
+                </p>
+              </div>
+
+              <p>Ospravedlňujeme sa za komplikácie a tešíme sa na Vás v náhradnom termíne.</p>
+
+              <div style="margin-top: 30px;">
+                <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
+                <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
+                <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
+                <p style="font-size: 13px; color: #666; margin: 0;">+421 949 584 576</p>
+              </div>
+            </div>
+
+            <div class="footer">
+              <div style="margin-bottom: 15px;">
+                  <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
+                    <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                  </a>
+                  <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
+                    <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                  </a>
+              </div>
+              <p style="margin: 0;">© 2026 O.z. Nitráčik. Všetky práva vyhradené.</p>
+              <p style="margin: 5px 0 0 0;">oznitracik@gmail.com</p>
+            </div>
           </div>
-          
-          <p style="font-size: 13px; color: #666;">Ak si nevyberiete žiadnu možnosť do 48 hodín, platba Vám bude automaticky vrátená na kartu.</p>
-          <p>Ospravedlňujeme sa za komplikácie.</p>
-          <p>Tím Nitráčik</p>
         </div>
       </body>
       </html>
     `;
 
     return transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: userEmail,
-      subject: `ZRUŠENÉ: ${booking.training_type || booking.trainingType} (${sessionDate})`,
-      html,
+      subject: `ZRUŠENÉ: ${trainingType} (${formattedDateString})`,
+      html: injectImageUrls(html),
+      attachments: getCommonAttachments()
     });
-  },
-
-  // --- 9a. MASS CANCELLATION (PERMANENTKA - AUTOMATICKY) ---
-  sendMassCancellationSeasonTicket: async (userEmail, firstName, trainingType, dateObj, reason) => {
-    const sessionDate = new Date(dateObj).toLocaleString('sk-SK', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-      <style>
-        body { font-family: sans-serif; background-color: #f4f4f4; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; border-top: 4px solid #9333ea; }
-      </style>
-      </head>
-      <body>
-        <div class="container">
-          <h2 style="color: #9333ea;">Zrušenie tréningu</h2>
-          <p>Dobrý deň, ${firstName}.</p>
-          <p>S poľutovaním Vám oznamujeme, že Váš tréning <strong>${trainingType}</strong> dňa <strong>${sessionDate}</strong> bol zrušený.</p>
-          <p style="background-color: #f3f4f6; padding: 10px; border-radius: 4px;"><strong>Dôvod:</strong> ${reason || 'Prevádzkové dôvody'}</p>
-          
-          <div style="background-color: #d1fae5; padding: 15px; border-radius: 6px; margin: 20px 0; border: 1px solid #10b981;">
-            <strong style="color: #065f46;">✅ Vaše vstupy boli automaticky vrátené na Vašu permanentku.</strong>
-            <p style="margin: 5px 0 0 0; font-size: 14px;">Nemusíte robiť nič ďalšie. Vstupy môžete použiť na inú rezerváciu.</p>
-          </div>
-
-          <p>Ospravedlňujeme sa za komplikácie.</p>
-          <p>Tím Nitráčik</p>
-        </div>
-      </body>
-      </html>
-    `;
-
-    return transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: userEmail,
-      subject: `ZRUŠENÉ: ${trainingType} (${sessionDate})`,
-      html,
-    });
-  },
-
-  // --- 9b. MASS CANCELLATION (KREDIT - AUTOMATICKY) ---
-  sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, reason) => {
-    const sessionDate = new Date(dateObj).toLocaleString('sk-SK', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-      <style>
-        body { font-family: sans-serif; background-color: #f4f4f4; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; border-top: 4px solid #f59e0b; }
-      </style>
-      </head>
-      <body>
-        <div class="container">
-          <h2 style="color: #f59e0b;">Zrušenie tréningu</h2>
-          <p>Dobrý deň, ${firstName}.</p>
-          <p>S poľutovaním Vám oznamujeme, že Váš tréning <strong>${trainingType}</strong> dňa <strong>${sessionDate}</strong> bol zrušený.</p>
-          <p style="background-color: #f3f4f6; padding: 10px; border-radius: 4px;"><strong>Dôvod:</strong> ${reason || 'Prevádzkové dôvody'}</p>
-          
-          <div style="background-color: #fef3c7; padding: 15px; border-radius: 6px; margin: 20px 0; border: 1px solid #d97706;">
-            <strong style="color: #92400e;">✅ Použitý kredit bol automaticky vrátený na Váš účet.</strong>
-            <p style="margin: 5px 0 0 0; font-size: 14px;">Nemusíte robiť nič ďalšie. Kredit môžete použiť na inú rezerváciu.</p>
-          </div>
-
-          <p>Ospravedlňujeme sa za komplikácie.</p>
-          <p>Tím Nitráčik</p>
-        </div>
-      </body>
-      </html>
-    `;
-
-    return transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: userEmail,
-      subject: `ZRUŠENÉ: ${trainingType} (${sessionDate})`,
-      html,
-    });
-  },
+},
 
   // --- 10. CONTACT FORM ---
   sendContactFormEmails: async (adminEmail, { name, email, message }) => {
@@ -1088,27 +1476,99 @@ module.exports = {
 
     return Promise.all([
       transporter.sendMail({
-        from: process.env.EMAIL_USER,
+        from: SENDER,
         to: adminEmail,
         replyTo: email,
         subject: `Nová správa: ${name}`,
-        html: adminHtml,
+        html: injectImageUrls(adminHtml),
         attachments: getCommonAttachments()
       }),
       transporter.sendMail({
-        from: process.env.EMAIL_USER,
+        from: SENDER,
         to: email,
         subject: 'Prijali sme vašu správu - Nitráčik',
-        html: userHtml,
+        html: injectImageUrls(userHtml),
         attachments: getCommonAttachments()
       })
     ]);
   },
 
+  // --- 10a. REFUND CONFIRMATION (USER) ---
+  sendRefundConfirmationEmail: async (userEmail, { userName, refundId, amount, trainingType, trainingDate }) => {
+    const formattedDate = trainingDate ? dayjs(trainingDate).format('DD.MM.YYYY') : null;
+    const subject = 'Potvrdenie refundu | Nitráčik';
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+          .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+          .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #dc2626; }
+          .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
+          .info-box { background-color: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; padding: 20px; margin: 20px 0; }
+          .info-row { margin-bottom: 8px; font-size: 15px; }
+          .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+          p { margin-bottom: 15px; }
+        </style>
+      </head>
+      <body>
+        <div style="background-color: #f4f4f4; padding: 40px 0;">
+          <div class="container">
+            <div class="header">
+              <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+            </div>
+            <div class="content">
+              <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName || 'kamarát'}.</p>
+              <p>Potvrdzujeme prijatie a spracovanie Vašej žiadosti o refund.</p>
+
+              <div class="info-box">
+                <div class="info-row"><strong>Refund ID:</strong> ${refundId}</div>
+                <div class="info-row"><strong>Suma:</strong> ${amount} €</div>
+                ${trainingType ? `<div class="info-row"><strong>Tréning:</strong> ${trainingType}</div>` : ''}
+                ${formattedDate ? `<div class="info-row"><strong>Dátum:</strong> ${formattedDate}</div>` : ''}
+                <div class="info-row" style="font-size: 13px; color: #666; margin-top: 10px;">Peniaze by sa mali vrátiť na Váš účet do 5–10 pracovných dní.</div>
+              </div>
+
+              <p>Ak by ste mali otázky, stačí odpovedať na tento email.</p>
+
+              <div style="margin-top: 30px;">
+                <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
+                <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
+                <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
+              </div>
+            </div>
+            <div class="footer">
+              <div style="margin-bottom: 15px;">
+                <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
+                  <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                </a>
+                <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
+                  <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                </a>
+              </div>
+              <p style="margin: 0;">© 2026 O.z. Nitráčik.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return transporter.sendMail({
+      from: SENDER,
+      to: userEmail,
+      subject,
+      html: injectImageUrls(html),
+      attachments: getCommonAttachments()
+    });
+  },
+
   // --- 11. TEST EMAIL (Voliteľné) ---
   sendTestEmail: async (toEmail) => {
     return transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: toEmail,
       subject: 'Test Email',
       text: 'This is a test email from Nitracik.',
@@ -1118,7 +1578,7 @@ module.exports = {
   // 12. RESET HESLA
   sendPasswordResetEmail: async (userEmail, resetLink) => {
     return transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: SENDER,
       to: userEmail,
       subject: 'Password Reset',
       text: `Click the following link to reset your password: ${resetLink}`,

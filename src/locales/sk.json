@@ -35,6 +35,7 @@
     "notCoveredBySeasonTicket": "Nie je pokryté permanentkou",
     "accompanyingPerson": "Účasť sprevádzajúcej osoby",
     "accompanyingPersonShort": "sprevádzajúca osoba",
+    "accompanyingPersonHelp": "Sprevádzajúca osoba je ďalšia osoba okrem rodiča, ktorá sa zúčastní hodiny spolu s dieťaťom.",
     "photoConsent": "Súhlas s publikovaním fotografií",
     "agree": "SÚHLASÍM s publikovaním fotografií môjho dieťaťa",
     "disagree": "NESÚHLASÍM s publikovaním fotografií môjho dieťaťa",
@@ -109,6 +110,28 @@
   "about": {
     "title": "O nás",
     "description": "Vitajte v Nitraciku! Špecializujeme sa na profesionálne tréningové sessiony šité na mieru vašim potrebám. Pripojte sa k nám a zlepšite svoje schopnosti."
+    ,"carousel": [
+      {
+        "title": "Senzorické messy play",
+        "description": "Hravé aktivity pre najmenších plné farieb, textúr a objavovania"
+      },
+      {
+        "title": "Rozvoj motoriky",
+        "description": "Jemná aj hrubá motorika podporená hrou a pohybom"
+      },
+      {
+        "title": "Podpora rozvoja mozgu",
+        "description": "Podnety, ktoré prirodzene rozvíjajú zmysly a kognitívne funkcie"
+      },
+      {
+        "title": "Bezpečné prostredie",
+        "description": "Príjemný priestor prispôsobený malým deťom"
+      },
+      {
+        "title": "Spoločný čas",
+        "description": "Kvalitne strávený čas rodiča s dieťaťom"
+      }
+    ]
   },
   "contact": {
     "title": "Kontaktujte nás",
@@ -161,8 +184,10 @@
       "repeatPassword": "Zopakujte heslo",
       "address": "Adresa",
       "submit": "Registrovať sa",
-      "gdprConsentText": "Súhlasím s pravidlami o spracovaní osobných údajov",
-      "termsConsentText": "Súhlasím s obchodnými podmienkami",
+      "consentText": "*Vyjadrujem súhlas so {terms} a vyhlasujem, že som sa oboznámil/a so {privacy}.",
+      "terms": "Všeobecnými obchodnými podmienkami",
+      "privacy": "Zásadami ochrany osobných údajov",
+      "noStreetLabel": "Obec nemá ulice (použiť len číslo domu)",
       "passwordRequirements": {
         "length": "Minimálne 8 znakov",
         "upper": "1 veľké písmeno (A-Z)",
@@ -238,7 +263,7 @@
       "date": "Dátum",
       "type": "Typ",
       "availableSpots": "Dostupné miesta",
-      "participants": "Účastníci (deti)",
+      "participants": "Účastníci",
       "child": "Počet detí: {count}",
       "children": "Deti",
       "actions": "Akcie"

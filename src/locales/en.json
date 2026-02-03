@@ -35,6 +35,7 @@
     "notCoveredBySeasonTicket": "Not covered by season ticket",
     "accompanyingPerson": "Participation of Accompanying Person",
     "accompanyingPersonShort": "accompanying person",
+    "accompanyingPersonHelp": "An accompanying person is another person, other than the parent, who attends the session together with the child.",
     "photoConsent": "Photo Publication Consent",
     "agree": "AGREE to publish photos of my children",
     "disagree": "DISAGREE to publish photos of my children",
@@ -108,6 +109,28 @@
   "about": {
     "title": "About Us",
     "description": "Welcome to Nitracik! We specialize in professional training sessions tailored to your needs. Join us to grow your skills and achieve your goals."
+    ,"carousel": [
+      {
+        "title": "Sensory messy play",
+        "description": "Playful activities full of colors, textures, and discovery"
+      },
+      {
+        "title": "Motor skills development",
+        "description": "Fine and gross motor skills supported through play"
+      },
+      {
+        "title": "Brain development support",
+        "description": "Stimuli that naturally build senses and cognitive functions"
+      },
+      {
+        "title": "Safe environment",
+        "description": "A cozy space designed for small children"
+      },
+      {
+        "title": "Together time",
+        "description": "Meaningful parent-child time spent together"
+      }
+    ]
   },
   "contact": {
     "title": "Contact Us",
@@ -160,8 +183,10 @@
       "repeatPassword": "Repeat Password",
       "address": "Address",
       "submit": "Register",
-      "gdprConsentText": "I agree to the personal data processing rules",
-      "termsConsentText": "I agree to the Terms and Conditions",
+      "consentText": "*I agree to the {terms} and declare that I have read the {privacy}.",
+      "terms": "Terms and Conditions",
+      "privacy": "Privacy Policy",
+      "noStreetLabel": "The town has no street names (use house number only)",
       "passwordRequirements": {
         "length": "Min. 8 characters",
         "upper": "1 uppercase letter (A-Z)",
@@ -236,7 +261,7 @@
       "date": "Date",
       "type": "Type",
       "availableSpots": "Available Spots",
-      "participants": "Participants (children)",
+      "participants": "Participants",
       "child": "Number of children: {count}",
       "children": "children",
       "actions": "Actions"

@@ -210,36 +210,15 @@ function Contact() {
                     htmlFor="agreementChecked"
                     className="text-xs sm:text-sm text-gray-700 leading-relaxed"
                   >
-                    {t.contact.form.consentText
-                      .split('{terms}')
-                      .map((part, index) =>
-                        index === 0 ? (
-                          <>
-                            {part}
-                            <a
-                              href="/terms"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary-500 hover:text-primary-600 underline font-medium"
-                            >
-                              {t.contact.form.terms}
-                            </a>
-                          </>
-                        ) : (
-                          <>
-                            {part.split('{privacy}')[0]}
-                            <a
-                              href="/gdpr"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary-500 hover:text-primary-600 underline font-medium"
-                            >
-                              {t.contact.form.privacy}
-                            </a>
-                            {part.split('{privacy}')[1]}
-                          </>
-                        )
-                      )}
+                    Vyhlasujem, že som sa oboznámil/a so{' '}
+                    <a
+                      href="/gdpr"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary-500 hover:text-primary-600 underline font-medium"
+                    >
+                      Zásadami ochrany osobných údajov
+                    </a>
                   </label>
                 </div>
 

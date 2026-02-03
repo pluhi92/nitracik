@@ -1,6 +1,6 @@
-require('dotenv').config({ path: './cred.env' });
+require('dotenv').config();
+
 const emailService = require('./services/emailService');
-console.log('ADMIN_EMAIL:', process.env.ADMIN_EMAIL);
 
 const PORT = process.env.PORT || 5000;
 
@@ -24,7 +24,9 @@ const path = require('path');
 const dayjs = require('dayjs');
 require('dayjs/locale/sk');
 dayjs.locale('sk');
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.,])[A-Za-z\d@$!%*?&.,]{8,}$/;
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.,:])[A-Za-z\d@$!%*?&.,:]{8,}$/;
+const multer = require('multer');
+const sharp = require('sharp');
 
 app.set('trust proxy', 1);
 
@@ -43,6 +45,114 @@ const registerLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+//upload directory setup
+const uploadDir = path.join(__dirname, 'public', 'uploads', 'blog');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// ✅ SHARP: Memory storage namiesto disk storage
+const storage = multer.memoryStorage();
+
+// ✅ SHARP: Rozšírený filter pre všetky bežné formáty
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png|gif|webp|bmp|tiff|svg/;
+  const mimetype = allowedTypes.test(file.mimetype);
+
+  if (mimetype) {
+    return cb(null, true);
+  } else {
+    cb(new Error('Len obrázky sú povolené'));
+  }
+};
+
+const createSlug = (title) => {
+  return title
+    .toString()
+    .normalize('NFD')                   
+    .replace(/[\u0300-\u036f]/g, '')   
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')               
+    .replace(/[^\w\-]+/g, '')           
+    .replace(/\-\-+/g, '-');            
+};
+
+// ✅ SHARP: Zvýšený buffer limit (Sharp potom skomprimuje)
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB buffer
+  },
+  fileFilter: fileFilter
+});
+
+// ✅ UPRAVENÁ FUNKCIA processImage s THUMBNAIL podporou
+async function processImage(buffer, filename) {
+  try {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    
+    const webpFilename = `blog-${uniqueSuffix}.webp`;
+    const outputPath = path.join(uploadDir, webpFilename);
+    
+    const thumbFilename = `blog-${uniqueSuffix}-thumb.webp`;
+    const thumbPath = path.join(uploadDir, thumbFilename);
+
+    // ✅ HLAVNÁ ÚPRAVA: pridané { failOnError: false }
+    // Toto zabezpečí, že Sharp ignoruje chybu "Invalid SOS parameters"
+    
+    // 1. Spracovanie hlavného obrázka
+    await sharp(buffer, { failOnError: false }) 
+      .rotate() 
+      .resize({
+        width: 1200,
+        height: 1200,
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .webp({
+        quality: 90,
+        effort: 6
+      })
+      .toFile(outputPath);
+
+    // 2. Spracovanie thumbnailu (tiež pridaj failOnError)
+    await sharp(buffer, { failOnError: false }) 
+      .rotate() 
+      .resize({
+        width: 300,
+        height: 200, 
+        fit: 'cover',
+        position: 'centre' 
+      })
+      .webp({
+        quality: 80,
+        effort: 6
+      })
+      .toFile(thumbPath);
+
+    const stats = fs.statSync(outputPath);
+    const thumbStats = fs.statSync(thumbPath);
+    const fileSizeKB = (stats.size / 1024).toFixed(2);
+    const thumbSizeKB = (thumbStats.size / 1024).toFixed(2);
+
+    console.log(`✅ Obrázok spracovaný:`);
+    console.log(`   - Full: ${webpFilename} (${fileSizeKB} KB)`);
+    console.log(`   - Thumb: ${thumbFilename} (${thumbSizeKB} KB)`);
+
+    return {
+      filename: webpFilename,
+      thumbnailFilename: thumbFilename,
+      path: outputPath,
+      thumbnailPath: thumbPath,
+      size: stats.size,
+      thumbnailSize: thumbStats.size
+    };
+  } catch (error) {
+    console.error('❌ Chyba pri spracovaní obrázka:', error);
+    throw error;
+  }
+}
 
 app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   console.log('🔹 [DEBUG] Webhook hit!'); // 1. Zistíme, či sem vôbec Stripe trafí
@@ -131,11 +241,22 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
             expiryDate
           });
           console.log('[DEBUG] Confirmation email sent to:', user.email);
+          
+          // Odoslanie admin notifikácie
+          await emailService.sendAdminSeasonTicketPurchase('info@nitracik.sk', {
+            user: user,
+            entries: entriesInt,
+            totalPrice: priceFloat,
+            expiryDate,
+            stripePaymentId: session.id
+          });
+          console.log('[DEBUG] Admin notification sent for season ticket purchase');
         }
 
       } else if (session.metadata.type === 'training_session') {
         const {
           userId,
+          trainingId,
           trainingType,
           selectedDate,
           selectedTime,
@@ -152,22 +273,33 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           throw new Error('Missing required metadata fields');
         }
 
-        const [time, modifier] = selectedTime.split(' ');
-        let [hours, minutes] = time.split(':');
-        if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
-        if (modifier === 'AM' && hours === '12') hours = '00';
-        const trainingDateTimeUTC = new Date(`${selectedDate}T${hours}:${minutes}`);
-        const trainingDateTimeLocal = new Date(trainingDateTimeUTC.toLocaleString('en-US', { timeZone: 'Europe/Budapest' }));
+        let trainingResult;
+        let training;
 
-        const trainingResult = await client.query(
-          `SELECT * FROM training_availability WHERE training_type = $1 AND training_date = $2`,
-          [trainingType, trainingDateTimeLocal]
-        );
+        if (trainingId) {
+          trainingResult = await client.query(
+            `SELECT * FROM training_availability WHERE id = $1`,
+            [parseInt(trainingId, 10)]
+          );
+        } else {
+          const [time, modifier] = selectedTime.split(' ');
+          let [hours, minutes] = time.split(':');
+          if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
+          if (modifier === 'AM' && hours === '12') hours = '00';
+          const trainingDateTimeUTC = new Date(`${selectedDate}T${hours}:${minutes}`);
+          const trainingDateTimeLocal = new Date(trainingDateTimeUTC.toLocaleString('en-US', { timeZone: 'Europe/Budapest' }));
+
+          trainingResult = await client.query(
+            `SELECT * FROM training_availability WHERE training_type = $1 AND training_date = $2`,
+            [trainingType, trainingDateTimeLocal]
+          );
+        }
+
         if (trainingResult.rows.length === 0) {
           throw new Error('Training session no longer available');
         }
 
-        const training = trainingResult.rows[0];
+        training = trainingResult.rows[0];
         const bookingsResult = await client.query(
           `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1`,
           [training.id]
@@ -226,7 +358,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         }
 
         // 3. ODOSLANIE EMAILU ADMINOVI (pôvodný kód)
-        await emailService.sendAdminNewBookingNotification(process.env.ADMIN_EMAIL, {
+        await emailService.sendAdminNewBookingNotification('info@nitracik.sk', {
           user, mobile, childrenCount, childrenAge, trainingType, selectedDate, selectedTime, photoConsent, accompanyingPerson, note, totalPrice, paymentIntentId, trainingId: training.id
         });
 
@@ -280,6 +412,14 @@ app.post('/stripe-refund-webhook', express.raw({ type: 'application/json' }), as
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(
+  '/images',
+  express.static(path.join(__dirname, 'public/images'), {
+    maxAge: '30d',
+    immutable: true
+  })
+);
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
@@ -311,35 +451,65 @@ app.use(session({
   },
 }));
 
+app.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        error: 'Súbor je príliš veľký. Maximálna veľkosť je 5MB.'
+      });
+    }
+  }
+  next(error);
+});
+
+
 const isAdmin = async (req, res, next) => {
   try {
-    // console.log('[DEBUG] Session userId:', req.session.userId);
-
-    if (!req.session.userId) {
-       return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const userResult = await pool.query(
-      'SELECT email, role FROM users WHERE id = $1',
-      [req.session.userId]
-    );
+    console.log(`[isAdmin] Checking admin access for userId=${req.session.userId}, session.role=${req.session.role}`);
     
-    // console.log('[DEBUG] User query result:', userResult.rows[0]);
-
-    // --- ZMENA TU ---
-    // Nekontrolujeme či sa email rovná tomu v .env, ale či má užívateľ v databáze rolu 'admin'
-    const user = userResult.rows[0];
-
-    if (user && user.role === 'admin') {
-      next(); // Je to admin, pustíme ho ďalej
-    } else {
-      console.log('[DEBUG] Admin check failed. User role:', user?.role);
-      res.status(403).json({ error: 'Admin privileges required' });
+    if (!req.session.userId) {
+      console.log(`[isAdmin] ❌ DENIED: No userId in session`);
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
-  } catch (error) {
-    console.error('Admin check error:', error);
-    res.status(500).json({ error: 'Server error during admin check' });
+    // 1. PRIORITA 1: Kontrola role v session (najrýchlejšie, nastavená pri login)
+    if (req.session.role === 'admin') {
+      console.log(`[isAdmin] ✅ ALLOWED: session.role === 'admin' (userId=${req.session.userId})`);
+      return next();
+    }
+
+    const client = await pool.connect();
+    try {
+      // 2. PRIORITA 2: Kontrola role z DB
+      const result = await client.query(
+        'SELECT role, email FROM users WHERE id = $1',
+        [req.session.userId]
+      );
+
+      if (!result.rows.length) {
+        console.log(`[isAdmin] ❌ DENIED: User not found in DB (userId=${req.session.userId})`);
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      const user = result.rows[0];
+      console.log(`[isAdmin] User found: email=${user.email}, role=${user.role}`);
+
+      // Check DB role
+      if (user.role === 'admin') {
+        console.log(`[isAdmin] ✅ ALLOWED: DB role === 'admin' (email=${user.email})`);
+        return next();
+      }
+
+      // Žiadna podmienka nesplnená → pristup odmietnutý
+      console.log(`[isAdmin] ❌ DENIED: User ${user.email} is not admin (role=${user.role})`);
+      return res.status(403).json({ error: 'Forbidden: Admin access required' });
+
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('[isAdmin] ERROR:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 };
 
@@ -421,7 +591,7 @@ app.get('/api/admin/bookings', isAdmin, async (req, res) => {
         ON ta.id = b.training_id
       LEFT JOIN users u 
         ON b.user_id = u.id
-      WHERE ta.training_date >= NOW()
+      WHERE ta.training_date >= NOW() - INTERVAL '60 minutes'
         AND (
           b.active = true
           OR NOT EXISTS (
@@ -456,12 +626,62 @@ app.get('/api/admin/season-tickets', async (req, res) => {
   }
 });
 
+// GET archived sessions for admin
+app.get('/api/admin/archived-sessions', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        ts.id as training_id,
+        ts.training_type,
+        ts.training_date,
+        COUNT(DISTINCT b.id) as participant_count,
+        SUM(b.number_of_children) as total_children
+      FROM training_availability ts   -- <--- ZMENA TU (pôvodne training_sessions)
+      LEFT JOIN bookings b ON ts.id = b.training_id AND b.active = true
+      WHERE ts.training_date < NOW() - INTERVAL '1 hour'
+      GROUP BY ts.id, ts.training_type, ts.training_date
+      ORDER BY ts.training_date DESC
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching archived sessions:', error);
+    res.status(500).json({ error: 'Failed to fetch archived sessions' });
+  }
+});
+
+// GET archived sessions for specific user
+app.get('/api/archived-sessions/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const query = `
+      SELECT 
+        b.id as booking_id,
+        b.training_id,
+        b.booking_type,
+        ts.training_type,
+        ts.training_date
+      FROM bookings b
+      JOIN training_availability ts ON b.training_id = ts.id  -- <--- ZMENA TU
+      WHERE b.user_id = $1 
+        AND b.active = true
+        AND ts.training_date < NOW() - INTERVAL '1 hour'
+      ORDER BY ts.training_date DESC
+    `;
+    const result = await pool.query(query, [userId]);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching user archived sessions:', error);
+    res.status(500).json({ error: 'Failed to fetch archived sessions' });
+  }
+});
 
 // Update /api/admin/payment-report endpoint
 app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
   // Check if user is admin
   const userEmail = req.session.email;
-  if (userEmail !== process.env.ADMIN_EMAIL) {
+  if (userEmail !== 'info@nitracik.sk') {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
@@ -619,6 +839,72 @@ app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
     res.status(500).json({ error: 'Failed to generate payment report' });
   } finally {
     client.release();
+  }
+});
+
+// GET Checklist pre konkrétny tréning
+app.get('/api/admin/checklist/:trainingId', isAdmin, async (req, res) => {
+  const { trainingId } = req.params;
+
+  try {
+    const result = await pool.query(`
+      SELECT 
+        b.id AS booking_id,
+        u.first_name,
+        u.last_name,
+        b.number_of_children,
+        b.note,
+        b.booking_type,
+        b.amount_paid,
+        b.credit_id,
+        b.checked_in,  
+        b.accompanying_person,
+        b.photo_consent,  
+        CASE 
+            WHEN b.booking_type = 'paid' THEN 'Platba'
+            WHEN b.booking_type = 'season_ticket' THEN 'Permanentka'
+            WHEN b.booking_type = 'credit' THEN 'Kredit'
+            ELSE b.booking_type 
+        END as payment_display
+      FROM bookings b
+      JOIN users u ON b.user_id = u.id
+      WHERE b.training_id = $1 
+        AND b.active = true
+      ORDER BY u.last_name ASC, u.first_name ASC
+    `, [trainingId]);
+
+    // Získame aj info o tréningu pre hlavičku stránky
+    const trainingInfo = await pool.query(`
+        SELECT training_date, training_type 
+        FROM training_availability 
+        WHERE id = $1
+    `, [trainingId]);
+
+    res.json({
+      participants: result.rows,
+      training: trainingInfo.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error fetching checklist:', error);
+    res.status(500).json({ error: 'Failed to fetch checklist' });
+  }
+});
+
+// PUT prepnutie check-in stavu
+app.put('/api/admin/checklist/:bookingId/toggle', isAdmin, async (req, res) => {
+  const { bookingId } = req.params;
+  const { checked_in } = req.body; // Očakávame true/false
+
+  try {
+    await pool.query(
+      'UPDATE bookings SET checked_in = $1 WHERE id = $2',
+      [checked_in, bookingId]
+    );
+    res.json({ success: true, message: 'Check-in updated' });
+  } catch (error) {
+    console.error('Error updating check-in:', error);
+    res.status(500).json({ error: 'Failed to update check-in' });
   }
 });
 
@@ -997,7 +1283,7 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
       });
 
       // 2. Admin Email (s trainingId pre tabuľku)
-      await emailService.sendAdminSeasonTicketUsage(process.env.ADMIN_EMAIL, {
+      await emailService.sendAdminSeasonTicketUsage('info@nitracik.sk', {
         user,
         mobile,
         childrenCount,
@@ -1082,19 +1368,28 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
   try {
     const {
       userId,
-      trainingId,
-      trainingType, // Stále posielame z FE, ale pre cenu použijeme DB
+      trainingId, // <--- Toto je kľúčové. Ak user nevyberie čas, toto je zvyčajne null/undefined
+      trainingType,
       selectedDate,
       selectedTime,
       childrenCount,
       childrenAge,
-      // totalPrice, // <-- IGNORUJEME cenu z Frontendu kvoli bezpečnosti, vypočítame ju tu
       photoConsent,
       mobile,
       note,
       accompanyingPerson,
     } = req.body;
 
+    // --- 1. VALIDÁCIA VSTUPOV (FIX) ---
+    // Skôr než začneme transakciu, overíme, či máme to najhlavnejšie - ID tréningu
+    if (!trainingId) {
+      // Tu vrátime 400 (Bad Request) a jasnú hlášku pre užívateľa
+      return res.status(400).json({ error: 'Nebol vybratý konkrétny termín (čas). Prosím, kliknite na požadovaný čas tréningu.' });
+    }
+
+    if (!childrenCount || childrenCount < 1) {
+      return res.status(400).json({ error: 'Musíte zvoliť aspoň jedno dieťa.' });
+    }
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -1112,7 +1407,7 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
       );
 
       if (trainingResult.rows.length === 0) {
-        throw new Error('Tréning alebo cena pre tento počet detí neexistuje.');
+        throw new Error('Pre tento termín sa nenašiel záznam alebo platná cena.');
       }
       const training = trainingResult.rows[0];
 
@@ -1273,7 +1568,7 @@ validateEnvVariables();
 
 app.get('/api/test-email', async (req, res) => {
   try {
-    await emailService.sendTestEmail(process.env.ADMIN_EMAIL);
+    await emailService.sendTestEmail('info@nitracik.sk');
     res.json({ message: 'Test email sent successfully' });
   } catch (error) {
     console.error('Test email error:', error);
@@ -1491,13 +1786,33 @@ app.post('/api/login', async (req, res) => {
     if (result.rows.length > 0) {
       const user = result.rows[0];
       const validPassword = await bcrypt.compare(password, user.password);
+      
       if (validPassword) {
         if (!user.verified) {
           return res.status(403).json({ message: 'Please verify your email before logging in.' });
         }
+
+        // --- NOVÁ LOGIKA PRE ROLU ---
+        // Skontrolujeme, či je v .env zozname adminov
+        let userRole = user.role; 
+        if (user.role === 'admin') {
+          userRole = 'admin';
+        }
+
+        // Uložíme do session (pre backend checky)
         req.session.userId = user.id;
+        req.session.role = userRole; 
+
         console.log('Session after login:', req.session);
-        res.json({ message: 'Login successful', userId: user.id, userName: `${user.first_name} ${user.last_name}` });
+
+        // VRÁTIME ROLE FRONTENDU (aby React vedel zobraziť menu)
+        res.json({ 
+          message: 'Login successful', 
+          userId: user.id, 
+          userName: `${user.first_name} ${user.last_name}`,
+          role: userRole // <--- TOTO JE KĽÚČOVÉ
+        });
+
       } else {
         res.status(400).json({ message: 'Invalid password' });
       }
@@ -1555,7 +1870,19 @@ app.get('/api/users/:id', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
     if (result.rows.length > 0) {
-      res.json(result.rows[0]);
+      const user = result.rows[0];
+
+// Check DB role
+        let userRole = user.role;
+        if (userRole !== 'admin') {
+          // Role not admin from DB, stay as is
+      }
+
+      // Vrátime dáta, ale prepíšeme rolu tou správnou
+      res.json({
+        ...user,
+        role: userRole
+      });
     } else {
       res.status(404).json({ message: 'User not found' });
     }
@@ -1901,7 +2228,7 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
 
       refundData = { type: 'season_ticket_returned' };
 
-    // --- B. CREDIT RETURN ---
+      // --- B. CREDIT RETURN ---
     } else if (booking.booking_type === 'credit' || booking.credit_id) {
       console.log('[DEBUG] Returning credit to user:', booking.user_id);
 
@@ -1911,15 +2238,15 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
           [booking.credit_id]
         );
       }
-      
+
       refundData = { type: 'credit_returned' };
 
-    // --- C. PAID BOOKING: REFUND OR CREDIT ---
+      // --- C. PAID BOOKING: REFUND OR CREDIT ---
     } else {
       // NEW: Check if user requested credit instead of refund
       if (requestCredit) {
         console.log('[DEBUG] User requested CREDIT instead of refund for booking:', bookingId);
-        
+
         // Create credit record
         await client.query(`
           INSERT INTO credits (
@@ -1985,7 +2312,7 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
     // 5. SEND EMAILS
     try {
       await emailService.sendCancellationEmails(
-        process.env.ADMIN_EMAIL,
+        'info@nitracik.sk',
         booking.email,
         booking,
         refundData,
@@ -2195,64 +2522,64 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
 
     // 4. Spracovanie bookingov (IBA DB OPERÁCIE)
     for (const booking of bookings) {
-      
+
       // --- A: PERMANENTKA ---
       if (booking.booking_type === 'season_ticket' || booking.season_ticket_id) {
         if (booking.season_ticket_id) {
-            // Vrátiť vstupy
-            await client.query(
-                'UPDATE season_tickets SET entries_remaining = entries_remaining + $1 WHERE id = $2',
-                [booking.number_of_children, booking.season_ticket_id]
-            );
-            // Zmazať záznam o použití a booking
-            await client.query('DELETE FROM season_ticket_usage WHERE booking_id = $1', [booking.booking_id]);
-            await client.query('DELETE FROM bookings WHERE id = $1', [booking.booking_id]);
+          // Vrátiť vstupy
+          await client.query(
+            'UPDATE season_tickets SET entries_remaining = entries_remaining + $1 WHERE id = $2',
+            [booking.number_of_children, booking.season_ticket_id]
+          );
+          // Zmazať záznam o použití a booking
+          await client.query('DELETE FROM season_ticket_usage WHERE booking_id = $1', [booking.booking_id]);
+          await client.query('DELETE FROM bookings WHERE id = $1', [booking.booking_id]);
 
-            // Pridať email do fronty
-            emailQueue.push({
-                type: 'season',
-                email: booking.email,
-                firstName: booking.first_name,
-                trainingType: trainingTypeStr,
-                dateObj: trainingDateObj,
-                reason: reason
-            });
-        }
-
-      // --- B: KREDIT (OPRAVENÁ LOGIKA) ---
-      } else if (booking.booking_type === 'credit' || booking.credit_id) {
-        if (booking.credit_id) {
-             // !!! OPRAVA !!!
-             // Namiesto pripočítavania sumy, len "ožívíme" existujúci kredit
-             console.log(`[DEBUG] Reactivating credit ID: ${booking.credit_id}`);
-             await client.query(
-                "UPDATE credits SET status = 'active', used_at = NULL WHERE id = $1",
-                [booking.credit_id] 
-             );
-        }
-        
-        // Zmažeme booking, aby nevisel v systéme
-        await client.query('DELETE FROM bookings WHERE id = $1', [booking.booking_id]);
-
-        // Pridať email do fronty
-        emailQueue.push({
-            type: 'credit',
+          // Pridať email do fronty
+          emailQueue.push({
+            type: 'season',
             email: booking.email,
             firstName: booking.first_name,
             trainingType: trainingTypeStr,
             dateObj: trainingDateObj,
             reason: reason
+          });
+        }
+
+        // --- B: KREDIT (OPRAVENÁ LOGIKA) ---
+      } else if (booking.booking_type === 'credit' || booking.credit_id) {
+        if (booking.credit_id) {
+          // !!! OPRAVA !!!
+          // Namiesto pripočítavania sumy, len "ožívíme" existujúci kredit
+          console.log(`[DEBUG] Reactivating credit ID: ${booking.credit_id}`);
+          await client.query(
+            "UPDATE credits SET status = 'active', used_at = NULL WHERE id = $1",
+            [booking.credit_id]
+          );
+        }
+
+        // Zmažeme booking, aby nevisel v systéme
+        await client.query('DELETE FROM bookings WHERE id = $1', [booking.booking_id]);
+
+        // Pridať email do fronty
+        emailQueue.push({
+          type: 'credit',
+          email: booking.email,
+          firstName: booking.first_name,
+          trainingType: trainingTypeStr,
+          dateObj: trainingDateObj,
+          reason: reason
         });
 
-      // --- C: PLATBA KARTOU (ŠTANDARD) ---
+        // --- C: PLATBA KARTOU (ŠTANDARD) ---
       } else {
         // Títo ostávajú, kým si nevyberú možnosť
         emailQueue.push({
-            type: 'card',
-            email: booking.email,
-            booking: booking, 
-            reason: reason,
-            frontendUrl: FRONTEND_URL
+          type: 'card',
+          email: booking.email,
+          booking: booking,
+          reason: reason,
+          frontendUrl: FRONTEND_URL
         });
       }
     }
@@ -2263,15 +2590,15 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
 
     // 6. ODOSLANIE EMAILOV (Až teraz, keď je DB v poriadku)
     const emailPromises = emailQueue.map(task => {
-        // Používame try-catch vnútri mapy, aby jeden zlyhaný email nezhodil ostatné
-        // (alebo Promise.allSettled nižšie to rieši tiež)
-        if (task.type === 'season') {
-            return emailService.sendMassCancellationSeasonTicket(task.email, task.firstName, task.trainingType, task.dateObj, task.reason);
-        } else if (task.type === 'credit') {
-            return emailService.sendMassCancellationCredit(task.email, task.firstName, task.trainingType, task.dateObj, task.reason);
-        } else if (task.type === 'card') {
-            return emailService.sendMassCancellationEmail(task.email, task.booking, task.reason, task.frontendUrl);
-        }
+      // Používame try-catch vnútri mapy, aby jeden zlyhaný email nezhodil ostatné
+      // (alebo Promise.allSettled nižšie to rieši tiež)
+      if (task.type === 'season') {
+        return emailService.sendMassCancellationSeasonTicket(task.email, task.firstName, task.trainingType, task.dateObj, task.reason);
+      } else if (task.type === 'credit') {
+        return emailService.sendMassCancellationCredit(task.email, task.firstName, task.trainingType, task.dateObj, task.reason);
+      } else if (task.type === 'card') {
+        return emailService.sendMassCancellationEmail(task.email, task.booking, task.reason, task.frontendUrl);
+      }
     });
 
     await Promise.allSettled(emailPromises);
@@ -2318,7 +2645,19 @@ app.get('/api/booking/refund', async (req, res) => {
     }
 
     const bookingRes = await client.query(
-      'SELECT user_id, payment_intent_id, amount_paid FROM bookings WHERE id = $1 AND active = true FOR UPDATE',
+      `SELECT 
+        b.user_id,
+        b.payment_intent_id,
+        b.amount_paid,
+        u.email AS user_email,
+        u.first_name AS user_first_name,
+        ta.training_type,
+        ta.training_date
+      FROM bookings b
+      LEFT JOIN users u ON b.user_id = u.id
+      LEFT JOIN training_availability ta ON b.training_id = ta.id
+      WHERE b.id = $1 AND b.active = true
+      FOR UPDATE OF b`,
       [bookingId]
     );
 
@@ -2327,7 +2666,7 @@ app.get('/api/booking/refund', async (req, res) => {
       return res.status(404).json({ status: 'error', message: 'Booking not active or not found.' });
     }
 
-    const { user_id, payment_intent_id, amount_paid } = bookingRes.rows[0];
+    const { user_id, payment_intent_id, amount_paid, user_email, user_first_name, training_type, training_date } = bookingRes.rows[0];
 
     const idempotencyKey = `refund-${bookingId}-${payment_intent_id}`;
     let refund;
@@ -2368,6 +2707,20 @@ app.get('/api/booking/refund', async (req, res) => {
     await client.query('UPDATE bookings SET active = false WHERE id = $1 AND user_id = $2', [bookingId, user_id]);
     await client.query('COMMIT');
 
+    if (user_email) {
+      try {
+        await emailService.sendRefundConfirmationEmail(user_email, {
+          userName: user_first_name,
+          refundId: refund.id,
+          amount: amount_paid,
+          trainingType: training_type,
+          trainingDate: training_date
+        });
+      } catch (emailErr) {
+        console.error('Refund confirmation email error:', emailErr.message);
+      }
+    }
+
     return res.json({
       status: 'processed',
       message: 'Refund Processed Successfully!',
@@ -2387,14 +2740,14 @@ app.get('/api/booking/refund', async (req, res) => {
 // Alternative credit processing endpoint that doesn't depend on training_availability
 app.get('/api/booking/credit', async (req, res) => {
   const { bookingId } = req.query;
-  if (!bookingId) return res.status(400).send('Missing bookingId.');
+  if (!bookingId) return res.status(400).json({ message: 'Missing bookingId.' });
 
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
-    // Try to find the booking
+    // 1. Získanie informácií o rezervácii
     const bookingRes = await client.query(`
       SELECT 
         b.user_id, 
@@ -2412,26 +2765,28 @@ app.get('/api/booking/credit', async (req, res) => {
       WHERE b.id = $1 AND b.active = true
     `, [bookingId]);
 
-    let firstTimeCredit = false;
+    let actionStatus = ''; // 'processed' alebo 'already'
+    let creditIdReturn = null;
 
-    // ✅ CASE 1: Active booking exists → create new credit and deactivate booking
+    // ✅ CASE 1: Existuje aktívna rezervácia
     if (bookingRes.rows.length > 0) {
       const b = bookingRes.rows[0];
 
-      // Check if credit already exists for this user/session
+      // Check, či už kredit náhodou neexistuje
       const existingCredit = await client.query(
         `SELECT id FROM credits WHERE user_id = $1 AND session_id = $2`,
         [b.user_id, b.training_id]
       );
 
       if (existingCredit.rows.length === 0) {
-        // Create credit record
-        await client.query(`
+        // Vytvoríme nový kredit
+        const insertRes = await client.query(`
           INSERT INTO credits (
             user_id, session_id, child_count, accompanying_person, children_ages, photo_consent,
             mobile, note, training_type, original_date, reason, status, created_at
           )
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'User selected credit', 'active', NOW())
+          RETURNING id
         `, [
           b.user_id,
           b.training_id,
@@ -2445,101 +2800,62 @@ app.get('/api/booking/credit', async (req, res) => {
           b.training_date || new Date()
         ]);
 
-        // ✅ NEW: Deactivate the booking but keep original booking_type
+        creditIdReturn = insertRes.rows[0].id;
+
+        // Deaktivujeme booking
         await client.query(
           'UPDATE bookings SET active = false WHERE id = $1 AND user_id = $2',
           [bookingId, b.user_id]
         );
 
-        firstTimeCredit = true;
+        actionStatus = 'processed';
+      } else {
+        // Kredit už existuje, len vrátime info
+        creditIdReturn = existingCredit.rows[0].id;
+        actionStatus = 'already';
       }
+    } else {
+      // Tu by sme mohli riešiť, ak booking neexistuje alebo už nie je active (napr. bol už refundovaný)
+      // Pre jednoduchosť predpokladáme, že ak nie je active, možno už bol spracovaný skôr.
+      // Skontrolujeme, či existuje kredit pre tento bookingId (ak by sme mali priamy link, ale tu joinujeme cez user/session)
+      // Ak sa nenájde booking, vrátime chybu alebo 'already' ak nájdeme kredit inou cestou.
+      // Pre bezpečnosť teraz vrátime error, ak sa nenájde active booking:
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        status: 'error',
+        message: 'Booking not found or already processed/cancelled.'
+      });
     }
 
     await client.query('COMMIT');
 
-    // ✅ Success response (same as before)
-    if (firstTimeCredit) {
-      return res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Credit Added Successfully</title>
-            <meta http-equiv="refresh" content="4;url=${process.env.FRONTEND_URL}/booking" />
-            <style>
-                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-                .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
-                .success-icon { font-size: 60px; margin-bottom: 20px; }
-                .countdown { margin-top: 20px; font-size: 14px; color: #666; }
-            </style>
-        </head>
-        <body>
-            <div class="success-container">
-                <div class="success-icon">🎫</div>
-                <h2>Credit Added Successfully!</h2>
-                <p>Your credit has been added to your account and is ready to use.</p>
-                <p>You'll be automatically redirected in <span id="countdown">4</span> seconds...</p>
-                <div class="countdown">
-                    <a href="${process.env.FRONTEND_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
-                </div>
-            </div>
-            <script>
-                let seconds = 4;
-                const el = document.getElementById('countdown');
-                const timer = setInterval(() => {
-                    seconds--; el.textContent = seconds;
-                    if (seconds <= 0) clearInterval(timer);
-                }, 1000);
-            </script>
-        </body>
-        </html>
-      `);
+    // ✅ ODPOVEĎ PRE FRONTEND (JSON, nie HTML)
+    if (actionStatus === 'processed') {
+      return res.json({
+        status: 'processed',
+        message: 'Credit added successfully',
+        creditId: creditIdReturn
+      });
+    } else if (actionStatus === 'already') {
+      return res.json({
+        status: 'already',
+        message: 'Credit already exists',
+        creditId: creditIdReturn
+      });
     }
-
-    // ✅ Already processed response
-    return res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-          <title>Credit Already Processed</title>
-          <meta http-equiv="refresh" content="4;url=${process.env.FRONTEND_URL}/booking" />
-          <style>
-              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-              .success-container { background: white; color: #333; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; margin: 0 auto; }
-              .success-icon { font-size: 60px; margin-bottom: 20px; }
-              .countdown { margin-top: 20px; font-size: 14px; color: #666; }
-          </style>
-      </head>
-      <body>
-          <div class="success-container">
-              <div class="success-icon">✅</div>
-              <h2>Credit Already Processed</h2>
-              <p>Your credit was already added earlier and is ready to use.</p>
-              <p>You'll be redirected in <span id="countdown">4</span> seconds...</p>
-              <div class="countdown">
-                  <a href="${process.env.FRONTEND_URL}/booking" style="color: #667eea;">Click here if you are not redirected</a>
-              </div>
-          </div>
-          <script>
-              let seconds = 4;
-              const el = document.getElementById('countdown');
-              const timer = setInterval(() => {
-                  seconds--; el.textContent = seconds;
-                  if (seconds <= 0) clearInterval(timer);
-              }, 1000);
-          </script>
-      </body>
-      </html>
-    `);
 
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Credit error:', err);
-    res.redirect(`${process.env.FRONTEND_URL}/error?reason=credit_failed`);
+    // Vrátime JSON error, aby to frontend zachytil a zobrazil červenú ikonku
+    return res.status(500).json({
+      status: 'error',
+      message: 'Internal Server Error during credit creation.'
+    });
   } finally {
     client.release();
   }
 });
-
 
 // Endpoint to use credit for new booking
 app.post('/api/bookings/use-credit', async (req, res) => {
@@ -2645,39 +2961,39 @@ app.post('/api/bookings/use-credit', async (req, res) => {
     const user = userResult.rows[0];
 
     // --- COMMIT TRANSAKCIE ---
-    await client.query('COMMIT'); 
+    await client.query('COMMIT');
     // Teraz je booking reálne v DB a getAttendeesList ho uvidí
 
     // --- ODOSLANIE EMAILOV (Až po commite) ---
     try {
-        // 1. User Email
-        await emailService.sendUserBookingEmail(user.email, {
-          date: training.training_date,
-          start_time: dayjs(training.training_date).format('HH:mm'), // Alebo ak máš selectedTime v body
-          trainingType: training.training_type,
-          userName: user.first_name,
-          paymentType: 'credit'
-        });
+      // 1. User Email
+      await emailService.sendUserBookingEmail(user.email, {
+        date: training.training_date,
+        start_time: dayjs(training.training_date).format('HH:mm'), // Alebo ak máš selectedTime v body
+        trainingType: training.training_type,
+        userName: user.first_name,
+        paymentType: 'credit'
+      });
 
-        // 2. Admin Email
-        await emailService.sendAdminCreditUsage(process.env.ADMIN_EMAIL, {
-          user, 
-          training, 
-          credit, 
-          finalChildrenAges, 
-          finalMobile, 
-          finalPhotoConsent: finalPhotoConsent, // Pozor na názov premennej v emailService
-          finalNote, 
-          bookingId, 
-          creditId, 
-          originalSessionId,
-          trainingId: training.id // <--- TOTO JE KĽÚČOVÉ PRE TABUĽKU
-        });
+      // 2. Admin Email
+      await emailService.sendAdminCreditUsage('info@nitracik.sk', {
+        user,
+        training,
+        credit,
+        finalChildrenAges,
+        finalMobile,
+        finalPhotoConsent: finalPhotoConsent, // Pozor na názov premennej v emailService
+        finalNote,
+        bookingId,
+        creditId,
+        originalSessionId,
+        trainingId: training.id // <--- TOTO JE KĽÚČOVÉ PRE TABUĽKU
+      });
 
-        console.log('[DEBUG] Credit confirmation emails sent.');
+      console.log('[DEBUG] Credit confirmation emails sent.');
     } catch (emailError) {
-        console.error('[DEBUG] Error sending confirmation emails:', emailError.message);
-        // Nezastavujeme response, lebo booking už prebehol
+      console.error('[DEBUG] Error sending confirmation emails:', emailError.message);
+      // Nezastavujeme response, lebo booking už prebehol
     }
 
     res.json({
@@ -2789,6 +3105,540 @@ app.delete('/api/admin/faqs/:id', isAdmin, async (req, res) => {
   }
 });
 
+// --- ABOUT CONTENT ENDPOINTS ---
+
+app.get('/api/about-content', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM about_content WHERE id = 1');
+    if (result.rows.length === 0) {
+      // Vrátiť predvolený obsah, ak neexistuje
+      return res.json({
+        title: 'O nás',
+        description: 'Vitajte v Nitráčiku! Sme lokalný projekt zameraný na kreatívny rozvoj detí. Naša misia je vytvárať priestor, kde sa deti môžu slobodne vyjadrovať, objavovať a učiť sa prostredníctvom hry a kreativity.',
+        description2: 'Ponúkame rôzne programy a workshopy navrhnuté tak, aby podporovali motorické zručnosti, sociálnu interakciu a tvorivé myslenie u detí všetkých vekových kategórií.'
+      });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching about content:', error);
+    res.status(500).json({ error: 'Failed to fetch about content' });
+  }
+});
+
+app.post('/api/admin/about-content', isAdmin, async (req, res) => {
+  try {
+    const { title, description, description2 } = req.body;
+    const result = await pool.query(
+      `INSERT INTO about_content (id, title, description, description2, updated_at)
+       VALUES (1, $1, $2, $3, NOW())
+       ON CONFLICT (id) 
+       DO UPDATE SET 
+         title = EXCLUDED.title, 
+         description = EXCLUDED.description, 
+         description2 = EXCLUDED.description2,
+         updated_at = NOW()
+       RETURNING *`,
+      [title, description, description2]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error saving about content:', error);
+    res.status(500).json({ error: 'Failed to save about content' });
+  }
+});
+
+// --- BLOG ENDPOINTS ---
+
+app.get('/api/blog-posts', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        bp.id, 
+        bp.title, 
+        bp.slug, 
+        bp.perex, 
+        bp.content, 
+        bp.image_url, 
+        bp.label_id,
+        bp.created_at, 
+        bp.updated_at,
+        bl.name as label_name,
+        bl.color as label_color
+      FROM blog_posts bp
+      LEFT JOIN blog_labels bl ON bp.label_id = bl.id
+      ORDER BY bp.created_at DESC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching blog posts:', error);
+    res.status(500).json({ error: 'Failed to fetch blog posts' });
+  }
+});
+
+app.post('/api/admin/blog-posts', isAdmin, async (req, res) => {
+  try {
+    const { title, perex, content, image_url, label_id } = req.body;
+    
+    let slug = createSlug(title);
+    
+    const check = await pool.query('SELECT id FROM blog_posts WHERE slug = $1', [slug]);
+    if (check.rows.length > 0) {
+      slug = `${slug}-${Date.now()}`;
+    }
+
+    const result = await pool.query(
+      `INSERT INTO blog_posts (title, slug, perex, content, image_url, label_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+       RETURNING *`,
+      [title, slug, perex, content || null, image_url || null, label_id || null]
+    );
+    
+    console.log(`✅ Blog post created: ${title} with label_id: ${label_id}`);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating blog post:', error);
+    res.status(500).json({ error: 'Failed to create blog post' });
+  }
+});
+
+app.put('/api/admin/blog-posts/:id', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, perex, content, image_url, label_id } = req.body;
+    
+    const slug = createSlug(title);
+
+    const result = await pool.query(
+      `UPDATE blog_posts 
+       SET title = $1, slug = $2, perex = $3, content = $4, image_url = $5, label_id = $6, updated_at = NOW()
+       WHERE id = $7
+       RETURNING *`,
+      [title, slug, perex, content || null, image_url || null, label_id || null, id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    console.log(`✅ Blog post updated: ${title} with label_id: ${label_id}`);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating blog post:', error);
+    res.status(500).json({ error: 'Failed to update blog post' });
+  }
+});
+
+
+app.delete('/api/admin/blog-posts/:id', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM blog_posts WHERE id = $1 RETURNING id', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
+    res.json({ message: 'Post deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting blog post:', error);
+    res.status(500).json({ error: 'Failed to delete blog post' });
+  }
+});
+
+// GET ONE POST BY ID OR SLUG
+app.get('/api/blog-posts/:idOrSlug', async (req, res) => {
+  try {
+    const { idOrSlug } = req.params;
+    
+    console.log(`🔍 Hľadám článok podľa: "${idOrSlug}"`);
+
+    let query;
+    let params;
+
+    const isId = /^\d+$/.test(idOrSlug);
+
+    if (isId) {
+       console.log('👉 Detekované ako ID (číslo)');
+       query = `
+         SELECT 
+           bp.*, 
+           bl.name as label_name,
+           bl.color as label_color
+         FROM blog_posts bp
+         LEFT JOIN blog_labels bl ON bp.label_id = bl.id
+         WHERE bp.id = $1
+       `;
+       params = [parseInt(idOrSlug)];
+    } else {
+       console.log('👉 Detekované ako SLUG (text)');
+       query = `
+         SELECT 
+           bp.*,
+           bl.name as label_name,
+           bl.color as label_color
+         FROM blog_posts bp
+         LEFT JOIN blog_labels bl ON bp.label_id = bl.id
+         WHERE bp.slug = $1
+       `;
+       params = [idOrSlug];
+    }
+
+    const result = await pool.query(query, params);
+    
+    if (result.rows.length === 0) {
+      console.log('❌ Článok nebol nájdený v DB');
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    console.log(`✅ Článok nájdený: ${result.rows[0].title}`);
+    res.json(result.rows[0]);
+
+  } catch (error) {
+    console.error('Error fetching blog post:', error);
+    res.status(500).json({ error: 'Failed to fetch blog post' });
+  }
+});
+
+// ENDPOINT PRE UPLOAD OBRÁZKA
+app.post('/api/admin/upload-blog-image', isAdmin, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Žiadny súbor nebol nahraný' });
+    }
+
+    console.log(`📤 Prijatý obrázok: ${req.file.originalname} (${(req.file.size / 1024).toFixed(2)} KB)`);
+
+    // Spracuj obrázok pomocou Sharp
+    const processedImage = await processImage(req.file.buffer, req.file.originalname);
+
+    // URL obrázka, ktorý bude prístupný cez web
+    const imageUrl = `/uploads/blog/${processedImage.filename}`;
+
+    console.log(`✅ Upload dokončený: ${imageUrl}`);
+
+    res.json({
+      success: true,
+      imageUrl: imageUrl,
+      filename: processedImage.filename,
+      originalSize: req.file.size,
+      processedSize: processedImage.size,
+      compression: ((1 - processedImage.size / req.file.size) * 100).toFixed(2) + '%'
+    });
+  } catch (error) {
+    console.error('❌ Error uploading image:', error);
+    res.status(500).json({ error: 'Nepodarilo sa nahrať obrázok' });
+  }
+});
+
+app.delete('/api/admin/delete-blog-image', isAdmin, async (req, res) => {
+  try {
+    const { imageUrl } = req.body;
+    
+    if (!imageUrl) {
+      return res.status(400).json({ error: 'Chýba URL obrázka' });
+    }
+
+    const filename = path.basename(imageUrl);
+    const filePath = path.join(uploadDir, filename);
+    
+    // ✅ Zmaž aj thumbnail
+    const thumbFilename = filename.replace('.webp', '-thumb.webp');
+    const thumbPath = path.join(uploadDir, thumbFilename);
+    
+    let deletedFiles = [];
+    
+    // Zmaž hlavný obrázok
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      deletedFiles.push(filename);
+      console.log(`🗑️ Obrázok zmazaný: ${filename}`);
+    }
+    
+    // ✅ Zmaž thumbnail ak existuje
+    if (fs.existsSync(thumbPath)) {
+      fs.unlinkSync(thumbPath);
+      deletedFiles.push(thumbFilename);
+      console.log(`🗑️ Thumbnail zmazaný: ${thumbFilename}`);
+    }
+    
+    if (deletedFiles.length > 0) {
+      res.json({ 
+        success: true, 
+        message: 'Obrázok bol zmazaný',
+        deletedFiles: deletedFiles
+      });
+    } else {
+      res.status(404).json({ error: 'Obrázok nebol nájdený' });
+    }
+  } catch (error) {
+    console.error('❌ Error deleting image:', error);
+    res.status(500).json({ error: 'Nepodarilo sa zmazať obrázok' });
+  }
+});
+
+// ============================================
+// BLOG LABELS ENDPOINTS
+// ============================================
+
+// GET ALL LABELS
+app.get('/api/blog-labels', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, color, created_at
+      FROM blog_labels 
+      ORDER BY name ASC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching blog labels:', error);
+    res.status(500).json({ error: 'Failed to fetch blog labels' });
+  }
+});
+
+// GET ONE LABEL BY ID
+app.get('/api/blog-labels/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'SELECT id, name, color, created_at FROM blog_labels WHERE id = $1',
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Label not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching blog label:', error);
+    res.status(500).json({ error: 'Failed to fetch blog label' });
+  }
+});
+
+// CREATE NEW LABEL (ADMIN ONLY)
+app.post('/api/admin/blog-labels', isAdmin, async (req, res) => {
+  try {
+    const { name, color } = req.body;
+    
+    if (!name || !color) {
+      return res.status(400).json({ error: 'Name and color are required' });
+    }
+
+    // Check if label with same name already exists
+    const checkExisting = await pool.query(
+      'SELECT id FROM blog_labels WHERE LOWER(name) = LOWER($1)',
+      [name]
+    );
+
+    if (checkExisting.rows.length > 0) {
+      return res.status(400).json({ error: 'Label with this name already exists' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO blog_labels (name, color, created_at)
+       VALUES ($1, $2, NOW())
+       RETURNING *`,
+      [name.trim(), color]
+    );
+    
+    console.log(`✅ Label created: ${name} (${color})`);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating blog label:', error);
+    res.status(500).json({ error: 'Failed to create blog label' });
+  }
+});
+
+// UPDATE LABEL (ADMIN ONLY)
+app.put('/api/admin/blog-labels/:id', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, color } = req.body;
+
+    if (!name || !color) {
+      return res.status(400).json({ error: 'Name and color are required' });
+    }
+
+    // Check if another label with same name exists
+    const checkExisting = await pool.query(
+      'SELECT id FROM blog_labels WHERE LOWER(name) = LOWER($1) AND id != $2',
+      [name, id]
+    );
+
+    if (checkExisting.rows.length > 0) {
+      return res.status(400).json({ error: 'Label with this name already exists' });
+    }
+
+    const result = await pool.query(
+      `UPDATE blog_labels 
+       SET name = $1, color = $2
+       WHERE id = $3
+       RETURNING *`,
+      [name.trim(), color, id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Label not found' });
+    }
+    
+    console.log(`✅ Label updated: ${name} (${color})`);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating blog label:', error);
+    res.status(500).json({ error: 'Failed to update blog label' });
+  }
+});
+
+// DELETE LABEL (ADMIN ONLY)
+app.delete('/api/admin/blog-labels/:id', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // First, remove label_id from all posts that use this label
+    await pool.query(
+      'UPDATE blog_posts SET label_id = NULL WHERE label_id = $1',
+      [id]
+    );
+    
+    // Then delete the label
+    const result = await pool.query(
+      'DELETE FROM blog_labels WHERE id = $1 RETURNING id, name',
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Label not found' });
+    }
+    
+    console.log(`🗑️ Label deleted: ${result.rows[0].name}`);
+    res.json({ 
+      message: 'Label deleted successfully',
+      deletedLabel: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error deleting blog label:', error);
+    res.status(500).json({ error: 'Failed to delete blog label' });
+  }
+});
+
+
+// --- GOOGLE RATINGS ENDPOINTS ---
+
+// Simple in-memory cache for Google reviews
+let googleReviewsCache = null;
+let googleReviewsCacheTime = 0;
+const GOOGLE_REVIEWS_TTL_MS = 60 * 60 * 1000; // 1h
+
+app.get('/api/admin/google-ratings', isAdmin, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT business_id, enabled FROM google_ratings_config WHERE id = 1');
+    if (result.rows.length === 0) {
+      return res.json({ businessId: '', enabled: false });
+    }
+    // Mapovanie snake_case z DB na camelCase pre frontend
+    res.json({
+      businessId: result.rows[0].business_id || '',
+      enabled: result.rows[0].enabled || false
+    });
+  } catch (error) {
+    console.error('Error fetching Google ratings config:', error);
+    res.status(500).json({ error: 'Failed to fetch config' });
+  }
+});
+
+app.post('/api/admin/google-ratings', isAdmin, async (req, res) => {
+  try {
+    const { businessId, enabled } = req.body;
+
+    await pool.query(
+      `INSERT INTO google_ratings_config (id, business_id, enabled, updated_at)
+       VALUES (1, $1, $2, NOW())
+       ON CONFLICT (id) 
+       DO UPDATE SET 
+         business_id = EXCLUDED.business_id,
+         enabled = EXCLUDED.enabled,
+         updated_at = NOW()`,
+      [businessId, enabled]
+    );
+
+    res.json({ success: true, message: 'Configuration saved' });
+  } catch (error) {
+    console.error('Error saving Google ratings config:', error);
+    res.status(500).json({ error: 'Failed to save configuration' });
+  }
+});
+
+// Public Google reviews endpoint
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const configRes = await pool.query('SELECT business_id, enabled FROM google_ratings_config WHERE id = 1');
+
+    if (configRes.rows.length === 0) {
+      return res.json({ reviews: [], enabled: false, businessId: '' });
+    }
+
+    const { business_id: businessId, enabled } = configRes.rows[0];
+    const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+
+    if (!apiKey) {
+      console.error('Missing GOOGLE_PLACES_API_KEY');
+      return res.status(500).json({ enabled: false, reviews: [], businessId: businessId || '' });
+    }
+
+    if (!enabled || !businessId) {
+      return res.json({ reviews: [], enabled: false, businessId: businessId || '' });
+    }
+
+    const now = Date.now();
+    if (
+      googleReviewsCache &&
+      now - googleReviewsCacheTime < GOOGLE_REVIEWS_TTL_MS &&
+      googleReviewsCache.businessId === businessId
+    ) {
+      return res.json(googleReviewsCache.data);
+    }
+
+    const googleRes = await axios.get(
+      `https://places.googleapis.com/v1/places/${encodeURIComponent(businessId)}`,
+      {
+        params: {
+          languageCode: 'sk'
+        },
+        headers: {
+          'X-Goog-Api-Key': apiKey,
+          'X-Goog-FieldMask': 'displayName,rating,userRatingCount,reviews'
+        }
+      }
+    );
+
+    const result = googleRes.data || {};
+    const reviews = (result.reviews || []).map((review) => ({
+      author_name: review.authorAttribution?.displayName || 'Google User',
+      profile_photo_url: review.authorAttribution?.photoUri || '',
+      rating: review.rating || 0,
+      text: review.text?.text || '',
+      relative_time_description: review.relativePublishTimeDescription || ''
+    }));
+
+    const payload = {
+      reviews,
+      rating: result.rating ?? null,
+      totalRatings: result.userRatingCount ?? null,
+      businessName: result.displayName?.text ?? result.displayName ?? null,
+      enabled: true,
+      businessId: businessId || ''
+    };
+
+    googleReviewsCache = { data: payload, businessId };
+    googleReviewsCacheTime = now;
+
+    return res.json(payload);
+  } catch (error) {
+    console.error('Error fetching Google reviews:', error);
+    const now = Date.now();
+    if (googleReviewsCache && now - googleReviewsCacheTime < GOOGLE_REVIEWS_TTL_MS) {
+      return res.json(googleReviewsCache.data);
+    }
+    return res.status(500).json({ message: 'Failed to fetch reviews' });
+  }
+});
+
 // Contact form endpoint
 app.post('/api/contact', async (req, res) => {
   try {
@@ -2804,8 +3654,8 @@ app.post('/api/contact', async (req, res) => {
       return res.status(400).json({ message: 'Invalid email format' });
     }
 
-    // Send email to admin
-    await emailService.sendContactFormEmails(process.env.ADMIN_EMAIL, {
+    // Send email to info@ (main inbox) with reply-to user email
+    await emailService.sendContactFormEmails('info@nitracik.sk', {
       name, email, message
     });
 

@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 const CookieConsent = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [hasSavedPrefs, setHasSavedPrefs] = useState(false);
   const location = useLocation();
 
   const [preferences, setPreferences] = useState({
@@ -23,6 +24,7 @@ const CookieConsent = () => {
       setTimeout(() => setIsVisible(true), 500);
     } else {
       setPreferences(JSON.parse(savedCookiePrefs));
+      setHasSavedPrefs(true);
     }
 
     const handleOpenSettings = () => {
@@ -37,7 +39,18 @@ const CookieConsent = () => {
   const savePreferences = (newPreferences) => {
     localStorage.setItem('cookiePreferences', JSON.stringify(newPreferences));
     setPreferences(newPreferences);
+    setHasSavedPrefs(true);
     setIsVisible(false);
+    setShowSettings(false);
+  };
+
+  const handleCloseSettings = () => {
+    if (hasSavedPrefs) {
+      setIsVisible(false);
+      setShowSettings(false);
+      return;
+    }
+
     setShowSettings(false);
   };
 
@@ -124,7 +137,7 @@ const CookieConsent = () => {
           <div className="flex flex-col max-h-[85vh]">
             <div className="p-3 px-5 border-b flex justify-between items-center bg-white sticky top-0 z-20">
               <h2 className="font-bold text-gray-700 text-sm tracking-tight">Nastavenie cookies</h2>
-              <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+              <button onClick={handleCloseSettings} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
             </div>
 
             <div className="p-4 overflow-y-auto space-y-3 bg-gray-50/30">
@@ -171,9 +184,14 @@ const CookieConsent = () => {
               </div>
             </div>
 
-            <div className="p-4 border-t flex justify-end gap-3 bg-white sticky bottom-0 z-20">
-              <button onClick={() => setShowSettings(false)} className="px-3 py-1 text-[10px] font-bold text-gray-400 hover:text-gray-600 tracking-widest uppercase">Späť</button>
-              <button onClick={handleSaveSelection} className="px-6 py-2 bg-secondary-600 hover:bg-secondary-500 text-white font-bold rounded-lg text-[10px] transition-colors shadow-sm uppercase tracking-wider">
+            <div className="p-4 border-t bg-white sticky bottom-0 z-20 flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3">
+              <button onClick={handleAcceptAll} className="w-full sm:w-auto px-4 py-2 bg-secondary-600 hover:bg-secondary-800 text-white font-bold rounded-lg text-[11px] transition-colors shadow-sm uppercase tracking-wider">
+                Prijať všetky
+              </button>
+              <button onClick={handleRejectAll} className="w-full sm:w-auto px-4 py-2 bg-secondary-600 hover:bg-secondary-800 text-white font-bold rounded-lg text-[11px] transition-colors shadow-sm uppercase tracking-wider">
+                Odmietnuť všetky
+              </button>
+              <button onClick={handleSaveSelection} className="w-full sm:w-auto px-6 py-2 bg-secondary-600 hover:bg-secondary-500 text-white font-bold rounded-lg text-[11px] transition-colors shadow-sm uppercase tracking-wider">
                 Uložiť výber
               </button>
             </div>

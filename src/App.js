@@ -30,6 +30,13 @@ const RefundOption = lazy(() => import('./components/RefundOption'));
 const Schedule = lazy(() => import('./components/Schedule'));
 const FAQ = lazy(() => import('./components/FAQ'));
 const Gdpr = lazy(() => import('./components/Gdpr'));
+const Terms = lazy(() => import('./components/Terms'));
+const CreditOption = lazy(() => import('./components/CreditOption'));
+const Checklist = lazy(() => import('./components/Checklist'));
+const Archive = lazy(() => import('./components/Archive'));
+const BlogPage = lazy(() => import('./components/BlogPage'));
+const BlogArticle = lazy(() => import('./components/BlogArticle'));
+
 
 // Inicializácia dayjs s lokálnym nastavením
 const initializeDayJS = () => {
@@ -75,6 +82,12 @@ const AppContent = () => {
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/gdpr" element={<Gdpr />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/credit-option" element={<CreditOption />} />
+            <Route path="/admin/checklist/:trainingId" element={<Checklist />} />
+            <Route path="/archive" element={<Archive />} />
+            <Route path="/blog" element={<BlogPage />} />
+            <Route path="/blog/:slug" element={<BlogArticle />} />
           </Routes>
         </Suspense>
       </main>

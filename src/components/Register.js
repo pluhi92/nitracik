@@ -49,9 +49,8 @@ const Register = () => {
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [showStreetDropdown, setShowStreetDropdown] = useState(false);
 
-  // Checkboxy
-  const [gdprConsent, setGdprConsent] = useState(false);
-  const [vopConsent, setVopConsent] = useState(false);
+  // Checkbox
+  const [agreementChecked, setAgreementChecked] = useState(false);
 
   // Anti-bot & Security
   const [honey, setHoney] = useState('');
@@ -214,7 +213,7 @@ const Register = () => {
     firstName && lastName && email &&
     isPasswordValid && doPasswordsMatch &&
     isAddressValid &&
-    gdprConsent && vopConsent && captchaToken;
+    agreementChecked && captchaToken;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -358,7 +357,7 @@ const Register = () => {
                 className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
               />
               <label htmlFor="noStreet" className="text-xs text-gray-600 cursor-pointer select-none">
-                Obec nemá ulice (použiť len číslo domu)
+                {t?.login?.register?.noStreetLabel || 'Obec nemá ulice (použiť len číslo domu)'}
               </label>
             </div>
 
@@ -413,16 +412,52 @@ const Register = () => {
             </div>
           </div>
 
-          {/* CHECKBOXY */}
-          <div className="space-y-3 pt-2">
-            <div className="flex items-start gap-3">
-              <input type="checkbox" id="gdpr" checked={gdprConsent} onChange={(e) => setGdprConsent(e.target.checked)} className="mt-1 w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer" />
-              <label htmlFor="gdpr" className="text-sm text-gray-600 select-none cursor-pointer">{t?.login?.register?.gdprConsentText || 'Súhlasím s pravidlami o spracovaní osobných údajov'} (<Link to="/gdpr" target="_blank" className="text-primary-600 hover:underline font-semibold">GDPR</Link>).</label>
-            </div>
-            <div className="flex items-start gap-3">
-              <input type="checkbox" id="vop" checked={vopConsent} onChange={(e) => setVopConsent(e.target.checked)} className="mt-1 w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer" />
-              <label htmlFor="vop" className="text-sm text-gray-600 select-none cursor-pointer">{t?.login?.register?.termsConsentText || 'Súhlasím s obchodnými podmienkami'} (<Link to="/terms" target="_blank" className="text-primary-600 hover:underline font-semibold">VOP</Link>).</label>
-            </div>
+          {/* CHECKBOX */}
+          <div className="flex items-start gap-3 pt-2">
+            <input
+              type="checkbox"
+              id="agreementChecked"
+              name="agreementChecked"
+              checked={agreementChecked}
+              onChange={(e) => setAgreementChecked(e.target.checked)}
+              className="mt-1 w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500 focus:ring-2 flex-shrink-0"
+            />
+
+            <label
+              htmlFor="agreementChecked"
+              className="text-xs sm:text-sm text-gray-700 leading-relaxed"
+            >
+              {(t?.login?.register?.consentText || '*I agree to the {terms} and declare that I have read the {privacy}.')
+                .split('{terms}')
+                .map((part, index) =>
+                  index === 0 ? (
+                    <>
+                      {part}
+                      <a
+                        href="/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-500 hover:text-primary-600 underline font-medium"
+                      >
+                        {t?.login?.register?.terms || 'Terms and Conditions'}
+                      </a>
+                    </>
+                  ) : (
+                    <>
+                      {part.split('{privacy}')[0]}
+                      <a
+                        href="/gdpr"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-500 hover:text-primary-600 underline font-medium"
+                      >
+                        {t?.login?.register?.privacy || 'Privacy Policy'}
+                      </a>
+                      {part.split('{privacy}')[1]}
+                    </>
+                  )
+                )}
+            </label>
           </div>
 
           {/* --- HCAPTCHA IMPLEMENTÁCIA --- */}

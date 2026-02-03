@@ -1,11 +1,12 @@
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  
 }
 
 model bookings {
@@ -33,6 +34,7 @@ model bookings {
   credits                credits?               @relation(fields: [credit_id], references: [id], onUpdate: NoAction, map: "fk_credit")
   refunds                refunds[]
   season_ticket_usage    season_ticket_usage[]
+  checked_in             Boolean                @default(false)
 
   @@index([credit_id], map: "idx_bookings_credit_id")
 }
@@ -172,4 +174,43 @@ model users {
   bookings           bookings[]
   credits            credits[]
   season_tickets     season_tickets[]
+}
+
+model blog_labels {
+  id         Int          @id @default(autoincrement())
+  name       String       @unique @db.VarChar(100)
+  color      String       @default("#3b82f6") @db.VarChar(7)
+  created_at DateTime?    @default(now()) @db.Timestamp(6)
+  blog_posts blog_posts[]
+}
+
+model blog_posts {
+  id          Int           @id @default(autoincrement())
+  title       String        @db.VarChar(255)
+  slug        String        @unique
+  perex       String        @db.Text
+  content     String?       @db.Text
+  image_url   String?       @db.VarChar(255)
+  created_at  DateTime?     @default(now()) @db.Timestamp(6)
+  updated_at  DateTime?     @default(now()) @db.Timestamp(6)
+  label_id    Int?
+  label       blog_labels?  @relation(fields: [label_id], references: [id], onDelete: SetNull)
+    
+  
+  @@index([label_id])
+}
+
+model google_ratings_config {
+  id          Int       @id @default(1)
+  business_id String?   @db.VarChar(255)
+  enabled     Boolean   @default(false)
+  updated_at  DateTime  @default(now()) @db.Timestamp(6)
+}
+
+model about_content {
+  id          Int       @id @default(1)
+  title       String    @db.VarChar(255)
+  description String    @db.Text
+  description2 String   @db.Text
+  updated_at  DateTime? @default(now()) @db.Timestamp(6)
 }
