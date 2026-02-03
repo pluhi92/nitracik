@@ -246,6 +246,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
       } else if (session.metadata.type === 'training_session') {
         const {
           userId,
+          trainingId,
           trainingType,
           selectedDate,
           selectedTime,
@@ -262,22 +263,33 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           throw new Error('Missing required metadata fields');
         }
 
-        const [time, modifier] = selectedTime.split(' ');
-        let [hours, minutes] = time.split(':');
-        if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
-        if (modifier === 'AM' && hours === '12') hours = '00';
-        const trainingDateTimeUTC = new Date(`${selectedDate}T${hours}:${minutes}`);
-        const trainingDateTimeLocal = new Date(trainingDateTimeUTC.toLocaleString('en-US', { timeZone: 'Europe/Budapest' }));
+        let trainingResult;
+        let training;
 
-        const trainingResult = await client.query(
-          `SELECT * FROM training_availability WHERE training_type = $1 AND training_date = $2`,
-          [trainingType, trainingDateTimeLocal]
-        );
+        if (trainingId) {
+          trainingResult = await client.query(
+            `SELECT * FROM training_availability WHERE id = $1`,
+            [parseInt(trainingId, 10)]
+          );
+        } else {
+          const [time, modifier] = selectedTime.split(' ');
+          let [hours, minutes] = time.split(':');
+          if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
+          if (modifier === 'AM' && hours === '12') hours = '00';
+          const trainingDateTimeUTC = new Date(`${selectedDate}T${hours}:${minutes}`);
+          const trainingDateTimeLocal = new Date(trainingDateTimeUTC.toLocaleString('en-US', { timeZone: 'Europe/Budapest' }));
+
+          trainingResult = await client.query(
+            `SELECT * FROM training_availability WHERE training_type = $1 AND training_date = $2`,
+            [trainingType, trainingDateTimeLocal]
+          );
+        }
+
         if (trainingResult.rows.length === 0) {
           throw new Error('Training session no longer available');
         }
 
-        const training = trainingResult.rows[0];
+        training = trainingResult.rows[0];
         const bookingsResult = await client.query(
           `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1`,
           [training.id]
