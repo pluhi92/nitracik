@@ -112,14 +112,14 @@ const Booking = () => {
   }, [useSeasonTicket, selectedSeasonTicket]);
 
   useEffect(() => {
-    const allowedTypes = ['MIDI', 'MAXI'];
+    if (!useSeasonTicket) return;
 
-    // Ak je vybratý tréning, ktorý NIE JE MIDI/MAXI, a zároveň máš zaškrtnutú permanentku:
-    if (!allowedTypes.includes(trainingType) && useSeasonTicket) {
-      setUseSeasonTicket(false);      // Odškrtni checkbox
-      setSelectedSeasonTicket('');    // Vynuluj výber konkrétnej permanentky
+    const selectedTicket = seasonTickets.find(ticket => ticket.id === parseInt(selectedSeasonTicket));
+    if (selectedTicket && selectedTypeObj && selectedTicket.training_type_id !== selectedTypeObj.id) {
+      setUseSeasonTicket(false);
+      setSelectedSeasonTicket('');
     }
-  }, [trainingType, useSeasonTicket]); // Sleduje zmeny typu tréningu a checkboxu
+  }, [useSeasonTicket, selectedSeasonTicket, selectedTypeObj, seasonTickets]);
 
   useEffect(() => {
     if (childrenAges.length === childrenCount) {
@@ -571,6 +571,7 @@ const Booking = () => {
         const response = await api.post('/api/use-season-ticket', {
           userId: userData.id,
           seasonTicketId: selectedSeasonTicket,
+          trainingTypeId: selectedTypeObj?.id,
           trainingId,
           trainingType,
           selectedDate,
@@ -767,6 +768,10 @@ const Booking = () => {
       </div>
     );
   }
+
+  const availableSeasonTickets = selectedTypeObj
+    ? seasonTickets.filter(ticket => parseInt(ticket.training_type_id, 10) === selectedTypeObj.id)
+    : seasonTickets;
 
   return (
     <div className="max-w-6xl mx-auto mt-8 px-4 sm:px-6">
@@ -1399,7 +1404,7 @@ const Booking = () => {
               </div>
             </Form.Group>
 
-            {!isCreditMode && seasonTickets.length > 0 && ['MIDI', 'MAXI'].includes(trainingType) && (
+            {!isCreditMode && seasonTickets.length > 0 && (
               <Form.Group className="mb-4">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <Form.Check
@@ -1410,6 +1415,7 @@ const Booking = () => {
                       setUseSeasonTicket(!useSeasonTicket);
                       setSelectedSeasonTicket('');
                     }}
+                    disabled={availableSeasonTickets.length === 0}
                     label={
                       <span className="font-bold text-gray-800">
                         <i className="bi bi-ticket-perforated me-2"></i>
@@ -1417,6 +1423,11 @@ const Booking = () => {
                       </span>
                     }
                   />
+                  {availableSeasonTickets.length === 0 && (
+                    <div className="text-sm text-gray-600 mt-2">
+                      {t?.booking?.noSeasonTicketForType || 'Pre tento tréning nemáte žiadnu permanentku.'}
+                    </div>
+                  )}
                   {useSeasonTicket && (
                     <div className="mt-4">
                       <Form.Label className="font-medium text-gray-700">
@@ -1429,9 +1440,10 @@ const Booking = () => {
                         className="w-full text-lg py-3"
                       >
                         <option value="">{t?.booking?.selectSeasonTicket || 'Choose a Season Ticket'}</option>
-                        {seasonTickets.map((ticket) => (
+                        {availableSeasonTickets.map((ticket) => (
                           <option key={ticket.id} value={ticket.id}>
                             {t?.booking?.seasonTicketOption || 'Season Ticket'} #{ticket.id}
+                            {ticket.training_type_name ? ` - ${ticket.training_type_name}` : ''}
                             ({t?.booking?.seasonTicketEntries?.replace('{count}', ticket.entries_remaining) || `Entries: ${ticket.entries_remaining}`})
                             {ticket.entries_remaining < childrenCount && (
                               <span className="text-red-500"> - {t?.booking?.notEnoughEntries || 'Not enough entries'}</span>

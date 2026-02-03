@@ -33,6 +33,7 @@
     "seasonTicketOption": "Permanentka",
     "seasonTicketEntries": "Vstupy: {count}",
     "notCoveredBySeasonTicket": "Nie je pokryté permanentkou",
+    "noSeasonTicketForType": "Pre tento tréning nemáte žiadnu permanentku.",
     "accompanyingPerson": "Účasť sprevádzajúcej osoby",
     "accompanyingPersonShort": "sprevádzajúca osoba",
     "accompanyingPersonHelp": "Sprevádzajúca osoba je ďalšia osoba okrem rodiča, ktorá sa zúčastní hodiny spolu s dieťaťom.",
@@ -225,7 +226,11 @@
     "validity": "Platnosť: 6 mesiacov",
     "validityNote": "od zakúpenia",
     "restriction": "Platí len pre MIDI a MAXI",
+    "restrictionLabel": "Platí len:",
     "restrictionDetail": "Nevzťahuje sa na iné typy tréningov",
+    "filterLabel": "Vyberte hodinu",
+    "filterPlaceholder": "Vyberte hodinu...",
+    "noOffers": "Pre vybraný tréning zatiaľ nie sú dostupné permanentky.",
     "termsAgreement": "Súhlasím s",
     "privacyPolicy": "Ochranou osobných údajov",
     "savings": "Úspora: {percent}%",
@@ -269,7 +274,7 @@
       "actions": "Akcie"
     },
     "seasonTickets": {
-      "title": "Držitelia sezónnych lístkov",
+      "title": "Držitelia permanentiek",
       "noTickets": "Žiadni používatelia si nekúpili permanentky.",
       "name": "Meno",
       "email": "Email",

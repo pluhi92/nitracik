@@ -181,17 +181,32 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
 
       // === 1. SEASON TICKET (Permanentka) ===
       if (session.metadata.type === 'season_ticket') {
-        const { userId, entries, totalPrice } = session.metadata;
-        console.log(`Processing Season Ticket for User: ${userId}, Entries: ${entries}, Price: ${totalPrice}`);
+        const { userId, entries, totalPrice, trainingTypeId } = session.metadata;
+        console.log(`Processing Season Ticket for User: ${userId}, Entries: ${entries}, Price: ${totalPrice}, TrainingType: ${trainingTypeId}`);
 
         // Konverzia typov (Stripe posiela stringy)
         const entriesInt = parseInt(entries, 10);
         const priceFloat = parseFloat(totalPrice);
+        const trainingTypeIdInt = parseInt(trainingTypeId, 10);
 
-        // Bezpečnostná kontrola: sedia ceny s novým cenníkom?
-        const validPrices = { 3: 40, 5: 65, 10: 120 };
-        if (validPrices[entriesInt] !== priceFloat) {
-          console.error(`[SECURITY] Price mismatch. Entries: ${entriesInt}, Paid: ${priceFloat}`);
+        if (!trainingTypeIdInt) {
+          throw new Error('Training type is missing for season ticket purchase');
+        }
+
+        // Bezpečnostná kontrola: overiť cenu podľa ponuky
+        const offerResult = await client.query(
+          `SELECT price FROM season_ticket_offers WHERE training_type_id = $1 AND entries = $2 AND active = TRUE`,
+          [trainingTypeIdInt, entriesInt]
+        );
+
+        if (offerResult.rows.length === 0) {
+          console.error(`[SECURITY] Offer not found. TrainingType: ${trainingTypeIdInt}, Entries: ${entriesInt}`);
+          throw new Error('Season ticket offer not found');
+        }
+
+        const dbPrice = parseFloat(offerResult.rows[0].price);
+        if (dbPrice !== priceFloat) {
+          console.error(`[SECURITY] Price mismatch. Entries: ${entriesInt}, Paid: ${priceFloat}, Expected: ${dbPrice}`);
           throw new Error('Payment amount verification failed');
         }
 
@@ -205,6 +220,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         const ticketResult = await client.query(
           `INSERT INTO season_tickets (
               user_id, 
+              training_type_id,
               entries_total, 
               entries_remaining, 
               purchase_date, 
@@ -215,19 +231,26 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
               created_at,
               updated_at
            )
-           VALUES ($1, $2, $2, NOW(), $3, $4, $5, $6, NOW(), NOW()) 
+           VALUES ($1, $2, $3, $3, NOW(), $4, $5, $6, $7, NOW(), NOW()) 
            RETURNING id`,
           [
             parseInt(userId, 10),            // $1: user_id
-            entriesInt,                      // $2: entries_total (aj remaining)
-            expiryDate,                      // $3: expiry_date
-            session.id,                      // $4: stripe_payment_id
-            priceFloat,                      // $5: amount_paid
-            new Date(session.created * 1000) // $6: payment_time (zo Stripe timestampu)
+            trainingTypeIdInt,               // $2: training_type_id
+            entriesInt,                      // $3: entries_total (aj remaining)
+            expiryDate,                      // $4: expiry_date
+            session.id,                      // $5: stripe_payment_id
+            priceFloat,                      // $6: amount_paid
+            new Date(session.created * 1000) // $7: payment_time (zo Stripe timestampu)
           ]
         );
 
         console.log('[DEBUG] Season ticket created ID:', ticketResult.rows[0].id);
+
+        const typeResult = await client.query(
+          `SELECT name FROM training_types WHERE id = $1`,
+          [trainingTypeIdInt]
+        );
+        const trainingTypeName = typeResult.rows[0]?.name || '';
 
         // Odoslanie emailu užívateľovi
         const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
@@ -238,7 +261,8 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           await emailService.sendSeasonTicketConfirmation(user.email, user.first_name, {
             entries: entriesInt,
             totalPrice: priceFloat,
-            expiryDate
+            expiryDate,
+            trainingTypeName
           });
           console.log('[DEBUG] Confirmation email sent to:', user.email);
           
@@ -248,7 +272,8 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
             entries: entriesInt,
             totalPrice: priceFloat,
             expiryDate,
-            stripePaymentId: session.id
+            stripePaymentId: session.id,
+            trainingTypeName
           });
           console.log('[DEBUG] Admin notification sent for season ticket purchase');
         }
@@ -614,9 +639,19 @@ app.get('/api/admin/season-tickets', async (req, res) => {
     // === ZMENA: Pridaná podmienka WHERE ===
     // Zobrazujeme len tie, ktoré majú zostatok A SÚČASNE dátum expirácie je v budúcnosti
     const tickets = await pool.query(
-      `SELECT u.first_name, u.last_name, u.email, s.user_id, s.entries_total, s.entries_remaining, s.expiry_date 
-       FROM season_tickets s 
+      `SELECT u.first_name,
+              u.last_name,
+              u.email,
+              s.user_id,
+              s.entries_total,
+              s.entries_remaining,
+              s.expiry_date,
+              s.training_type_id,
+              t.name AS training_type_name,
+              t.name AS training_type
+       FROM season_tickets s
        JOIN users u ON s.user_id = u.id
+       LEFT JOIN training_types t ON s.training_type_id = t.id
        WHERE s.entries_remaining > 0 AND s.expiry_date >= NOW()`
     );
     res.json(tickets.rows);
@@ -1075,6 +1110,102 @@ app.put('/api/admin/training-types/:id/toggle', isAdmin, async (req, res) => {
   }
 });
 
+// --- SEASON TICKET OFFERS (USER) ---
+app.get('/api/season-ticket-offers', async (req, res) => {
+  try {
+    const trainingTypeId = req.query.trainingTypeId ? parseInt(req.query.trainingTypeId, 10) : null;
+    const params = [];
+    let whereClause = 'WHERE o.active = TRUE';
+
+    if (trainingTypeId) {
+      params.push(trainingTypeId);
+      whereClause += ` AND o.training_type_id = $${params.length}`;
+    }
+
+    const result = await pool.query(
+      `SELECT o.id,
+              o.training_type_id,
+              o.entries,
+              o.price,
+              o.active,
+              t.name AS training_type_name
+       FROM season_ticket_offers o
+       JOIN training_types t ON t.id = o.training_type_id
+       ${whereClause}
+       ORDER BY t.name ASC, o.entries ASC`,
+      params
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching season ticket offers:', error);
+    res.status(500).json({ error: 'Failed to fetch season ticket offers' });
+  }
+});
+
+// --- SEASON TICKET OFFERS (ADMIN) ---
+app.get('/api/admin/season-ticket-offers', isAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT o.id,
+              o.training_type_id,
+              o.entries,
+              o.price,
+              o.active,
+              t.name AS training_type_name
+       FROM season_ticket_offers o
+       JOIN training_types t ON t.id = o.training_type_id
+       ORDER BY t.name ASC, o.entries ASC`
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching admin season ticket offers:', error);
+    res.status(500).json({ error: 'Failed to fetch season ticket offers' });
+  }
+});
+
+app.post('/api/admin/season-ticket-offers', isAdmin, async (req, res) => {
+  const { trainingTypeId, offers } = req.body;
+  const allowedEntries = [3, 5, 10];
+
+  if (!trainingTypeId || !Array.isArray(offers)) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    for (const offer of offers) {
+      const entries = parseInt(offer.entries, 10);
+      const price = parseFloat(offer.price);
+      const active = offer.active !== false;
+
+      if (!allowedEntries.includes(entries) || Number.isNaN(price)) {
+        throw new Error('Invalid offer data');
+      }
+
+      await client.query(
+        `INSERT INTO season_ticket_offers (training_type_id, entries, price, active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, NOW(), NOW())
+         ON CONFLICT (training_type_id, entries)
+         DO UPDATE SET price = EXCLUDED.price, active = EXCLUDED.active, updated_at = NOW()`,
+        [trainingTypeId, entries, price, active]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error upserting season ticket offers:', error);
+    res.status(500).json({ error: 'Failed to save season ticket offers' });
+  } finally {
+    client.release();
+  }
+});
+
 // UPRAVENÉ: training-dates endpoint musí vrátiť ID typu
 app.get('/api/training-dates', async (req, res) => {
   try {
@@ -1123,10 +1254,17 @@ app.get('/api/season-tickets/:userId', isAuthenticated, async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT id, entries_total, entries_remaining, purchase_date, expiry_date
-       FROM season_tickets
-       WHERE user_id = $1
-       ORDER BY purchase_date DESC`,
+      `SELECT s.id,
+              s.entries_total,
+              s.entries_remaining,
+              s.purchase_date,
+              s.expiry_date,
+              s.training_type_id,
+              t.name AS training_type_name
+       FROM season_tickets s
+       LEFT JOIN training_types t ON s.training_type_id = t.id
+       WHERE s.user_id = $1
+       ORDER BY s.purchase_date DESC`,
       [userId]
     );
     res.json(result.rows);
@@ -1138,23 +1276,40 @@ app.get('/api/season-tickets/:userId', isAuthenticated, async (req, res) => {
 
 app.post('/api/create-season-ticket-payment', isAuthenticated, async (req, res) => {
   try {
-    const { userId, entries, totalPrice } = req.body;
-    if (!userId || !entries || !totalPrice) {
+    const { userId, entries, totalPrice, trainingTypeId } = req.body;
+    if (!userId || !entries || !totalPrice || !trainingTypeId) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const pricing = { 3: 40, 5: 65, 10: 120 };
-    if (pricing[entries] !== totalPrice) {
+    const entriesInt = parseInt(entries, 10);
+    const trainingTypeIdInt = parseInt(trainingTypeId, 10);
+
+    const offerResult = await pool.query(
+      `SELECT o.price, t.name AS training_type_name
+       FROM season_ticket_offers o
+       JOIN training_types t ON t.id = o.training_type_id
+       WHERE o.training_type_id = $1 AND o.entries = $2 AND o.active = TRUE`,
+      [trainingTypeIdInt, entriesInt]
+    );
+
+    if (offerResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Season ticket offer not available' });
+    }
+
+    const dbPrice = parseFloat(offerResult.rows[0].price);
+    if (dbPrice !== parseFloat(totalPrice)) {
       return res.status(400).json({ error: 'Price validation failed' });
     }
+
+    const productName = `Season Ticket (${entriesInt} Entries) - ${offerResult.rows[0].training_type_name}`;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{
         price_data: {
           currency: 'eur',
-          product_data: { name: `Season Ticket (${entries} Entries)` },
-          unit_amount: totalPrice * 100,
+          product_data: { name: productName },
+          unit_amount: Math.round(dbPrice * 100),
         },
         quantity: 1,
       }],
@@ -1162,9 +1317,10 @@ app.post('/api/create-season-ticket-payment', isAuthenticated, async (req, res) 
       success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/payment-canceled`,
       metadata: {
-        userId,
-        entries: entries.toString(),
-        totalPrice: totalPrice.toString(),
+        userId: userId.toString(),
+        entries: entriesInt.toString(),
+        totalPrice: dbPrice.toString(),
+        trainingTypeId: trainingTypeIdInt.toString(),
         type: 'season_ticket',
       },
     });
@@ -1182,26 +1338,26 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
     await client.query('BEGIN');
 
     const {
-      userId, seasonTicketId, trainingType, selectedDate, selectedTime,
+      userId, seasonTicketId, trainingTypeId, trainingType, selectedDate, selectedTime,
       childrenCount, childrenAge, photoConsent, mobile, note, accompanyingPerson,
     } = req.body;
 
-    if (!userId || !seasonTicketId || !trainingType || !selectedDate || !selectedTime || !childrenCount) {
+    if (!userId || !seasonTicketId || !trainingTypeId || !trainingType || !selectedDate || !selectedTime || !childrenCount) {
       return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    const allowedTypes = ['MIDI', 'MAXI'];
-    if (!allowedTypes.includes(trainingType)) {
-      return res.status(400).json({ error: 'Season tickets are valid only for MIDI and MAXI training sessions.' });
     }
 
     // 1. Verify season ticket (Získame aj celkový počet a expiráciu)
     const ticketResult = await client.query(
-      `SELECT entries_remaining, entries_total, expiry_date FROM season_tickets WHERE id = $1 AND user_id = $2`,
+      `SELECT entries_remaining, entries_total, expiry_date, training_type_id FROM season_tickets WHERE id = $1 AND user_id = $2`,
       [seasonTicketId, userId]
     );
     if (ticketResult.rows.length === 0) {
       return res.status(404).json({ error: 'Season ticket not found' });
+    }
+
+    const ticketTrainingTypeId = ticketResult.rows[0].training_type_id;
+    if (ticketTrainingTypeId && parseInt(trainingTypeId, 10) !== ticketTrainingTypeId) {
+      return res.status(400).json({ error: 'Season ticket is not valid for this training type.' });
     }
     const ticket = ticketResult.rows[0]; // Tu máme entries_total aj expiry_date
 

@@ -428,7 +428,7 @@ module.exports = {
   },
 
   // --- 4. USER: SEASON TICKET PURCHASE (STRIPE WEBHOOK) ---
-  sendSeasonTicketConfirmation: async (userEmail, userName, { entries, totalPrice, expiryDate }) => {
+  sendSeasonTicketConfirmation: async (userEmail, userName, { entries, totalPrice, expiryDate, trainingTypeName }) => {
     // Naformátujeme dátumy do slovenčiny
     const formattedPurchaseDate = dayjs().format('DD.MM.YYYY');
     const formattedExpiryDate = dayjs(expiryDate).format('DD.MM.YYYY');
@@ -467,11 +467,14 @@ module.exports = {
                 <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName}.</p>
                 
                 <p>Máme obrovskú radosť! Vaša objednávka <strong>permanentky do Nitráčika</strong> bola úspešne potvrdená.</p> 
+                ${trainingTypeName ? `<p>Typ permanentky: <strong>${trainingTypeName}</strong></p>` : ''}
+                ${trainingTypeName ? `<p style="font-size: 13px; color: #666;">Odteraz ju môžete využiť na hodinu <strong>${trainingTypeName}</strong>. Permanentka sa vám zobrazí v rezervačnom formulári.</p>` : ''}
                 
                 <p>Už teraz sa tešíme na všetky Vaše budúce návštevy. S permanentkou máte vstup do nášho farebného sveta ešte jednoduchší.</p>
 
                 <div class="highlight-box">
                    <div class="highlight-item">🎟️ <strong>Počet vstupov:</strong> ${entries}</div>
+                   ${trainingTypeName ? `<div class="highlight-item">🎨 <strong>Typ tréningu:</strong> ${trainingTypeName}</div>` : ''}
                    <div class="highlight-item">💰 <strong>Cena:</strong> ${totalPrice} €</div>
                    <div class="highlight-item">📅 <strong>Dátum nákupu:</strong> ${formattedPurchaseDate}</div>
                    <div class="highlight-item">⏳ <strong>Platnosť (6 mesiacov):</strong> ${formattedExpiryDate}</div>
@@ -565,6 +568,7 @@ module.exports = {
                   
                   <p style="font-size: 16px; font-weight: bold; margin-bottom: 15px; margin-top: 20px; color: #2563eb;">Detaily permanentky</p>
                   <div class="info-row"><span class="info-label">🎟️ Počet vstupov:</span> ${data.entries}</div>
+                  ${data.trainingTypeName ? `<div class="info-row"><span class="info-label">🎨 Typ tréningu:</span> ${data.trainingTypeName}</div>` : ''}
                   <div class="info-row"><span class="info-label">💰 Cena:</span> ${data.totalPrice} €</div>
                   <div class="info-row"><span class="info-label">📅 Dátum nákupu:</span> ${formattedPurchaseDate}</div>
                   <div class="info-row"><span class="info-label">⏳ Platnosť do:</span> ${formattedExpiryDate}</div>

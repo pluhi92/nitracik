@@ -942,7 +942,7 @@ const UserProfile = () => {
 
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-200 dark:border-gray-700">
             <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
-              {t?.profile?.seasonTickets?.title || 'Season Ticket Holders'}
+              {t?.profile?.seasonTickets?.title || 'Drzitelia permanentiek'}
             </h3>
             {adminSeasonTickets.length === 0 ? (
               <p className="text-gray-600 dark:text-gray-400 text-center py-8">
@@ -960,10 +960,16 @@ const UserProfile = () => {
                         {t?.profile?.seasonTickets?.email || 'Email'}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        {t?.profile?.seasonTickets?.type || 'Typ'}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         {t?.profile?.seasonTickets?.totalEntries || 'Total Entries'}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         {t?.profile?.seasonTickets?.remainingEntries || 'Remaining Entries'}
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                        {t?.profile?.seasonTickets?.expiryDate || 'Expiry Date'}
                       </th>
                     </tr>
                   </thead>
@@ -977,10 +983,16 @@ const UserProfile = () => {
                           {ticket.email}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                          {ticket.training_type_name || ticket.training_type || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                           {ticket.entries_total}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                           {ticket.entries_remaining}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                          {formatSlovakDate(ticket.expiry_date).split(' - ')[0]}
                         </td>
                       </tr>
                     ))}
@@ -1036,7 +1048,7 @@ const UserProfile = () => {
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        {t?.profile?.mySeasonTickets?.ticketId || 'ID'}
+                        {t?.profile?.mySeasonTickets?.type || 'Typ'}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                         {t?.profile?.mySeasonTickets?.entriesTotal || 'Vstupy'}
@@ -1056,7 +1068,7 @@ const UserProfile = () => {
                     {activeTickets.map((ticket, index) => (
                       <tr key={`${ticket.id || 'ticket'}-${ticket.purchase_date || ''}-${index}`} className="hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">
-                          #{ticket.id}
+                          {ticket.training_type_name || ticket.training_type || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                           {ticket.entries_total}
@@ -1095,7 +1107,7 @@ const UserProfile = () => {
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                       <thead className="bg-gray-100 dark:bg-gray-900">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">ID</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Typ</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Dátum nákupu</th>
                         </tr>
@@ -1103,7 +1115,9 @@ const UserProfile = () => {
                       <tbody className="bg-gray-50 dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         {historyTickets.map((ticket, index) => (
                           <tr key={`${ticket.id || 'ticket'}-${ticket.purchase_date || ''}-${index}`}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">#{ticket.id}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              {ticket.training_type_name || ticket.training_type || '-'}
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
                               {ticket.entries_remaining === 0 ? (
                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300">
