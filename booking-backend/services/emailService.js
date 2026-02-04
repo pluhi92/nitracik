@@ -204,7 +204,7 @@ module.exports = {
               <div class="content">
                 <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName}.</p>
                 <p>Vitajte v Nitráčiku! Sme veľmi radi, že sa k nám pridávate.</p> 
-                <p>Už Vám chýba len jeden malý krok, aby ste sa mohli naplno ponoriť do nášho sveta plného farieb a zábavy. Prosím, potvrďte svoju registráciu kliknutím na tlačidlo nižšie:</p>
+                <p>Už Vám chýba len jeden malý krok, aby ste sa mohli naplno ponoriť do nášho sveta plného farieb a zmysluplnej zábavy. Prosím, potvrďte svoju registráciu kliknutím na tlačidlo nižšie:</p>
                 <a href="${verificationLink}" class="btn-verify">OVERIŤ EMAIL</a>
                 <p style="text-align: center; font-size: 12px; color: #999;">Ak tlačidlo nefunguje, skopírujte tento odkaz do prehliadača:<br/>${verificationLink}</p>
                 <div class="highlight-box">
