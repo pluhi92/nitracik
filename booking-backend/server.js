@@ -58,7 +58,7 @@ const toUtcDateTimeFromLocalInput = (localDateTime) => {
   if (!localDateTime) return null;
   return dayjs.tz(localDateTime, APP_TIMEZONE).utc().toDate();
 };
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.,:])[A-Za-z\d@$!%*?&.,:]{8,}$/;
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$/;
 const multer = require('multer');
 const sharp = require('sharp');
 
@@ -1765,7 +1765,7 @@ function validateEnvVariables() {
     'STRIPE_WEBHOOK_SECRET',
     'FRONTEND_URL',
     'SESSION_SECRET',
-    'HCAPTCHA_SECRET' // <--- PRIDANÉ TU
+    'CLOUDFLARE_SECRET' // <--- CLOUDFLARE TURNSTILE
   ];
 
   for (const envVar of requiredEnvVars) {
@@ -1809,8 +1809,8 @@ function validateMobile(mobile) {
 }
 
 app.post('/api/register', registerLimiter, async (req, res) => {
-  // Pridali sme hCaptchaToken do destrukturalizácie
-  const { firstName, lastName, email, password, address, _honey, hCaptchaToken } = req.body;
+  // Turnstile token z frontendu
+  const { firstName, lastName, email, password, address, _honey, turnstileToken } = req.body;
 
   // 1. HONEYPOT KONTROLA (už si mal)
   if (_honey) {
@@ -1818,26 +1818,30 @@ app.post('/api/register', registerLimiter, async (req, res) => {
     return res.status(200).json({ message: 'Registrácia úspešná' }); // Fake success
   }
 
-  // 2. HCAPTCHA OVERENIE (NOVÉ)
-  if (!hCaptchaToken) {
+  // 2. CLOUDFLARE TURNSTILE OVERENIE (NOVÉ)
+  if (!turnstileToken) {
     return res.status(400).json({ message: 'Prosím, potvrďte, že nie ste robot (Captcha).' });
   }
 
   try {
-    const verificationUrl = 'https://api.hcaptcha.com/siteverify';
-    const params = new URLSearchParams();
-    params.append('secret', process.env.HCAPTCHA_SECRET);
-    params.append('response', hCaptchaToken);
+    const verificationUrl = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+    
+    // Vytvoríme form-data namiesto JSON objektu
+    const formData = new URLSearchParams();
+    formData.append('secret', process.env.CLOUDFLARE_SECRET);
+    formData.append('response', turnstileToken);
+    formData.append('remoteip', req.ip);
 
-    const captchaResponse = await axios.post(verificationUrl, params);
+    // Axios automaticky nastaví hlavičku na 'application/x-www-form-urlencoded'
+    const captchaResponse = await axios.post(verificationUrl, formData);
     const captchaData = captchaResponse.data;
 
     if (!captchaData.success) {
-      console.error('hCaptcha verification failed:', captchaData);
+      console.error('Turnstile verification failed:', captchaData);
       return res.status(400).json({ message: 'Overenie Captcha zlyhalo. Skúste to znova.' });
     }
   } catch (error) {
-    console.error('hCaptcha API error:', error);
+    console.error('Turnstile API error:', error);
     return res.status(500).json({ message: 'Chyba pri overovaní Captcha.' });
   }
 

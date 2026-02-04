@@ -62,7 +62,7 @@ const CookieConsent = () => {
     { name: 'connect.sid', domain: 'nitracik.sk', purpose: 'Uchovanie prihlásenia', validity: '1 deň' },
     { name: '__stripe_mid', domain: 'nitracik.sk', purpose: 'Prevencia podvodov', validity: '1 rok' },
     { name: '__stripe_sid', domain: 'nitracik.sk', purpose: 'Prevencia podvodov', validity: '30 minút' },
-    { name: '__cf_bm', domain: 'hcaptcha.com', purpose: 'Ochrana proti botom', validity: '30 minút' },
+    { name: '_cfuvid', domain: 'challenges.cloudflare.com', purpose: 'Ochrana proti botom', validity: 'počas doby spojenia' },
     { name: 'merchant', domain: 'stripe.com', purpose: 'Funkčnosť brány', validity: 'počas doby spojenia' },
     { name: 'site-auth', domain: 'stripe.com', purpose: 'Autentifikácia', validity: 'počas doby spojenia' },
     { name: 'stripe.csrf', domain: 'stripe.com', purpose: 'Ochrana formulárov', validity: 'počas doby spojenia' },
