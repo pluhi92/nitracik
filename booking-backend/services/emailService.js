@@ -517,7 +517,7 @@ module.exports = {
         ...getCommonAttachments(),
         {
           filename: 'Odstupenie_od_zmluvy_nitracik.pdf',
-          path: path.join(__dirname, '..', '..', 'public', 'Odstupenie_od_zmluvy_nitracik.pdf')
+          path: path.resolve(__dirname, '..', 'public', 'documents', 'Odstupenie_od_zmluvy_nitracik.pdf')
         }
       ]
     };
