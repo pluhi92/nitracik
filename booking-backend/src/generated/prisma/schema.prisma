@@ -88,17 +88,19 @@ model season_ticket_usage {
   id               Int             @id @default(autoincrement())
   season_ticket_id Int?
   booking_id       Int?
+  training_type_id Int?
   used_date        DateTime        @db.Timestamp(6)
-  training_type    String          @db.VarChar(10)
   created_at       DateTime?       @default(now()) @db.Timestamp(6)
   bookings         bookings?       @relation(fields: [booking_id], references: [id], onUpdate: NoAction)
   season_tickets   season_tickets? @relation(fields: [season_ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  training_types   training_types? @relation(fields: [training_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model season_tickets {
   id                  Int                   @id @default(autoincrement())
   user_id             Int?
+  training_type_id    Int?
   entries_total       Int
   entries_remaining   Int
   purchase_date       DateTime              @db.Timestamp(6)
@@ -110,6 +112,20 @@ model season_tickets {
   payment_time        DateTime?             @db.Timestamp(6)
   season_ticket_usage season_ticket_usage[]
   users               users?                @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  training_types      training_types?       @relation(fields: [training_type_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+}
+
+model season_ticket_offers {
+  id               Int            @id @default(autoincrement())
+  training_type_id Int
+  entries          Int
+  price            Decimal        @db.Decimal(10, 2)
+  active           Boolean        @default(true)
+  created_at       DateTime?      @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?      @default(now()) @db.Timestamp(6)
+  training_types   training_types @relation(fields: [training_type_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([training_type_id, entries])
 }
 
 model training_availability {
@@ -146,6 +162,9 @@ model training_types {
   color_hex                 String?                 @default("#3b82f6") @db.VarChar(7)
   training_availability     training_availability[]
   training_prices           training_prices[]
+  season_tickets            season_tickets[]
+  season_ticket_offers      season_ticket_offers[]
+  season_ticket_usage       season_ticket_usage[]
 }
 
 model user_sessions {

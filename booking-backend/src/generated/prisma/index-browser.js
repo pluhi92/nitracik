@@ -185,14 +185,15 @@ exports.Prisma.Season_ticket_usageScalarFieldEnum = {
   id: 'id',
   season_ticket_id: 'season_ticket_id',
   booking_id: 'booking_id',
+  training_type_id: 'training_type_id',
   used_date: 'used_date',
-  training_type: 'training_type',
   created_at: 'created_at'
 };
 
 exports.Prisma.Season_ticketsScalarFieldEnum = {
   id: 'id',
   user_id: 'user_id',
+  training_type_id: 'training_type_id',
   entries_total: 'entries_total',
   entries_remaining: 'entries_remaining',
   purchase_date: 'purchase_date',
@@ -202,6 +203,16 @@ exports.Prisma.Season_ticketsScalarFieldEnum = {
   updated_at: 'updated_at',
   amount_paid: 'amount_paid',
   payment_time: 'payment_time'
+};
+
+exports.Prisma.Season_ticket_offersScalarFieldEnum = {
+  id: 'id',
+  training_type_id: 'training_type_id',
+  entries: 'entries',
+  price: 'price',
+  active: 'active',
+  created_at: 'created_at',
+  updated_at: 'updated_at'
 };
 
 exports.Prisma.Training_availabilityScalarFieldEnum = {
@@ -321,6 +332,7 @@ exports.Prisma.ModelName = {
   refunds: 'refunds',
   season_ticket_usage: 'season_ticket_usage',
   season_tickets: 'season_tickets',
+  season_ticket_offers: 'season_ticket_offers',
   training_availability: 'training_availability',
   training_prices: 'training_prices',
   training_types: 'training_types',
