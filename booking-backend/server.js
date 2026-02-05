@@ -3921,7 +3921,6 @@ app.delete('/api/users/:id', async (req, res) => {
     // -------------------------------------------------------------
     // KROK 0: Získame info o užívateľovi (PREDTÝM ako ho zmažeme)
     // -------------------------------------------------------------
-    // Používame SELECT * aby sme mali istotu, že trafíme existujúce stĺpce
     const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userIdToDelete]);
 
     let userInfo = null;
@@ -3929,14 +3928,72 @@ app.delete('/api/users/:id', async (req, res) => {
 
     if (userResult.rows.length > 0) {
       userInfo = userResult.rows[0];
-
-      // TU BOLA CHYBA: Teraz už vieme, že stĺpec sa volá 'first_name'
       userNameForEmail = userInfo.first_name || 'Kamarát';
     }
 
-    // KROK A: Zmažeme závislé dáta (rezervácie, permanentky)
+    // KROK 0.5: Skontrolujeme aktívne rezervácie, permanentky a kredity
+    // Aktívne rezervácie - budúce tréningy, aktívne, bez kreditov
+    const activeBookingsResult = await client.query(`
+      SELECT 
+        b.id,
+        b.booked_at,
+        b.number_of_children,
+        b.accompanying_person,
+        ta.training_type,
+        ta.training_date,
+        b.amount_paid
+      FROM bookings b
+      JOIN training_availability ta ON b.training_id = ta.id
+      WHERE b.user_id = $1 
+        AND b.active = true
+        AND ta.training_date > NOW()
+        AND b.booking_type = 'paid'
+      ORDER BY ta.training_date ASC
+    `, [userIdToDelete]);
+
+    // Platné permanentky s nevyužitými vstupmi
+    const activeSeasonTicketsResult = await client.query(`
+      SELECT 
+        st.id,
+        st.purchase_date,
+        st.expiry_date,
+        st.entries_total,
+        st.entries_remaining,
+        st.amount_paid,
+        tt.name as training_type_name
+      FROM season_tickets st
+      LEFT JOIN training_types tt ON st.training_type_id = tt.id
+      WHERE st.user_id = $1 
+        AND st.expiry_date > NOW()
+        AND st.entries_remaining > 0
+      ORDER BY st.expiry_date DESC
+    `, [userIdToDelete]);
+
+    // Nepoužité kredity (status 'active' alebo 'unused' - všetko čo nie je 'used')
+    const unusedCreditsResult = await client.query(`
+      SELECT 
+        c.id,
+        c.created_at,
+        c.original_date,
+        c.training_type,
+        c.child_count,
+        c.status,
+        c.accompanying_person
+      FROM credits c
+      WHERE c.user_id = $1 
+        AND c.status != 'used'
+      ORDER BY c.created_at DESC
+    `, [userIdToDelete]);
+
+    const activeBookings = activeBookingsResult.rows;
+    const activeSeasonTickets = activeSeasonTicketsResult.rows;
+    const unusedCredits = unusedCreditsResult.rows;
+
+    // KROK A: Zmažeme závislé dáta (rezervácie, permanentky, kredity)
+    // DÔLEŽITÉ: Musíme mazať v správnom poradí kvôli Foreign Key vzťahom
     await client.query('DELETE FROM bookings WHERE user_id = $1', [userIdToDelete]);
     await client.query('DELETE FROM season_tickets WHERE user_id = $1', [userIdToDelete]);
+    await client.query('DELETE FROM credits WHERE user_id = $1', [userIdToDelete]);
 
     // KROK B: Zmažeme samotného užívateľa
     const result = await client.query('DELETE FROM users WHERE id = $1', [userIdToDelete]);
@@ -3948,15 +4005,36 @@ app.delete('/api/users/:id', async (req, res) => {
 
     await client.query('COMMIT'); // Potvrdenie transakcie - užívateľ je zmazaný
 
-    // KROK C: Odošleme rozlúčkový email (ak sme našli email)
+    // KROK C: Odošleme rozlúčkový email s informáciami o aktívnych subjektoch
     if (userInfo && userInfo.email) {
       console.log(`Sending delete email to: ${userInfo.email}`);
-      emailService.sendAccountDeletedEmail(userInfo.email, userNameForEmail).catch(err =>
+      emailService.sendAccountDeletedEmail(
+        userInfo.email, 
+        userNameForEmail,
+        {
+          activeBookings,
+          activeSeasonTickets,
+          unusedCredits,
+          hasActiveItems: activeBookings.length > 0 || activeSeasonTickets.length > 0 || unusedCredits.length > 0
+        }
+      ).catch(err =>
         console.error('Failed to send delete confirmation email:', err)
       );
     }
 
-    // KROK D: Zrušíme session a odhlásime ho
+    // KROK D: Odošleme notifikáciu adminovi
+    if (userInfo) {
+      emailService.sendAdminAccountDeleteNotification(userInfo, {
+        activeBookings,
+        activeSeasonTickets,
+        unusedCredits,
+        hasActiveItems: activeBookings.length > 0 || activeSeasonTickets.length > 0 || unusedCredits.length > 0
+      }).catch(err =>
+        console.error('Failed to send admin notification:', err)
+      );
+    }
+
+    // KROK E: Zrušíme session a odhlásime ho
     req.session.destroy((err) => {
       if (err) console.error('Session destroy error:', err);
       res.json({ message: 'User account deleted successfully' });

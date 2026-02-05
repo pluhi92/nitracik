@@ -305,7 +305,9 @@ const Blog = ({ limit = null, showViewAll = true }) => {
   return (
     <div className="blog-section">
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="section-title">{t?.blog?.title || 'Aktuality & Blog'}</h2>
+        <Link to="/blog" className="section-title" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <h2>{t?.blog?.title || 'Aktuality & Blog'}</h2>
+        </Link>
         {isAdmin && (
           <div
             onClick={handleOpenCreateModal}
