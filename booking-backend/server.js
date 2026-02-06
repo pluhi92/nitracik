@@ -1,5 +1,13 @@
 require('dotenv').config();
 
+// Time handling rules
+// - All timestamps are stored in UTC (PostgreSQL TIMESTAMPTZ)
+// - Backend runs in UTC (process.env.TZ = 'UTC')
+// - Frontend receives UTC and converts to Europe/Bratislava for display
+// - No to_char(), no implicit Date conversions
+// - Local time exists only at UI boundaries
+process.env.TZ = 'UTC';
+
 const emailService = require('./services/emailService');
 
 const PORT = process.env.PORT || 5000;
@@ -22,9 +30,35 @@ const fs = require('fs');
 const app = express();
 const path = require('path');
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
 require('dayjs/locale/sk');
+dayjs.extend(utc);
+dayjs.extend(timezone);
 dayjs.locale('sk');
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.,:])[A-Za-z\d@$!%*?&.,:]{8,}$/;
+
+const APP_TIMEZONE = 'Europe/Bratislava';
+
+const to24Hour = (timeWithMeridiem) => {
+  if (!timeWithMeridiem) return null;
+  const [time, modifier] = timeWithMeridiem.split(' ');
+  let [hours, minutes] = time.split(':');
+  hours = parseInt(hours, 10);
+  if (modifier === 'PM' && hours !== 12) hours += 12;
+  if (modifier === 'AM' && hours === 12) hours = 0;
+  return `${hours.toString().padStart(2, '0')}:${minutes}`;
+};
+
+const toUtcDateTime = (date, time24) => {
+  if (!date || !time24) return null;
+  return dayjs.tz(`${date} ${time24}`, 'YYYY-MM-DD HH:mm', APP_TIMEZONE).utc().toDate();
+};
+
+const toUtcDateTimeFromLocalInput = (localDateTime) => {
+  if (!localDateTime) return null;
+  return dayjs.tz(localDateTime, APP_TIMEZONE).utc().toDate();
+};
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$/;
 const multer = require('multer');
 const sharp = require('sharp');
 
@@ -176,6 +210,10 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
     console.log('📦 [DEBUG] Session data:', JSON.stringify(session.metadata, null, 2));
     const client = await pool.connect();
 
+    // Initialize email data variables
+    var emailDataToSend = null;
+    var bookingEmailData = null;
+
     try {
       await client.query('BEGIN');
 
@@ -210,9 +248,8 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           throw new Error('Payment amount verification failed');
         }
 
-        // Exspirácia (1 rok od nákupu)
-        const expiryDate = new Date();
-        expiryDate.setMonth(expiryDate.getMonth() + 6); //6 mesiacov
+        // Exspirácia (6 mesiacov od nákupu) - UTC-safe
+        const expiryDate = dayjs.utc().add(6, 'month').toDate();
 
         console.log('📝 [DEBUG] Attempting INSERT into DB...');
 
@@ -253,29 +290,27 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         const trainingTypeName = typeResult.rows[0]?.name || '';
 
         // Odoslanie emailu užívateľovi
-        const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
+        const userResult = await client.query(
+          'SELECT first_name, last_name, email, address FROM users WHERE id = $1',
+          [userId]
+        );
         const user = userResult.rows[0];
+        const stripePaymentId = session.payment_intent || session.id;
 
         if (user) {
-          console.log('📧 [DEBUG] Sending email to:', user.email);
-          await emailService.sendSeasonTicketConfirmation(user.email, user.first_name, {
+          // Store email data to send AFTER transaction commits
+          var emailDataToSend = {
+            type: 'season_ticket_confirmation',
+            userEmail: user.email,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            address: user.address,
             entries: entriesInt,
             totalPrice: priceFloat,
             expiryDate,
-            trainingTypeName
-          });
-          console.log('[DEBUG] Confirmation email sent to:', user.email);
-          
-          // Odoslanie admin notifikácie
-          await emailService.sendAdminSeasonTicketPurchase('info@nitracik.sk', {
-            user: user,
-            entries: entriesInt,
-            totalPrice: priceFloat,
-            expiryDate,
-            stripePaymentId: session.id,
-            trainingTypeName
-          });
-          console.log('[DEBUG] Admin notification sent for season ticket purchase');
+            trainingTypeName,
+            stripePaymentId
+          };
         }
 
       } else if (session.metadata.type === 'training_session') {
@@ -294,7 +329,10 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           accompanyingPerson,
         } = session.metadata;
 
-        if (!userId || !trainingType || !selectedDate || !selectedTime || !childrenCount || !totalPrice) {
+        if (!userId || !trainingType || !childrenCount || !totalPrice) {
+          throw new Error('Missing required metadata fields');
+        }
+        if (!trainingId && (!selectedDate || !selectedTime)) {
           throw new Error('Missing required metadata fields');
         }
 
@@ -307,16 +345,22 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
             [parseInt(trainingId, 10)]
           );
         } else {
-          const [time, modifier] = selectedTime.split(' ');
-          let [hours, minutes] = time.split(':');
-          if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
-          if (modifier === 'AM' && hours === '12') hours = '00';
-          const trainingDateTimeUTC = new Date(`${selectedDate}T${hours}:${minutes}`);
-          const trainingDateTimeLocal = new Date(trainingDateTimeUTC.toLocaleString('en-US', { timeZone: 'Europe/Budapest' }));
+          // Resolve training_type name to training_type_id
+          const typeIdResult = await client.query(
+            `SELECT id FROM training_types WHERE name = $1`,
+            [trainingType]
+          );
+          if (typeIdResult.rows.length === 0) {
+            throw new Error(`Training type '${trainingType}' not found`);
+          }
+          const trainingTypeId = typeIdResult.rows[0].id;
+          
+          const time24 = to24Hour(selectedTime);
+          const trainingDateTimeUtc = toUtcDateTime(selectedDate, time24);
 
           trainingResult = await client.query(
-            `SELECT * FROM training_availability WHERE training_type = $1 AND training_date = $2`,
-            [trainingType, trainingDateTimeLocal]
+            `SELECT * FROM training_availability WHERE training_type_id = $1 AND training_date = $2`,
+            [trainingTypeId, trainingDateTimeUtc]
           );
         }
 
@@ -325,6 +369,14 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         }
 
         training = trainingResult.rows[0];
+
+        let displayDate = selectedDate;
+        let displayTime = selectedTime;
+        if ((!displayDate || !displayTime) && training?.training_date) {
+          const trainingLocal = dayjs(training.training_date).tz(APP_TIMEZONE);
+          if (!displayDate) displayDate = trainingLocal.format('YYYY-MM-DD');
+          if (!displayTime) displayTime = trainingLocal.format('HH:mm');
+        }
         const bookingsResult = await client.query(
           `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1`,
           [training.id]
@@ -362,32 +414,29 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
         const user = userResult.rows[0];
 
-        // 1. ZÍSKANIE EMAILU A MENA
-        // Email berieme primárne z účtu v DB, ak by tam nebol, záložne zo Stripe
+        // Store booking email data to send AFTER transaction commits
         const targetEmail = user.email || session.customer_details?.email;
-        // MENO berieme VŽDY z databázy (krstné meno), aby to bolo osobné
         const firstName = user.first_name || 'Osôbka';
 
-        // 2. ODOSLANIE EMAILU
-        try {
-          await emailService.sendUserBookingEmail(targetEmail, {
-            date: selectedDate,
-            start_time: selectedTime,
-            trainingType: trainingType,
-            userName: firstName, // Tu posielame krstné meno z konta
-            paymentType: 'payment'
-          });
-          console.log(`[DEBUG] Email odoslaný na meno: ${firstName} (${targetEmail})`);
-        } catch (emailError) {
-          console.error('[DEBUG] Chyba pri odosielaní užívateľského emailu:', emailError.message);
-        }
+        var bookingEmailData = {
+          targetEmail,
+          selectedDate: displayDate,
+          selectedTime: displayTime,
+          trainingType,
+          firstName,
+          user,
+          mobile,
+          childrenCount,
+          childrenAge,
+          photoConsent,
+          accompanyingPerson,
+          note,
+          totalPrice,
+          paymentIntentId,
+          trainingId: training.id
+        };
 
-        // 3. ODOSLANIE EMAILU ADMINOVI (pôvodný kód)
-        await emailService.sendAdminNewBookingNotification('info@nitracik.sk', {
-          user, mobile, childrenCount, childrenAge, trainingType, selectedDate, selectedTime, photoConsent, accompanyingPerson, note, totalPrice, paymentIntentId, trainingId: training.id
-        });
-
-        console.log('[DEBUG] Booking confirmation emails sent to admin and user');
+        console.log('[DEBUG] Booking data stored, will send emails after transaction commits');
       }
 
       await client.query('COMMIT');
@@ -399,7 +448,72 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
     }
   }
 
+  // === RESPOND TO STRIPE IMMEDIATELY (Best Practice) ===
+  // This must be OUTSIDE the if block, so ALL events get acknowledged
   res.json({ received: true });
+
+  // === SEND EMAILS ASYNCHRONOUSLY AFTER STRIPE ACK ===
+  // Only send if we have email data from a season ticket purchase
+  if (emailDataToSend) {
+    console.log('📧 [DEBUG] Sending season ticket confirmation email to:', emailDataToSend.userEmail);
+    emailService.sendSeasonTicketConfirmation(
+      emailDataToSend.userEmail, 
+      emailDataToSend.firstName, 
+      {
+        entries: emailDataToSend.entries,
+        totalPrice: emailDataToSend.totalPrice,
+        expiryDate: emailDataToSend.expiryDate,
+        trainingTypeName: emailDataToSend.trainingTypeName,
+        stripePaymentId: emailDataToSend.stripePaymentId
+      }
+    ).catch(err => console.error('Failed to send season ticket confirmation email:', err.message));
+    
+    // Send admin notification
+    emailService.sendAdminSeasonTicketPurchase('info@nitracik.sk', {
+      user: {
+        first_name: emailDataToSend.firstName,
+        last_name: emailDataToSend.lastName,
+        email: emailDataToSend.userEmail,
+        address: emailDataToSend.address
+      },
+      entries: emailDataToSend.entries,
+      totalPrice: emailDataToSend.totalPrice,
+      expiryDate: emailDataToSend.expiryDate,
+      stripePaymentId: emailDataToSend.stripePaymentId,
+      trainingTypeName: emailDataToSend.trainingTypeName
+    }).catch(err => console.error('Failed to send admin season ticket notification:', err.message));
+  }
+
+  // Send booking confirmation emails if booking was processed
+  if (bookingEmailData) {
+    console.log('📧 [DEBUG] Sending booking confirmation email to:', bookingEmailData.targetEmail);
+    emailService.sendUserBookingEmail(bookingEmailData.targetEmail, {
+      date: bookingEmailData.selectedDate,
+      start_time: bookingEmailData.selectedTime,
+      trainingType: bookingEmailData.trainingType,
+      userName: bookingEmailData.firstName,
+      paymentType: 'payment'
+    }).catch(err => console.error('Failed to send user booking email:', err.message));
+
+    // Send admin booking notification
+    emailService.sendAdminNewBookingNotification('info@nitracik.sk', {
+      user: bookingEmailData.user,
+      mobile: bookingEmailData.mobile,
+      childrenCount: bookingEmailData.childrenCount,
+      childrenAge: bookingEmailData.childrenAge,
+      trainingType: bookingEmailData.trainingType,
+      selectedDate: bookingEmailData.selectedDate,
+      selectedTime: bookingEmailData.selectedTime,
+      photoConsent: bookingEmailData.photoConsent,
+      accompanyingPerson: bookingEmailData.accompanyingPerson,
+      note: bookingEmailData.note,
+      totalPrice: bookingEmailData.totalPrice,
+      paymentIntentId: bookingEmailData.paymentIntentId,
+      trainingId: bookingEmailData.trainingId
+    }).catch(err => console.error('Failed to send admin booking notification:', err.message));
+
+    console.log('[DEBUG] Booking confirmation emails sent (after transaction)');
+  }
 });
 
 // Add webhook handler for refund updates
@@ -571,13 +685,14 @@ app.post('/api/set-training', isAdmin, async (req, res) => {
     }
 
     const typeName = typeRes.rows[0].name;
+    const trainingDateUtc = toUtcDateTimeFromLocalInput(trainingDate);
 
     // 3. Vloženie - skontroluj si, či máš v DB stĺpce training_type_id, training_type, training_date, max_participants
     const result = await pool.query(
       `INSERT INTO training_availability 
        (training_type_id, training_type, training_date, max_participants)
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [typeId, typeName, trainingDate, maxParticipants]
+      [typeId, typeName, trainingDateUtc, maxParticipants]
     );
 
     res.status(201).json(result.rows[0]);
@@ -785,7 +900,7 @@ app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
     // Title and Period
     doc.fontSize(16).text(`Payment Report`, { align: 'center' });
     doc.moveDown();
-    doc.fontSize(12).text(`Period: ${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`, { align: 'center' });
+    doc.fontSize(12).text(`Period: ${new Date(startDate).toLocaleDateString('sk-SK', { timeZone: 'Europe/Bratislava' })} to ${new Date(endDate).toLocaleDateString('sk-SK', { timeZone: 'Europe/Bratislava' })}`, { align: 'center' });
     doc.moveDown(2);
 
     // Table setup
@@ -841,7 +956,7 @@ app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
         doc.text(`${amount.toFixed(2)} €`, leftMargin + columnWidths[0] + columnWidths[1] + columnWidths[2] + cellPadding, y + cellPadding, { width: columnWidths[3] - cellPadding * 2 });
 
         // Show payment time for both types
-        const displayDate = p.payment_time ? new Date(p.payment_time).toLocaleString() : 'N/A';
+        const displayDate = p.payment_time ? new Date(p.payment_time).toLocaleString('sk-SK', { timeZone: 'Europe/Bratislava' }) : 'N/A';
 
         doc.text(displayDate, leftMargin + columnWidths[0] + columnWidths[1] + columnWidths[2] + columnWidths[3] + cellPadding, y + cellPadding, { width: columnWidths[4] - cellPadding * 2 });
       });
@@ -980,6 +1095,7 @@ app.get('/api/admin/archived-sessions-report', isAdmin, async (req, res) => {
     doc.fontSize(20).text('Report zrušených a archivovaných hodín', { align: 'center' });
     doc.moveDown();
     doc.fontSize(10).text(`Vygenerované: ${new Date().toLocaleString('sk-SK', {
+      timeZone: 'Europe/Bratislava',
       day: 'numeric',
       month: 'numeric',
       year: 'numeric',
@@ -1007,6 +1123,7 @@ app.get('/api/admin/archived-sessions-report', isAdmin, async (req, res) => {
       if (y > 750) { doc.addPage(); y = 50; } // Nová strana ak je plno
 
       const dateStr = new Date(row.archived_training_date).toLocaleDateString('sk-SK', {
+        timeZone: 'Europe/Bratislava',
         day: 'numeric',
         month: 'numeric',
         year: 'numeric'
@@ -1471,44 +1588,6 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
   }
 });
 
-app.post('/api/set-training', isAdmin, async (req, res) => {
-  try {
-    // POZOR: Premenná sa musí volať rovnako ako kľúč v req.body z frontendu
-    // Vo tvojom logu z prehliadača vidím, že posielaš "trainingType"
-    const { trainingType, trainingDate, maxParticipants } = req.body;
-
-    console.log('Received training data:', req.body);
-
-    // 1. Overíme, či typ existuje (trainingType tu obsahuje ID vybrané v dropdown-e)
-    const typeRes = await pool.query('SELECT name FROM training_types WHERE id = $1', [trainingType]);
-
-    if (typeRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Training type not found in database' });
-    }
-
-    const typeName = typeRes.rows[0].name;
-
-    // 2. Vložíme do tabuľky training_availability
-    // Používame názvy stĺpcov, ktoré máš v DB (training_date / date - skontroluj si presný názov v DB)
-    const result = await pool.query(
-      `INSERT INTO training_availability 
-       (training_type_id, training_type, training_date, max_participants)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [trainingType, typeName, trainingDate, maxParticipants]
-    );
-
-    console.log('Insert success:', result.rows[0]);
-    res.status(201).json(result.rows[0]);
-
-  } catch (error) {
-    console.error('Set training error details:', error);
-    res.status(500).json({
-      error: 'Failed to set training date',
-      details: error.message
-    });
-  }
-});
-
 // UPRAVENÉ: create-payment-session - Dynamický výpočet ceny
 app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
   try {
@@ -1699,7 +1778,7 @@ function validateEnvVariables() {
     'STRIPE_WEBHOOK_SECRET',
     'FRONTEND_URL',
     'SESSION_SECRET',
-    'HCAPTCHA_SECRET' // <--- PRIDANÉ TU
+    'CLOUDFLARE_SECRET' // <--- CLOUDFLARE TURNSTILE
   ];
 
   for (const envVar of requiredEnvVars) {
@@ -1743,8 +1822,8 @@ function validateMobile(mobile) {
 }
 
 app.post('/api/register', registerLimiter, async (req, res) => {
-  // Pridali sme hCaptchaToken do destrukturalizácie
-  const { firstName, lastName, email, password, address, _honey, hCaptchaToken } = req.body;
+  // Turnstile token z frontendu
+  const { firstName, lastName, email, password, address, _honey, turnstileToken } = req.body;
 
   // 1. HONEYPOT KONTROLA (už si mal)
   if (_honey) {
@@ -1752,26 +1831,30 @@ app.post('/api/register', registerLimiter, async (req, res) => {
     return res.status(200).json({ message: 'Registrácia úspešná' }); // Fake success
   }
 
-  // 2. HCAPTCHA OVERENIE (NOVÉ)
-  if (!hCaptchaToken) {
+  // 2. CLOUDFLARE TURNSTILE OVERENIE (NOVÉ)
+  if (!turnstileToken) {
     return res.status(400).json({ message: 'Prosím, potvrďte, že nie ste robot (Captcha).' });
   }
 
   try {
-    const verificationUrl = 'https://api.hcaptcha.com/siteverify';
-    const params = new URLSearchParams();
-    params.append('secret', process.env.HCAPTCHA_SECRET);
-    params.append('response', hCaptchaToken);
+    const verificationUrl = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+    
+    // Vytvoríme form-data namiesto JSON objektu
+    const formData = new URLSearchParams();
+    formData.append('secret', process.env.CLOUDFLARE_SECRET);
+    formData.append('response', turnstileToken);
+    formData.append('remoteip', req.ip);
 
-    const captchaResponse = await axios.post(verificationUrl, params);
+    // Axios automaticky nastaví hlavičku na 'application/x-www-form-urlencoded'
+    const captchaResponse = await axios.post(verificationUrl, formData);
     const captchaData = captchaResponse.data;
 
     if (!captchaData.success) {
-      console.error('hCaptcha verification failed:', captchaData);
+      console.error('Turnstile verification failed:', captchaData);
       return res.status(400).json({ message: 'Overenie Captcha zlyhalo. Skúste to znova.' });
     }
   } catch (error) {
-    console.error('hCaptcha API error:', error);
+    console.error('Turnstile API error:', error);
     return res.status(500).json({ message: 'Chyba pri overovaní Captcha.' });
   }
 
@@ -2051,14 +2134,24 @@ app.get('/api/check-availability', async (req, res) => {
         [trainingId]
       );
     } else {
-      // FALLBACK: Ak ID chýba, použijeme stringy (odolné voči timezone)
-      const timePart = selectedTime ? selectedTime.split(' ')[0] : null;
+      // FALLBACK: Ak ID chýba, použijeme UTC timestamp
+      // Resolve training_type name to training_type_id
+      const typeIdResult = await pool.query(
+        `SELECT id FROM training_types WHERE name = $1`,
+        [trainingType]
+      );
+      if (typeIdResult.rows.length === 0) {
+        return res.status(404).json({ error: `Training type '${trainingType}' not found` });
+      }
+      const trainingTypeId = typeIdResult.rows[0].id;
+      
+      const time24 = to24Hour(selectedTime);
+      const trainingDateTimeUtc = toUtcDateTime(selectedDate, time24);
       trainingResult = await pool.query(
         `SELECT id, max_participants FROM training_availability
-         WHERE training_type = $1 
-         AND to_char(training_date, 'YYYY-MM-DD') = $2 
-         AND to_char(training_date, 'HH24:MI') = $3`,
-        [trainingType, selectedDate, timePart]
+         WHERE training_type_id = $1 
+         AND training_date = $2`,
+        [trainingTypeId, trainingDateTimeUtc]
       );
     }
 
@@ -2293,19 +2386,26 @@ app.get('/api/replacement-sessions/:bookingId', isAuthenticated, async (req, res
     const currentDate = new Date();
 
     // Find available sessions of the same type in the future (excluding the current booking's session)
+    // Get training_type_id from training_type name
+    const typeIdResult = await pool.query(
+      `SELECT id FROM training_types WHERE name = $1`,
+      [booking.training_type]
+    );
+    const trainingTypeId = typeIdResult.rows.length > 0 ? typeIdResult.rows[0].id : null;
+
     const replacementSessions = await pool.query(
       `SELECT ta.id, ta.training_type, ta.training_date, ta.max_participants,
               (ta.max_participants - COALESCE(SUM(b.number_of_children), 0)) as available_spots
        FROM training_availability ta
        LEFT JOIN bookings b ON ta.id = b.training_id
-       WHERE ta.training_type = $1 
+       WHERE ta.training_type_id = $1 
          AND ta.training_date > $2
          AND ta.id != $3
          AND ta.training_date > NOW()
        GROUP BY ta.id
        HAVING (ta.max_participants - COALESCE(SUM(b.number_of_children), 0)) >= $4
        ORDER BY ta.training_date ASC`,
-      [booking.training_type, currentDate, booking.training_id, booking.number_of_children]
+      [trainingTypeId, currentDate, booking.training_id, booking.number_of_children]
     );
 
     res.json(replacementSessions.rows);
@@ -3161,18 +3261,23 @@ app.post('/api/bookings/use-credit', async (req, res) => {
 app.get('/api/get-session-id', async (req, res) => {
   const { training_type, date, time } = req.query;
   try {
+    // Resolve training_type name to training_type_id
+    const typeIdResult = await pool.query(
+      `SELECT id FROM training_types WHERE name = $1`,
+      [training_type]
+    );
+    if (typeIdResult.rows.length === 0) {
+      return res.status(404).json({ error: `Training type '${training_type}' not found` });
+    }
+    const trainingTypeId = typeIdResult.rows[0].id;
+    
     // Parse time (e.g., '01:00 PM' -> '13:00:00')
-    let [timePart, modifier] = time.split(' ');
-    let [hours, minutes] = timePart.split(':');
-    hours = parseInt(hours);
-    if (modifier === 'PM' && hours !== 12) hours += 12;
-    if (modifier === 'AM' && hours === 12) hours = 0;
-    const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes}:00`;
-    const timestamp = `${date} ${formattedTime}`;
+    const time24 = to24Hour(time);
+    const trainingDateTimeUtc = toUtcDateTime(date, time24);
 
     const result = await pool.query(
-      'SELECT id FROM training_availability WHERE training_type = $1 AND training_date = $2',
-      [training_type, timestamp]
+      'SELECT id FROM training_availability WHERE training_type_id = $1 AND training_date = $2',
+      [trainingTypeId, trainingDateTimeUtc]
     );
 
     if (result.rows.length === 0) {
@@ -3829,7 +3934,6 @@ app.delete('/api/users/:id', async (req, res) => {
     // -------------------------------------------------------------
     // KROK 0: Získame info o užívateľovi (PREDTÝM ako ho zmažeme)
     // -------------------------------------------------------------
-    // Používame SELECT * aby sme mali istotu, že trafíme existujúce stĺpce
     const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userIdToDelete]);
 
     let userInfo = null;
@@ -3837,14 +3941,72 @@ app.delete('/api/users/:id', async (req, res) => {
 
     if (userResult.rows.length > 0) {
       userInfo = userResult.rows[0];
-
-      // TU BOLA CHYBA: Teraz už vieme, že stĺpec sa volá 'first_name'
       userNameForEmail = userInfo.first_name || 'Kamarát';
     }
 
-    // KROK A: Zmažeme závislé dáta (rezervácie, permanentky)
+    // KROK 0.5: Skontrolujeme aktívne rezervácie, permanentky a kredity
+    // Aktívne rezervácie - budúce tréningy, aktívne, bez kreditov
+    const activeBookingsResult = await client.query(`
+      SELECT 
+        b.id,
+        b.booked_at,
+        b.number_of_children,
+        b.accompanying_person,
+        ta.training_type,
+        ta.training_date,
+        b.amount_paid
+      FROM bookings b
+      JOIN training_availability ta ON b.training_id = ta.id
+      WHERE b.user_id = $1 
+        AND b.active = true
+        AND ta.training_date > NOW()
+        AND b.booking_type = 'paid'
+      ORDER BY ta.training_date ASC
+    `, [userIdToDelete]);
+
+    // Platné permanentky s nevyužitými vstupmi
+    const activeSeasonTicketsResult = await client.query(`
+      SELECT 
+        st.id,
+        st.purchase_date,
+        st.expiry_date,
+        st.entries_total,
+        st.entries_remaining,
+        st.amount_paid,
+        tt.name as training_type_name
+      FROM season_tickets st
+      LEFT JOIN training_types tt ON st.training_type_id = tt.id
+      WHERE st.user_id = $1 
+        AND st.expiry_date > NOW()
+        AND st.entries_remaining > 0
+      ORDER BY st.expiry_date DESC
+    `, [userIdToDelete]);
+
+    // Nepoužité kredity (status 'active' alebo 'unused' - všetko čo nie je 'used')
+    const unusedCreditsResult = await client.query(`
+      SELECT 
+        c.id,
+        c.created_at,
+        c.original_date,
+        c.training_type,
+        c.child_count,
+        c.status,
+        c.accompanying_person
+      FROM credits c
+      WHERE c.user_id = $1 
+        AND c.status != 'used'
+      ORDER BY c.created_at DESC
+    `, [userIdToDelete]);
+
+    const activeBookings = activeBookingsResult.rows;
+    const activeSeasonTickets = activeSeasonTicketsResult.rows;
+    const unusedCredits = unusedCreditsResult.rows;
+
+    // KROK A: Zmažeme závislé dáta (rezervácie, permanentky, kredity)
+    // DÔLEŽITÉ: Musíme mazať v správnom poradí kvôli Foreign Key vzťahom
     await client.query('DELETE FROM bookings WHERE user_id = $1', [userIdToDelete]);
     await client.query('DELETE FROM season_tickets WHERE user_id = $1', [userIdToDelete]);
+    await client.query('DELETE FROM credits WHERE user_id = $1', [userIdToDelete]);
 
     // KROK B: Zmažeme samotného užívateľa
     const result = await client.query('DELETE FROM users WHERE id = $1', [userIdToDelete]);
@@ -3856,15 +4018,36 @@ app.delete('/api/users/:id', async (req, res) => {
 
     await client.query('COMMIT'); // Potvrdenie transakcie - užívateľ je zmazaný
 
-    // KROK C: Odošleme rozlúčkový email (ak sme našli email)
+    // KROK C: Odošleme rozlúčkový email s informáciami o aktívnych subjektoch
     if (userInfo && userInfo.email) {
       console.log(`Sending delete email to: ${userInfo.email}`);
-      emailService.sendAccountDeletedEmail(userInfo.email, userNameForEmail).catch(err =>
+      emailService.sendAccountDeletedEmail(
+        userInfo.email, 
+        userNameForEmail,
+        {
+          activeBookings,
+          activeSeasonTickets,
+          unusedCredits,
+          hasActiveItems: activeBookings.length > 0 || activeSeasonTickets.length > 0 || unusedCredits.length > 0
+        }
+      ).catch(err =>
         console.error('Failed to send delete confirmation email:', err)
       );
     }
 
-    // KROK D: Zrušíme session a odhlásime ho
+    // KROK D: Odošleme notifikáciu adminovi
+    if (userInfo) {
+      emailService.sendAdminAccountDeleteNotification(userInfo, {
+        activeBookings,
+        activeSeasonTickets,
+        unusedCredits,
+        hasActiveItems: activeBookings.length > 0 || activeSeasonTickets.length > 0 || unusedCredits.length > 0
+      }).catch(err =>
+        console.error('Failed to send admin notification:', err)
+      );
+    }
+
+    // KROK E: Zrušíme session a odhlásime ho
     req.session.destroy((err) => {
       if (err) console.error('Session destroy error:', err);
       res.json({ message: 'User account deleted successfully' });

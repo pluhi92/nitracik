@@ -12,10 +12,10 @@ model bookings {
   id                     Int                    @id @default(autoincrement())
   user_id                Int?
   training_id            Int?
-  booked_at              DateTime?              @default(now()) @db.Timestamp(6)
+  booked_at              DateTime?              @default(now()) @db.Timestamptz(6)
   number_of_children     Int                    @default(1)
   amount_paid            Decimal?               @db.Decimal(10, 2)
-  payment_time           DateTime?              @db.Timestamp(6)
+  payment_time           DateTime?              @db.Timestamptz(6)
   session_id             String?
   payment_intent_id      String?
   credit_id              Int?
@@ -26,7 +26,7 @@ model bookings {
   accompanying_person    Boolean?
   active                 Boolean?               @default(true)
   booking_type           String?                @default("paid") @db.VarChar(20)
-  archived_training_date DateTime?              @db.Timestamp(6)
+  archived_training_date DateTime?              @db.Timestamptz(6)
   archived_training_type String?                @db.VarChar(255)
   training_availability  training_availability? @relation(fields: [training_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users                  users?                 @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -48,11 +48,11 @@ model credits {
   mobile                String?
   note                  String?
   training_type         String                 @db.VarChar(50)
-  original_date         DateTime               @db.Timestamp(6)
+  original_date         DateTime               @db.Timestamptz(6)
   reason                String?
   status                String                 @default("unused") @db.VarChar(20)
-  created_at            DateTime?              @default(now()) @db.Timestamp(6)
-  used_at               DateTime?              @db.Timestamp(6)
+  created_at            DateTime?              @default(now()) @db.Timestamptz(6)
+  used_at               DateTime?              @db.Timestamptz(6)
   accompanying_person   Boolean?               @default(false)
   bookings              bookings[]
   training_availability training_availability? @relation(fields: [session_id], references: [id], onUpdate: NoAction)
@@ -68,7 +68,7 @@ model faqs {
   question      String
   answer        String
   display_order Int?      @default(0)
-  created_at    DateTime? @default(now()) @db.Timestamp(6)
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
 }
 
 model refunds {
@@ -78,8 +78,8 @@ model refunds {
   amount     Decimal?  @db.Decimal(10, 2)
   status     String?   @db.VarChar(50)
   reason     String?
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at DateTime? @default(now()) @db.Timestamptz(6)
   bookings   bookings? @relation(fields: [booking_id], references: [id], onUpdate: NoAction)
 }
 
@@ -89,8 +89,8 @@ model season_ticket_usage {
   season_ticket_id Int?
   booking_id       Int?
   training_type_id Int?
-  used_date        DateTime        @db.Timestamp(6)
-  created_at       DateTime?       @default(now()) @db.Timestamp(6)
+  used_date        DateTime        @db.Timestamptz(6)
+  created_at       DateTime?       @default(now()) @db.Timestamptz(6)
   bookings         bookings?       @relation(fields: [booking_id], references: [id], onUpdate: NoAction)
   season_tickets   season_tickets? @relation(fields: [season_ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   training_types   training_types? @relation(fields: [training_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -103,13 +103,13 @@ model season_tickets {
   training_type_id    Int?
   entries_total       Int
   entries_remaining   Int
-  purchase_date       DateTime              @db.Timestamp(6)
-  expiry_date         DateTime              @db.Timestamp(6)
+  purchase_date       DateTime              @db.Timestamptz(6)
+  expiry_date         DateTime              @db.Timestamptz(6)
   stripe_payment_id   String?
-  created_at          DateTime?             @default(now()) @db.Timestamp(6)
-  updated_at          DateTime?             @default(now()) @db.Timestamp(6)
+  created_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime?             @default(now()) @db.Timestamptz(6)
   amount_paid         Decimal?              @db.Decimal(10, 2)
-  payment_time        DateTime?             @db.Timestamp(6)
+  payment_time        DateTime?             @db.Timestamptz(6)
   season_ticket_usage season_ticket_usage[]
   users               users?                @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   training_types      training_types?       @relation(fields: [training_type_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
@@ -121,8 +121,8 @@ model season_ticket_offers {
   entries          Int
   price            Decimal        @db.Decimal(10, 2)
   active           Boolean        @default(true)
-  created_at       DateTime?      @default(now()) @db.Timestamp(6)
-  updated_at       DateTime?      @default(now()) @db.Timestamp(6)
+  created_at       DateTime?      @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime?      @default(now()) @db.Timestamptz(6)
   training_types   training_types @relation(fields: [training_type_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([training_type_id, entries])
@@ -131,9 +131,9 @@ model season_ticket_offers {
 model training_availability {
   id               Int             @id @default(autoincrement())
   training_type    String          @db.VarChar(50)
-  training_date    DateTime        @db.Timestamp(6)
+  training_date    DateTime        @db.Timestamptz(6)
   max_participants Int?
-  created_at       DateTime?       @default(now()) @db.Timestamp(6)
+  created_at       DateTime?       @default(now()) @db.Timestamptz(6)
   cancelled        Boolean?        @default(false)
   training_type_id Int?
   bookings         bookings[]
@@ -158,7 +158,7 @@ model training_types {
   duration_minutes          Int                     @default(60)
   accompanying_person_price Decimal?                @default(3.00) @db.Decimal(6, 2)
   active                    Boolean?                @default(true)
-  created_at                DateTime?               @default(now()) @db.Timestamp(6)
+  created_at                DateTime?               @default(now()) @db.Timestamptz(6)
   color_hex                 String?                 @default("#3b82f6") @db.VarChar(7)
   training_availability     training_availability[]
   training_prices           training_prices[]
@@ -170,7 +170,7 @@ model training_types {
 model user_sessions {
   sid    String   @id(map: "session_pkey") @db.VarChar
   sess   Json     @db.Json
-  expire DateTime @db.Timestamp(6)
+  expire DateTime @db.Timestamptz(6)
 
   @@index([expire], map: "IDX_session_expire")
 }
@@ -186,8 +186,8 @@ model users {
   verified           Boolean?         @default(false)
   reset_token        String?
   role               String?          @default("user") @db.VarChar(20)
-  created_at         DateTime?        @default(now()) @db.Timestamp(6)
-  updated_at         DateTime?        @default(now()) @db.Timestamp(6)
+  created_at         DateTime?        @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime?        @default(now()) @db.Timestamptz(6)
   mobile             String?          @db.VarChar(20)
   bookings           bookings[]
   credits            credits[]
@@ -198,7 +198,7 @@ model blog_labels {
   id         Int          @id @default(autoincrement())
   name       String       @unique @db.VarChar(100)
   color      String       @default("#3b82f6") @db.VarChar(7)
-  created_at DateTime?    @default(now()) @db.Timestamp(6)
+  created_at DateTime?    @default(now()) @db.Timestamptz(6)
   blog_posts blog_posts[]
 }
 
@@ -209,8 +209,8 @@ model blog_posts {
   perex      String       @db.Text
   content    String?      @db.Text
   image_url  String?      @db.VarChar(255)
-  created_at DateTime?    @default(now()) @db.Timestamp(6)
-  updated_at DateTime?    @default(now()) @db.Timestamp(6)
+  created_at DateTime?    @default(now()) @db.Timestamptz(6)
+  updated_at DateTime?    @default(now()) @db.Timestamptz(6)
   label_id   Int?
   label      blog_labels? @relation(fields: [label_id], references: [id], onDelete: SetNull)
 
@@ -221,7 +221,7 @@ model google_ratings_config {
   id          Int      @id @default(1)
   business_id String?  @db.VarChar(255)
   enabled     Boolean  @default(false)
-  updated_at  DateTime @default(now()) @db.Timestamp(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
 }
 
 model about_content {
@@ -229,5 +229,5 @@ model about_content {
   title        String    @db.VarChar(255)
   description  String    @db.Text
   description2 String    @db.Text
-  updated_at   DateTime? @default(now()) @db.Timestamp(6)
+  updated_at   DateTime? @default(now()) @db.Timestamptz(6)
 }

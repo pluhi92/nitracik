@@ -204,7 +204,7 @@ module.exports = {
               <div class="content">
                 <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName}.</p>
                 <p>Vitajte v Nitráčiku! Sme veľmi radi, že sa k nám pridávate.</p> 
-                <p>Už Vám chýba len jeden malý krok, aby ste sa mohli naplno ponoriť do nášho sveta plného farieb a zábavy. Prosím, potvrďte svoju registráciu kliknutím na tlačidlo nižšie:</p>
+                <p>Už Vám chýba len jeden malý krok, aby ste sa mohli naplno ponoriť do nášho sveta plného farieb a zmysluplnej zábavy. Prosím, potvrďte svoju registráciu kliknutím na tlačidlo nižšie:</p>
                 <a href="${verificationLink}" class="btn-verify">OVERIŤ EMAIL</a>
                 <p style="text-align: center; font-size: 12px; color: #999;">Ak tlačidlo nefunguje, skopírujte tento odkaz do prehliadača:<br/>${verificationLink}</p>
                 <div class="highlight-box">
@@ -362,7 +362,85 @@ module.exports = {
   },
 
   // 3. Delete account email
-  sendAccountDeletedEmail: async (userEmail, userName) => {
+  sendAccountDeletedEmail: async (userEmail, userName, userData = {}) => {
+    const { activeBookings = [], activeSeasonTickets = [], unusedCredits = [], hasActiveItems = false } = userData;
+    
+    // Formatter HTML pre zaplatené rezervácie
+    let bookingsHTML = '';
+    if (activeBookings.length > 0) {
+      const bookingsList = activeBookings.map(booking => {
+        const bookingDate = new Date(booking.training_date).toLocaleDateString('sk-SK', { day: 'numeric', month: 'long', year: 'numeric' });
+        const accompanyingText = booking.accompanying_person ? ' (+1 dospelý)' : '';
+        return `<li><strong>${booking.training_type}</strong> - ${bookingDate} (${booking.number_of_children} ${booking.number_of_children === 1 ? 'dieťa' : 'detí'}${accompanyingText})</li>`;
+      }).join('');
+      
+      bookingsHTML = `
+        <div style="margin-bottom: 15px;">
+          <p style="font-weight: bold; margin-bottom: 8px; font-size: 14px;">📅 Zaplatené rezervácie (${activeBookings.length}):</p>
+          <ul style="margin: 0; padding-left: 20px; font-size: 13px;">
+            ${bookingsList}
+          </ul>
+        </div>
+      `;
+    }
+    
+    // Formatter HTML pre permanentky
+    let ticketsHTML = '';
+    if (activeSeasonTickets.length > 0) {
+      const ticketsList = activeSeasonTickets.map(ticket => {
+        const expiryDate = new Date(ticket.expiry_date).toLocaleDateString('sk-SK', { day: 'numeric', month: 'long', year: 'numeric' });
+        return `<li><strong>${ticket.training_type_name || 'Permanentka'}</strong> - ${ticket.entries_remaining}/${ticket.entries_total} vstupov, Platnosť do: ${expiryDate}</li>`;
+      }).join('');
+      
+      ticketsHTML = `
+        <div style="margin-bottom: 15px;">
+          <p style="font-weight: bold; margin-bottom: 8px; font-size: 14px;">🎫 Platné permanentky s aktívnymi vstupmi (${activeSeasonTickets.length}):</p>
+          <ul style="margin: 0; padding-left: 20px; font-size: 13px;">
+            ${ticketsList}
+          </ul>
+        </div>
+      `;
+    }
+    
+    // Formatter HTML pre kredity
+    let creditsHTML = '';
+    if (unusedCredits.length > 0) {
+      const creditsList = unusedCredits.map(credit => {
+        const creditDate = new Date(credit.created_at).toLocaleDateString('sk-SK', { day: 'numeric', month: 'long', year: 'numeric' });
+        const accompanyingText = credit.accompanying_person ? ' (+1 dospelý)' : '';
+        return `<li><strong>${credit.training_type}</strong> - ${credit.child_count} ${credit.child_count === 1 ? 'dieťa' : 'detí'}${accompanyingText} (vytvorené: ${creditDate})</li>`;
+      }).join('');
+      
+      creditsHTML = `
+        <div style="margin-bottom: 15px;">
+          <p style="font-weight: bold; margin-bottom: 8px; font-size: 14px;">💳 Nepoužité kredity (${unusedCredits.length}):</p>
+          <ul style="margin: 0; padding-left: 20px; font-size: 13px;">
+            ${creditsList}
+          </ul>
+        </div>
+      `;
+    }
+    
+    // Formar finálny HTML pre aktívne items
+    let activeItemsHTML = '';
+    if (hasActiveItems) {
+      activeItemsHTML = `
+        <div style="background-color: #fef3c7; border: 2px solid #f59e0b; border-radius: 6px; padding: 20px; margin: 25px 0;">
+          <p style="font-size: 16px; font-weight: bold; color: #d97706; margin-top: 0;">⚠️ Máte ešte aktívne nevyužité subjekty:</p>
+          ${bookingsHTML}
+          ${ticketsHTML}
+          ${creditsHTML}
+          <p style="margin-bottom: 0; font-size: 14px; color: #1f2937;">
+            <strong>Dobrá správa:</strong> Podľa našich obchodných podmienok (bod 5.10) máte možnosť tieto subjekty využívať aj po zrušení účtu. 
+            Môžete ich využívať na základe dohody s majiteľom. <br/><br/>
+            <strong>Kontaktujte nás:</strong><br/>
+            📧 <strong>info@nitracik.sk</strong><br/>
+            📞 <strong>+421 949 584 576</strong>
+          </p>
+        </div>
+      `;
+    }
+
     const subject = 'Rozlúčka s Nitráčikom - Potvrdenie zrušenia účtu';
     const mailOptions = {
       from: SENDER,
@@ -375,14 +453,15 @@ module.exports = {
           <style>
             body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
             .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-            .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #ef4444; } /* Červená linka pre delete */
+            .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #ef4444; }
             .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
             .highlight-box { background-color: #fef2f2; border: 1px solid #fca5a5; border-radius: 6px; padding: 20px; margin: 25px 0; text-align: center; font-style: italic; }
-            .highlight-item { margin-bottom: 5px; font-size: 15px; }
             .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
             p { margin-bottom: 15px; }
             .quote-en { color: #ef4444; font-weight: bold; font-size: 18px; display: block; margin-bottom: 5px; }
             .quote-sk { color: #555; font-size: 16px; }
+            ul { margin: 0; padding-left: 20px; }
+            li { margin-bottom: 8px; }
           </style>
         </head>
         <body>
@@ -396,6 +475,9 @@ module.exports = {
                 <p>S ľútosťou Vám potvrdzujem, že Váš účet bol na Vašu žiadosť úspešne zrušený a Vaše osobné údaje boli vymazané z nášho systému.</p>
                 <p>Hoci sa naše cesty nateraz rozchádzajú, chcem Vám poďakovať, že ste boli súčasťou nášho ufúľaného sveta.</p>
                 <p>Mrzí nás, že odchádzate, ale dvere u nás máte vždy otvorené. Kedykoľvek sa na nás v budúcnosti obrátite, radi Vás opäť privítame medzi nami.</p>
+                
+                ${activeItemsHTML}
+                
                 <div class="highlight-box">
                    <span class="quote-en">"Sorry about the mess, we're making memories!"</span>
                    <span class="quote-sk">"Prepáčte ten neporiadok, tvorili sme spomienky!"</span>
@@ -428,7 +510,7 @@ module.exports = {
   },
 
   // --- 4. USER: SEASON TICKET PURCHASE (STRIPE WEBHOOK) ---
-  sendSeasonTicketConfirmation: async (userEmail, userName, { entries, totalPrice, expiryDate, trainingTypeName }) => {
+  sendSeasonTicketConfirmation: async (userEmail, userName, { entries, totalPrice, expiryDate, trainingTypeName, stripePaymentId }) => {
     // Naformátujeme dátumy do slovenčiny
     const formattedPurchaseDate = dayjs().format('DD.MM.YYYY');
     const formattedExpiryDate = dayjs(expiryDate).format('DD.MM.YYYY');
@@ -478,6 +560,7 @@ module.exports = {
                    <div class="highlight-item">💰 <strong>Cena:</strong> ${totalPrice} €</div>
                    <div class="highlight-item">📅 <strong>Dátum nákupu:</strong> ${formattedPurchaseDate}</div>
                    <div class="highlight-item">⏳ <strong>Platnosť (6 mesiacov):</strong> ${formattedExpiryDate}</div>
+                   ${stripePaymentId ? `<div class="highlight-item">🔑 <strong>Stripe Payment ID:</strong> ${stripePaymentId}</div>` : ''}
                 </div>
 
                 <div class="quote-box">
@@ -1587,6 +1670,139 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
       subject: 'Password Reset',
       text: `Click the following link to reset your password: ${resetLink}`,
     });
+  },
+
+  // 13. ADMIN NOTIFIKÁCIA O ZRUŠENÍ ÚČTU
+  sendAdminAccountDeleteNotification: async (userInfo, itemsData = {}) => {
+    const { activeBookings = [], activeSeasonTickets = [], unusedCredits = [], hasActiveItems = false } = itemsData;
+    
+    let itemsDetailsHTML = '<p style="color: #666;">Užívateľ nemá žiadne aktívne nevyužité subjekty.</p>';
+    
+    if (hasActiveItems) {
+      itemsDetailsHTML = `
+        <div style="background-color: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 15px; margin: 15px 0; border-radius: 4px;">
+          <p style="margin-top: 0; font-weight: bold; color: #0369a1;">Aktívne nevyužité subjekty:</p>
+          
+          ${activeBookings.length > 0 ? `
+            <p style="margin: 10px 0 5px 0; font-weight: bold; font-size: 13px; color: #1e40af;">📅 Zaplatené rezervácie (${activeBookings.length}):</p>
+            <ul style="margin: 0 0 10px 20px; padding: 0; font-size: 13px;">
+              ${activeBookings.map(booking => `
+                <li>
+                  ${booking.training_type} - ${new Date(booking.training_date).toLocaleDateString('sk-SK', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  (${booking.number_of_children} ${booking.number_of_children === 1 ? 'dieťa' : 'detí'}) - 
+                  Zaplatená čiastka: €${parseFloat(booking.amount_paid || 0).toFixed(2)}
+                </li>
+              `).join('')}
+            </ul>
+          ` : ''}
+          
+          ${activeSeasonTickets.length > 0 ? `
+            <p style="margin: 10px 0 5px 0; font-weight: bold; font-size: 13px; color: #1e40af;">🎫 Platné permanentky (${activeSeasonTickets.length}):</p>
+            <ul style="margin: 0 0 10px 20px; padding: 0; font-size: 13px;">
+              ${activeSeasonTickets.map(ticket => `
+                <li>
+                  ${ticket.training_type_name || 'Permanentka'} - ${ticket.entries_remaining}/${ticket.entries_total} vstupov
+                  Platnosť do: ${new Date(ticket.expiry_date).toLocaleDateString('sk-SK', { day: 'numeric', month: 'long', year: 'numeric' })} - 
+                  Zaplatená čiastka: €${parseFloat(ticket.amount_paid || 0).toFixed(2)}
+                </li>
+              `).join('')}
+            </ul>
+          ` : ''}
+          
+          ${unusedCredits.length > 0 ? `
+            <p style="margin: 10px 0 5px 0; font-weight: bold; font-size: 13px; color: #1e40af;">💳 Nepoužité kredity (${unusedCredits.length}):</p>
+            <ul style="margin: 0; padding: 0 0 0 20px; font-size: 13px;">
+              ${unusedCredits.map(credit => `
+                <li>
+                  ${credit.training_type} - ${credit.child_count} ${credit.child_count === 1 ? 'dieťa' : 'detí'}
+                  (vytvorené: ${new Date(credit.created_at).toLocaleDateString('sk-SK', { day: 'numeric', month: 'long', year: 'numeric' })})
+                </li>
+              `).join('')}
+            </ul>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    const subject = `⚠️ Zrušenie účtu - ${userInfo.first_name} ${userInfo.last_name || ''}`;
+    
+    const mailOptions = {
+      from: SENDER,
+      to: 'info@nitracik.sk', // Posielame adminovi
+      subject,
+      html: injectImageUrls(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+            .container { width: 100%; max-width: 700px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+            .header { background-color: #ef4444; color: white; padding: 20px; text-align: center; }
+            .header h2 { margin: 0; font-size: 24px; }
+            .content { padding: 30px; color: #333333; line-height: 1.6; }
+            .user-info { background-color: #f9fafb; border-left: 4px solid #ef4444; padding: 15px; border-radius: 4px; margin-bottom: 20px; }
+            .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+            table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+            td { padding: 8px; border-bottom: 1px solid #e5e7eb; }
+            td:first-child { font-weight: bold; width: 200px; color: #6b7280; }
+            p { margin-bottom: 15px; }
+          </style>
+        </head>
+        <body>
+          <div style="background-color: #f4f4f4; padding: 40px 0;">
+            <div class="container">
+              <div class="header">
+                <h2>🔔 Notifikácia o zrušení účtu</h2>
+              </div>
+              <div class="content">
+                <p>Dobrý deň,</p>
+                <p>Užívateľ si práve zrušil svoj účet. Tu sú podrobnosti:</p>
+                
+                <div class="user-info">
+                  <table>
+                    <tr>
+                      <td>Meno:</td>
+                      <td><strong>${userInfo.first_name} ${userInfo.last_name || ''}</strong></td>
+                    </tr>
+                    <tr>
+                      <td>Email:</td>
+                      <td>${userInfo.email}</td>
+                    </tr>
+                    <tr>
+                      <td>Telefón:</td>
+                      <td>${userInfo.mobile || 'Nezadaný'}</td>
+                    </tr>
+                    <tr>
+                      <td>ID užívateľa:</td>
+                      <td>${userInfo.id}</td>
+                    </tr>
+                    <tr>
+                      <td>Dátum zrušenia:</td>
+                      <td>${new Date().toLocaleDateString('sk-SK', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                    </tr>
+                  </table>
+                </div>
+                
+                <p style="font-weight: bold; margin-top: 25px; margin-bottom: 10px;">Status aktívnych subjektov:</p>
+                ${itemsDetailsHTML}
+                
+                <p style="margin-top: 25px; background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 4px; font-size: 13px; color: #92400e;">
+                  <strong>Poznámka:</strong> Podľa obchodných podmienok (bod 5.10), užívateľ má možnosť využívať aktívne subjekty 
+                  na základe dohody s majiteľom. Kontaktujte ho ak má nejaké otázky.
+                </p>
+              </div>
+              <div class="footer">
+                <p style="margin: 0;">© 2026 O.z. Nitráčik - Admin Notifikácia</p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `),
+      attachments: getCommonAttachments()
+    };
+    
+    return transporter.sendMail(mailOptions);
   }
 }; // Koniec module.exports
 

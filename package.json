@@ -5,8 +5,8 @@
   "dependencies": {
     "@fortawesome/free-solid-svg-icons": "^6.7.2",
     "@fortawesome/react-fontawesome": "^0.2.2",
-    "@hcaptcha/react-hcaptcha": "^1.17.4",
     "@heroicons/react": "^2.2.0",
+    "@marsidev/react-turnstile": "^1.4.2",
     "@stripe/stripe-js": "^5.8.0",
     "axios": "^1.13.2",
     "bootstrap": "^5.3.3",

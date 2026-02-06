@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../contexts/LanguageContext';
 import api from '../api/api';
-import HCaptcha from '@hcaptcha/react-hcaptcha'; // IMPORT HCAPTCHA
+import { Turnstile } from '@marsidev/react-turnstile'; // IMPORT CLOUDFLARE TURNSTILE
 
 // --- IKONY ---
 const CheckIcon = ({ className }) => (
@@ -54,12 +54,14 @@ const Register = () => {
 
   // Anti-bot & Security
   const [honey, setHoney] = useState('');
-  const [captchaToken, setCaptchaToken] = useState(null); // NOVÝ STATE PRE TOKEN
-  const hCaptchaRef = useRef(null); // REF PRE RESETOVANIE CAPTCHY
+  const [captchaToken, setCaptchaToken] = useState(null); // STATE PRE TURNSTILE TOKEN
+  const turnstileRef = useRef(null); // REF PRE RESETOVANIE TURNSTILE
 
   // UX State
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showRepeatPassword, setShowRepeatPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -161,7 +163,7 @@ const Register = () => {
 
   // --- VALIDATION ---
   const [passwordCriteria, setPasswordCriteria] = useState({
-    length: false, upper: false, lower: false, number: false, special: false
+    length: false, upper: false, lower: false, number: false
   });
 
   useEffect(() => {
@@ -170,7 +172,6 @@ const Register = () => {
       upper: /[A-Z]/.test(password),
       lower: /[a-z]/.test(password),
       number: /\d/.test(password),
-      special: /[@$!%*?&.,]/.test(password)
     });
   }, [password]);
 
@@ -234,15 +235,15 @@ const Register = () => {
         firstName, lastName, email, password,
         address: fullAddress,
         _honey: honey,
-        hCaptchaToken: captchaToken // POSIELAME TOKEN NA BACKEND
+        turnstileToken: captchaToken // POSIELAME TURNSTILE TOKEN NA BACKEND
       });
       setApiError(`success: ${response.data.message}`);
       setTimeout(() => navigate('/login'), 3000);
     } catch (err) {
       setApiError(err.response?.data?.message || 'Registration failed');
-      // Pri chybe resetujeme captchu, aby ju musel užívateľ vyplniť znova (prevencia proti replay útokom)
+      // Pri chybe resetujeme Turnstile, aby ju musel užívateľ vyplniť znova (prevencia proti replay útokom)
       setCaptchaToken(null);
-      if (hCaptchaRef.current) hCaptchaRef.current.resetCaptcha();
+      if (turnstileRef.current) turnstileRef.current.reset();
     } finally {
       setLoading(false);
     }
@@ -391,22 +392,74 @@ const Register = () => {
           <div className="p-5 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">{t?.login?.register?.password || 'Password'}</label>
-              <input name="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} onFocus={() => setIsPasswordFocused(true)} onBlur={handleBlur} className={`w-full px-4 py-3 bg-white border rounded-lg outline-none transition-all ${passwordTouched && !isPasswordValid ? 'border-red-300' : 'border-gray-300 focus:border-primary-500'}`} placeholder="••••••••" />
+              <div className="relative">
+                <input
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setIsPasswordFocused(true)}
+                  onBlur={handleBlur}
+                  className={`w-full px-4 py-3 pr-10 bg-white border rounded-lg outline-none transition-all ${passwordTouched && !isPasswordValid ? 'border-red-300' : 'border-gray-300 focus:border-primary-500'}`}
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  aria-label="Show password"
+                  className="absolute inset-y-0 right-0 px-3 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
+                  onMouseDown={(e) => { e.preventDefault(); setShowPassword(true); }}
+                  onMouseUp={() => setShowPassword(false)}
+                  onMouseLeave={() => setShowPassword(false)}
+                  onTouchStart={() => setShowPassword(true)}
+                  onTouchEnd={() => setShowPassword(false)}
+                  onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') setShowPassword(true); }}
+                  onKeyUp={() => setShowPassword(false)}
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+              </div>
               <div className={`overflow-hidden transition-all duration-500 ease-in-out ${showPasswordRequirements ? 'max-h-48 opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-1">
                   <PasswordRequirement met={passwordCriteria.length} text={t?.login?.register?.passwordRequirements?.length || "Min. 8 characters"} />
                   <PasswordRequirement met={passwordCriteria.upper} text={t?.login?.register?.passwordRequirements?.upper || "1 uppercase letter (A-Z)"} />
                   <PasswordRequirement met={passwordCriteria.lower} text={t?.login?.register?.passwordRequirements?.lower || "1 lowercase letter (a-z)"} />
                   <PasswordRequirement met={passwordCriteria.number} text={t?.login?.register?.passwordRequirements?.number || "1 number (0-9)"} />
-                  <PasswordRequirement met={passwordCriteria.special} text={t?.login?.register?.passwordRequirements?.special || "1 special char (@$!%*?&)"} />
                 </ul>
               </div>
             </div>
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">{t?.login?.register?.repeatPassword || 'Confirm Password'}</label>
               <div className="relative">
-                <input name="repeatPassword" type="password" value={repeatPassword} onChange={(e) => setRepeatPassword(e.target.value)} className={`w-full px-4 py-3 bg-white border rounded-lg outline-none transition-all pr-10 ${doPasswordsMatch ? 'border-green-500 ring-1 ring-green-500' : 'border-gray-300 focus:border-primary-500'}`} placeholder="••••••••" disabled={!password} />
-                {doPasswordsMatch && <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"><CheckIcon className="h-6 w-6 text-green-500" /></div>}
+                <input
+                  name="repeatPassword"
+                  type={showRepeatPassword ? 'text' : 'password'}
+                  value={repeatPassword}
+                  onChange={(e) => setRepeatPassword(e.target.value)}
+                  className={`w-full px-4 py-3 bg-white border rounded-lg outline-none transition-all pr-10 ${doPasswordsMatch ? 'border-green-500 ring-1 ring-green-500' : 'border-gray-300 focus:border-primary-500'}`}
+                  placeholder="••••••••"
+                  disabled={!password}
+                />
+                <button
+                  type="button"
+                  aria-label="Show password"
+                  className="absolute inset-y-0 right-0 px-3 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
+                  onMouseDown={(e) => { e.preventDefault(); setShowRepeatPassword(true); }}
+                  onMouseUp={() => setShowRepeatPassword(false)}
+                  onMouseLeave={() => setShowRepeatPassword(false)}
+                  onTouchStart={() => setShowRepeatPassword(true)}
+                  onTouchEnd={() => setShowRepeatPassword(false)}
+                  onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') setShowRepeatPassword(true); }}
+                  onKeyUp={() => setShowRepeatPassword(false)}
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+                {doPasswordsMatch && <div className="absolute inset-y-0 right-9 pr-1 flex items-center pointer-events-none"><CheckIcon className="h-6 w-6 text-green-500" /></div>}
               </div>
               {!doPasswordsMatch && repeatPassword && <p className="text-xs text-red-500 mt-1">Passwords do not match</p>}
             </div>
@@ -460,12 +513,12 @@ const Register = () => {
             </label>
           </div>
 
-          {/* --- HCAPTCHA IMPLEMENTÁCIA --- */}
+          {/* --- CLOUDFLARE TURNSTILE IMPLEMENTÁCIA --- */}
           <div className="flex justify-center py-2">
-            <HCaptcha
-              sitekey={process.env.REACT_APP_HCAPTCHA_SITEKEY}
-              onVerify={(token) => setCaptchaToken(token)}
-              ref={hCaptchaRef}
+            <Turnstile
+              siteKey={process.env.REACT_APP_CLOUDFLARE_SITEKEY}
+              onSuccess={(token) => setCaptchaToken(token)}
+              ref={turnstileRef}
             />
           </div>
 
