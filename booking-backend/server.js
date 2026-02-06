@@ -290,8 +290,12 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         const trainingTypeName = typeResult.rows[0]?.name || '';
 
         // Odoslanie emailu užívateľovi
-        const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
+        const userResult = await client.query(
+          'SELECT first_name, last_name, email, address FROM users WHERE id = $1',
+          [userId]
+        );
         const user = userResult.rows[0];
+        const stripePaymentId = session.payment_intent || session.id;
 
         if (user) {
           // Store email data to send AFTER transaction commits
@@ -299,10 +303,13 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
             type: 'season_ticket_confirmation',
             userEmail: user.email,
             firstName: user.first_name,
+            lastName: user.last_name,
+            address: user.address,
             entries: entriesInt,
             totalPrice: priceFloat,
             expiryDate,
-            trainingTypeName
+            trainingTypeName,
+            stripePaymentId
           };
         }
 
@@ -456,17 +463,23 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         entries: emailDataToSend.entries,
         totalPrice: emailDataToSend.totalPrice,
         expiryDate: emailDataToSend.expiryDate,
-        trainingTypeName: emailDataToSend.trainingTypeName
+        trainingTypeName: emailDataToSend.trainingTypeName,
+        stripePaymentId: emailDataToSend.stripePaymentId
       }
     ).catch(err => console.error('Failed to send season ticket confirmation email:', err.message));
     
     // Send admin notification
     emailService.sendAdminSeasonTicketPurchase('info@nitracik.sk', {
-      user: { first_name: emailDataToSend.firstName, email: emailDataToSend.userEmail },
+      user: {
+        first_name: emailDataToSend.firstName,
+        last_name: emailDataToSend.lastName,
+        email: emailDataToSend.userEmail,
+        address: emailDataToSend.address
+      },
       entries: emailDataToSend.entries,
       totalPrice: emailDataToSend.totalPrice,
       expiryDate: emailDataToSend.expiryDate,
-      stripePaymentId: session.id,
+      stripePaymentId: emailDataToSend.stripePaymentId,
       trainingTypeName: emailDataToSend.trainingTypeName
     }).catch(err => console.error('Failed to send admin season ticket notification:', err.message));
   }

@@ -510,7 +510,7 @@ module.exports = {
   },
 
   // --- 4. USER: SEASON TICKET PURCHASE (STRIPE WEBHOOK) ---
-  sendSeasonTicketConfirmation: async (userEmail, userName, { entries, totalPrice, expiryDate, trainingTypeName }) => {
+  sendSeasonTicketConfirmation: async (userEmail, userName, { entries, totalPrice, expiryDate, trainingTypeName, stripePaymentId }) => {
     // Naformátujeme dátumy do slovenčiny
     const formattedPurchaseDate = dayjs().format('DD.MM.YYYY');
     const formattedExpiryDate = dayjs(expiryDate).format('DD.MM.YYYY');
@@ -560,6 +560,7 @@ module.exports = {
                    <div class="highlight-item">💰 <strong>Cena:</strong> ${totalPrice} €</div>
                    <div class="highlight-item">📅 <strong>Dátum nákupu:</strong> ${formattedPurchaseDate}</div>
                    <div class="highlight-item">⏳ <strong>Platnosť (6 mesiacov):</strong> ${formattedExpiryDate}</div>
+                   ${stripePaymentId ? `<div class="highlight-item">🔑 <strong>Stripe Payment ID:</strong> ${stripePaymentId}</div>` : ''}
                 </div>
 
                 <div class="quote-box">
