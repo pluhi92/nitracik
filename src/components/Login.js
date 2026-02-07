@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useTranslation } from '../contexts/LanguageContext';
-import { useUser } from '../App';
+import { useUser } from '../contexts/UserContext';
+import api from '../api/api';
 
 const Login = ({ onLoginSuccess }) => {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const navigate = useNavigate();
   const { updateUser, logout } = useUser();
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,25 +39,36 @@ const Login = ({ onLoginSuccess }) => {
 
     try {
       // Send login request to the backend
-      const response = await axios.post(
-        'http://localhost:5000/api/login',
+      const response = await api.post(
+        '/api/login',
         { email, password },
         { withCredentials: true }
       );
 
       console.log('Login successful:', response.data);
 
-      // Store userId, userName, and isLoggedIn in localStorage
-      localStorage.setItem('userId', response.data.userId);
-      localStorage.setItem('userName', response.data.userName || 'Unknown User'); // Combine first_name and last_name
-      localStorage.setItem('isLoggedIn', 'true');
+      // Uložíme si rolu z odpovede
+      const { userId, userName, role } = response.data;
+      const firstName = userName.split(' ')[0];
 
+      // Store userId, userName, and isLoggedIn in localStorage
+      localStorage.setItem('userId', userId);
+      localStorage.setItem('userName', userName || 'Unknown User');
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('authToken', response.data.token || 'dummy');
+      localStorage.setItem('userRole', role || 'user'); // Uloženie roly
+      localStorage.setItem('user', JSON.stringify({
+        userId: userId,
+        userName: userName,
+        role: role || 'user'
+      }));
 
       // Update the global user context immediately
       updateUser({
         isLoggedIn: true,
-        firstName: response.data.userName?.split(' ')[0] || 'User',
-        userId: response.data.userId
+        firstName: firstName,
+        userId: userId,
+        role: role || 'user' // Poslanie roly do contextu
       });
 
       // Show success alert
@@ -78,85 +91,132 @@ const Login = ({ onLoginSuccess }) => {
   };
 
   // If the user is already logged in, show a message
-if (localStorage.getItem('isLoggedIn') === 'true') {
-  return (
-    <div className="container mt-5">
-      <div className="row justify-content-center">
-        <div className="col-md-6">
-          <div className="card shadow-sm">
-            <div className="card-body text-center">
-              <h2 className="card-title">{t.login.alreadyLoggedIn.title}</h2>
-              <p>{t.login.alreadyLoggedIn.message}</p>
-              <button
-                className="btn btn-danger"
-                onClick={() => {
-                  logout();
-                  navigate('/');
-                }}
-              >
-                {t.login.alreadyLoggedIn.logout}
-              </button>
+  if (localStorage.getItem('isLoggedIn') === 'true') {
+    return (
+      <div className="max-w-2xl mx-auto mt-24 px-4 mb-12">
+        <div className="flex justify-center">
+          <div className="w-full md:w-96">
+            <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200">
+              <div className="p-6 text-center">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                  {t.login.alreadyLoggedIn.title}
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  {t.login.alreadyLoggedIn.message}
+                </p>
+                <button
+                  className="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+                  onClick={() => {
+                    logout();
+                    navigate('/');
+                  }}
+                >
+                  {t.login.alreadyLoggedIn.logout}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
+    );
+  }
 
   // If the user is not logged in, show the login form
   return (
-    <div className="container mt-5">
-      <div className="row justify-content-center">
-        <div className="col-md-6">
-          <div className="card shadow-sm">
-            <div className="card-body">
-              <h2 className="card-title text-center">{t.login.title}</h2>
+    <div className="max-w-2xl mx-auto mt-24 px-4 mb-12">
+      <div className="flex justify-center">
+        <div className="w-full md:w-96">
+          <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200">
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+                {t.login.title}
+              </h2>
               <form onSubmit={handleSubmit}>
-                <div className="mb-3">
-                  <label htmlFor="email" className="form-label">{t.login.email}</label>
+                <div className="mb-4">
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    {t.login.email}
+                  </label>
                   <input
                     type="email"
-                    className={`form-control ${error ? 'is-invalid' : ''}`}
+                    className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${error ? 'border-red-500' : ''
+                      }`}
                     id="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
                   />
                 </div>
-                <div className="mb-3">
-                  <label htmlFor="password" className="form-label">{t.login.password}</label>
-                  <input
-                    type="password"
-                    className={`form-control ${error ? 'is-invalid' : ''}`}
-                    id="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
+                <div className="mb-6">
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                    {t.login.password}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className={`w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${error ? 'border-red-500' : ''
+                        }`}
+                      id="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      aria-label="Show password"
+                      className="absolute inset-y-0 right-0 px-3 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
+                      onMouseDown={(e) => { e.preventDefault(); setShowPassword(true); }}
+                      onMouseUp={() => setShowPassword(false)}
+                      onMouseLeave={() => setShowPassword(false)}
+                      onTouchStart={() => setShowPassword(true)}
+                      onTouchEnd={() => setShowPassword(false)}
+                      onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') setShowPassword(true); }}
+                      onKeyUp={() => setShowPassword(false)}
+                    >
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-                {error && <div className="text-danger mb-3 text-center">{error}</div>}
+                {error && (
+                  <div className="text-red-600 text-center mb-4 bg-red-50 border border-red-200 rounded-lg py-2">
+                    {error}
+                  </div>
+                )}
                 <button
                   type="submit"
-                  className="btn btn-primary w-100"
+                  className="w-full bg-secondary-800 hover:bg-secondary-600 text-white px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={loading}
                 >
                   {loading ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                      <span className="ms-2">{t.login.loading}</span>
-                    </>
+                    <div className="flex items-center justify-center">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      <span>{t.login.loading}</span>
+                    </div>
                   ) : (
                     t.login.submit
                   )}
                 </button>
               </form>
-              <div className="mt-3 text-center">
-                <p>{t.login.registerPrompt} <Link to="/register">{t.login.createAccount}</Link></p>
+              <div className="mt-6 text-center">
+                <p className="text-gray-600 mb-3">
+                  {t.login.registerPrompt}{' '}
+                  <Link
+                    to="/register"
+                    className="text-secondary-500 hover:text-secondary-600 font-medium no-underline"
+                  >
+                    {t.login.createAccount}
+                  </Link>
+                </p>
                 {showForgotPassword && (
                   <p>
-                    <Link to="/forgot-password">{t.login.forgotPassword}</Link>
+                    <Link
+                      to="/forgot-password"
+                      className="text-primary-600 hover:text-primary-700 font-medium no-underline"
+                    >
+                      {t.login.forgotPassword}
+                    </Link>
                   </p>
                 )}
               </div>

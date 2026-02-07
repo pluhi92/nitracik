@@ -5,40 +5,59 @@
     "seasonTickets": "Kúpiť permanentku",
     "trainingType": {
       "label": "Vyberte typ tréningu",
-      "placeholder": "Vyberte...",
+      "placeholder": "Vyberte typ tréningu...",
       "mini": "MINI",
       "midi": "MIDI",
       "maxi": "MAXI"
     },
+    "trainingDetails": "Detaily tréningu",
+    "personalInfo": "Osobné informácie",
     "name": "Vaše meno",
     "email": "Váš email",
     "mobile": "Vaše telefónne číslo",
+    "mobilePlaceholder": "+421 xxx xxx xxx",
     "address": "Adresa",
     "selectDate": "Vyberte dostupný dátum",
-    "selectTime": "Vyberte čas",
+    "selectTime": "Vyberte časový termín",
+    "childrenInfo": "Informácie o deťoch",
     "childrenCount": "Počet detí",
     "childrenAge": "Vek detí",
+    "childAge": "{number}. dieťa",
     "chooseAge": "Vyberte vek",
     "selectAllAges": "Vyberte vek pre všetky deti.",
+    "additionalOptions": "Dodatočné možnosti",
     "notes": "Dodatočné poznámky",
+    "notesPlaceholder": "Akékoľvek špeciálne požiadavky, alergie alebo dodatočné informácie...",
     "useSeasonTicket": "Použiť permanentku",
     "selectSeasonTicket": "Vyberte permanentku",
     "seasonTicketOption": "Permanentka",
-    "seasonTicketEntries": "Zostávajúce vstupy: {count}",
+    "seasonTicketEntries": "Vstupy: {count}",
     "notCoveredBySeasonTicket": "Nie je pokryté permanentkou",
-    "accompanyingPerson": "Účasť sprevádzajúcej osoby (€3)",
+    "noSeasonTicketForType": "Pre tento tréning nemáte žiadnu permanentku.",
+    "accompanyingPerson": "Účasť sprevádzajúcej osoby",
+    "accompanyingPersonShort": "sprevádzajúca osoba",
+    "accompanyingPersonHelp": "Sprevádzajúca osoba je ďalšia osoba okrem rodiča, ktorá sa zúčastní hodiny spolu s dieťaťom.",
     "photoConsent": "Súhlas s publikovaním fotografií",
     "agree": "SÚHLASÍM s publikovaním fotografií môjho dieťaťa",
     "disagree": "NESÚHLASÍM s publikovaním fotografií môjho dieťaťa",
-    "consent": "Súhlasím s pravidlami (Povinné)",
-    "terms": "Všeobecné obchodné podmienky",
+    "consents": "Súhlasy a dohody",
+    "consentText": "*Vyjadrujem súhlas so {terms} a vyhlasujem, že som sa oboznámil/a so {privacy}.",
+    "terms": "Všeobecnými obchodnými podmienkami",
+    "privacy": "Zásadami ochrany osobných údajov",
+    "consentRequired": "Pre dokončenie rezervácie musíte súhlasiť s pravidlami.",
     "totalPrice": "Celková cena",
-    "bookButton": "Rezervovať tréning s platobnou povinnosťou",
+    "child": "dieťa",
+    "children": "deti",
+    "bookWithPayment": "Potvrdiť rezerváciu",
+    "bookWithSeasonTicket": "Rezervovať s permanentkou",
+    "bookWithCredit": "Rezervovať s kreditom",
+    "paymentObligation": "s povinnosťou platby",
     "redirecting": "Presmerovanie na platbu...",
     "availability": {
+      "warning": "Upozornenie na dostupnosť",
       "available": "Dostupných {count} miest",
-      "unavailable": "Zostáva len {count} miest (potrebujete {needed})",
-      "full": "Všetky miesta sú už obsadené"
+      "unavailable": "Zostáva len {count} voľné miesto (potrebné {needed}).",
+      "full": "Všetky miesta sú už obsadené pre tento termín. Vyberte si prosím iný dátum alebo čas."
     },
     "paymentSuccess": "Platba úspešná! Rezervácia potvrdená.",
     "paymentSuccessTitle": "🎉 Platba Úspešná! 🎉",
@@ -48,7 +67,6 @@
     "yearSingular": "rok",
     "yearPlural2to4": "roky",
     "yearPlural5Plus": "rokov",
-    "childAge": "Vek {number}. dieťaťa",
     "youHaveCredit": "Máte",
     "useCredit": "Použiť kredit",
     "creditSuccess": "Rezervácia vytvorená pomocou kreditu!",
@@ -56,30 +74,31 @@
     "paymentError": "Potvrdenie platby zlyhalo. Kontaktujte podporu.",
     "seasonTicketNotFound": "Vybraná permanentka nebola nájdená",
     "notEnoughEntries": "Nedostatok vstupov vo vašej permanentke. Potrebujete: {needed}, Dostupné: {available}",
+    "selectSeasonTicketRequired": "Prosím, vyberte permanentku.",
     "seasonTicketExpired": "Vaša permanentka expirovala",
-    "bookWithCredit": "Rezervovať s kreditom",
     "chooseCredit": "Vyberte si kredit",
     "noCredits": "Nie sú k dispozícii žiadne kredity.",
     "originalDate": "Pôvodný dátum",
-    "children": "Deti",
     "fillFormFromOriginal": "Vyplniť formulár podľa pôvodnej rezervácie",
     "useThisCredit": "Použiť tento kredit",
     "cancel": "Zrušiť",
     "creditModeReadOnly": "Nastavené z pôvodnej rezervácie - len na čítanie",
-    "child": "dieťa",
-    "childrenPlural": "deti",
-    "processing": "Spracovávam..."
+    "selectDateTimeRequired": "Prosím, vyberte dátum a čas pre rezerváciu s kreditom.",
+    "secureBooking": "Vaša rezervácia je zabezpečená a chránená",
+    "processing": "Spracovávam...",
+    "alreadyBooked": "Na tento termín ste už prihlásený. Skontrolujte si svoj profil."
   },
   "admin": {
     "title": "Admin Panel",
-    "addSession": "Pridať reláciu",
+    "addSession": "Pridať",
     "trainingType": "Typ tréningu",
-    "dateTime": "Dátum a čas",
-    "maxParticipants": "Maximálny počet"
+    "date": "Dátum",
+    "time": "Čas",
+    "maxParticipants": "Maximálny počet účastníkov"
   },
   "navbar": {
     "about": "O Nitračikovi",
-    "photos": "Galéria",
+    "schedule": "Rozvrh",
     "booking": "Rezervuj si termín",
     "contact": "Kontakt",
     "profile": "Profil",
@@ -92,6 +111,28 @@
   "about": {
     "title": "O nás",
     "description": "Vitajte v Nitraciku! Špecializujeme sa na profesionálne tréningové sessiony šité na mieru vašim potrebám. Pripojte sa k nám a zlepšite svoje schopnosti."
+    ,"carousel": [
+      {
+        "title": "Senzorické messy play",
+        "description": "Hravé aktivity pre najmenších plné farieb, textúr a objavovania"
+      },
+      {
+        "title": "Rozvoj motoriky",
+        "description": "Jemná aj hrubá motorika podporená hrou a pohybom"
+      },
+      {
+        "title": "Podpora rozvoja mozgu",
+        "description": "Podnety, ktoré prirodzene rozvíjajú zmysly a kognitívne funkcie"
+      },
+      {
+        "title": "Bezpečné prostredie",
+        "description": "Príjemný priestor prispôsobený malým deťom"
+      },
+      {
+        "title": "Spoločný čas",
+        "description": "Kvalitne strávený čas rodiča s dieťaťom"
+      }
+    ]
   },
   "contact": {
     "title": "Kontaktujte nás",
@@ -105,6 +146,9 @@
       "emailPlaceholder": "Zadajte váš email",
       "message": "Vaša správa",
       "messagePlaceholder": "Napíšte svoju správu",
+      "consentText": "*Vyjadrujem súhlas so {terms} a vyhlasujem, že som sa oboznámil/a so {privacy}.",
+      "terms": "Všeobecnými obchodnými podmienkami",
+      "privacy": "Zásadami ochrany osobných údajov",
       "submit": "Odoslať správu",
       "sending": "Odosielam...",
       "success": "Správa úspešne odoslaná!",
@@ -141,6 +185,17 @@
       "repeatPassword": "Zopakujte heslo",
       "address": "Adresa",
       "submit": "Registrovať sa",
+      "consentText": "*Vyjadrujem súhlas so {terms} a vyhlasujem, že som sa oboznámil/a so {privacy}.",
+      "terms": "Všeobecnými obchodnými podmienkami",
+      "privacy": "Zásadami ochrany osobných údajov",
+      "noStreetLabel": "Obec nemá ulice (použiť len číslo domu)",
+      "passwordRequirements": {
+        "length": "Minimálne 8 znakov",
+        "upper": "1 veľké písmeno (A-Z)",
+        "lower": "1 malé písmeno (a-z)",
+        "number": "1 číslo (0-9)",
+        "special": "1 špeciálny znak (@$!%*?&)"
+      },
       "loading": "Registrujem...",
       "loginPrompt": "Už máte účet?",
       "loginLink": "Prihláste sa tu",
@@ -159,6 +214,39 @@
       }
     }
   },
+  "seasonTicketsPage": {
+    "title": "Permanentky",
+    "subtitle": "Ušetrite s našimi výhodnými balíčkami vstupov",
+    "entries": "Vstupov",
+    "buyButton": "Kúpiť permanentku",
+    "processing": "Spracovávam...",
+    "paymentObligation": "(s povinnosťou platby)",
+    "mostPopular": "Najobľúbenejšie",
+    "perEntry": "Cena za vstup: {price}€",
+    "validity": "Platnosť: 6 mesiacov",
+    "validityNote": "od zakúpenia",
+    "restriction": "Platí len pre MIDI a MAXI",
+    "restrictionLabel": "Platí len:",
+    "restrictionDetail": "Nevzťahuje sa na iné typy tréningov",
+    "filterLabel": "Vyberte hodinu",
+    "filterPlaceholder": "Vyberte hodinu...",
+    "noOffers": "Pre vybraný tréning zatiaľ nie sú dostupné permanentky.",
+    "termsAgreement": "Súhlasím s",
+    "privacyPolicy": "Ochranou osobných údajov",
+    "savings": "Úspora: {percent}%",
+    "validFor": "Platí len pre",
+    "and": "a",
+    "tags": {
+      "smallSaver": "Štartovací balík",
+      "standard": "Štandard",
+      "bestValue": "Najvýhodnejšie"
+    },
+    "entriesLabel": {
+      "one": "vstup",
+      "few": "vstupy",
+      "many": "vstupov"
+    }
+  },
   "profile": {
     "title": "Nastavenia účtu",
     "report": {
@@ -172,21 +260,21 @@
       }
     },
     "sessionType": {
-      "midi": "MIDI relácie",
-      "mini": "MINI relácie",
-      "maxi": "MAXI relácie"
+      "midi": "MIDI",
+      "mini": "MINI",
+      "maxi": "MAXI"
     },
     "table": {
       "date": "Dátum",
       "type": "Typ",
       "availableSpots": "Dostupné miesta",
-      "participants": "Účastníci (deti)",
+      "participants": "Účastníci",
       "child": "Počet detí: {count}",
       "children": "Deti",
       "actions": "Akcie"
     },
     "seasonTickets": {
-      "title": "Držitelia sezónnych lístkov",
+      "title": "Držitelia permanentiek",
       "noTickets": "Žiadni používatelia si nekúpili permanentky.",
       "name": "Meno",
       "email": "Email",
@@ -203,8 +291,8 @@
       "expiryDate": "Dátum expirácie"
     },
     "bookedSessions": {
-      "title": "Vaše rezervované relácie",
-      "noSessions": "Nemáte žiadne rezervované relácie."
+      "title": "Vaše rezervované hodiny",
+      "noSessions": "Nemáte žiadne rezervované hodiny."
     },
     "dangerZone": {
       "title": "Nebezpečná zóna",
@@ -220,14 +308,14 @@
       "confirm": "Potvrdiť vymazanie"
     },
     "cancel": {
-      "button": "Zrušiť reláciu",
-      "alert": "Zrušenie je povolené iba do 10 hodín pred reláciou.",
-      "confirm": "Naozaj chcete zrušiť túto reláciu?",
-      "success": "Relácia bola úspešne zrušená. E-maily boli odoslané vám a administrátorovi.",
+      "button": "Zrušiť hodinu",
+      "alert": "Zrušenie je povolené iba do 10 hodín pred hodinou.",
+      "confirm": "Naozaj chcete zrušiť túto hodinu?",
+      "success": "Hodina bola úspešne zrušená. E-maily boli odoslané vám a administrátorovi.",
       "error": {
         "notFound": "Rezerváciu nebolo možné nájsť. Možno bola už vymazaná alebo neexistuje.",
         "unauthorized": "Nemáte oprávnenie na zrušenie tejto rezervácie.",
-        "generic": "Nepodarilo sa zrušiť reláciu. Skúste to znova."
+        "generic": "Nepodarilo sa zrušiť hodinu. Skúste to znova."
       },
       "tooltip": "Zrušenie už nie je možné, pretože do tréningu zostáva menej ako 10 hodín."
     },
@@ -241,17 +329,17 @@
         "generic": "Nepodarilo sa vymazať účet"
       },
       "cancelled": "ZRUŠENÉ",
-      "cancelSession": "Zrušiť reláciu",
+      "cancelSession": "Zrušiť hodinu",
       "forceCancel": "Vynútené zrušenie",
-      "hoursUntilSession": "hodín do relácie",
+      "hoursUntilSession": "hodín do hodiny",
       "cancelModal": {
-        "title": "Zrušiť reláciu",
+        "title": "Zrušiť hodinu",
         "chooseOption": "Vyberte možnosť zrušenia:",
-        "refundOption": "Zrušiť reláciu a požiadať o refundáciu",
-        "replacementOption": "Nahradiť inou reláciou",
-        "selectReplacement": "Vyberte náhradnú reláciu:",
-        "chooseSession": "Vyberte reláciu...",
-        "noReplacements": "Nenašli sa žiadne dostupné náhradné relácie.",
+        "refundOption": "Zrušiť hodinu a požiadať o refundáciu",
+        "replacementOption": "Nahradiť inou hodinou",
+        "selectReplacement": "Vyberte náhradnú hodinu:",
+        "chooseSession": "Vyberte hodinu...",
+        "noReplacements": "Nenašli sa žiadne dostupné náhradné hodiny.",
         "refundInfo": "Informácie o refundácii:",
         "refundDetails": "Vaša refundácia bude spracovaná automaticky a môže trvať 5-10 pracovných dní, kým sa objaví na vašom účte.",
         "seasonTicketInfo": "Táto rezervácia bola vytvorená pomocou permanentky. Refundácia nie je možná; vstupy budú vrátené na vašu permanentku.",
@@ -262,7 +350,7 @@
       "seasonTicketSuccess": "{count} vstupov bolo vrátených na vašu permanentku.",
       "creditReturned": "Váš kredit bol vrátený na váš účet.",
       "refundFailed": "Spracovanie refundácie zlyhalo.",
-      "replacementSuccess": "Relácia bola úspešne nahradená."
+      "replacementSuccess": "Hodina bola úspešne nahradená."
     },
     "info": {
       "title": "Vaše profilové informácie",
@@ -286,10 +374,10 @@
       "cancel": "Zrušiť"
     },
     "cancelled": "ZRUŠENÉ",
-    "hoursUntilSession": "hodín do relácie",
+    "hoursUntilSession": "hodín do udalosti",
     "admin": {
       "readyToDelete": "✅ Pripravené na vymazanie",
-      "deleteSession": "🗑️ Vymazať reláciu",
+      "deleteSession": "🗑️ Vymazať hodinu",
       "pendingCancellations": "⏳ {count} čaká",
       "forceCancelTooltip": "Vynútené zrušenie do 10 hodín"
     },
@@ -312,5 +400,8 @@
     "fri": "PI",
     "sat": "SO",
     "sun": "NE"
+  },
+  "greetingBar": {
+    "hello": "Ahoj"
   }
 }

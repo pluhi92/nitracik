@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom';
+import api from '../api/api';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://localhost:5000/api/forgot-password', { email });
+      const response = await api.post('/api/forgot-password', { email });
       setMessage(response.data.message);
     } catch (error) {
       setError(error.response?.data.message || 'Failed to send reset email. Please try again.');

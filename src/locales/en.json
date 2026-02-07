@@ -5,40 +5,59 @@
     "seasonTickets": "Purchase Season Ticket",
     "trainingType": {
       "label": "Select Training Type",
-      "placeholder": "Choose...",
+      "placeholder": "Choose training type...",
       "mini": "MINI",
       "midi": "MIDI",
       "maxi": "MAXI"
     },
+    "trainingDetails": "Training Details",
+    "personalInfo": "Personal Information",
     "name": "Your Name",
     "email": "Your Email",
     "mobile": "Your Mobile Number",
+    "mobilePlaceholder": "+421 xxx xxx xxx",
     "address": "Address",
     "selectDate": "Select Available Date",
-    "selectTime": "Select Time",
+    "selectTime": "Select Time Slot",
+    "childrenInfo": "Children Information",
     "childrenCount": "Number of Children",
     "childrenAge": "Age of Children",
-    "chooseAge": "Choose an age",
+    "childAge": "{number} Child",
+    "chooseAge": "Select age",
     "selectAllAges": "Please select an age for all children.",
+    "additionalOptions": "Additional Options",
     "notes": "Additional Notes",
+    "notesPlaceholder": "Any special requirements, allergies, or additional information...",
     "useSeasonTicket": "Use Season Ticket",
     "selectSeasonTicket": "Select Season Ticket",
     "seasonTicketOption": "Season Ticket",
-    "seasonTicketEntries": "Remaining entries: {count}",
+    "seasonTicketEntries": "Entries: {count}",
     "notCoveredBySeasonTicket": "Not covered by season ticket",
-    "accompanyingPerson": "Participation of Accompanying Person (€3)",
+    "noSeasonTicketForType": "You do not have a season ticket for this session.",
+    "accompanyingPerson": "Participation of Accompanying Person",
+    "accompanyingPersonShort": "accompanying person",
+    "accompanyingPersonHelp": "An accompanying person is another person, other than the parent, who attends the session together with the child.",
     "photoConsent": "Photo Publication Consent",
     "agree": "AGREE to publish photos of my children",
     "disagree": "DISAGREE to publish photos of my children",
-    "consent": "I agree to the rules (Required)",
-    "terms": "General Terms and Conditions",
+    "consents": "Consents and Agreements",
+    "consentText": "*I agree to the {terms} and declare that I have read the {privacy}.",
+    "terms": "Terms and Conditions",
+    "privacy": "Privacy Policy",
+    "consentRequired": "You must agree to the rules to complete the booking.",
     "totalPrice": "Total Price",
-    "bookButton": "Book Training with Payment Obligation",
+    "child": "child",
+    "children": "children",
+    "bookWithPayment": "Confirm reservation",
+    "bookWithSeasonTicket": "Book with Season Ticket",
+    "bookWithCredit": "Book with Credit",
+    "paymentObligation": "with payment obligation",
     "redirecting": "Redirecting to Payment...",
     "availability": {
+      "warning": "Availability Warning",
       "available": "{count} spots available",
-      "unavailable": "Only {count} spots remain (needed {needed})",
-      "full": "All places are already occupied for this session"
+      "unavailable": "Only {count} spot(s) remain (needed {needed})",
+      "full": "All places are already occupied for this session. Please choose another date or time."
     },
     "paymentSuccess": "Payment successful! Booking confirmed.",
     "paymentSuccessTitle": "🎉 Payment Successful! 🎉",
@@ -47,7 +66,6 @@
     "seasonTicketSuccess": "Booking created using season ticket!",
     "yearSingular": "year",
     "yearPlural": "years",
-    "childAge": "Age of {number} child",
     "youHaveCredit": "You have",
     "useCredit": "Use Credit",
     "creditSuccess": "Booked with credit!",
@@ -55,25 +73,26 @@
     "paymentError": "Payment confirmation failed. Please contact support.",
     "seasonTicketNotFound": "Selected season ticket not found",
     "notEnoughEntries": "Not enough entries in your season ticket. Needed: {needed}, Available: {available}",
+    "selectSeasonTicketRequired": "Please select a season ticket.",
     "seasonTicketExpired": "Your season ticket has expired",
-    "bookWithCredit": "Book with Credit",
     "chooseCredit": "Choose Your Credit",
     "noCredits": "No credits available.",
     "originalDate": "Original Date",
-    "children": "Children",
     "fillFormFromOriginal": "Fill in the form based on the original booking",
     "useThisCredit": "Use this credit",
     "cancel": "Cancel",
     "creditModeReadOnly": "Set from original booking - read only",
-    "child": "child",
-    "childrenPlural": "children",
-    "processing": "Processing..."
+    "selectDateTimeRequired": "Please select date and time for your credit booking.",
+    "secureBooking": "Your booking is secure and protected",
+    "processing": "Processing...",
+    "alreadyBooked": "You are already booked for this session. Please check your profile."
   },
   "admin": {
     "title": "Admin Controls",
     "addSession": "Add Session",
     "trainingType": "Training Type",
-    "dateTime": "Date & Time",
+    "date": "Date",
+    "time": "Time",
     "maxParticipants": "Max Participants"
   },
   "navbar": {
@@ -91,6 +110,28 @@
   "about": {
     "title": "About Us",
     "description": "Welcome to Nitracik! We specialize in professional training sessions tailored to your needs. Join us to grow your skills and achieve your goals."
+    ,"carousel": [
+      {
+        "title": "Sensory messy play",
+        "description": "Playful activities full of colors, textures, and discovery"
+      },
+      {
+        "title": "Motor skills development",
+        "description": "Fine and gross motor skills supported through play"
+      },
+      {
+        "title": "Brain development support",
+        "description": "Stimuli that naturally build senses and cognitive functions"
+      },
+      {
+        "title": "Safe environment",
+        "description": "A cozy space designed for small children"
+      },
+      {
+        "title": "Together time",
+        "description": "Meaningful parent-child time spent together"
+      }
+    ]
   },
   "contact": {
     "title": "Contact Us",
@@ -104,6 +145,9 @@
       "emailPlaceholder": "Enter your email",
       "message": "Your Message",
       "messagePlaceholder": "Write your message here",
+      "consentText": "*I agree to the {terms} and declare that I have read the {privacy}.",
+      "terms": "Terms and Conditions",
+      "privacy": "Privacy Policy",
       "submit": "Send Message",
       "sending": "Sending...",
       "success": "Message sent successfully!",
@@ -140,6 +184,17 @@
       "repeatPassword": "Repeat Password",
       "address": "Address",
       "submit": "Register",
+      "consentText": "*I agree to the {terms} and declare that I have read the {privacy}.",
+      "terms": "Terms and Conditions",
+      "privacy": "Privacy Policy",
+      "noStreetLabel": "The town has no street names (use house number only)",
+      "passwordRequirements": {
+        "length": "Min. 8 characters",
+        "upper": "1 uppercase letter (A-Z)",
+        "lower": "1 lowercase letter (a-z)",
+        "number": "1 number (0-9)",
+        "special": "1 special char (@$!%*?&)"
+      },
       "loading": "Registering...",
       "loginPrompt": "Already registered?",
       "loginLink": "Login here",
@@ -156,6 +211,38 @@
         "emailExists": "Email is already registered",
         "generic": "Registration failed. Please try again."
       }
+    }
+  },
+  "seasonTicketsPage": {
+    "title": "Season Tickets",
+    "subtitle": "Save money with our bundle packages",
+    "entries": "Entries",
+    "buyButton": "Purchase Ticket",
+    "processing": "Processing...",
+    "paymentObligation": "(payment obligation)",
+    "mostPopular": "Most Popular",
+    "perEntry": "Price per entry: {price}€",
+    "validity": "Validity: 6 months",
+    "validityNote": "from purchase",
+    "restriction": "Valid only for MIDI & MAXI",
+    "restrictionLabel": "Valid only:",
+    "restrictionDetail": "Not applicable for other training types",
+    "filterLabel": "Choose a session",
+    "filterPlaceholder": "Choose a session...",
+    "noOffers": "No season tickets available for the selected session.",
+    "termsAgreement": "*I agree to the",
+    "privacyPolicy": "Privacy Policy",
+    "savings": "Savings: {percent}%",
+    "validFor": "Valid only for",
+    "and": "&",
+    "tags": {
+      "smallSaver": "Small Saver",
+      "standard": "Standard",
+      "bestValue": "Best Value"
+    },
+    "entriesLabel": {
+      "one": "entry",
+      "many": "entries"
     }
   },
   "profile": {
@@ -179,9 +266,9 @@
       "date": "Date",
       "type": "Type",
       "availableSpots": "Available Spots",
-      "participants": "Participants (Children)",
+      "participants": "Participants",
       "child": "Number of children: {count}",
-      "children": "Children",
+      "children": "children",
       "actions": "Actions"
     },
     "seasonTickets": {
@@ -193,7 +280,7 @@
       "remainingEntries": "Remaining Entries"
     },
     "mySeasonTickets": {
-      "title": "My Season Tickets",
+      "title": "Your Season Tickets",
       "noTickets": "You have no active season tickets.",
       "ticketId": "Ticket ID",
       "entriesTotal": "Total Entries",
@@ -311,5 +398,8 @@
     "fri": "FRI",
     "sat": "SAT",
     "sun": "SUN"
+  },
+  "greetingBar": {
+    "hello": "Hello"
   }
 }

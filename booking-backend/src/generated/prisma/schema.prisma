@@ -1,0 +1,233 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model bookings {
+  id                     Int                    @id @default(autoincrement())
+  user_id                Int?
+  training_id            Int?
+  booked_at              DateTime?              @default(now()) @db.Timestamptz(6)
+  number_of_children     Int                    @default(1)
+  amount_paid            Decimal?               @db.Decimal(10, 2)
+  payment_time           DateTime?              @db.Timestamptz(6)
+  session_id             String?
+  payment_intent_id      String?
+  credit_id              Int?
+  children_ages          String?
+  photo_consent          Boolean?
+  mobile                 String?
+  note                   String?
+  accompanying_person    Boolean?
+  active                 Boolean?               @default(true)
+  booking_type           String?                @default("paid") @db.VarChar(20)
+  archived_training_date DateTime?              @db.Timestamptz(6)
+  archived_training_type String?                @db.VarChar(255)
+  training_availability  training_availability? @relation(fields: [training_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                  users?                 @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  credits                credits?               @relation(fields: [credit_id], references: [id], onUpdate: NoAction, map: "fk_credit")
+  refunds                refunds[]
+  season_ticket_usage    season_ticket_usage[]
+  checked_in             Boolean                @default(false)
+
+  @@index([credit_id], map: "idx_bookings_credit_id")
+}
+
+model credits {
+  id                    Int                    @id @default(autoincrement())
+  user_id               Int
+  session_id            Int?
+  child_count           Int
+  children_ages         String?
+  photo_consent         Boolean?
+  mobile                String?
+  note                  String?
+  training_type         String                 @db.VarChar(50)
+  original_date         DateTime               @db.Timestamptz(6)
+  reason                String?
+  status                String                 @default("unused") @db.VarChar(20)
+  created_at            DateTime?              @default(now()) @db.Timestamptz(6)
+  used_at               DateTime?              @db.Timestamptz(6)
+  accompanying_person   Boolean?               @default(false)
+  bookings              bookings[]
+  training_availability training_availability? @relation(fields: [session_id], references: [id], onUpdate: NoAction)
+  users                 users                  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([session_id], map: "idx_credits_session_id")
+  @@index([status], map: "idx_credits_status")
+  @@index([user_id], map: "idx_credits_user_id")
+}
+
+model faqs {
+  id            Int       @id @default(autoincrement())
+  question      String
+  answer        String
+  display_order Int?      @default(0)
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model refunds {
+  id         Int       @id @default(autoincrement())
+  booking_id Int?
+  refund_id  String?   @unique @db.VarChar(255)
+  amount     Decimal?  @db.Decimal(10, 2)
+  status     String?   @db.VarChar(50)
+  reason     String?
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at DateTime? @default(now()) @db.Timestamptz(6)
+  bookings   bookings? @relation(fields: [booking_id], references: [id], onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model season_ticket_usage {
+  id               Int             @id @default(autoincrement())
+  season_ticket_id Int?
+  booking_id       Int?
+  training_type_id Int?
+  used_date        DateTime        @db.Timestamptz(6)
+  created_at       DateTime?       @default(now()) @db.Timestamptz(6)
+  bookings         bookings?       @relation(fields: [booking_id], references: [id], onUpdate: NoAction)
+  season_tickets   season_tickets? @relation(fields: [season_ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  training_types   training_types? @relation(fields: [training_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model season_tickets {
+  id                  Int                   @id @default(autoincrement())
+  user_id             Int?
+  training_type_id    Int?
+  entries_total       Int
+  entries_remaining   Int
+  purchase_date       DateTime              @db.Timestamptz(6)
+  expiry_date         DateTime              @db.Timestamptz(6)
+  stripe_payment_id   String?
+  created_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  amount_paid         Decimal?              @db.Decimal(10, 2)
+  payment_time        DateTime?             @db.Timestamptz(6)
+  season_ticket_usage season_ticket_usage[]
+  users               users?                @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  training_types      training_types?       @relation(fields: [training_type_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+}
+
+model season_ticket_offers {
+  id               Int            @id @default(autoincrement())
+  training_type_id Int
+  entries          Int
+  price            Decimal        @db.Decimal(10, 2)
+  active           Boolean        @default(true)
+  created_at       DateTime?      @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime?      @default(now()) @db.Timestamptz(6)
+  training_types   training_types @relation(fields: [training_type_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([training_type_id, entries])
+}
+
+model training_availability {
+  id               Int             @id @default(autoincrement())
+  training_type    String          @db.VarChar(50)
+  training_date    DateTime        @db.Timestamptz(6)
+  max_participants Int?
+  created_at       DateTime?       @default(now()) @db.Timestamptz(6)
+  cancelled        Boolean?        @default(false)
+  training_type_id Int?
+  bookings         bookings[]
+  credits          credits[]
+  training_types   training_types? @relation(fields: [training_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model training_prices {
+  id               Int            @id @default(autoincrement())
+  training_type_id Int
+  child_count      Int
+  price            Decimal        @db.Decimal(6, 2)
+  training_types   training_types @relation(fields: [training_type_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([training_type_id, child_count])
+}
+
+model training_types {
+  id                        Int                     @id @default(autoincrement())
+  name                      String                  @unique @db.VarChar(50)
+  description               String?
+  duration_minutes          Int                     @default(60)
+  accompanying_person_price Decimal?                @default(3.00) @db.Decimal(6, 2)
+  active                    Boolean?                @default(true)
+  created_at                DateTime?               @default(now()) @db.Timestamptz(6)
+  color_hex                 String?                 @default("#3b82f6") @db.VarChar(7)
+  training_availability     training_availability[]
+  training_prices           training_prices[]
+  season_tickets            season_tickets[]
+  season_ticket_offers      season_ticket_offers[]
+  season_ticket_usage       season_ticket_usage[]
+}
+
+model user_sessions {
+  sid    String   @id(map: "session_pkey") @db.VarChar
+  sess   Json     @db.Json
+  expire DateTime @db.Timestamptz(6)
+
+  @@index([expire], map: "IDX_session_expire")
+}
+
+model users {
+  id                 Int              @id @default(autoincrement())
+  first_name         String           @db.VarChar(100)
+  last_name          String           @db.VarChar(100)
+  email              String           @unique @db.VarChar(100)
+  password           String           @db.VarChar(100)
+  address            String
+  verification_token String?
+  verified           Boolean?         @default(false)
+  reset_token        String?
+  role               String?          @default("user") @db.VarChar(20)
+  created_at         DateTime?        @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime?        @default(now()) @db.Timestamptz(6)
+  mobile             String?          @db.VarChar(20)
+  bookings           bookings[]
+  credits            credits[]
+  season_tickets     season_tickets[]
+}
+
+model blog_labels {
+  id         Int          @id @default(autoincrement())
+  name       String       @unique @db.VarChar(100)
+  color      String       @default("#3b82f6") @db.VarChar(7)
+  created_at DateTime?    @default(now()) @db.Timestamptz(6)
+  blog_posts blog_posts[]
+}
+
+model blog_posts {
+  id         Int          @id @default(autoincrement())
+  title      String       @db.VarChar(255)
+  slug       String       @unique
+  perex      String       @db.Text
+  content    String?      @db.Text
+  image_url  String?      @db.VarChar(255)
+  created_at DateTime?    @default(now()) @db.Timestamptz(6)
+  updated_at DateTime?    @default(now()) @db.Timestamptz(6)
+  label_id   Int?
+  label      blog_labels? @relation(fields: [label_id], references: [id], onDelete: SetNull)
+
+  @@index([label_id])
+}
+
+model google_ratings_config {
+  id          Int      @id @default(1)
+  business_id String?  @db.VarChar(255)
+  enabled     Boolean  @default(false)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model about_content {
+  id           Int       @id @default(1)
+  title        String    @db.VarChar(255)
+  description  String    @db.Text
+  description2 String    @db.Text
+  updated_at   DateTime? @default(now()) @db.Timestamptz(6)
+}

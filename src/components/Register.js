@@ -1,244 +1,541 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useTranslation } from '../contexts/LanguageContext';
+import api from '../api/api';
+import { Turnstile } from '@marsidev/react-turnstile'; // IMPORT CLOUDFLARE TURNSTILE
+
+// --- IKONY ---
+const CheckIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+  </svg>
+);
+
+const XIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+
+const SpinnerIcon = ({ className }) => (
+  <svg className={`animate-spin ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+  </svg>
+);
 
 const Register = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+
+  // --- STATE ---
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
-  const [address, setAddress] = useState('');
-  const [errors, setErrors] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    address: '',
-  });
-  const [repeatPasswordError, setRepeatPasswordError] = useState('');
+
+  // --- SMART ADRESA STATE ---
+  const [addrCity, setAddrCity] = useState('');
+  const [addrStreet, setAddrStreet] = useState('');
+  const [addrNumber, setAddrNumber] = useState('');
+  const [addrZip, setAddrZip] = useState('');
+  const [hasNoStreet, setHasNoStreet] = useState(false);
+
+  const [citySuggestions, setCitySuggestions] = useState([]);
+  const [streetSuggestions, setStreetSuggestions] = useState([]);
+  const [isSearchingCity, setIsSearchingCity] = useState(false);
+  const [isSearchingStreet, setIsSearchingStreet] = useState(false);
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [showStreetDropdown, setShowStreetDropdown] = useState(false);
+
+  // Checkbox
+  const [agreementChecked, setAgreementChecked] = useState(false);
+
+  // Anti-bot & Security
+  const [honey, setHoney] = useState('');
+  const [captchaToken, setCaptchaToken] = useState(null); // STATE PRE TURNSTILE TOKEN
+  const turnstileRef = useRef(null); // REF PRE RESETOVANIE TURNSTILE
+
+  // UX State
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showRepeatPassword, setShowRepeatPassword] = useState(false);
+  const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate(); // Initialize useNavigate
+
+  const cityInputRef = useRef(null);
+  const streetInputRef = useRef(null);
+  const numberInputRef = useRef(null);
+
+//   console.log(
+//   'HCAPTCHA KEY (CRA):',
+//   process.env.REACT_APP_HCAPTCHA_SITEKEY
+// );
+
+  // --- LOGIC ---
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (cityInputRef.current && !cityInputRef.current.contains(event.target)) setShowCityDropdown(false);
+      if (streetInputRef.current && !streetInputRef.current.contains(event.target)) setShowStreetDropdown(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // --- ADRESS SEARCH LOGIC ---
+
+  // 1. Vyhľadávanie MESTA
+  useEffect(() => {
+    // Funkciu definujeme priamo tu, aby bola "čerstvá" pri každom spustení efektu
+    const searchCity = async (query) => {
+      if (query.length < 2) return;
+      setIsSearchingCity(true);
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?city=${query}&country=Slovakia&format=json&addressdetails=1&limit=5&accept-language=sk`);
+        const data = await res.json();
+        setCitySuggestions(data);
+        setShowCityDropdown(true);
+      } catch (err) {
+        console.error("City search failed", err);
+      } finally {
+        setIsSearchingCity(false);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      // Pridali sme showCityDropdown do podmienky aj do závislostí
+      if (addrCity && showCityDropdown) searchCity(addrCity);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [addrCity, showCityDropdown]); // Teraz je to kompletné
+
+  // 2. Vyhľadávanie ULICE
+  useEffect(() => {
+    const searchStreet = async (query) => {
+      // Tu používame addrCity, takže ho musíme dať do závislostí dole
+      if (query.length < 2 || !addrCity || hasNoStreet) return;
+      setIsSearchingStreet(true);
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?street=${query}&city=${addrCity}&country=Slovakia&format=json&addressdetails=1&limit=5&accept-language=sk`);
+        const data = await res.json();
+        setStreetSuggestions(data);
+        setShowStreetDropdown(true);
+      } catch (err) {
+        console.error("Street search failed", err);
+      } finally {
+        setIsSearchingStreet(false);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      if (addrStreet && showStreetDropdown && !hasNoStreet) searchStreet(addrStreet);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [addrStreet, hasNoStreet, showStreetDropdown, addrCity]); // Pridané všetky potrebné závislosti
+
+  const handleSelectCity = (city) => {
+    const cityName = city.address.city || city.address.town || city.address.village || city.display_name.split(',')[0];
+    setAddrCity(cityName);
+    setAddrZip('');
+    setShowCityDropdown(false);
+    if (city.address.postcode) setAddrZip(city.address.postcode);
+
+    if (hasNoStreet && numberInputRef.current) {
+      numberInputRef.current.focus();
+    } else if (streetInputRef.current) {
+      streetInputRef.current.focus();
+    }
+  };
+
+  const handleSelectStreet = (street) => {
+    const streetName = street.address.road || street.display_name.split(',')[0];
+    setAddrStreet(streetName);
+    setShowStreetDropdown(false);
+    if (street.address.postcode) setAddrZip(street.address.postcode);
+    if (numberInputRef.current) numberInputRef.current.focus();
+  };
+
+  // --- VALIDATION ---
+  const [passwordCriteria, setPasswordCriteria] = useState({
+    length: false, upper: false, lower: false, number: false
+  });
+
+  useEffect(() => {
+    setPasswordCriteria({
+      length: password.length >= 8,
+      upper: /[A-Z]/.test(password),
+      lower: /[a-z]/.test(password),
+      number: /\d/.test(password),
+    });
+  }, [password]);
 
   const validateField = (name, value) => {
-    const errorMessages = t.login.register.errors;
+    const errorMessages = t?.login?.register?.errors || {};
     switch (name) {
-      case 'firstName':
-        if (!value) return errorMessages.firstNameRequired;
-        break;
-      case 'lastName':
-        if (!value) return errorMessages.lastNameRequired;
-        break;
+      case 'firstName': if (!value) return errorMessages.firstNameRequired || 'Required'; break;
+      case 'lastName': if (!value) return errorMessages.lastNameRequired || 'Required'; break;
       case 'email':
-        if (!value) return errorMessages.emailRequired;
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return errorMessages.invalidEmail;
+        if (!value) return errorMessages.emailRequired || 'Required';
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return errorMessages.emailInvalid || 'Invalid email';
         break;
-      case 'password':
-        if (!value) return errorMessages.passwordRequired;
-        if (value.length < 6) return errorMessages.passwordLength;
-        break;
-      case 'address':
-        if (!value) return errorMessages.addressRequired;
-        break;
-      default:
-        break;
+      case 'addrCity': if (!value) return 'City is required'; break;
+      case 'addrStreet': if (!value && !hasNoStreet) return 'Street is required'; break;
+      case 'addrNumber': if (!value) return 'Number is required'; break;
+      case 'addrZip': if (!value) return 'ZIP is required'; break;
+      default: break;
     }
     return '';
   };
 
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    if (name === 'password') {
+      setIsPasswordFocused(false);
+      setPasswordTouched(true);
+    } else {
+      const error = validateField(name, value);
+      setErrors((prev) => ({ ...prev, [name]: error }));
+    }
+  };
+
+  const isPasswordValid = Object.values(passwordCriteria).every(Boolean);
+  const doPasswordsMatch = password && repeatPassword && password === repeatPassword;
+  const isAddressValid = addrCity && (hasNoStreet || addrStreet) && addrNumber && addrZip;
+
+  // VALIDACIA FORMULARA TERAZ KONTROLUJE captchaToken
+  const isFormValid =
+    !Object.values(errors).some((error) => error) &&
+    firstName && lastName && email &&
+    isPasswordValid && doPasswordsMatch &&
+    isAddressValid &&
+    agreementChecked && captchaToken;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setApiError('');
-  
-    const newErrors = {
-      firstName: validateField('firstName', firstName),
-      lastName: validateField('lastName', lastName),
-      email: validateField('email', email),
-      password: validateField('password', password),
-      address: validateField('address', address),
-    };
-    setErrors(newErrors);
-  
-    if (password !== repeatPassword) {
-      setRepeatPasswordError(t.login.register.errors.passwordMatch);
-      setLoading(false);
-      return;
+    if (!doPasswordsMatch) return;
+
+    // Adresa logika
+    let fullAddress = '';
+    if (hasNoStreet) {
+      fullAddress = `${addrCity} ${addrNumber}, ${addrZip} ${addrCity}`;
     } else {
-      setRepeatPasswordError('');
+      fullAddress = `${addrStreet} ${addrNumber}, ${addrZip} ${addrCity}`;
     }
-  
-    if (Object.values(newErrors).some((error) => error)) {
-      setLoading(false);
-      return;
-    }
-  
+
+    setLoading(true);
     try {
-      const response = await axios.post('http://localhost:5000/api/register', {
-        firstName,
-        lastName,
-        email,
-        password,
-        address,
+      const response = await api.post('/api/register', {
+        firstName, lastName, email, password,
+        address: fullAddress,
+        _honey: honey,
+        turnstileToken: captchaToken // POSIELAME TURNSTILE TOKEN NA BACKEND
       });
-      console.log('Registration successful:', response.data);
-  
-      // Show message instead of redirecting
-      setApiError(t.login.register.success);
-      setTimeout(() => {
-        navigate('/'); // Change '/' to your desired path
-      }, 4000);
-    } catch (error) {
-      if (error.response?.status === 400) {
-        setApiError(error.response.data.message);
-        setErrors((prev) => ({ ...prev, email: t.login.register.errors.emailExists }));
-      } else {
-        console.error('Registration failed:', error.response?.data || error.message);
-        setApiError(t.login.register.errors.generic);
-      }
+      setApiError(`success: ${response.data.message}`);
+      setTimeout(() => navigate('/login'), 3000);
+    } catch (err) {
+      setApiError(err.response?.data?.message || 'Registration failed');
+      // Pri chybe resetujeme Turnstile, aby ju musel užívateľ vyplniť znova (prevencia proti replay útokom)
+      setCaptchaToken(null);
+      if (turnstileRef.current) turnstileRef.current.reset();
     } finally {
       setLoading(false);
     }
   };
 
+  const PasswordRequirement = ({ met, text }) => {
+    let colorClass = met ? 'text-green-600 font-medium' : (!isPasswordFocused && passwordTouched ? 'text-red-500 font-medium' : 'text-gray-500');
+    let Icon = met ? CheckIcon : (!isPasswordFocused && passwordTouched ? XIcon : null);
+
+    return (
+      <li className={`flex items-center text-xs transition-colors duration-200 ${colorClass}`}>
+        <div className="w-5 h-5 mr-1.5 flex items-center justify-center flex-shrink-0">
+          {Icon ? <Icon className="w-4 h-4" /> : <div className={`w-1.5 h-1.5 rounded-full ${met ? 'bg-green-500' : 'bg-gray-300'}`} />}
+        </div>
+        {text}
+      </li>
+    );
+  };
+
+  const showPasswordRequirements = isPasswordFocused || (passwordTouched && !isPasswordValid);
+
   return (
-    <div className="container mt-5">
-      <div className="row justify-content-center">
-        <div className="col-md-6">
-          <div className="card shadow-sm">
-            <div className="card-body">
-              <h2 className="card-title text-center">{t.login.register.title}</h2>
-              <form onSubmit={handleSubmit}>
-                <div className="mb-3">
-                  <label htmlFor="firstName" className="form-label">{t.login.register.firstName}</label>
-                  <input
-                    type="text"
-                    className={`form-control ${errors.firstName ? 'is-invalid' : ''}`}
-                    id="firstName"
-                    value={firstName}
-                    onChange={(e) => {
-                      setFirstName(e.target.value);
-                      setErrors({ ...errors, firstName: validateField('firstName', e.target.value) });
-                    }}
-                    required
-                  />
-                  {errors.firstName && <div className="invalid-feedback">{errors.firstName}</div>}
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="lastName" className="form-label">{t.login.register.lastName}</label>
-                  <input
-                    type="text"
-                    className={`form-control ${errors.lastName ? 'is-invalid' : ''}`}
-                    id="lastName"
-                    value={lastName}
-                    onChange={(e) => {
-                      setLastName(e.target.value);
-                      setErrors({ ...errors, lastName: validateField('lastName', e.target.value) });
-                    }}
-                    required
-                  />
-                  {errors.lastName && <div className="invalid-feedback">{errors.lastName}</div>}
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="email" className="form-label">{t.login.register.email}</label>
-                  <input
-                    type="email"
-                    className={`form-control ${errors.email || apiError ? 'is-invalid' : ''}`}
-                    id="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      setErrors({ ...errors, email: validateField('email', e.target.value) });
-                      setApiError('');
-                    }}
-                    required
-                  />
-                  {errors.email && <div className="invalid-feedback">{errors.email}</div>}
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="password" className="form-label">{t.login.register.password}</label>
-                  <input
-                    type="password"
-                    className={`form-control ${errors.password ? 'is-invalid' : ''}`}
-                    id="password"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setErrors({ ...errors, password: validateField('password', e.target.value) });
-                    }}
-                    required
-                  />
-                  {errors.password && <div className="invalid-feedback">{errors.password}</div>}
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="repeatPassword" className="form-label">{t.login.register.repeatPassword}</label>
-                  <input
-                    type="password"
-                    className={`form-control ${repeatPasswordError ? 'is-invalid' : ''}`}
-                    id="repeatPassword"
-                    value={repeatPassword}
-                    onChange={(e) => {
-                      setRepeatPassword(e.target.value);
-                      setRepeatPasswordError('');
-                    }}
-                    required
-                  />
-                  {repeatPasswordError && <div className="invalid-feedback">{repeatPasswordError}</div>}
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="address" className="form-label">{t.login.register.address}</label>
-                  <input
-                    type="text"
-                    className={`form-control ${errors.address ? 'is-invalid' : ''}`}
-                    id="address"
-                    value={address}
-                    onChange={(e) => {
-                      setAddress(e.target.value);
-                      setErrors({ ...errors, address: validateField('address', e.target.value) });
-                    }}
-                    required
-                  />
-                  {errors.address && <div className="invalid-feedback">{errors.address}</div>}
-                </div>
-                <button
-                  type="submit"
-                  className="btn btn-primary w-100"
-                  disabled={
-                    loading ||
-                    !firstName ||
-                    !lastName ||
-                    !email ||
-                    !password ||
-                    !repeatPassword ||
-                    !address ||
-                    Object.values(errors).some((error) => error) ||
-                    repeatPasswordError
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+      <div className="max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 sm:p-12 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-secondary-100 rounded-bl-full opacity-50 -mr-16 -mt-16 pointer-events-none"></div>
+        <h2 className="text-3xl font-bold text-center text-gray-900 mb-8 relative z-10">{t?.login?.register?.title || 'Create Account'}</h2>
+
+        <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
+          <div style={{ display: 'none', opacity: 0, position: 'absolute', left: '-9999px' }}>
+            <input type="text" name="_honey" value={honey} onChange={(e) => setHoney(e.target.value)} tabIndex="-1" autoComplete="off" />
+          </div>
+
+          {/* MENO A PRIEZVISKO */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t?.login?.register?.firstName || 'First Name'}</label>
+              <input name="firstName" type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} onBlur={handleBlur} className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.firstName ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:border-primary-500'}`} placeholder="Janko" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t?.login?.register?.lastName || 'Last Name'}</label>
+              <input name="lastName" type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} onBlur={handleBlur} className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.lastName ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:border-primary-500'}`} placeholder="Mrkvička" />
+            </div>
+          </div>
+
+          {/* EMAIL */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t?.login?.register?.email || 'Email Address'}</label>
+            <input name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={handleBlur} className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.email ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:border-primary-500'}`} placeholder="janko@example.com" />
+          </div>
+
+          {/* --- SMART ADRESA SEKCE --- */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700">{t?.login?.register?.address || 'Address'}</label>
+
+            {/* 1. MESTO */}
+            <div className="relative" ref={cityInputRef}>
+              <input
+                type="text"
+                name="addrCity"
+                value={addrCity}
+                onChange={(e) => { setAddrCity(e.target.value); setShowCityDropdown(true); }}
+                onFocus={() => setShowCityDropdown(true)}
+                className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.addrCity ? 'border-red-500' : 'border-gray-200 focus:border-primary-500'}`}
+                placeholder="Mesto / Obec (napr. Nitra)"
+              />
+              {isSearchingCity && <div className="absolute right-3 top-3.5"><SpinnerIcon className="w-5 h-5 text-gray-400" /></div>}
+              {showCityDropdown && citySuggestions.length > 0 && (
+                <ul className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
+                  {citySuggestions.map((city, idx) => (
+                    <li key={idx} onClick={() => handleSelectCity(city)} className="px-4 py-2 hover:bg-primary-50 cursor-pointer text-sm text-gray-700">{city.display_name}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* 2. ULICA + CHECKBOX PRE DEDINY */}
+            <div className="relative" ref={streetInputRef}>
+              <input
+                type="text"
+                name="addrStreet"
+                value={addrStreet}
+                onChange={(e) => { setAddrStreet(e.target.value); setShowStreetDropdown(true); }}
+                onFocus={() => !hasNoStreet && setShowStreetDropdown(true)}
+                disabled={!addrCity || hasNoStreet}
+                className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all 
+                    ${hasNoStreet ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}
+                    ${errors.addrStreet && !hasNoStreet ? 'border-red-500' : 'border-gray-200 focus:border-primary-500'}`}
+                placeholder={hasNoStreet ? 'Obec nemá ulice' : (addrCity ? `Ulica v ${addrCity}` : "Najprv vyberte mesto")}
+              />
+              {isSearchingStreet && !hasNoStreet && <div className="absolute right-3 top-3.5"><SpinnerIcon className="w-5 h-5 text-gray-400" /></div>}
+              {showStreetDropdown && streetSuggestions.length > 0 && !hasNoStreet && (
+                <ul className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
+                  {streetSuggestions.map((street, idx) => (
+                    <li key={idx} onClick={() => handleSelectStreet(street)} className="px-4 py-2 hover:bg-primary-50 cursor-pointer text-sm text-gray-700">{street.display_name.split(',')[0]}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 mt-1 mb-2">
+              <input
+                type="checkbox"
+                id="noStreet"
+                checked={hasNoStreet}
+                onChange={(e) => {
+                  setHasNoStreet(e.target.checked);
+                  if (e.target.checked) {
+                    setAddrStreet('');
+                    setErrors(prev => ({ ...prev, addrStreet: '' }));
                   }
-                >
-                  {loading ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                      <span className="ms-2">{t.login.register.loading}</span>
-                    </>
-                  ) : (
-                    t.login.register.submit
-                  )}
-                </button>
-                {apiError && <div className={`mt-2 text-center ${apiError.includes('success') ? 'text-success' : 'text-danger'}`}>{apiError}</div>}
-              </form>
-              <div className="mt-3 text-center">
-              <p>{t.login.register.loginPrompt} <Link to="/login">{t.login.register.loginLink}</Link></p>
+                }}
+                className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
+              />
+              <label htmlFor="noStreet" className="text-xs text-gray-600 cursor-pointer select-none">
+                {t?.login?.register?.noStreetLabel || 'Obec nemá ulice (použiť len číslo domu)'}
+              </label>
+            </div>
+
+            {/* 3. ČÍSLO a PSČ */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-1">
+                <input
+                  ref={numberInputRef}
+                  type="text"
+                  name="addrNumber"
+                  value={addrNumber}
+                  onChange={(e) => setAddrNumber(e.target.value)}
+                  className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.addrNumber ? 'border-red-500' : 'border-gray-200 focus:border-primary-500'}`}
+                  placeholder="Číslo"
+                />
+              </div>
+              <div className="col-span-2">
+                <input
+                  type="text"
+                  name="addrZip"
+                  value={addrZip}
+                  onChange={(e) => setAddrZip(e.target.value)}
+                  className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.addrZip ? 'border-red-500' : 'border-gray-200 focus:border-primary-500'}`}
+                  placeholder="PSČ"
+                />
               </div>
             </div>
           </div>
+
+          {/* HESLO */}
+          <div className="p-5 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t?.login?.register?.password || 'Password'}</label>
+              <div className="relative">
+                <input
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setIsPasswordFocused(true)}
+                  onBlur={handleBlur}
+                  className={`w-full px-4 py-3 pr-10 bg-white border rounded-lg outline-none transition-all ${passwordTouched && !isPasswordValid ? 'border-red-300' : 'border-gray-300 focus:border-primary-500'}`}
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  aria-label="Show password"
+                  className="absolute inset-y-0 right-0 px-3 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
+                  onMouseDown={(e) => { e.preventDefault(); setShowPassword(true); }}
+                  onMouseUp={() => setShowPassword(false)}
+                  onMouseLeave={() => setShowPassword(false)}
+                  onTouchStart={() => setShowPassword(true)}
+                  onTouchEnd={() => setShowPassword(false)}
+                  onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') setShowPassword(true); }}
+                  onKeyUp={() => setShowPassword(false)}
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+              </div>
+              <div className={`overflow-hidden transition-all duration-500 ease-in-out ${showPasswordRequirements ? 'max-h-48 opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-1">
+                  <PasswordRequirement met={passwordCriteria.length} text={t?.login?.register?.passwordRequirements?.length || "Min. 8 characters"} />
+                  <PasswordRequirement met={passwordCriteria.upper} text={t?.login?.register?.passwordRequirements?.upper || "1 uppercase letter (A-Z)"} />
+                  <PasswordRequirement met={passwordCriteria.lower} text={t?.login?.register?.passwordRequirements?.lower || "1 lowercase letter (a-z)"} />
+                  <PasswordRequirement met={passwordCriteria.number} text={t?.login?.register?.passwordRequirements?.number || "1 number (0-9)"} />
+                </ul>
+              </div>
+            </div>
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t?.login?.register?.repeatPassword || 'Confirm Password'}</label>
+              <div className="relative">
+                <input
+                  name="repeatPassword"
+                  type={showRepeatPassword ? 'text' : 'password'}
+                  value={repeatPassword}
+                  onChange={(e) => setRepeatPassword(e.target.value)}
+                  className={`w-full px-4 py-3 bg-white border rounded-lg outline-none transition-all pr-10 ${doPasswordsMatch ? 'border-green-500 ring-1 ring-green-500' : 'border-gray-300 focus:border-primary-500'}`}
+                  placeholder="••••••••"
+                  disabled={!password}
+                />
+                <button
+                  type="button"
+                  aria-label="Show password"
+                  className="absolute inset-y-0 right-0 px-3 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
+                  onMouseDown={(e) => { e.preventDefault(); setShowRepeatPassword(true); }}
+                  onMouseUp={() => setShowRepeatPassword(false)}
+                  onMouseLeave={() => setShowRepeatPassword(false)}
+                  onTouchStart={() => setShowRepeatPassword(true)}
+                  onTouchEnd={() => setShowRepeatPassword(false)}
+                  onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') setShowRepeatPassword(true); }}
+                  onKeyUp={() => setShowRepeatPassword(false)}
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+                {doPasswordsMatch && <div className="absolute inset-y-0 right-9 pr-1 flex items-center pointer-events-none"><CheckIcon className="h-6 w-6 text-green-500" /></div>}
+              </div>
+              {!doPasswordsMatch && repeatPassword && <p className="text-xs text-red-500 mt-1">Passwords do not match</p>}
+            </div>
+          </div>
+
+          {/* CHECKBOX */}
+          <div className="flex items-start gap-3 pt-2">
+            <input
+              type="checkbox"
+              id="agreementChecked"
+              name="agreementChecked"
+              checked={agreementChecked}
+              onChange={(e) => setAgreementChecked(e.target.checked)}
+              className="mt-1 w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500 focus:ring-2 flex-shrink-0"
+            />
+
+            <label
+              htmlFor="agreementChecked"
+              className="text-xs sm:text-sm text-gray-700 leading-relaxed"
+            >
+              {(t?.login?.register?.consentText || '*I agree to the {terms} and declare that I have read the {privacy}.')
+                .split('{terms}')
+                .map((part, index) =>
+                  index === 0 ? (
+                    <>
+                      {part}
+                      <a
+                        href="/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-500 hover:text-primary-600 underline font-medium"
+                      >
+                        {t?.login?.register?.terms || 'Terms and Conditions'}
+                      </a>
+                    </>
+                  ) : (
+                    <>
+                      {part.split('{privacy}')[0]}
+                      <a
+                        href="/gdpr"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-500 hover:text-primary-600 underline font-medium"
+                      >
+                        {t?.login?.register?.privacy || 'Privacy Policy'}
+                      </a>
+                      {part.split('{privacy}')[1]}
+                    </>
+                  )
+                )}
+            </label>
+          </div>
+
+          {/* --- CLOUDFLARE TURNSTILE IMPLEMENTÁCIA --- */}
+          <div className="flex justify-center py-2">
+            <Turnstile
+              siteKey={process.env.REACT_APP_CLOUDFLARE_SITEKEY}
+              onSuccess={(token) => setCaptchaToken(token)}
+              ref={turnstileRef}
+            />
+          </div>
+
+
+          <button type="submit" className={`w-full py-4 px-6 rounded-xl text-white font-bold text-lg shadow-lg transition-all duration-300 transform hover:-translate-y-1 ${isFormValid ? 'bg-primary-500 hover:bg-primary-600 hover:shadow-primary-500/30' : 'bg-gray-300 cursor-not-allowed shadow-none'}`} disabled={!isFormValid || loading}>
+            {loading ? <div className="flex items-center justify-center gap-3"><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>{t?.login?.register?.loading || 'Registering...'}</span></div> : t?.login?.register?.submit || 'Create Account'}
+          </button>
+
+          {apiError && <div className={`text-center text-sm font-medium py-3 px-4 rounded-lg border animate-fadeIn ${apiError.includes('success') ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>{apiError}</div>}
+        </form>
+
+        <div className="mt-8 text-center border-t border-gray-100 pt-6">
+          <p className="text-gray-600">{t?.login?.register?.loginPrompt || 'Already have an account?'} <Link to="/login" className="text-primary-600 hover:text-primary-700 font-bold transition-colors hover:underline">{t?.login?.register?.loginLink || 'Login here'}</Link></p>
         </div>
       </div>
     </div>
   );
 };
-
 
 export default Register;

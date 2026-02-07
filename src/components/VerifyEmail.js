@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
+import api from '../api/api';
 
 const VerifyEmail = () => {
   const [message, setMessage] = useState('Verifying your email...');
@@ -8,7 +8,24 @@ const VerifyEmail = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Extract the token from the URL query parameters
+    // Funkciu definujeme priamo vnútri efektu
+    const verifyToken = async (token) => {
+      try {
+        // Poslanie tokenu na backend
+        const response = await api.get(`/api/verify-email?token=${token}`);
+        setMessage(response.data.message);
+
+        // Presmerovanie po 3 sekundách
+        setTimeout(() => {
+          navigate('/login');
+        }, 3000);
+      } catch (error) {
+        console.error('Error verifying email:', error);
+        setMessage(error.response?.data.message || 'Failed to verify email. Please try again.');
+      }
+    };
+
+    // Extrakcia tokenu z URL
     const token = new URLSearchParams(location.search).get('token');
 
     if (token) {
@@ -16,23 +33,7 @@ const VerifyEmail = () => {
     } else {
       setMessage('Invalid verification link. Please check your email for the correct link.');
     }
-  }, [location]);
-
-  const verifyToken = async (token) => {
-    try {
-      // Send the token to the backend for verification
-      const response = await axios.get(`http://localhost:5000/api/verify-email?token=${token}`);
-      setMessage(response.data.message);
-
-      // Redirect to the login page after 3 seconds
-      setTimeout(() => {
-        navigate('/login');
-      }, 3000);
-    } catch (error) {
-      console.error('Error verifying email:', error);
-      setMessage(error.response?.data.message || 'Failed to verify email. Please try again.');
-    }
-  };
+  }, [location.search, navigate]); // Pridané správne závislosti
 
   return (
     <div className="container mt-5">

@@ -1,129 +1,71 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import { useTranslation } from './contexts/LanguageContext';
 import { LanguageProvider } from './contexts/LanguageContext';
-import AboutUs from './components/AboutUs';
-import Booking from './components/Booking';
-import Photos from './components/Photos';
-import Contact from './components/Contact';
-import Login from './components/Login';
-import Register from './components/Register';
-import RegistrationSuccess from './components/RegistrationSuccess';
-import VerifyEmail from './components/VerifyEmail';
-import ThankYou from './components/ThankYou';
-import ForgotPassword from './components/ForgotPassword';
-import ResetPassword from './components/ResetPassword';
-import UserProfile from './components/UserProfile';
-import AccountDeleted from './components/AccountDeleted';
-import PaymentSuccess from './components/PaymentSuccess';
-import PaymentCancelled from './components/PaymentCancelled';
-import SeasonTickets from './components/SeasonTickets';
-import RefundOption from './components/RefundOption';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import './styles/components/App.css';
-import Foot from './components/Foot';
-import CookieConsent from "./components/CookieConsent";
-import GreetingBar from './components/GreetingBar';
+import { UserProvider } from './contexts/UserContext';
+import dayjs from 'dayjs';
+import 'dayjs/locale/sk';
+
 import Navbar from './components/Navbar';
+import GreetingBar from './components/GreetingBar';
+import Foot from './components/Foot';
+import CookieConsent from './components/CookieConsent';
 
-// Theme context and provider
-const ThemeContext = React.createContext();
+// Lazy loaded components
+const AboutUs = lazy(() => import('./components/AboutUs'));
+const Booking = lazy(() => import('./components/Booking'));
+const Contact = lazy(() => import('./components/Contact'));
+const Login = lazy(() => import('./components/Login'));
+const Register = lazy(() => import('./components/Register'));
+const RegistrationSuccess = lazy(() => import('./components/RegistrationSuccess'));
+const VerifyEmail = lazy(() => import('./components/VerifyEmail'));
+const ThankYou = lazy(() => import('./components/ThankYou'));
+const ForgotPassword = lazy(() => import('./components/ForgotPassword'));
+const ResetPassword = lazy(() => import('./components/ResetPassword'));
+const UserProfile = lazy(() => import('./components/UserProfile'));
+const AccountDeleted = lazy(() => import('./components/AccountDeleted'));
+const PaymentSuccess = lazy(() => import('./components/PaymentSuccess'));
+const PaymentCancelled = lazy(() => import('./components/PaymentCancelled'));
+const SeasonTickets = lazy(() => import('./components/SeasonTickets'));
+const RefundOption = lazy(() => import('./components/RefundOption'));
+const Schedule = lazy(() => import('./components/Schedule'));
+const FAQ = lazy(() => import('./components/FAQ'));
+const Gdpr = lazy(() => import('./components/Gdpr'));
+const Terms = lazy(() => import('./components/Terms'));
+const CreditOption = lazy(() => import('./components/CreditOption'));
+const Checklist = lazy(() => import('./components/Checklist'));
+const Archive = lazy(() => import('./components/Archive'));
+const BlogPage = lazy(() => import('./components/BlogPage'));
+const BlogArticle = lazy(() => import('./components/BlogArticle'));
 
-const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = React.useState('light');
 
-  const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-  };
-
-  React.useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    setTheme(savedTheme);
-  }, []);
-
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+// Inicializácia dayjs s lokálnym nastavením
+const initializeDayJS = () => {
+  dayjs.locale('sk');
 };
 
-const useTheme = () => React.useContext(ThemeContext);
-
-// User context to manage user state globally
-const UserContext = React.createContext();
-
-const UserProvider = ({ children }) => {
-  const [user, setUser] = useState({
-    isLoggedIn: false,
-    firstName: '',
-    userId: null
-  });
-
-  // Initialize user state from localStorage on app start
-  useEffect(() => {
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    const firstName = localStorage.getItem('userFirstName') || 
-                     localStorage.getItem('userName')?.split(' ')[0] || 
-                     '';
-    const userId = localStorage.getItem('userId');
-
-    if (isLoggedIn) {
-      setUser({
-        isLoggedIn: true,
-        firstName,
-        userId
-      });
-    }
-  }, []);
-
-  const updateUser = (userData) => {
-    setUser(userData);
-  };
-
-  const logout = () => {
-    setUser({
-      isLoggedIn: false,
-      firstName: '',
-      userId: null
-    });
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userId');
-    localStorage.removeItem('userName');
-    localStorage.removeItem('userFirstName');
-  };
-
-  return (
-    <UserContext.Provider value={{ user, updateUser, logout }}>
-      {children}
-    </UserContext.Provider>
-  );
-};
-
-const useUser = () => React.useContext(UserContext);
-
-// Main App component
+// ------------------ Main App Content ------------------
 const AppContent = () => {
-  const { theme } = useTheme();
-
+  // Inicializácia pri načítaní komponentu
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+    initializeDayJS();
+  }, []);
 
   return (
-    <Router>
-      <div className="d-flex flex-column min-vh-100">
-        <Navbar />
-        <GreetingBar />
-        <main className="flex-grow-1">
+    <div className="min-h-screen flex flex-col overflow-x-clip bg-white bg-custom-flakes bg-cover">
+      <Navbar />
+      <GreetingBar />
+
+      <main className="flex-grow">
+        <Suspense fallback={
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-lg text-gray-600">Načítavam...</div>
+          </div>
+        }>
           <Routes>
-            <Route path="/" element={<AboutUs />} />
+            <Route index element={<AboutUs />} />
             <Route path="/about" element={<AboutUs />} />
             <Route path="/booking" element={<Booking />} />
             <Route path="/profile" element={<UserProfile />} />
-            <Route path="/photos" element={<Photos />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -137,25 +79,34 @@ const AppContent = () => {
             <Route path="/payment-cancelled" element={<PaymentCancelled />} />
             <Route path="/season-tickets" element={<SeasonTickets />} />
             <Route path="/refund-option" element={<RefundOption />} />
+            <Route path="/schedule" element={<Schedule />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/gdpr" element={<Gdpr />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/credit-option" element={<CreditOption />} />
+            <Route path="/admin/checklist/:trainingId" element={<Checklist />} />
+            <Route path="/archive" element={<Archive />} />
+            <Route path="/blog" element={<BlogPage />} />
+            <Route path="/blog/:slug" element={<BlogArticle />} />
           </Routes>
-        </main>
-        <Foot />
-        <CookieConsent />
-      </div>
-    </Router>
+        </Suspense>
+      </main>
+
+      <Foot />
+      <CookieConsent />
+    </div>
   );
 };
- 
-// Wrap the app with all providers
+
+// ------------------ Final App Wrapper ------------------
 const App = () => (
-  <LanguageProvider>
-    <ThemeProvider>
+  <Router>
+    <LanguageProvider>
       <UserProvider>
         <AppContent />
       </UserProvider>
-    </ThemeProvider>
-  </LanguageProvider>
+    </LanguageProvider>
+  </Router>
 );
 
 export default App;
-export { useTheme, useUser };
