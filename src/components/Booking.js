@@ -115,7 +115,13 @@ const Booking = () => {
     if (!useSeasonTicket) return;
 
     const selectedTicket = seasonTickets.find(ticket => ticket.id === parseInt(selectedSeasonTicket));
-    if (selectedTicket && selectedTypeObj && selectedTicket.training_type_id !== selectedTypeObj.id) {
+    const ticketMatchesType = selectedTicket && selectedTypeObj
+      ? Array.isArray(selectedTicket.training_types)
+        ? selectedTicket.training_types.some((type) => type.id === selectedTypeObj.id)
+        : false
+      : true;
+
+    if (selectedTicket && selectedTypeObj && !ticketMatchesType) {
       setUseSeasonTicket(false);
       setSelectedSeasonTicket('');
     }
@@ -552,9 +558,9 @@ const Booking = () => {
         }
 
         if (selectedTicket.entries_remaining < childrenCount) {
+          const message = t?.booking?.notEnoughEntries || 'Not enough entries in your season ticket. Needed: {needed}, Available: {available}';
           setWarningMessage(
-            t?.booking?.notEnoughEntries?.replace('{needed}', childrenCount)?.replace('{available}', selectedTicket.entries_remaining) ||
-            `Not enough entries in your season ticket. Needed: ${childrenCount}, Available: ${selectedTicket.entries_remaining}`
+            message.replace('{needed}', childrenCount).replace('{available}', selectedTicket.entries_remaining)
           );
           setLoading(false);
           return;
@@ -673,14 +679,14 @@ const Booking = () => {
 
   const selectCredit = (credit, fillForm = false) => {
     setSelectedCredit(credit);
-    
+
     // Nájdi ID typu na základe mena
     const creditType = trainingTypes.find(t => t.name === credit.training_type);
     if (creditType) {
       setTrainingTypeId(creditType.id);
       setTrainingType(credit.training_type);
     }
-    
+
     setChildrenCount(credit.child_count);
     setAccompanyingPerson(credit.accompanying_person === true);
 
@@ -775,7 +781,11 @@ const Booking = () => {
   }
 
   const availableSeasonTickets = selectedTypeObj
-    ? seasonTickets.filter(ticket => parseInt(ticket.training_type_id, 10) === selectedTypeObj.id)
+    ? seasonTickets.filter((ticket) =>
+      Array.isArray(ticket.training_types)
+        ? ticket.training_types.some((type) => type.id === selectedTypeObj.id)
+        : false
+    )
     : seasonTickets;
 
   return (
@@ -1442,16 +1452,17 @@ const Booking = () => {
                         value={selectedSeasonTicket}
                         onChange={(e) => setSelectedSeasonTicket(e.target.value)}
                         required={useSeasonTicket}
-                        className="w-full text-lg py-3"
+                        className="w-full text-xs sm:text-sm md:text-base py-3"
+                        style={{ whiteSpace: 'normal' }}
                       >
                         <option value="">{t?.booking?.selectSeasonTicket || 'Choose a Season Ticket'}</option>
                         {availableSeasonTickets.map((ticket) => (
                           <option key={ticket.id} value={ticket.id}>
                             {t?.booking?.seasonTicketOption || 'Season Ticket'} #{ticket.id}
-                            {ticket.training_type_name ? ` - ${ticket.training_type_name}` : ''}
+                            {ticket.product_name || ticket.product_code ? ` - ${ticket.product_name || ticket.product_code}` : ''}
                             ({t?.booking?.seasonTicketEntries?.replace('{count}', ticket.entries_remaining) || `Entries: ${ticket.entries_remaining}`})
                             {ticket.entries_remaining < childrenCount && (
-                              <span className="text-red-500"> - {t?.booking?.notEnoughEntries || 'Not enough entries'}</span>
+                              ` - ${(t?.booking?.notEnoughEntries || 'Nedostatok vstupov vo vašej permanentke. Potrebujete: {needed}, Dostupné: {available}').replace('{needed}', childrenCount).replace('{available}', ticket.entries_remaining)}`
                             )}
                           </option>
                         ))}

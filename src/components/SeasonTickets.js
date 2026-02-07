@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { useTranslation } from '../contexts/LanguageContext';
@@ -6,8 +6,6 @@ import api from '../api/api';
 
 const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
 const ENTRY_OPTIONS = [3, 5, 10];
-const DISCOUNT_MAP = { 3: 0.89, 5: 0.87, 10: 0.8 };
-const SAVINGS_KEY_MAP = { 3: 'smallSaver', 5: 'standard', 10: 'bestValue' };
 
 const SeasonTickets = () => {
   const { t, language } = useTranslation();
@@ -24,46 +22,27 @@ const SeasonTickets = () => {
   const [serviceConsent, setServiceConsent] = useState(false);
   const [showServiceConsentModal, setShowServiceConsentModal] = useState(false);
 
-  const [trainingTypes, setTrainingTypes] = useState([]);
+  const [seasonTicketProducts, setSeasonTicketProducts] = useState([]);
+  const [selectedProductId, setSelectedProductId] = useState('');
   const [seasonTicketOffers, setSeasonTicketOffers] = useState([]);
-  const [selectedTrainingTypeId, setSelectedTrainingTypeId] = useState('');
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [offersLoading, setOffersLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminTrainingTypes, setAdminTrainingTypes] = useState([]);
+  const [adminProducts, setAdminProducts] = useState([]);
+  const [adminSelectedProductId, setAdminSelectedProductId] = useState('');
   const [adminOffers, setAdminOffers] = useState([]);
-  const [adminSelectedTypeId, setAdminSelectedTypeId] = useState('');
   const [adminOffersForm, setAdminOffersForm] = useState([]);
   const [adminSaving, setAdminSaving] = useState(false);
   const [adminError, setAdminError] = useState('');
   const [adminSuccess, setAdminSuccess] = useState('');
-
-  // Pomocná funkcia na výpočet úspory
-  const getBasePriceForType = useCallback((trainingTypeId) => {
-    const type = trainingTypes.find(t => t.id === trainingTypeId);
-    if (!type || !Array.isArray(type.prices) || type.prices.length === 0) return 0;
-
-    const priceForOne = type.prices.find(p => p.child_count === 1);
-    const basePrice = priceForOne ? priceForOne.price : type.prices.reduce((min, p) => (
-      parseFloat(p.price) < parseFloat(min.price) ? p : min
-    ), type.prices[0]).price;
-
-    return parseFloat(basePrice);
-  }, [trainingTypes]);
-
-  const calculateSavings = (price, entries, trainingTypeId) => {
-    const standardPrice = getBasePriceForType(trainingTypeId);
-    if (!standardPrice) return 0;
-
-    const totalStandardPrice = entries * standardPrice;
-    const savings = totalStandardPrice - price;
-    const savingsPercent = Math.round((savings / totalStandardPrice) * 100);
-    return savingsPercent;
-  };
-
-  const getSuggestedPrice = useCallback((entries, trainingTypeId) => {
-    const basePrice = getBasePriceForType(trainingTypeId);
-    if (!basePrice) return '';
-    const discount = DISCOUNT_MAP[entries] || 1;
-    return (basePrice * entries * discount).toFixed(2);
-  }, [getBasePriceForType]);
+  const [adminCreateForm, setAdminCreateForm] = useState({
+    code: '',
+    name: '',
+    description: '',
+    trainingTypeIds: [],
+    offers: ENTRY_OPTIONS.map((entries) => ({ entries, price: '', active: true }))
+  });
 
   useEffect(() => {
     const handleAuthChange = () => {
@@ -84,70 +63,94 @@ const SeasonTickets = () => {
       }
     };
 
-    if (isLoggedIn) checkAdmin();
+    if (isLoggedIn) {
+      checkAdmin();
+    } else {
+      setIsAdmin(false);
+    }
   }, [isLoggedIn]);
 
   useEffect(() => {
-    const fetchTrainingTypes = async () => {
+    const fetchProducts = async () => {
+      setProductsLoading(true);
       try {
-        const response = await api.get('/api/training-types?admin=false');
-        setTrainingTypes(response.data);
-
-        if (isAdmin && !adminSelectedTypeId && response.data.length > 0) {
-          setAdminSelectedTypeId(response.data[0].id.toString());
-        }
+        const response = await api.get('/api/season-ticket-products');
+        setSeasonTicketProducts(response.data || []);
       } catch (err) {
-        console.error('Failed to fetch training types:', err);
+        console.error('Failed to fetch season ticket products:', err);
+      } finally {
+        setProductsLoading(false);
       }
     };
 
+    fetchProducts();
+  }, []);
+
+  useEffect(() => {
     const fetchOffers = async () => {
+      if (!selectedProductId) {
+        setSeasonTicketOffers([]);
+        return;
+      }
+
+      setOffersLoading(true);
       try {
-        const response = await api.get('/api/season-ticket-offers');
-        setSeasonTicketOffers(response.data);
-        if (!selectedTrainingTypeId) {
-          setSelectedTrainingTypeId('');
-        }
+        const response = await api.get(`/api/season-ticket-products/${selectedProductId}/offers`);
+        setSeasonTicketOffers(response.data || []);
       } catch (err) {
         console.error('Failed to fetch season ticket offers:', err);
+        setSeasonTicketOffers([]);
+      } finally {
+        setOffersLoading(false);
       }
     };
 
-    fetchTrainingTypes();
     fetchOffers();
-  }, [isAdmin, selectedTrainingTypeId, adminSelectedTypeId]);
+  }, [selectedProductId]);
 
   useEffect(() => {
-    const fetchAdminOffers = async () => {
+    const fetchAdminData = async () => {
       if (!isAdmin) return;
+
       try {
-        const response = await api.get('/api/admin/season-ticket-offers');
-        setAdminOffers(response.data);
+        const [typesResponse, productsResponse, offersResponse] = await Promise.all([
+          api.get('/api/training-types?admin=true'),
+          api.get('/api/admin/season-ticket-products'),
+          api.get('/api/admin/season-ticket-offers')
+        ]);
+
+        setAdminTrainingTypes(typesResponse.data || []);
+        setAdminProducts(productsResponse.data || []);
+        setAdminOffers(offersResponse.data || []);
+
+        if (!adminSelectedProductId && productsResponse.data?.length > 0) {
+          setAdminSelectedProductId(productsResponse.data[0].id.toString());
+        }
       } catch (err) {
-        console.error('Failed to fetch admin offers:', err);
+        console.error('Failed to fetch admin data:', err);
       }
     };
 
-    fetchAdminOffers();
-  }, [isAdmin]);
+    fetchAdminData();
+  }, [isAdmin, adminSelectedProductId]);
 
   useEffect(() => {
-    if (!adminSelectedTypeId) return;
+    if (!isAdmin || !adminSelectedProductId) return;
 
-    const typeId = parseInt(adminSelectedTypeId, 10);
-    const existing = adminOffers.filter(o => parseInt(o.training_type_id, 10) === typeId);
+    const productId = parseInt(adminSelectedProductId, 10);
+    const existing = adminOffers.filter((offer) => parseInt(offer.season_ticket_product_id, 10) === productId);
 
-    const formData = ENTRY_OPTIONS.map(entries => {
-      const existingOffer = existing.find(o => o.entries === entries);
+    const formData = ENTRY_OPTIONS.map((entries) => {
+      const existingOffer = existing.find((offer) => offer.entries === entries);
       return {
         entries,
-        price: existingOffer ? parseFloat(existingOffer.price).toFixed(2) : getSuggestedPrice(entries, typeId),
-        active: existingOffer ? existingOffer.active : true,
+        price: existingOffer ? parseFloat(existingOffer.price).toFixed(2) : '',
+        active: existingOffer ? existingOffer.active : true
       };
     });
 
     setAdminOffersForm(formData);
-  }, [adminSelectedTypeId, adminOffers, getSuggestedPrice]);
+  }, [isAdmin, adminSelectedProductId, adminOffers]);
 
   const handleBuyClick = (ticket) => {
     if (!isLoggedIn) {
@@ -162,6 +165,10 @@ const SeasonTickets = () => {
 
   const executePayment = async () => {
     if (!ticketToBuy) return;
+    if (!selectedProductId) {
+      setError('Vyberte produkt permanentky.');
+      return;
+    }
 
     if (!agreementChecked) {
       setError(t?.seasonTicketsPage?.termsError || 'Pre pokračovanie musíte súhlasiť s podmienkami.');
@@ -181,7 +188,7 @@ const SeasonTickets = () => {
         userId,
         entries: ticketToBuy.entries,
         totalPrice: ticketToBuy.price,
-        trainingTypeId: ticketToBuy.training_type_id
+        productId: parseInt(selectedProductId, 10)
       });
 
       const { sessionId } = response.data;
@@ -218,38 +225,130 @@ const SeasonTickets = () => {
     );
   };
 
-  const handleAdminSave = async () => {
-    if (!adminSelectedTypeId) return;
-    setAdminSaving(true);
+  const handleAdminCreateChange = (field, value) => {
+    setAdminCreateForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleAdminCreateOfferChange = (entries, value) => {
+    setAdminCreateForm((prev) => ({
+      ...prev,
+      offers: prev.offers.map((offer) =>
+        offer.entries === entries ? { ...offer, price: value } : offer
+      )
+    }));
+  };
+
+  const handleAdminTrainingTypeToggle = (trainingTypeId) => {
+    setAdminCreateForm((prev) => {
+      const alreadySelected = prev.trainingTypeIds.includes(trainingTypeId);
+      return {
+        ...prev,
+        trainingTypeIds: alreadySelected
+          ? prev.trainingTypeIds.filter((id) => id !== trainingTypeId)
+          : [...prev.trainingTypeIds, trainingTypeId]
+      };
+    });
+  };
+
+  const handleAdminCreateProduct = async () => {
     setAdminError('');
     setAdminSuccess('');
 
-    try {
-      const typeName = trainingTypes.find(t => t.id === parseInt(adminSelectedTypeId, 10))?.name || '';
-      const existingOffers = adminOffers.filter(o => parseInt(o.training_type_id, 10) === parseInt(adminSelectedTypeId, 10));
-      const actionLabel = existingOffers.length > 0 ? 'upravená' : 'pridaná';
+    if (!adminCreateForm.code.trim() || !adminCreateForm.name.trim()) {
+      setAdminError('Code a názov sú povinné.');
+      return;
+    }
+    if (adminCreateForm.trainingTypeIds.length === 0) {
+      setAdminError('Vyberte aspoň jeden typ tréningu.');
+      return;
+    }
 
-      const payload = adminOffersForm.map((offer) => ({
+    const offersPayload = adminCreateForm.offers
+      .map((offer) => ({
         entries: offer.entries,
-        price: parseFloat(offer.price),
-        active: offer.active,
-      }));
+        price: parseFloat(offer.price)
+      }))
+      .filter((offer) => !Number.isNaN(offer.price) && offer.price > 0);
 
-      await api.post('/api/admin/season-ticket-offers', {
-        trainingTypeId: parseInt(adminSelectedTypeId, 10),
-        offers: payload,
+    if (offersPayload.length === 0) {
+      setAdminError('Zadajte aspoň jednu cenu pre ponuku.');
+      return;
+    }
+
+    setAdminSaving(true);
+    try {
+      await api.post('/api/admin/season-ticket-products', {
+        code: adminCreateForm.code.trim(),
+        name: adminCreateForm.name.trim(),
+        description: adminCreateForm.description?.trim() || null,
+        trainingTypeIds: adminCreateForm.trainingTypeIds,
+        offers: offersPayload
       });
 
-      const updated = await api.get('/api/admin/season-ticket-offers');
-      setAdminOffers(updated.data);
-      setAdminSuccess(`Permanentka - ${typeName} bola úspešne ${actionLabel}.`);
+      const [productsResponse, offersResponse, userProductsResponse] = await Promise.all([
+        api.get('/api/admin/season-ticket-products'),
+        api.get('/api/admin/season-ticket-offers'),
+        api.get('/api/season-ticket-products')
+      ]);
+
+      setAdminProducts(productsResponse.data || []);
+      setAdminOffers(offersResponse.data || []);
+      setSeasonTicketProducts(userProductsResponse.data || []);
+      setAdminSuccess('Produkt bol úspešne vytvorený.');
+
+      setAdminCreateForm({
+        code: '',
+        name: '',
+        description: '',
+        trainingTypeIds: [],
+        offers: ENTRY_OPTIONS.map((entries) => ({ entries, price: '', active: true }))
+      });
     } catch (err) {
-      console.error('Failed to save offers:', err);
-      setAdminError('Nepodarilo sa uložiť permanentky.');
+      console.error('Failed to create product:', err);
+      setAdminError('Nepodarilo sa vytvoriť produkt.');
     } finally {
       setAdminSaving(false);
     }
   };
+
+  const handleAdminSaveOffers = async () => {
+    if (!adminSelectedProductId) return;
+
+    setAdminSaving(true);
+    setAdminError('');
+    setAdminSuccess('');
+
+    const payload = adminOffersForm
+      .map((offer) => ({
+        entries: offer.entries,
+        price: parseFloat(offer.price),
+        active: offer.active
+      }))
+      .filter((offer) => !Number.isNaN(offer.price) && offer.price > 0);
+
+    if (payload.length === 0) {
+      setAdminError('Zadajte aspoň jednu cenu pre ponuku.');
+      setAdminSaving(false);
+      return;
+    }
+
+    try {
+      await api.post('/api/admin/season-ticket-offers', {
+        productId: parseInt(adminSelectedProductId, 10),
+        offers: payload
+      });
+
+      const updated = await api.get('/api/admin/season-ticket-offers');
+      setAdminOffers(updated.data || []);
+      setAdminSuccess('Ponuky boli úspešne uložené.');
+    } catch (err) {
+      console.error('Failed to save offers:', err);
+      setAdminError('Nepodarilo sa uložiť ponuky.');
+    } finally {
+      setAdminSaving(false);
+    }
+  };
+
 
   const getEntriesLabel = (count) => {
     if (!t?.seasonTicketsPage?.entriesLabel) return '';
@@ -266,13 +365,12 @@ const SeasonTickets = () => {
       : t.seasonTicketsPage.entriesLabel.many;
   };
 
-  const trainingTypeOptions = trainingTypes.filter(type =>
-    seasonTicketOffers.some(offer => parseInt(offer.training_type_id, 10) === type.id)
+  const selectedProduct = seasonTicketProducts.find(
+    (product) => product.id === parseInt(selectedProductId, 10)
   );
-  const selectedTrainingType = trainingTypes.find(type => type.id === parseInt(selectedTrainingTypeId, 10));
-  const filteredOffers = selectedTrainingTypeId
-    ? seasonTicketOffers.filter(offer => parseInt(offer.training_type_id, 10) === parseInt(selectedTrainingTypeId, 10))
-    : [];
+  const trainingTypesLabel = selectedProduct?.trainingTypes?.length
+    ? selectedProduct.trainingTypes.join(', ')
+    : '';
 
   return (
     // Ponechávame pôvodný section nezmenený
@@ -289,108 +387,203 @@ const SeasonTickets = () => {
           </p>
         </div>
 
-        {/* Filter podľa tréningu */}
+        {/* Filter podľa produktu */}
         <div className="max-w-3xl mx-auto mb-10 flex flex-col sm:flex-row gap-4 items-center justify-center">
           <label className="font-semibold text-gray-700">
-            {t?.seasonTicketsPage?.filterLabel || 'Vyberte hodinu'}
+            {t?.seasonTicketsPage?.productLabel || 'Vyberte produkt'}
           </label>
           <select
-            value={selectedTrainingTypeId}
-            onChange={(e) => setSelectedTrainingTypeId(e.target.value)}
+            value={selectedProductId}
+            onChange={(e) => setSelectedProductId(e.target.value)}
             className="w-full sm:w-auto px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700"
+            disabled={productsLoading}
           >
-            <option value="">{t?.seasonTicketsPage?.filterPlaceholder || 'Vyberte hodinu...'}</option>
-            {trainingTypeOptions.map((type) => (
-              <option key={type.id} value={type.id}>
-                {type.name}
+            <option value="">{t?.seasonTicketsPage?.productPlaceholder || 'Vyberte produkt...'}</option>
+            {seasonTicketProducts.map((product) => (
+              <option key={product.id} value={product.id}>
+                {product.name}
               </option>
             ))}
           </select>
         </div>
 
         {isAdmin && (
-          <div className="max-w-5xl mx-auto mb-12 p-6 bg-white rounded-xl shadow-md border border-gray-200">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-              <div>
+          <div className="max-w-6xl mx-auto mb-12 p-6 bg-white rounded-xl shadow-md border border-gray-200">
+            <div className="flex flex-col gap-6">
+              <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-800">Admin panel – permanentky</h2>
-                <div className="text-sm text-gray-600 mt-1">
-                  Cena za vstup: {getBasePriceForType(parseInt(adminSelectedTypeId || '0', 10)) || '—'} €
-                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <label className="font-semibold text-gray-700">Tréning</label>
-                <select
-                  value={adminSelectedTypeId}
-                  onChange={(e) => setAdminSelectedTypeId(e.target.value)}
-                  className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700"
-                >
-                  {trainingTypes.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {adminOffersForm.map((offer) => (
-                <div key={offer.entries} className="p-4 border border-gray-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="font-bold text-gray-700">{offer.entries} vstupov</span>
-                    <label className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Create Product */}
+                <div className="p-5 border border-gray-200 rounded-xl">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Vytvoriť produkt</h3>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Code</label>
                       <input
-                        type="checkbox"
-                        checked={offer.active}
-                        onChange={(e) => handleAdminOfferChange(offer.entries, 'active', e.target.checked)}
+                        type="text"
+                        value={adminCreateForm.code}
+                        onChange={(e) => handleAdminCreateChange('code', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        placeholder="COMBO_MINI_MIDI_MAXI"
                       />
-                      Aktívne
-                    </label>
-                  </div>
-                  <label className="block text-sm text-gray-600 mb-1">Cena (€)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={offer.price}
-                    onChange={(e) => handleAdminOfferChange(offer.entries, 'price', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  />
-                  <div className="text-xs text-gray-500 mt-2">
-                    Navrhovaná cena: {getSuggestedPrice(offer.entries, parseInt(adminSelectedTypeId || '0', 10)) || '—'} €
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Názov</label>
+                      <input
+                        type="text"
+                        value={adminCreateForm.name}
+                        onChange={(e) => handleAdminCreateChange('name', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        placeholder="Kombinácia MINI + MIDI + MAXI"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Popis</label>
+                      <textarea
+                        value={adminCreateForm.description}
+                        onChange={(e) => handleAdminCreateChange('description', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        rows={3}
+                        placeholder="Permanentka platná pre vybrané typy tréningov"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Typy tréningov</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {adminTrainingTypes.map((type) => (
+                          <label key={type.id} className="flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={adminCreateForm.trainingTypeIds.includes(type.id)}
+                              onChange={() => handleAdminTrainingTypeToggle(type.id)}
+                            />
+                            {type.name}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Ponuky (entries / cena)</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {adminCreateForm.offers.map((offer) => (
+                          <div key={offer.entries} className="p-3 border border-gray-200 rounded-lg">
+                            <div className="text-sm font-semibold text-gray-700 mb-2">{offer.entries} vstupov</div>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={offer.price}
+                              onChange={(e) => handleAdminCreateOfferChange(offer.entries, e.target.value)}
+                              className="w-full px-2 py-1 border border-gray-300 rounded-md"
+                              placeholder="Cena"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleAdminCreateProduct}
+                      disabled={adminSaving}
+                      className="w-full py-2 rounded-lg bg-secondary-900 text-white font-semibold hover:bg-secondary-500 disabled:opacity-60"
+                    >
+                      {adminSaving ? 'Ukladám...' : 'Vytvoriť produkt'}
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
 
-            {adminError && (
-              <div className="mt-4 text-sm text-red-600">{adminError}</div>
-            )}
-            {adminSuccess && (
-              <div className="mt-4 text-sm text-green-600">{adminSuccess}</div>
-            )}
+                {/* Manage Offers */}
+                <div className="p-5 border border-gray-200 rounded-xl">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Upraviť ponuky</h3>
 
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={handleAdminSave}
-                disabled={adminSaving}
-                className="px-6 py-2 rounded-lg bg-secondary-900 text-white font-semibold hover:bg-secondary-500 disabled:opacity-60"
-              >
-                {adminSaving ? 'Ukladám...' : 'Pridať permanentky'}
-              </button>
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Produkt</label>
+                    <select
+                      value={adminSelectedProductId}
+                      onChange={(e) => setAdminSelectedProductId(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="">Vyberte produkt...</option>
+                      {adminProducts.map((product) => (
+                        <option key={product.id} value={product.id}>
+                          {product.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {adminSelectedProductId ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {adminOffersForm.map((offer) => (
+                        <div key={offer.entries} className="p-3 border border-gray-200 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-semibold text-gray-700">{offer.entries} vstupov</span>
+                            <label className="flex items-center gap-2 text-xs text-gray-600">
+                              <input
+                                type="checkbox"
+                                checked={offer.active}
+                                onChange={(e) => handleAdminOfferChange(offer.entries, 'active', e.target.checked)}
+                              />
+                              Aktívne
+                            </label>
+                          </div>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={offer.price}
+                            onChange={(e) => handleAdminOfferChange(offer.entries, 'price', e.target.value)}
+                            className="w-full px-2 py-1 border border-gray-300 rounded-md"
+                            placeholder="Cena"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-600">Vyberte produkt na úpravu ponúk.</div>
+                  )}
+
+                  <button
+                    onClick={handleAdminSaveOffers}
+                    disabled={adminSaving || !adminSelectedProductId}
+                    className="mt-4 w-full py-2 rounded-lg bg-secondary-900 text-white font-semibold hover:bg-secondary-500 disabled:opacity-60"
+                  >
+                    {adminSaving ? 'Ukladám...' : 'Uložiť ponuky'}
+                  </button>
+                </div>
+              </div>
+
+              {adminError && (
+                <div className="text-sm text-red-600">{adminError}</div>
+              )}
+              {adminSuccess && (
+                <div className="text-sm text-green-600">{adminSuccess}</div>
+              )}
             </div>
           </div>
         )}
 
         {/* Grid Kariet - firemný dizajn */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
-          {selectedTrainingTypeId && filteredOffers.length === 0 ? (
+          {!selectedProductId ? (
             <div className="col-span-full text-center text-gray-600">
-              {t?.seasonTicketsPage?.noOffers || 'Pre vybraný tréning zatiaľ nie sú dostupné permanentky.'}
+              {t?.seasonTicketsPage?.productHint || 'Najprv vyberte produkt permanentky.'}
+            </div>
+          ) : offersLoading ? (
+            <div className="col-span-full text-center text-gray-600">
+              {t?.seasonTicketsPage?.loadingOffers || 'Načítavam ponuky...'}
+            </div>
+          ) : seasonTicketOffers.length === 0 ? (
+            <div className="col-span-full text-center text-gray-600">
+              {t?.seasonTicketsPage?.noOffers || 'Momentálne nedostupné'}
             </div>
           ) : (
-            filteredOffers.map((ticket) => {
-              const savingsKey = SAVINGS_KEY_MAP[ticket.entries] || 'standard';
-              const savingsPercent = calculateSavings(parseFloat(ticket.price), ticket.entries, ticket.training_type_id);
+            seasonTicketOffers.map((ticket) => {
               const isPopular = ticket.entries === 5;
               return (
                 <div
@@ -421,7 +614,7 @@ const SeasonTickets = () => {
                       inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mb-6 text-gray-500
                       ${isPopular ? 'bg-secondary-100' : 'bg-secondary-50'}
                     `}>
-                      {t?.seasonTicketsPage?.tags?.[savingsKey] || savingsKey}
+                      {t?.seasonTicketsPage?.tagLabel || 'Balíček'}
                     </span>
 
                     {/* Počet vstupov - KARTA */}
@@ -443,9 +636,6 @@ const SeasonTickets = () => {
                       <div className="flex justify-center items-baseline">
                         <span className="text-3xl font-bold text-secondary-600">€{parseFloat(ticket.price).toFixed(2)}</span>
                       </div>
-                      <p className="text-green-600 text-sm mt-1 font-medium">
-                        {t?.seasonTicketsPage?.savings.replace('{percent}', savingsPercent)}
-                      </p>
                     </div>
 
                     {/* Vlastnosti (Features) */}
@@ -473,10 +663,7 @@ const SeasonTickets = () => {
                         </div>
                         <div>
                           <span className="font-bold text-gray-500 block">
-                            {t?.seasonTicketsPage?.restrictionLabel || 'Platí len:'} {ticket.training_type_name}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {t?.seasonTicketsPage?.restrictionDetail || 'Nevzťahuje sa na iné typy'}
+                            {t?.seasonTicketsPage?.restrictionLabel || 'Platí na:'} {trainingTypesLabel || '—'}
                           </span>
                         </div>
                       </li>
@@ -541,9 +728,9 @@ const SeasonTickets = () => {
                 </div>
 
                 <div className="text-center text-gray-600 font-medium">
-                  {t?.seasonTicketsPage?.validFor || 'Platí pre'}{' '}
+                  {t?.seasonTicketsPage?.validFor || 'Platí na'}{' '}
                   <span style={{ color: '#eabd64' }} className="font-bold">
-                    {ticketToBuy.training_type_name || selectedTrainingType?.name}
+                    {trainingTypesLabel || '—'}
                   </span>
                 </div>
               </div>

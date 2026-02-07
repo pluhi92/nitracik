@@ -418,7 +418,7 @@ useEffect(() => {
               </a>
             </span>
           </div>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 mb-0">
             Overené recenzie z Google
           </p>
         </div>
@@ -690,7 +690,7 @@ useEffect(() => {
       </Modal>
 
       {/* Join Us Section */}
-      <div className="max-w-6xl mx-auto px-6 py-12 rounded-xl shadow-xl bg-overlay-90 backdrop-blur-sm">
+      <div className="max-w-6xl mx-auto px-6 py-8 rounded-xl shadow-xl bg-overlay-90 backdrop-blur-sm">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="text-left">
             <h2 className="text-3xl font-bold mb-6 text-secondary">
@@ -755,11 +755,11 @@ useEffect(() => {
             )}
           </div>
 
-          <div className="rounded-lg shadow-lg overflow-hidden">
+          <div className="rounded-lg shadow-lg overflow-hidden h-[350px] lg:h-auto">
             <img
               src="/images/nitracik_join_us.jpg"
               alt="Children enjoying messy sensory play at Nitracik"
-              className="w-full h-[350px] object-cover"
+              className="w-full h-full object-contain"
               onError={(e) => {
                 e.target.src = 'https://picsum.photos/500/350?random=6';
               }}
