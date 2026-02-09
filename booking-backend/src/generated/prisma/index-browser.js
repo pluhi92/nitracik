@@ -292,6 +292,7 @@ exports.Prisma.Blog_postsScalarFieldEnum = {
   slug: 'slug',
   perex: 'perex',
   content: 'content',
+  source_url: 'source_url',
   image_url: 'image_url',
   created_at: 'created_at',
   updated_at: 'updated_at',

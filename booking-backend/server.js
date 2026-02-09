@@ -3635,6 +3635,7 @@ app.get('/api/blog-posts', async (req, res) => {
         bp.slug, 
         bp.perex, 
         bp.content, 
+        bp.source_url,
         bp.image_url, 
         bp.label_id,
         bp.created_at, 
@@ -3654,7 +3655,7 @@ app.get('/api/blog-posts', async (req, res) => {
 
 app.post('/api/admin/blog-posts', isAdmin, async (req, res) => {
   try {
-    const { title, perex, content, image_url, label_id } = req.body;
+    const { title, perex, content, source_url, image_url, label_id } = req.body;
 
     let slug = createSlug(title);
 
@@ -3664,10 +3665,10 @@ app.post('/api/admin/blog-posts', isAdmin, async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO blog_posts (title, slug, perex, content, image_url, label_id, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      `INSERT INTO blog_posts (title, slug, perex, content, source_url, image_url, label_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
        RETURNING *`,
-      [title, slug, perex, content || null, image_url || null, label_id || null]
+      [title, slug, perex, content || null, source_url || null, image_url || null, label_id || null]
     );
 
     console.log(`✅ Blog post created: ${title} with label_id: ${label_id}`);
@@ -3681,16 +3682,16 @@ app.post('/api/admin/blog-posts', isAdmin, async (req, res) => {
 app.put('/api/admin/blog-posts/:id', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, perex, content, image_url, label_id } = req.body;
+    const { title, perex, content, source_url, image_url, label_id } = req.body;
 
     const slug = createSlug(title);
 
     const result = await pool.query(
       `UPDATE blog_posts 
-       SET title = $1, slug = $2, perex = $3, content = $4, image_url = $5, label_id = $6, updated_at = NOW()
-       WHERE id = $7
+       SET title = $1, slug = $2, perex = $3, content = $4, source_url = $5, image_url = $6, label_id = $7, updated_at = NOW()
+       WHERE id = $8
        RETURNING *`,
-      [title, slug, perex, content || null, image_url || null, label_id || null, id]
+      [title, slug, perex, content || null, source_url || null, image_url || null, label_id || null, id]
     );
 
     if (result.rows.length === 0) {
