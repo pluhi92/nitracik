@@ -91,7 +91,7 @@ const Checklist = () => {
                     <tr>
                         <th style={{width: '50px'}}>#</th>
                         <th>Meno</th>
-                        <th className="text-center">Deti (Vek)</th>
+                        <th className="text-center">Počet detí</th>
                         <th className="text-center">Sprievod</th>
                         <th className="text-center">Foto</th> 
                         <th className="text-center">Poznámka</th>

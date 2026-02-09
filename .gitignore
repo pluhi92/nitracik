@@ -25,3 +25,4 @@ yarn-error.log*
 booking-backend/cred.env
 booking-backend/.env
 /src/generated/prisma
+booking-backend/CHANGES_SUMMARY.md

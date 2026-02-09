@@ -983,7 +983,7 @@ const UserProfile = () => {
                           {ticket.email}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
-                          {ticket.training_type_name || ticket.training_type || '-'}
+                          {ticket.product_name || ticket.product_code || ticket.training_type_name || ticket.training_type || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                           {ticket.entries_total}
@@ -1068,7 +1068,12 @@ const UserProfile = () => {
                     {activeTickets.map((ticket, index) => (
                       <tr key={`${ticket.id || 'ticket'}-${ticket.purchase_date || ''}-${index}`} className="hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">
-                          {ticket.training_type_name || ticket.training_type || '-'}
+                          <div>{ticket.product_name || ticket.product_code || ticket.training_type_name || ticket.training_type || '-'}</div>
+                          {ticket.training_types && ticket.training_types.length > 0 && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {ticket.training_types.map((type) => type.name).join(', ')}
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                           {ticket.entries_total}
@@ -1116,7 +1121,12 @@ const UserProfile = () => {
                         {historyTickets.map((ticket, index) => (
                           <tr key={`${ticket.id || 'ticket'}-${ticket.purchase_date || ''}-${index}`}>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                              {ticket.training_type_name || ticket.training_type || '-'}
+                              <div>{ticket.product_name || ticket.product_code || ticket.training_type_name || ticket.training_type || '-'}</div>
+                              {ticket.training_types && ticket.training_types.length > 0 && (
+                                <div className="text-xs text-gray-400">
+                                  {ticket.training_types.map((type) => type.name).join(', ')}
+                                </div>
+                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
                               {ticket.entries_remaining === 0 ? (
