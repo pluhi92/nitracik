@@ -345,13 +345,13 @@ useEffect(() => {
       </div>
 
       {/* About Us Text Section */}
-      <section className="max-w-6xl mx-auto px-6 py-12 mb-16 relative">
+      <section className="max-w-6xl mx-auto px-6 py-12 mb-16 bg-white rounded-xl shadow-lg relative">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
             <h2 className="text-3xl font-bold mb-6 text-secondary">
               {aboutContent.title}
             </h2>
-            <div className="prose prose-lg text-gray-700 dark:text-gray-300">
+            <div className="prose prose-lg text-gray-700 dark:text-gray-300 text-justify">
               <p>
                 {aboutContent.description}
               </p>
@@ -553,7 +553,7 @@ useEffect(() => {
       <section className="max-w-6xl mx-auto px-6 py-12 mb-16 bg-white rounded-xl shadow-lg">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-secondary">
-            {t?.about?.meetTheOwner || 'Stretnite sa s majiteľkou'}
+            {t?.about?.meetTheOwner || 'Zoznámte sa so zakladateľkou'}
           </h2>
         </div>
 
@@ -572,23 +572,38 @@ useEffect(() => {
           </div>
 
           {/* Text */}
-          <div>
-            <h3 className="text-2xl font-bold mb-4">
-              Ahoj! Volám sa Saška
+          <div className="text-left">
+            <h3 className="text-2xl font-bold mb-4 text-center">
+              Ahoj! Volám sa Saška.
             </h3>
-            <div className="prose prose-lg text-gray-700 mb-6">
+            <div className="prose prose-lg text-gray-700 mb-6 text-justify">
               <p>
-                Ahoj! Volám sa Saška a stojím za lokálnym projektom Nitráčik.
-                Mojou vášňou je vytvárať priestor, kde sa deti môžu rozvíjať,
-                učiť sa novým veciam a hlavne - baviť sa!
+                Stojím za lokálnym projektom Nitráčik, ktorý od počiatku zahŕňam láskou,
+                nápadmi a tvorivou energiou. Úprimne verím a dúfam, že túto láskavú energiu
+                pocítiš nielen na webe, ale aj pri osobnom stretnutí na hodinách, v krásnych
+                priestoroch Nitráčika v srdci Nitry.
               </p>
               <p className="mt-4">
-                Verím, že každé dieťa má v sebe neobmedzený potenciál, a mojou
-                úlohou je pomôcť mu tento potenciál objaviť.
+                „Chcem aspoň trochou prispieť k tomu, aby bol tento svet lepším miestom pre život.. nielen pre môjho syna."
+              </p>
+              <p className="mt-4">
+                PREČO práve skrz Nitráčik o.z.? ..lebo je to
+              </p>
+              <ul className="list-disc pl-6 mt-2">
+                <li>ZMYSLUPLNÉ</li>
+                <li>KREATÍVNE</li>
+                <li>BAVÍ MA TO a</li>
+                <li>NAPĽŇA.</li>
+              </ul>
+              <p className="mt-4">
+                Nitráčik je “niečo” čo som dlho hľadala a našla.
+              </p>
+              <p className="mt-4">
+                Ďakujem, že si jeho súčasťou a podporuješ ho v jeho raste. 🤍
               </p>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 text-center">
               <Link
                 to="/contact"
                 className="inline-flex items-center text-primary-600 hover:text-primary-700 font-semibold"

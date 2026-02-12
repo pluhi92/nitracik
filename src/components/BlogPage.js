@@ -25,6 +25,7 @@ const BlogPage = () => {
         title: '',
         perex: '',
         content: '',
+        source_url: '',
         image_url: '',
         label_id: null
     });
@@ -268,7 +269,7 @@ const BlogPage = () => {
             });
             setShowEditModal(false);
             setCurrentPost(null);
-            setFormData({ title: '', perex: '', content: '', image_url: '', label_id: null });
+            setFormData({ title: '', perex: '', content: '', source_url: '', image_url: '', label_id: null });
             setSelectedFile(null);
             setImagePreview(null);
             setCompressionInfo(null);
@@ -297,6 +298,7 @@ const BlogPage = () => {
             title: post.title,
             perex: post.perex,
             content: post.content || '',
+            source_url: post.source_url || '',
             image_url: post.image_url || '',
             label_id: post.label_id || null
         });
@@ -432,7 +434,7 @@ const BlogPage = () => {
                 {isAdmin && (
                     <div className="text-end mb-4">
                         <Button variant="success" onClick={() => {
-                            setFormData({ title: '', perex: '', content: '', image_url: '', label_id: null });
+                            setFormData({ title: '', perex: '', content: '', source_url: '', image_url: '', label_id: null });
                             setUploadMethod('url');
                             setSelectedFile(null);
                             setImagePreview(null);
@@ -505,6 +507,21 @@ const BlogPage = () => {
                                             <div className="text-muted small mb-3">
                                                 📅 {formatDate(post.created_at)}
                                             </div>
+
+                                            {/* Zdroj */}
+                                            {post.source_url && (
+                                                <div className="text-muted small mb-3">
+                                                    <strong>Zdroj:</strong>{' '}
+                                                    <a 
+                                                        href={post.source_url} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer"
+                                                        className="text-primary text-decoration-none hover:underline"
+                                                    >
+                                                        {post.source_url.length > 40 ? post.source_url.substring(0, 40) + '...' : post.source_url}
+                                                    </a>
+                                                </div>
+                                            )}
 
                                             {/* Actions */}
                                             <div className="mt-4 flex justify-center items-center gap-6">
@@ -815,13 +832,45 @@ const BlogPage = () => {
                         </Modal.Header>
                         <Modal.Body>
                             <Form.Group className="mb-3">
-                                <Form.Label>{t?.blog?.titleLabel || 'Názov článku'}</Form.Label>
+                                <Form.Label>{t?.blog?.titleLabel || 'Názov'}</Form.Label>
                                 <Form.Control
                                     required
                                     type="text"
                                     value={formData.title}
                                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                 />
+                            </Form.Group>
+
+                            <Form.Group className="mb-3">
+                                <Form.Label>{t?.blog?.perexLabel || 'Krátky popis (perex)'}</Form.Label>
+                                <Form.Control
+                                    required
+                                    as="textarea"
+                                    rows={3}
+                                    value={formData.perex}
+                                    onChange={(e) => setFormData({ ...formData, perex: e.target.value })}
+                                />
+                            </Form.Group>
+                            <Form.Group className="mb-3">
+                                <Form.Label>{t?.blog?.contentLabel || 'Obsah'}</Form.Label>
+                                <Form.Control
+                                    as="textarea"
+                                    rows={8}
+                                    value={formData.content}
+                                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                                />
+                            </Form.Group>
+                            <Form.Group className="mb-3">
+                                <Form.Label>Zdroj (URL)</Form.Label>
+                                <Form.Control
+                                    type="text"
+                                    value={formData.source_url}
+                                    onChange={(e) => setFormData({ ...formData, source_url: e.target.value })}
+                                    placeholder="https://priklad.sk"
+                                />
+                                <Form.Text className="text-muted">
+                                    Voliteľné: URL zdroja článku. Ak je vyplnené, zobrazí sa ako odkaz na konci článku.
+                                </Form.Text>
                             </Form.Group>
 
                             {/* LABEL SELECTOR */}
@@ -859,26 +908,6 @@ const BlogPage = () => {
                                         </span>
                                     </div>
                                 )}
-                            </Form.Group>
-
-                            <Form.Group className="mb-3">
-                                <Form.Label>{t?.blog?.perexLabel || 'Krátky popis (perex)'}</Form.Label>
-                                <Form.Control
-                                    required
-                                    as="textarea"
-                                    rows={3}
-                                    value={formData.perex}
-                                    onChange={(e) => setFormData({ ...formData, perex: e.target.value })}
-                                />
-                            </Form.Group>
-                            <Form.Group className="mb-3">
-                                <Form.Label>{t?.blog?.contentLabel || 'Obsah'}</Form.Label>
-                                <Form.Control
-                                    as="textarea"
-                                    rows={8}
-                                    value={formData.content}
-                                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                                />
                             </Form.Group>
 
                             <Form.Group className="mb-4">
@@ -987,13 +1016,45 @@ const BlogPage = () => {
                         </Modal.Header>
                         <Modal.Body>
                             <Form.Group className="mb-3">
-                                <Form.Label>{t?.blog?.titleLabel || 'Názov článku'}</Form.Label>
+                                <Form.Label>{t?.blog?.titleLabel || 'Názov'}</Form.Label>
                                 <Form.Control
                                     required
                                     type="text"
                                     value={formData.title}
                                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                 />
+                            </Form.Group>
+
+                            <Form.Group className="mb-3">
+                                <Form.Label>{t?.blog?.perexLabel || 'Krátky popis (perex)'}</Form.Label>
+                                <Form.Control
+                                    required
+                                    as="textarea"
+                                    rows={3}
+                                    value={formData.perex}
+                                    onChange={(e) => setFormData({ ...formData, perex: e.target.value })}
+                                />
+                            </Form.Group>
+                            <Form.Group className="mb-3">
+                                <Form.Label>{t?.blog?.contentLabel || 'Obsah'}</Form.Label>
+                                <Form.Control
+                                    as="textarea"
+                                    rows={8}
+                                    value={formData.content}
+                                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                                />
+                            </Form.Group>
+                            <Form.Group className="mb-3">
+                                <Form.Label>Zdroj (URL)</Form.Label>
+                                <Form.Control
+                                    type="text"
+                                    value={formData.source_url}
+                                    onChange={(e) => setFormData({ ...formData, source_url: e.target.value })}
+                                    placeholder="https://priklad.sk"
+                                />
+                                <Form.Text className="text-muted">
+                                    Voliteľné: URL zdroja článku. Ak je vyplnené, zobrazí sa ako odkaz na konci článku.
+                                </Form.Text>
                             </Form.Group>
 
                             {/* LABEL SELECTOR */}
@@ -1031,26 +1092,6 @@ const BlogPage = () => {
                                         </span>
                                     </div>
                                 )}
-                            </Form.Group>
-
-                            <Form.Group className="mb-3">
-                                <Form.Label>{t?.blog?.perexLabel || 'Krátky popis (perex)'}</Form.Label>
-                                <Form.Control
-                                    required
-                                    as="textarea"
-                                    rows={3}
-                                    value={formData.perex}
-                                    onChange={(e) => setFormData({ ...formData, perex: e.target.value })}
-                                />
-                            </Form.Group>
-                            <Form.Group className="mb-3">
-                                <Form.Label>{t?.blog?.contentLabel || 'Obsah'}</Form.Label>
-                                <Form.Control
-                                    as="textarea"
-                                    rows={8}
-                                    value={formData.content}
-                                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                                />
                             </Form.Group>
 
                             <Form.Group className="mb-4">

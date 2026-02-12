@@ -20351,6 +20351,7 @@ export namespace Prisma {
     slug: string | null
     perex: string | null
     content: string | null
+    source_url: string | null
     image_url: string | null
     created_at: Date | null
     updated_at: Date | null
@@ -20363,6 +20364,7 @@ export namespace Prisma {
     slug: string | null
     perex: string | null
     content: string | null
+    source_url: string | null
     image_url: string | null
     created_at: Date | null
     updated_at: Date | null
@@ -20375,6 +20377,7 @@ export namespace Prisma {
     slug: number
     perex: number
     content: number
+    source_url: number
     image_url: number
     created_at: number
     updated_at: number
@@ -20399,6 +20402,7 @@ export namespace Prisma {
     slug?: true
     perex?: true
     content?: true
+    source_url?: true
     image_url?: true
     created_at?: true
     updated_at?: true
@@ -20411,6 +20415,7 @@ export namespace Prisma {
     slug?: true
     perex?: true
     content?: true
+    source_url?: true
     image_url?: true
     created_at?: true
     updated_at?: true
@@ -20423,6 +20428,7 @@ export namespace Prisma {
     slug?: true
     perex?: true
     content?: true
+    source_url?: true
     image_url?: true
     created_at?: true
     updated_at?: true
@@ -20522,6 +20528,7 @@ export namespace Prisma {
     slug: string
     perex: string
     content: string | null
+    source_url: string | null
     image_url: string | null
     created_at: Date | null
     updated_at: Date | null
@@ -20553,6 +20560,7 @@ export namespace Prisma {
     slug?: boolean
     perex?: boolean
     content?: boolean
+    source_url?: boolean
     image_url?: boolean
     created_at?: boolean
     updated_at?: boolean
@@ -20566,6 +20574,7 @@ export namespace Prisma {
     slug?: boolean
     perex?: boolean
     content?: boolean
+    source_url?: boolean
     image_url?: boolean
     created_at?: boolean
     updated_at?: boolean
@@ -20579,6 +20588,7 @@ export namespace Prisma {
     slug?: boolean
     perex?: boolean
     content?: boolean
+    source_url?: boolean
     image_url?: boolean
     created_at?: boolean
     updated_at?: boolean
@@ -20592,13 +20602,14 @@ export namespace Prisma {
     slug?: boolean
     perex?: boolean
     content?: boolean
+    source_url?: boolean
     image_url?: boolean
     created_at?: boolean
     updated_at?: boolean
     label_id?: boolean
   }
 
-  export type blog_postsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "title" | "slug" | "perex" | "content" | "image_url" | "created_at" | "updated_at" | "label_id", ExtArgs["result"]["blog_posts"]>
+  export type blog_postsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "title" | "slug" | "perex" | "content" | "source_url" | "image_url" | "created_at" | "updated_at" | "label_id", ExtArgs["result"]["blog_posts"]>
   export type blog_postsInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     label?: boolean | blog_posts$labelArgs<ExtArgs>
   }
@@ -20620,6 +20631,7 @@ export namespace Prisma {
       slug: string
       perex: string
       content: string | null
+      source_url: string | null
       image_url: string | null
       created_at: Date | null
       updated_at: Date | null
@@ -21053,6 +21065,7 @@ export namespace Prisma {
     readonly slug: FieldRef<"blog_posts", 'String'>
     readonly perex: FieldRef<"blog_posts", 'String'>
     readonly content: FieldRef<"blog_posts", 'String'>
+    readonly source_url: FieldRef<"blog_posts", 'String'>
     readonly image_url: FieldRef<"blog_posts", 'String'>
     readonly created_at: FieldRef<"blog_posts", 'DateTime'>
     readonly updated_at: FieldRef<"blog_posts", 'DateTime'>
@@ -23765,6 +23778,7 @@ export namespace Prisma {
     slug: 'slug',
     perex: 'perex',
     content: 'content',
+    source_url: 'source_url',
     image_url: 'image_url',
     created_at: 'created_at',
     updated_at: 'updated_at',
@@ -25078,6 +25092,7 @@ export namespace Prisma {
     slug?: StringFilter<"blog_posts"> | string
     perex?: StringFilter<"blog_posts"> | string
     content?: StringNullableFilter<"blog_posts"> | string | null
+    source_url?: StringNullableFilter<"blog_posts"> | string | null
     image_url?: StringNullableFilter<"blog_posts"> | string | null
     created_at?: DateTimeNullableFilter<"blog_posts"> | Date | string | null
     updated_at?: DateTimeNullableFilter<"blog_posts"> | Date | string | null
@@ -25091,6 +25106,7 @@ export namespace Prisma {
     slug?: SortOrder
     perex?: SortOrder
     content?: SortOrderInput | SortOrder
+    source_url?: SortOrderInput | SortOrder
     image_url?: SortOrderInput | SortOrder
     created_at?: SortOrderInput | SortOrder
     updated_at?: SortOrderInput | SortOrder
@@ -25107,6 +25123,7 @@ export namespace Prisma {
     title?: StringFilter<"blog_posts"> | string
     perex?: StringFilter<"blog_posts"> | string
     content?: StringNullableFilter<"blog_posts"> | string | null
+    source_url?: StringNullableFilter<"blog_posts"> | string | null
     image_url?: StringNullableFilter<"blog_posts"> | string | null
     created_at?: DateTimeNullableFilter<"blog_posts"> | Date | string | null
     updated_at?: DateTimeNullableFilter<"blog_posts"> | Date | string | null
@@ -25120,6 +25137,7 @@ export namespace Prisma {
     slug?: SortOrder
     perex?: SortOrder
     content?: SortOrderInput | SortOrder
+    source_url?: SortOrderInput | SortOrder
     image_url?: SortOrderInput | SortOrder
     created_at?: SortOrderInput | SortOrder
     updated_at?: SortOrderInput | SortOrder
@@ -25140,6 +25158,7 @@ export namespace Prisma {
     slug?: StringWithAggregatesFilter<"blog_posts"> | string
     perex?: StringWithAggregatesFilter<"blog_posts"> | string
     content?: StringNullableWithAggregatesFilter<"blog_posts"> | string | null
+    source_url?: StringNullableWithAggregatesFilter<"blog_posts"> | string | null
     image_url?: StringNullableWithAggregatesFilter<"blog_posts"> | string | null
     created_at?: DateTimeNullableWithAggregatesFilter<"blog_posts"> | Date | string | null
     updated_at?: DateTimeNullableWithAggregatesFilter<"blog_posts"> | Date | string | null
@@ -26423,6 +26442,7 @@ export namespace Prisma {
     slug: string
     perex: string
     content?: string | null
+    source_url?: string | null
     image_url?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
@@ -26435,6 +26455,7 @@ export namespace Prisma {
     slug: string
     perex: string
     content?: string | null
+    source_url?: string | null
     image_url?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
@@ -26446,6 +26467,7 @@ export namespace Prisma {
     slug?: StringFieldUpdateOperationsInput | string
     perex?: StringFieldUpdateOperationsInput | string
     content?: NullableStringFieldUpdateOperationsInput | string | null
+    source_url?: NullableStringFieldUpdateOperationsInput | string | null
     image_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -26458,6 +26480,7 @@ export namespace Prisma {
     slug?: StringFieldUpdateOperationsInput | string
     perex?: StringFieldUpdateOperationsInput | string
     content?: NullableStringFieldUpdateOperationsInput | string | null
+    source_url?: NullableStringFieldUpdateOperationsInput | string | null
     image_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -26470,6 +26493,7 @@ export namespace Prisma {
     slug: string
     perex: string
     content?: string | null
+    source_url?: string | null
     image_url?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
@@ -26481,6 +26505,7 @@ export namespace Prisma {
     slug?: StringFieldUpdateOperationsInput | string
     perex?: StringFieldUpdateOperationsInput | string
     content?: NullableStringFieldUpdateOperationsInput | string | null
+    source_url?: NullableStringFieldUpdateOperationsInput | string | null
     image_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -26492,6 +26517,7 @@ export namespace Prisma {
     slug?: StringFieldUpdateOperationsInput | string
     perex?: StringFieldUpdateOperationsInput | string
     content?: NullableStringFieldUpdateOperationsInput | string | null
+    source_url?: NullableStringFieldUpdateOperationsInput | string | null
     image_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -27743,6 +27769,7 @@ export namespace Prisma {
     slug?: SortOrder
     perex?: SortOrder
     content?: SortOrder
+    source_url?: SortOrder
     image_url?: SortOrder
     created_at?: SortOrder
     updated_at?: SortOrder
@@ -27760,6 +27787,7 @@ export namespace Prisma {
     slug?: SortOrder
     perex?: SortOrder
     content?: SortOrder
+    source_url?: SortOrder
     image_url?: SortOrder
     created_at?: SortOrder
     updated_at?: SortOrder
@@ -27772,6 +27800,7 @@ export namespace Prisma {
     slug?: SortOrder
     perex?: SortOrder
     content?: SortOrder
+    source_url?: SortOrder
     image_url?: SortOrder
     created_at?: SortOrder
     updated_at?: SortOrder
@@ -31327,6 +31356,7 @@ export namespace Prisma {
     slug: string
     perex: string
     content?: string | null
+    source_url?: string | null
     image_url?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
@@ -31338,6 +31368,7 @@ export namespace Prisma {
     slug: string
     perex: string
     content?: string | null
+    source_url?: string | null
     image_url?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
@@ -31378,6 +31409,7 @@ export namespace Prisma {
     slug?: StringFilter<"blog_posts"> | string
     perex?: StringFilter<"blog_posts"> | string
     content?: StringNullableFilter<"blog_posts"> | string | null
+    source_url?: StringNullableFilter<"blog_posts"> | string | null
     image_url?: StringNullableFilter<"blog_posts"> | string | null
     created_at?: DateTimeNullableFilter<"blog_posts"> | Date | string | null
     updated_at?: DateTimeNullableFilter<"blog_posts"> | Date | string | null
@@ -32218,6 +32250,7 @@ export namespace Prisma {
     slug: string
     perex: string
     content?: string | null
+    source_url?: string | null
     image_url?: string | null
     created_at?: Date | string | null
     updated_at?: Date | string | null
@@ -32228,6 +32261,7 @@ export namespace Prisma {
     slug?: StringFieldUpdateOperationsInput | string
     perex?: StringFieldUpdateOperationsInput | string
     content?: NullableStringFieldUpdateOperationsInput | string | null
+    source_url?: NullableStringFieldUpdateOperationsInput | string | null
     image_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -32239,6 +32273,7 @@ export namespace Prisma {
     slug?: StringFieldUpdateOperationsInput | string
     perex?: StringFieldUpdateOperationsInput | string
     content?: NullableStringFieldUpdateOperationsInput | string | null
+    source_url?: NullableStringFieldUpdateOperationsInput | string | null
     image_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -32250,6 +32285,7 @@ export namespace Prisma {
     slug?: StringFieldUpdateOperationsInput | string
     perex?: StringFieldUpdateOperationsInput | string
     content?: NullableStringFieldUpdateOperationsInput | string | null
+    source_url?: NullableStringFieldUpdateOperationsInput | string | null
     image_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null

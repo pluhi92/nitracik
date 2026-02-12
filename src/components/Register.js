@@ -389,7 +389,7 @@ const Register = () => {
           </div>
 
           {/* HESLO */}
-          <div className="p-5 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
+          <div className="px-3 py-5 sm:p-5 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">{t?.login?.register?.password || 'Password'}</label>
               <div className="relative">

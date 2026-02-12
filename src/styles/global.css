@@ -81,6 +81,7 @@ p {
 
 .text-muted { color: var(--text-muted); }
 .text-secondary { color: var(--text-secondary); }
+.text-justify { text-align: justify; text-justify: inter-word; }
 
 /* ── Layout & Grid ───────────────────────────────────── */
 .container {
