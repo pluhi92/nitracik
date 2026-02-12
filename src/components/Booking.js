@@ -609,6 +609,11 @@ const Booking = () => {
         });
 
         const stripe = await stripePromise;
+        
+        // Store booking ID and session ID for recovery if payment fails
+        localStorage.setItem('pendingBookingId', paymentSession.data.bookingId);
+        localStorage.setItem('pendingSessionId', paymentSession.data.sessionId);
+        
         const { error } = await stripe.redirectToCheckout({
           sessionId: paymentSession.data.sessionId,
         });

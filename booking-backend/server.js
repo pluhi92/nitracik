@@ -65,15 +65,6 @@ const sharp = require('sharp');
 
 app.set('trust proxy', 1);
 
-
-app.use((req, res, next) => {
-  if (DEBUG_LOGS) {
-    console.log('REQ IP:', req.ip);
-    console.log('XFF:', req.headers['x-forwarded-for']);
-  }
-  next();
-});
-
 const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hodina
   max: 5,
@@ -193,7 +184,7 @@ async function processImage(buffer, filename) {
 
 app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   if (DEBUG_LOGS) {
-    console.log('🔹 [DEBUG] Webhook hit!'); // 1. Zistíme, či sem vôbec Stripe trafí
+    console.log('� [STRIPE WEBHOOK] Received'); // Stripe webhook notification
   }
   const sig = req.headers['stripe-signature'];
   let event;
@@ -205,7 +196,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
       process.env.STRIPE_WEBHOOK_SECRET
     );
     if (DEBUG_LOGS) {
-      console.log('[DEBUG] Webhook Event Received:', event.type);
+      console.log('🔔 [STRIPE WEBHOOK] Event:', event.type);
     }
   } catch (err) {
     console.error('[DEBUG] Webhook Signature Verification Failed:', err.message);
@@ -214,6 +205,13 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
+    
+    // ✅ CRITICAL: Only process if payment was actually successful
+    if (session.payment_status !== 'paid') {
+      console.log(`⚠️ [STRIPE WEBHOOK] Payment not completed. Status: ${session.payment_status}`);
+      return res.json({ received: true });
+    }
+    
     if (DEBUG_LOGS) {
       console.log('📦 [DEBUG] Session data:', JSON.stringify(session.metadata, null, 2));
     }
@@ -387,7 +385,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           if (!displayTime) displayTime = trainingLocal.format('HH:mm');
         }
         const bookingsResult = await client.query(
-          `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1`,
+          `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1 AND active = true`,
           [training.id]
         );
         const bookedCount = parseInt(bookingsResult.rows[0].booked_children, 10);
@@ -395,14 +393,15 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           throw new Error('Session is full');
         }
 
-        // Update existing booking with payment details
+        // Update existing booking with payment details and activate it
         const paymentIntentId = session.payment_intent;
         const updateResult = await client.query(
           `UPDATE bookings 
            SET amount_paid = $1, 
                payment_time = $2, 
                payment_intent_id = $3, 
-               session_id = NULL 
+               session_id = NULL,
+               active = true
            WHERE session_id = $4 
            RETURNING *`,
           [parseFloat(totalPrice), new Date(session.created * 1000), paymentIntentId, session.id]
@@ -413,11 +412,10 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         }
 
         const booking = updateResult.rows[0];
-        console.log('[DEBUG] Booking updated with payment details:', {
+        console.log('✅ [STRIPE SUCCESS] Booking confirmed:', {
           bookingId: booking.id,
           paymentIntentId,
-          amountPaid: totalPrice,
-          sessionId: session.id
+          amountPaid: totalPrice
         });
 
         const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
@@ -613,16 +611,12 @@ app.use((error, req, res, next) => {
 
 const isAdmin = async (req, res, next) => {
   try {
-    console.log(`[isAdmin] Checking admin access for userId=${req.session.userId}, session.role=${req.session.role}`);
-
     if (!req.session.userId) {
-      console.log(`[isAdmin] ❌ DENIED: No userId in session`);
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
     // 1. PRIORITA 1: Kontrola role v session (najrýchlejšie, nastavená pri login)
     if (req.session.role === 'admin') {
-      console.log(`[isAdmin] ✅ ALLOWED: session.role === 'admin' (userId=${req.session.userId})`);
       return next();
     }
 
@@ -635,21 +629,17 @@ const isAdmin = async (req, res, next) => {
       );
 
       if (!result.rows.length) {
-        console.log(`[isAdmin] ❌ DENIED: User not found in DB (userId=${req.session.userId})`);
         return res.status(401).json({ error: 'User not found' });
       }
 
       const user = result.rows[0];
-      console.log(`[isAdmin] User found: email=${user.email}, role=${user.role}`);
 
       // Check DB role
       if (user.role === 'admin') {
-        console.log(`[isAdmin] ✅ ALLOWED: DB role === 'admin' (email=${user.email})`);
         return next();
       }
 
       // Žiadna podmienka nesplnená → pristup odmietnutý
-      console.log(`[isAdmin] ❌ DENIED: User ${user.email} is not admin (role=${user.role})`);
       return res.status(403).json({ error: 'Forbidden: Admin access required' });
 
     } finally {
@@ -663,7 +653,7 @@ const isAdmin = async (req, res, next) => {
 
 function isAuthenticated(req, res, next) {
   if (DEBUG_LOGS) {
-    console.log('Session data in isAuthenticated:', req.session);
+    console.log('[isAuthenticated] userId:', req.session.userId, 'role:', req.session.role);
   }
   if (req.session.userId) {
     // Fetch user email to check admin status
@@ -735,20 +725,14 @@ app.get('/api/admin/bookings', isAdmin, async (req, res) => {
         b.active,
         b.booking_type,
         b.amount_paid,
-        COALESCE(SUM(b.number_of_children) OVER (PARTITION BY ta.id), 0) AS total_children,
-        (ta.max_participants - COALESCE(SUM(b.number_of_children) OVER (PARTITION BY ta.id), 0)) AS available_spots
+        COALESCE(SUM(b.number_of_children) FILTER (WHERE b.active = true) OVER (PARTITION BY ta.id), 0) AS total_children,
+        (ta.max_participants - COALESCE(SUM(b.number_of_children) FILTER (WHERE b.active = true) OVER (PARTITION BY ta.id), 0)) AS available_spots
       FROM training_availability ta
       LEFT JOIN bookings b 
         ON ta.id = b.training_id
       LEFT JOIN users u 
-        ON b.user_id = u.id
+        ON b.user_id = u.id AND b.active = true
       WHERE ta.training_date >= NOW() - INTERVAL '60 minutes'
-        AND (
-          b.active = true
-          OR NOT EXISTS (
-            SELECT 1 FROM bookings b2 WHERE b2.credit_id = b.id
-          )
-        )
       ORDER BY ta.training_date DESC, ta.training_type;
     `);
 
@@ -1645,7 +1629,7 @@ app.post('/api/create-season-ticket-payment', isAuthenticated, async (req, res) 
       }],
       mode: 'payment',
       success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/payment-canceled`,
+      cancel_url: `${process.env.FRONTEND_URL}/payment-cancelled`,
       metadata: {
         userId: userId.toString(),
         entries: entriesInt.toString(),
@@ -1716,9 +1700,9 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
     }
     const training = trainingResult.rows[0];
 
-    // Check availability
+    // Check availability (only active bookings count)
     const bookingsResult = await client.query(
-      `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1`,
+      `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1 AND active = true`,
       [training.id]
     );
     const bookedChildren = parseInt(bookingsResult.rows[0].booked_children, 10);
@@ -1896,7 +1880,7 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         }],
         mode: 'payment',
         success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}&booking_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.FRONTEND_URL}/payment-canceled`,
+        cancel_url: `${process.env.FRONTEND_URL}/payment-cancelled`,
         metadata: {
           userId: userId.toString(),
           trainingId: training.id.toString(),
@@ -1914,18 +1898,17 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         },
       });
 
-      // 4. Vytvorenie záznamu (ostáva rovnaké, len používame calculatedPrice)
+      // 4. Vytvorenie DOČASNÉHO záznamu (amount_paid je NULL, active = false kým platba neprojde)
       const bookingResult = await client.query(
         `INSERT INTO bookings (
           user_id, training_id, number_of_children, amount_paid, payment_time, 
           session_id, booked_at, children_ages, photo_consent, mobile, note, accompanying_person, active, booking_type
-        ) VALUES ($1, $2, $3, $4, NULL, $5, NOW(), $6, $7, $8, $9, $10, true, 'paid')
+        ) VALUES ($1, $2, $3, NULL, NULL, $4, NOW(), $5, $6, $7, $8, $9, false, 'paid')
         RETURNING id`,
         [
           userId,
           training.id,
           childrenCount,
-          calculatedPrice,
           session.id,
           childrenAge || '',
           photoConsent !== null ? photoConsent : false,
@@ -1959,22 +1942,68 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
   try {
     await client.query('BEGIN');
     const session = await stripe.checkout.sessions.retrieve(session_id);
+    
     if (session.payment_status === 'paid') {
       const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
       const amountPaid = paymentIntent.amount / 100; // Convert from cents to euros
       const paymentTime = new Date(paymentIntent.created * 1000);
 
-      // Update existing booking with payment details
+      // Update booking with payment details ONLY if payment succeeded
+      // Also activate it since payment is now confirmed
       await client.query(
         `UPDATE bookings 
-         SET amount_paid = $1, payment_time = $2, session_id = NULL 
+         SET amount_paid = $1, payment_time = $2, session_id = NULL, active = true
          WHERE id = $3`,
         [amountPaid, paymentTime, booking_id]
       );
-    }
+      await client.query('COMMIT');
+      res.redirect('/user-profile');
+    } else {
+      // Payment failed or is not yet paid - Mark as inactive (soft delete)
+      // Get booking details for email notification
+      const bookingResult = await client.query(
+        `SELECT b.*, u.first_name, u.email, ta.training_type, ta.training_date
+         FROM bookings b
+         JOIN users u ON b.user_id = u.id
+         JOIN training_availability ta ON b.training_id = ta.id
+         WHERE b.id = $1`,
+        [booking_id]
+      );
 
-    await client.query('COMMIT');
-    res.redirect('/user-profile'); // Redirect to profile after success
+      const booking = bookingResult.rows[0];
+
+      // Mark booking inactive
+      await client.query(
+        `UPDATE bookings 
+         SET active = false
+         WHERE id = $1 AND amount_paid IS NULL`,
+        [booking_id]
+      );
+      await client.query('COMMIT');
+
+      // Send failure email (BEFORE redirect so it completes)
+      if (booking && booking.email) {
+        try {
+          const trainingDate = dayjs(booking.training_date).tz(APP_TIMEZONE);
+          console.log('❌ [STRIPE FAILED] Payment failed for:', booking.email, '| Session:', session_id);
+          await emailService.sendPaymentFailedEmail(booking.email, booking.first_name, {
+            selectedDate: trainingDate.format('DD.MM.YYYY'),
+            selectedTime: trainingDate.format('HH:mm'),
+            trainingType: booking.training_type,
+            totalPrice: session.metadata.totalPrice || session.amount_total / 100
+          });
+          console.log('✅ [STRIPE FAILED] Payment failed email sent to:', booking.email);
+        } catch (emailErr) {
+          console.error('[ERROR] Failed to send payment failed email:', emailErr.message);
+          // Don't throw - user should still see the cancel page
+        }
+      } else {
+        console.log('⚠️ [STRIPE FAILED] No booking or email found for payment failed notification');
+      }
+
+      // Redirect to cancel page with error
+      res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=payment_failed`);
+    }
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error confirming payment:', error);
@@ -1982,13 +2011,6 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
   } finally {
     client.release();
   }
-});
-
-app.use((req, res, next) => {
-  if (DEBUG_LOGS) {
-    console.log('Session data:', req.session);
-  }
-  next();
 });
 
 function validateEnvVariables() {
@@ -2258,7 +2280,9 @@ app.post('/api/login', async (req, res) => {
         req.session.userId = user.id;
         req.session.role = userRole;
 
-        console.log('Session after login:', req.session);
+        if (DEBUG_LOGS) {
+          console.log('[Login] User authenticated:', {userId: user.id, role: userRole, email: user.email});
+        }
 
         // VRÁTIME ROLE FRONTENDU (aby React vedel zobraziť menu)
         res.json({
@@ -2559,7 +2583,7 @@ app.post('/api/replace-booking/:bookingId', isAuthenticated, async (req, res) =>
     const availabilityResult = await client.query(
       `SELECT ta.id, ta.max_participants, COALESCE(SUM(b.number_of_children),0) AS booked
        FROM training_availability ta
-       LEFT JOIN bookings b ON ta.id = b.training_id
+       LEFT JOIN bookings b ON ta.id = b.training_id AND b.active = true
        WHERE ta.id = $1
        GROUP BY ta.id`,
       [newTrainingId]
@@ -2623,7 +2647,7 @@ app.get('/api/replacement-sessions/:bookingId', isAuthenticated, async (req, res
       `SELECT ta.id, ta.training_type, ta.training_date, ta.max_participants,
               (ta.max_participants - COALESCE(SUM(b.number_of_children), 0)) as available_spots
        FROM training_availability ta
-       LEFT JOIN bookings b ON ta.id = b.training_id
+       LEFT JOIN bookings b ON ta.id = b.training_id AND b.active = true
        WHERE ta.training_type_id = $1 
          AND ta.training_date > $2
          AND ta.id != $3
@@ -4288,6 +4312,32 @@ app.delete('/api/users/:id', async (req, res) => {
     client.release();
   }
 });
+
+// === PENDING PAYMENT CLEANUP ===
+// Run every 6 hours to clean up old pending payments (older than 24 hours)
+setInterval(async () => {
+  try {
+    const client = await pool.connect();
+    
+    // Delete pending bookings older than 24 hours (no payment confirmed)
+    const result = await client.query(`
+      DELETE FROM bookings
+      WHERE active = false 
+        AND amount_paid IS NULL 
+        AND booking_type = 'paid'
+        AND booked_at < NOW() - INTERVAL '24 hours'
+      RETURNING id
+    `);
+
+    if (result.rows.length > 0) {
+      console.log(`[CLEANUP] Removed ${result.rows.length} old pending bookings`);
+    }
+    
+    client.release();
+  } catch (err) {
+    console.error('[CLEANUP] Error removing old pending bookings:', err.message);
+  }
+}, 6 * 60 * 60 * 1000); // Run every 6 hours
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
