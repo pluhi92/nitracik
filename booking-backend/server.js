@@ -2112,11 +2112,10 @@ app.post('/api/register', registerLimiter, async (req, res) => {
   if (!firstName || !lastName || !email || !password || !address) {
     return res.status(400).json({ message: 'Všetky polia sú povinné.' });
   }
-
   // Validácia hesla
   if (!PASSWORD_REGEX.test(password)) {
     return res.status(400).json({
-      message: 'Heslo musí mať min. 8 znakov, veľké a malé písmeno, číslo a špeciálny znak.'
+      message: 'Heslo musí mať min. 8 znakov, veľké a malé písmeno a číslo.'
     });
   }
 
@@ -2201,7 +2200,7 @@ app.post('/api/reset-password', async (req, res) => {
   // --- 1. PRIDANÁ VALIDÁCIA HESLA ---
   if (!newPassword || !PASSWORD_REGEX.test(newPassword)) {
     return res.status(400).json({
-      message: 'Heslo musí mať min. 8 znakov, veľké a malé písmeno, číslo a špeciálny znak.'
+      message: 'Heslo musí mať min. 8 znakov, veľké a malé písmeno a číslo.'
     });
   }
 
