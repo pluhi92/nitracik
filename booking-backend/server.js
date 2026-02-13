@@ -203,6 +203,66 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  // === HANDLER FOR PAYMENT FAILURE ===
+  if (event.type === 'payment_intent.payment_failed') {
+    const paymentIntent = event.data.object;
+    const amountCents = paymentIntent.amount;
+    const amountEur = amountCents / 100;
+
+    if (DEBUG_LOGS) {
+      console.log('❌ [STRIPE WEBHOOK] Payment failed for PaymentIntent:', paymentIntent.id, 'Amount:', amountEur, 'EUR');
+    }
+
+    const client = await pool.connect();
+    try {
+      // Find most recent unpaid booking (NO userId check since metadata is not available)
+      const bookingResult = await client.query(
+        `SELECT b.id, b.session_id, u.email, u.first_name, ta.training_type, ta.training_date
+         FROM bookings b
+         JOIN users u ON b.user_id = u.id
+         LEFT JOIN training_availability ta ON b.training_id = ta.id
+         WHERE b.amount_paid IS NULL AND b.active = false
+         ORDER BY b.booked_at DESC
+         LIMIT 1`
+      );
+
+      if (bookingResult.rows.length > 0) {
+        const booking = bookingResult.rows[0];
+
+        // Mark booking as definitely inactive
+        await client.query(
+          `UPDATE bookings SET active = false WHERE id = $1`,
+          [booking.id]
+        );
+
+        // Send payment failed email
+        try {
+          const trainingDate = booking.training_date ? dayjs(booking.training_date).tz(APP_TIMEZONE) : null;
+          await emailService.sendPaymentFailedEmail(booking.email, booking.first_name, {
+            selectedDate: trainingDate ? trainingDate.format('DD.MM.YYYY') : 'N/A',
+            selectedTime: trainingDate ? trainingDate.format('HH:mm') : 'N/A',
+            trainingType: booking.training_type || 'Tréning',
+            totalPrice: amountEur.toFixed(2)
+          });
+          console.log('✅ [STRIPE WEBHOOK] Payment failed email sent to:', booking.email);
+        } catch (emailError) {
+          console.error('[ERROR] Failed to send payment failed email:', emailError.message);
+        }
+      } else {
+        if (DEBUG_LOGS) {
+          console.warn('⚠️ [STRIPE WEBHOOK] No unpaid booking found');
+        }
+      }
+    } catch (error) {
+      console.error('[ERROR] Error handling payment_intent.payment_failed:', error.message);
+      console.error('[ERROR] Error stack:', error.stack);
+    } finally {
+      client.release();
+    }
+
+    return res.json({ received: true });
+  }
+
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     
@@ -306,7 +366,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
 
         if (user) {
           // Store email data to send AFTER transaction commits
-          var emailDataToSend = {
+          emailDataToSend = {
             type: 'season_ticket_confirmation',
             userEmail: user.email,
             firstName: user.first_name,
@@ -425,7 +485,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         const targetEmail = user.email || session.customer_details?.email;
         const firstName = user.first_name || 'Osôbka';
 
-        var bookingEmailData = {
+        bookingEmailData = {
           targetEmail,
           selectedDate: displayDate,
           selectedTime: displayTime,
@@ -450,6 +510,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
     } catch (error) {
       await client.query('ROLLBACK');
       console.error('[DEBUG] Webhook processing error:', error.message);
+      console.error('[DEBUG] Error stack:', error.stack);
     } finally {
       client.release();
     }
@@ -1889,7 +1950,7 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
           selectedTime,
           childrenCount: childrenCount.toString(),
           childrenAge: childrenAge?.toString() || '',
-          totalPrice: calculatedPrice.toString(), // Ukladáme vypočítanú cenu
+          totalPrice: calculatedPrice.toString(),
           photoConsent: photoConsent?.toString() || 'false',
           mobile: mobile || '',
           note: note || '',
@@ -1981,25 +2042,8 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
       );
       await client.query('COMMIT');
 
-      // Send failure email (BEFORE redirect so it completes)
-      if (booking && booking.email) {
-        try {
-          const trainingDate = dayjs(booking.training_date).tz(APP_TIMEZONE);
-          console.log('❌ [STRIPE FAILED] Payment failed for:', booking.email, '| Session:', session_id);
-          await emailService.sendPaymentFailedEmail(booking.email, booking.first_name, {
-            selectedDate: trainingDate.format('DD.MM.YYYY'),
-            selectedTime: trainingDate.format('HH:mm'),
-            trainingType: booking.training_type,
-            totalPrice: session.metadata.totalPrice || session.amount_total / 100
-          });
-          console.log('✅ [STRIPE FAILED] Payment failed email sent to:', booking.email);
-        } catch (emailErr) {
-          console.error('[ERROR] Failed to send payment failed email:', emailErr.message);
-          // Don't throw - user should still see the cancel page
-        }
-      } else {
-        console.log('⚠️ [STRIPE FAILED] No booking or email found for payment failed notification');
-      }
+      // Email sa posielá automaticky cez webhook (payment_intent.payment_failed event)
+      // Takže tu neposielame email znova
 
       // Redirect to cancel page with error
       res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=payment_failed`);
