@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Modal, Button } from 'react-bootstrap';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Tooltip } from 'react-tooltip';
@@ -14,6 +14,16 @@ const SpinnerIcon = ({ className }) => (
 
 const UserProfile = () => {
   const { t } = useTranslation();
+  const location = useLocation();
+
+  // Scroll to top when component mounts or location changes
+  useEffect(() => {
+    setTimeout(() => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }, 0);
+  }, [location]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);

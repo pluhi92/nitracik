@@ -73,6 +73,7 @@ const AboutUs = () => {
   ];
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   // User Context
   const { user } = useUser();
@@ -197,6 +198,16 @@ useEffect(() => {
     return () => window.removeEventListener('resize', updateCardsPerView);
   }, []);
 
+  // Scroll to top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollButton(window.scrollY > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
 // ✅ SAMOSTATNÝ EFFECT PRE NAČÍTANIE ADMIN DÁT - updatovaný
 useEffect(() => {
   const loadAdminConfig = async () => {
@@ -277,11 +288,23 @@ useEffect(() => {
     }
   }, [showAboutEditModal, aboutContent]);
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const reviewGapRem = reviewCardsPerView === 1 ? 0 : reviewCardsPerView === 2 ? 1.5 : 2;
 
   return (
-    <section className="px-6 py-12 text-center bg-inherit rounded-xl shadow-xl transition-colors duration-300 text-secondary">
+    <section className="relative px-6 py-12 text-center bg-inherit rounded-xl shadow-xl transition-colors duration-300 text-secondary">
+      {showScrollButton && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 border-2 border-gray-700 text-gray-700 hover:text-gray-900 hover:border-gray-900 hover:shadow-2xl rounded-full shadow-lg transition-all duration-300 z-50 bg-white/80 w-16 h-16 flex items-center justify-center"
+          aria-label="Scroll to top"
+        >
+          <span className="text-3xl font-black leading-none translate-y-1">^</span>
+        </button>
+      )}
       {/* Alert message */}
       {alertMessage.text && (
         <div className="max-w-6xl mx-auto mb-6">

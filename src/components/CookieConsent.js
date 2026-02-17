@@ -15,8 +15,8 @@ const CookieConsent = () => {
   const [isTechOpen, setIsTechOpen] = useState(false);
   const [isAnalyticOpen, setIsAnalyticOpen] = useState(false);
 
-  // Zistenie, či sme na GDPR stránke
-  const isOnGdprPage = location.pathname === '/gdpr';
+  // Zistenie, či sme na GDPR stránke alebo jej podstránkach
+  const isOnGdprPage = location.pathname.startsWith('/gdpr');
 
   useEffect(() => {
     const savedCookiePrefs = localStorage.getItem('cookiePreferences');
@@ -118,7 +118,7 @@ const CookieConsent = () => {
               Žiadame vás preto o povolenie na ich využívanie. V prípade ak kliknete na <strong>„PRIJAŤ VŠETKY"</strong> budeme o vás spracúvať všetky druhy cookies,
               ak kliknete na <strong>„ODMIETNUŤ VŠETKY"</strong> budeme spracúvať iba nevyhnutné cookies,
               ak si chcete svoje preferencie nastaviť sami kliknite na <strong>„NASTAVIŤ COOKIES"</strong>.
-              Podmienky spracovania osobných údajov nájdete <Link to="/gdpr" className="text-secondary-600 underline font-semibold hover:text-secondary-500">TU</Link>.
+              Podmienky spracovania osobných údajov nájdete <Link to="/gdpr/cookies" className="text-secondary-600 underline font-semibold hover:text-secondary-500">TU</Link>.
             </p>
 
             <div className="flex flex-row gap-2 justify-center">

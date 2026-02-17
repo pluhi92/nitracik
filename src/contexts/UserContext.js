@@ -1,10 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import api from '../api/api';
 
 const UserContext = createContext();
 
-
-const INACTIVITY_TIMEOUT = 350000;
+// 5 minút nečinnosti = 300 000 ms
+const INACTIVITY_TIMEOUT = 300000;
 // Hodnota pre rýchle testovanie: 15 sekúnd (15000 ms)
 // const INACTIVITY_TIMEOUT = 15000;
 
@@ -17,15 +17,21 @@ export const UserProvider = ({ children }) => {
     role: localStorage.getItem('userRole') || 'user'
   });
 
-  // Uloží referenciu na časovač, aby sme ho mohli resetovať
-  const [inactivityTimer, setInactivityTimer] = useState(null);
+  // Použijeme useRef pre sledovanie timeru a aktuálneho stavu
+  const inactivityTimerRef = useRef(null);
+  const isLoggedInRef = useRef(user.isLoggedIn);
+
+  // Aktualizujeme ref vždy, keď sa zmení isLoggedIn
+  useEffect(() => {
+    isLoggedInRef.current = user.isLoggedIn;
+  }, [user.isLoggedIn]);
 
   const updateUser = data => setUser(data);
 
   const logout = async () => {
-    if (inactivityTimer) {
-      clearTimeout(inactivityTimer);
-      setInactivityTimer(null);
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = null;
     }
 
     try {
@@ -50,37 +56,40 @@ export const UserProvider = ({ children }) => {
 
   // Logika pre automatické odhlásenie a synchronizáciu stavu
   useEffect(() => {
-    let timer;
-
     const resetTimer = () => {
-      clearTimeout(timer);
+      // Vyčistíme existujúci timer
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
 
-      if (user.isLoggedIn) {
-        timer = setTimeout(async () => {
+      // Nastavíme nový timer iba ak je používateľ prihlásený
+      if (isLoggedInRef.current) {
+        inactivityTimerRef.current = setTimeout(async () => {
           console.log('Inactivity timeout reached. Logging out...');
 
-          // dvojitá kontrola – ak by medzičasom došlo k logoutu
+          // Dvojitá kontrola – ak by medzičasom došlo k odhláseniu
           if (!localStorage.getItem('isLoggedIn')) return;
 
           alert('Boli ste odhlásený z dôvodu nečinnosti.');
 
           try {
-            // počkáme na backend, aby request nebol aborted
+            // Počkáme na backend, aby request nebol aborted
             await api.post('/api/logout', {}, { withCredentials: true });
           } catch (err) {
             if (err.code !== 'ECONNABORTED') {
               console.error('Auto-logout API failed:', err);
             }
           } finally {
-            // frontend cleanup MUSÍ prebehnúť vždy
+            // Frontend cleanup MUSÍ prebehnúť vždy
             localStorage.removeItem('isLoggedIn');
             localStorage.removeItem('userFirstName');
             localStorage.removeItem('userId');
             localStorage.removeItem('userName');
             localStorage.removeItem('authToken');
             localStorage.removeItem('user');
+            localStorage.removeItem('userRole');
 
-            setUser({ isLoggedIn: false, firstName: '', userId: null });
+            setUser({ isLoggedIn: false, firstName: '', userId: null, role: 'user' });
 
             // React-friendly redirect (bez reloadu)
             window.history.pushState({}, '', '/login');
@@ -94,7 +103,8 @@ export const UserProvider = ({ children }) => {
 
     // Funkcia, ktorá sa volá pri akejkoľvek aktivite
     const handleUserActivity = () => {
-      if (user.isLoggedIn) {
+      // Používame ref na kontrolu, či je používateľ prihlásený
+      if (isLoggedInRef.current) {
         resetTimer();
       }
     };
@@ -107,7 +117,9 @@ export const UserProvider = ({ children }) => {
 
     // Čistiaca funkcia: odstráni listenery a časovač pri odmontovaní komponentu
     return () => {
-      clearTimeout(timer);
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
       activityEvents.forEach(event => window.removeEventListener(event, handleUserActivity));
     };
   }, [user.isLoggedIn]); // Spustí sa pri zmene stavu prihlásenia (prihlásenie/odhlásenie)

@@ -403,5 +403,12 @@
   },
   "greetingBar": {
     "hello": "Ahoj"
+  },
+  "notFound": {
+    "title": "404 – stránka sa nenašla :(",
+    "description": "Vyzerá to tak, že hľadaný obsah ešte nebol vytvorený alebo sa stratil niekde vo virtuálnom priestore.",
+    "funnyTitle": "Tip od Messy!",
+    "funnyText": "Možno sa stránka stratila rovnako ako ponožky v práčke, alebo sa zahrabala v senzorických guličkách niekde na hracom poli. Skúste ju nájsť na domovskej stránke! 🎨",
+    "homeButton": "Späť na domovskú stránku"
   }
 }

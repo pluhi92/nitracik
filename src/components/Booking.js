@@ -12,6 +12,7 @@ import api from '../api/api';
 import { HexColorPicker } from "react-colorful";
 
 const Booking = () => {
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(localStorage.getItem('isLoggedIn') === 'true');
   const [userData, setUserData] = useState(null);
   const [trainingType, setTrainingType] = useState('');
@@ -38,6 +39,20 @@ const Booking = () => {
   const [trainingTypes, setTrainingTypes] = useState([]);
   const [selectedTypeObj, setSelectedTypeObj] = useState(null);
   const [showCreateTypeModal, setShowCreateTypeModal] = useState(false);
+
+  // Scroll to top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollButton(window.scrollY > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   const [newTypeName, setNewTypeName] = useState('');
   const [newTypeDesc, setNewTypeDesc] = useState('');
   const [newTypePrice1, setNewTypePrice1] = useState(15);
@@ -794,7 +809,16 @@ const Booking = () => {
     : seasonTickets;
 
   return (
-    <div className="max-w-6xl mx-auto mt-8 px-4 sm:px-6">
+    <div className="max-w-6xl mx-auto mt-8 px-4 sm:px-6 relative">
+      {showScrollButton && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 border-2 border-gray-700 text-gray-700 hover:text-gray-900 hover:border-gray-900 hover:shadow-2xl rounded-full shadow-lg transition-all duration-300 z-50 bg-white/80 w-16 h-16 flex items-center justify-center"
+          aria-label="Scroll to top"
+        >
+          <span className="text-3xl font-black leading-none translate-y-1">^</span>
+        </button>
+      )}
       <h2 className="text-3xl font-bold text-center text-primary-600 mb-8">
         {t?.booking?.title || 'Book Your Training'}
       </h2>

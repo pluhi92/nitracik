@@ -1,181 +1,169 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 
 const Gdpr = () => {
-  // Funkcia prebratá z Foot.js pre zachovanie identity správania
-  const handleCookiePreferences = (e) => {
-    e.preventDefault();
-    if (window.openCookieSettings) {
-      window.openCookieSettings();
-    } else {
-      // Záložné riešenie, ak by globálna funkcia zlyhala
-      localStorage.removeItem('cookieConsent');
-      window.location.reload();
-    }
-  };
+  const location = useLocation();
+  // Prejdenie na vrch stránky pri načítaní
+  useEffect(() => {
+    setTimeout(() => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }, 0);
+  }, [location]);
 
   return (
-    <section className="min-h-screen bg-background py-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6">
-        <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
+    <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-8 sm:p-12">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center border-b pb-4">
+          OCHRANA OSOBNÝCH ÚDAJOV
+        </h1>
+
+        {/* Pridaná trieda 'text-justify' pre zarovnanie textu */}
+        <div className="space-y-8 text-gray-700 leading-relaxed text-justify">
           
-          {/* Header */}
-          <div className="bg-secondary-500 p-8 text-black">
-            <h1 className="text-3xl font-bold mb-2 text-black">Ochrana osobných údajov</h1>
-            <p className="opacity-90 italic text-sm">V súlade s Nariadením EP a Rady (EÚ) 2016/679 (GDPR)</p>
-          </div>
-
-          <div className="p-8 space-y-10 text-gray-700 leading-relaxed">
-            
-            {/* 1. Prevádzkovateľ */}
-            <section>
-              <div className="flex items-center mb-4">
-                <div className="w-1 h-8 bg-secondary-500 mr-4 rounded-full"></div>
-                <h2 className="text-2xl font-bold text-gray-900">1. Prevádzkovateľ údajov</h2>
-              </div>
-              
-              <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 grid md:grid-cols-2 gap-y-6 gap-x-4 text-sm">
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">Názov subjektu</p>
-                  <p className="text-base font-semibold text-gray-800">OZ Nitráčik</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">IČO</p>
-                  <p className="text-base font-semibold text-gray-800">56374453</p>
-                </div>
-                <div className="md:col-span-2">
-                  <p className="text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">Sídlo</p>
-                  <p className="text-base font-semibold text-gray-800">Považská 1137/10, 949 11 Nitra</p>
-                </div>
-                <hr className="md:col-span-2 border-gray-200" />
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">Právna forma</p>
-                  <p className="text-sm font-medium">Združenie (zväz, spolok)</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">Druh vlastníctva</p>
-                  <p className="text-sm font-medium">Združ., p. strany, cirkvi</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">Dátum vzniku</p>
-                  <p className="text-sm font-medium">26. augusta 2024</p>
-                </div>
-              </div>
-            </section>
-
-            {/* 2. Zabezpečenie údajov */}
-            <section>
-              <div className="flex items-center mb-4">
-                <div className="w-1 h-8 bg-secondary-500 mr-4 rounded-full"></div>
-                <h2 className="text-2xl font-bold text-gray-900">2. Zabezpečenie a integrita údajov</h2>
-              </div>
-              <p className="mb-3 text-sm">
-                Bezpečnosť vašich údajov je pre nás prioritou. Implementujeme technické a organizačné opatrenia v súlade s modernými štandardmi:
-              </p>
-              <ul className="list-disc ml-6 space-y-2 text-sm text-gray-600">
-                <li><strong>Šifrovaný prenos (SSL/TLS):</strong> Celá komunikácia medzi vaším zariadením a našimi servermi je chránená šifrovaním HTTPS.</li>
-                <li><strong>Ochrana pred útokmi:</strong> Monitorujeme prístupy a využívame moderné brány (firewally) na zamedzenie neoprávneného prístupu.</li>
-                <li><strong>Poverené osoby:</strong> K osobným údajom majú prístup len administrátori OZ Nitráčik viazaní mlčanlivosťou.</li>
-              </ul>
-            </section>
-
-            {/* 3. Cookies - TU JE OPRAVENÝ LINK */}
-            <section>
-              <div className="flex items-center mb-4">
-                <div className="w-1 h-8 bg-secondary-500 mr-4 rounded-full"></div>
-                <h2 className="text-2xl font-bold text-gray-900">3. Cookies a sieťové identifikátory</h2>
-              </div>
-              <p className="text-sm mb-3">
-                Pri používaní webovej stránky spracúvame sieťové identifikátory (IP adresy) a súbory cookies za účelom technického fungovania a analýzy návštevnosti.
-              </p>
-              
-              <div className="mt-4 p-5 bg-secondary-800 rounded-xl border border-primary-100 shadow-sm">
-                <p className="text-sm text-black font-medium mb-2">
-                  Chcete zmeniť svoje nastavenia cookies?
-                </p>
-                <p className="text-xs text-black mb-3">
-                  Môžete tak urobiť kedykoľvek kliknutím na tlačidlo nižšie, čím vyvoláte ponuku preferencií.
-                </p>
-                <button
-                  onClick={handleCookiePreferences}
-                  className="inline-flex items-center px-4 py-2 bg-white border border-primary-200 text-blakc rounded-lg text-sm font-bold hover:bg-primary-100 transition-colors shadow-sm"
-                >
-                  Otvoriť nastavenia cookies
-                </button>
-              </div>
-            </section>
-
-            {/* 4. Rozsah spracúvania */}
-            <section>
-              <div className="flex items-center mb-4">
-                <div className="w-1 h-8 bg-secondary-500 mr-4 rounded-full"></div>
-                <h2 className="text-2xl font-bold text-gray-900">4. Účel a rozsah spracúvania</h2>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-gray-50 text-gray-600 uppercase text-[10px] tracking-widest">
-                      <th className="p-3 border-b border-gray-200">Účel</th>
-                      <th className="p-3 border-b border-gray-200">Kategória údajov</th>
-                      <th className="p-3 border-b border-gray-200">Právny základ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="hover:bg-gray-50">
-                      <td className="p-3 border-b border-gray-100 font-medium italic">Rezervácie a permanentky</td>
-                      <td className="p-3 border-b border-gray-100 text-gray-600">Meno, email, mobil, adresa, vek dieťaťa</td>
-                      <td className="p-3 border-b border-gray-100">Plnenie zmluvy</td>
-                    </tr>
-                    <tr className="hover:bg-gray-50">
-                      <td className="p-3 border-b border-gray-100 font-medium italic">Platby (Stripe)</td>
-                      <td className="p-3 border-b border-gray-100 text-gray-600">ID transakcie, stav úhrady</td>
-                      <td className="p-3 border-b border-gray-100">Zákonná povinnosť</td>
-                    </tr>
-                    <tr className="hover:bg-gray-50">
-                      <td className="p-3 border-b border-gray-100 font-bold text-black">Propagácia OZ</td>
-                      <td className="p-3 border-b border-gray-100 font-bold text-black">Fotografie a videá z aktivít</td>
-                      <td className="p-3 border-b border-gray-100 font-bold text-black">Dobrovoľný súhlas</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            {/* 5. Vaše práva */}
-            <section className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 italic">Vaše práva ako dotknutej osoby</h2>
-              <div className="grid md:grid-cols-2 gap-6 text-sm">
-                <div>
-                  <p className="font-bold text-gray-800">Právo na výmaz</p>
-                  <p className="text-gray-600 italic">Môžete požiadať o vymazanie údajov (právo na zabudnutie).</p>
-                </div>
-                <div>
-                  <p className="font-bold text-gray-800">Právo na prenosnosť</p>
-                  <p className="text-gray-600 italic">Máte právo získať export svojich údajov v strojovo čitateľnom formáte.</p>
-                </div>
-                <div>
-                  <p className="font-bold text-gray-800">Odvolanie súhlasu</p>
-                  <p className="text-gray-600 italic">Súhlas so spracovaním fotografií môžete kedykoľvek bez udania dôvodu odvolať.</p>
-                </div>
-                <div>
-                  <p className="font-bold text-gray-800">Právo na opravu</p>
-                  <p className="text-gray-600 italic">Údaje si môžete sami upraviť v profile alebo nás kontaktovať.</p>
-                </div>
-              </div>
-            </section>
-
-          </div>
-
-          {/* Footer of the document */}
-          <div className="bg-gray-100 p-8 text-center">
-            <p className="text-sm text-gray-600 mb-2 font-medium">Máte otázky k vašim údajom? Kontaktujte nás:</p>
-            <p className="text-lg font-bold text-black underline">oznitracik@gmail.com</p>
-            <p className="mt-4 text-[10px] text-gray-400 uppercase tracking-widest">
-              Posledná aktualizácia: 5. január 2026
+          {/* Úvodné ustanovenia */}
+          <section>
+            <p className="mb-2">
+              Spracúvanie osobných údajov dotknutých osôb sa riadi Nariadením Európskeho parlamentu a Rady (EÚ) 2016/679 z 27. apríla 2016 o ochrane fyzických osôb pri spracúvaní osobných údajov a o voľnom pohybe takýchto údajov, ktorým sa zrušuje smernica 95/46/ES (všeobecné nariadenie o ochrane údajov) (ďalej len „Nariadenie“).
             </p>
-          </div>
+            <p className="mb-2">
+              <strong>Nitráčik o.z.</strong>, so sídlom na Hydinárska 13A Nitra 94901 IČO: 56374453, DIČ: 2122328791 zapísaná v Registri mimovládnych neziskových organizácií, reg. č.: VVS/1-900/90-70205 plne rešpektuje ochranu Vášho súkromia a váži si dôveru, ktorú nám pri spracúvaní osobných údajov zverujete.
+            </p>
+            <p className="mb-2">
+              Na ochranu spracúvaných osobných údajov sme zaviedli všetky primerané bezpečnostné opatrenia technického, organizačného a iného charakteru a procesy na kontrolu ich priebežného dodržiavania a dostatočnosti.
+            </p>
+            <p>
+              V tejto sekcii sa dozviete, ako nakladáme s Vašimi osobnými údajmi a aké sú Vaše práva v zmysle Nariadenia.
+            </p>
+          </section>
+
+          {/* 1. Základné pojmy */}
+          <section>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">1. Základné pojmy</h2>
+            <p className="mb-2">
+              Prevádzkovateľ je presvedčený, že jasné informácie prispievajú k lepšiemu porozumeniu pravidiel spracúvania osobných údajov, preto v nasledujúcej časti uvádza najdôležitejšie pojmy používané v súvislosti s ochranou osobných údajov.
+            </p>
+            <ul className="list-disc pl-6 mt-2 space-y-2 text-justify">
+              <li>
+                <strong>Osobné údaje:</strong> sú akékoľvek informácie týkajúce sa identifikovanej alebo identifikovateľnej fyzickej osoby; identifikovateľná fyzická osoba je osoba, ktorú možno identifikovať priamo alebo nepriamo, najmä odkazom na identifikátor, ako je meno, identifikačné číslo, lokalizačné údaje, online identifikátor, alebo odkazom na jeden či viaceré prvky, ktoré sú špecifické pre fyzickú, fyziologickú, genetickú, mentálnu, ekonomickú, kultúrnu alebo sociálnu identitu tejto fyzickej osoby.
+              </li>
+              <li>
+                <strong>Dotknutá osoba:</strong> je identifikovaná alebo identifikovateľná fyzická osoba, ktorej sa osobné údaje týkajú. Za dotknutú osobu sa považujú všetci návštevníci webovej stránky, registrované osoby a podobne.
+              </li>
+              <li>
+                <strong>Prevádzkovateľ:</strong> je Nitráčik o.z., so sídlom na Hydinárska 167/13A Nitra 94901 IČO: 56374453, DIČ: 2122328791 zapísaná v Registri mimovládnych neziskových organizácií, reg. č.: VVS/1-900/90-70205, ktorá určuje podmienky spracúvania osobných údajov a zodpovedá za spracúvanie osobných údajov.
+              </li>
+              <li>
+                <strong>Sprostredkovateľ:</strong> znamená subjekt, ktorý spracúva osobné údaje v mene prevádzkovateľa. Prevádzkovateľ môže poveriť sprostredkovateľa spracúvaním osobných údajov bez súhlasu dotknutej osoby, musí sa však presvedčiť o tom, že sprostredkovateľ poskytuje dostatočné záruky na zabezpečenie súladu spracúvania osobných údajov s GDPR.
+              </li>
+              <li>
+                <strong>Spracúvanie:</strong> predstavuje operácie/činnosti vykonávané s osobnými údajmi, napríklad získavanie, zaznamenávanie, usporadúvanie, štruktúrovanie, uchovávanie, prepracúvanie alebo zmena, vyhľadávanie, prehliadanie, využívanie, poskytovanie prenosom, šírením alebo poskytovanie iným spôsobom, preskupovanie alebo kombinovanie, obmedzenie, vymazanie alebo likvidácia, pričom nezáleží na tom, či sa vykonávajú automatizovane alebo manuálne.
+              </li>
+            </ul>
+          </section>
+
+          {/* 2. Prevádzkovateľ - Upravené podľa zadania */}
+          <section>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">2. Prevádzkovateľ</h2>
+            <p className="mb-2">
+              Prevádzkovateľom Nitráčik o.z., so sídlom na Hydinárska 167/13A Nitra 94901 IČO: 56374453, DIČ: 2122328791 zapísaná v Registri mimovládnych neziskových organizácií, reg. č.: VVS/1-900/90-70205 (ďalej len “prevádzkovateľ”).
+            </p>
+          </section>
+
+          {/* 3. Zodpovednosť za spracúvanie - Upravené podľa zadania */}
+          <section>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">3. Zodpovednosť za spracúvanie osobných údajov</h2>
+            <p className="mb-2">
+              Prevádzkovateľa v súvislosti so spracúvaním osobných údajov môžete v prípade akýchkoľvek otázok alebo požiadaviek ohľadom spracúvania osobných údajov kontaktovať na adrese sídla prevádzkovateľa: Hydinárska 167/13A Nitra 94901, alebo na emailovej adrese: <a href="mailto:gdpr@nitracik.sk" className="text-blue-600 hover:underline">gdpr@nitracik.sk</a>
+            </p>
+          </section>
+
+          {/* 4. Výkon práv */}
+          <section>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">4. Výkon práv dotknutých osôb</h2>
+            <p className="mb-2">
+              V tejto sekcii sa dozviete, akým spôsobom môže dotknutá osoba uplatniť svoje právo a aký je postup prevádzkovateľa pri napĺňaní práv dotknutej osoby.
+            </p>
+            <ul className="list-disc pl-6 mt-2 space-y-1 text-justify">
+              <li>
+                <a
+                  href="/documents/Gdpr/ver01_2026_Činnosť pri výkone práv dotknutých osôb.pdf"
+                  className="text-blue-600 hover:underline"
+                  download
+                >
+                  Činnosť pri napĺňaní práv dotknutej osoby
+                  <img
+                    src="/images/pdf.png"
+                    alt="PDF"
+                    className="ml-2 inline-block h-4 w-4 align-text-bottom"
+                  />
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/documents/Gdpr/ver01_2026_Práva dotknutých osôb.pdf"
+                  className="text-blue-600 hover:underline"
+                  download
+                >
+                  Práva dotknutých osôb
+                  <img
+                    src="/images/pdf.png"
+                    alt="PDF"
+                    className="ml-2 inline-block h-4 w-4 align-text-bottom"
+                  />
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/documents/Gdpr/ver01_2026_Žiadosť na výkon práva dotknutej osoby.pdf"
+                  className="text-blue-600 hover:underline"
+                  download
+                >
+                  Formulár na uplatnenie si práva dotknutej osoby
+                  <img
+                    src="/images/pdf.png"
+                    alt="PDF"
+                    className="ml-2 inline-block h-4 w-4 align-text-bottom"
+                  />
+                </a>
+              </li>
+            </ul>
+          </section>
+
+          {/* 5. Informačné povinnosti */}
+          <section>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">5. Informačné povinnosti</h2>
+            <p className="mb-2">
+              V tejto sekcii sa okrem iného dozviete, na aký účel, na základe akého právneho základu, ako dlho a prostredníctvom ktorých príjemcov spracúvame Vaše osobné údaje.
+            </p>
+            <ul className="list-disc pl-6 mt-2 space-y-2 text-justify">
+              <li>
+                <Link to="/gdpr/registration" className="text-blue-600 hover:underline">
+                  Informácia o spracúvaní osobných údajov – registrácia
+                </Link>
+              </li>
+              <li>
+                <Link to="/gdpr/cookies" className="text-blue-600 hover:underline">
+                  Informácia o spracúvaní osobných údajov – cookies
+                </Link>
+              </li>
+              <li>
+                <Link to="/gdpr/contact-form" className="text-blue-600 hover:underline">
+                  Informácia o spracúvaní osobných údajov – kontaktný formulár
+                </Link>
+              </li>
+              <li>
+                <Link to="/gdpr/social-networks" className="text-blue-600 hover:underline">
+                  Informácia o spracúvaní osobných údajov – sociálne siete
+                </Link>
+              </li>
+            </ul>
+          </section>
+
         </div>
       </div>
-    </section>
+    </div>
   );
 };
 

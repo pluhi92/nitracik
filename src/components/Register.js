@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from '../contexts/LanguageContext';
 import api from '../api/api';
 import { Turnstile } from '@marsidev/react-turnstile'; // IMPORT CLOUDFLARE TURNSTILE
@@ -27,6 +27,16 @@ const SpinnerIcon = ({ className }) => (
 const Register = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Scroll to top when component mounts or location changes
+  useEffect(() => {
+    setTimeout(() => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }, 0);
+  }, [location]);
 
   // --- STATE ---
   const [firstName, setFirstName] = useState('');
