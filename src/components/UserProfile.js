@@ -494,7 +494,9 @@ const UserProfile = () => {
                                       ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                                       : participant.booking_type === 'paid' && participant.active === false
                                         ? 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200'
-                                        : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                        : participant.booking_type === 'paid' && (!participant.amount_paid || participant.amount_paid === 0)
+                                          ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                                          : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                                   }
                                 `}>
                                   {participant.booking_type === 'credit'
@@ -503,7 +505,9 @@ const UserProfile = () => {
                                       ? '🎫 Season Ticket'
                                       : participant.booking_type === 'paid' && participant.active === false
                                         ? '❌ Cancelled'
-                                        : '💰 Paid'}
+                                        : participant.booking_type === 'paid' && (!participant.amount_paid || participant.amount_paid === 0)
+                                          ? '⏳ Pending'
+                                          : '💰 Paid'}
                                 </span>
                                 {participant.amount_paid > 0 && (
                                   <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
@@ -1204,17 +1208,8 @@ const UserProfile = () => {
                       };
                     }
 
-                    // PRIORITA 2: Fallback na credit_id (pre starší kód)
-                    if (session.credit_id) {
-                      return {
-                        type: 'credit',
-                        label: t?.profile?.bookingMethods?.credit || '💳 Kredit',
-                        badgeClass: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                      };
-                    }
-
-                    // PRIORITA 3: Platená rezervácia
-                    if (session.booking_type === 'paid' || (session.amount_paid && session.amount_paid > 0)) {
+                    // PRIORITA 3: Platená rezervácia (MUST have both conditions)
+                    if (session.booking_type === 'paid' && session.amount_paid && session.amount_paid > 0) {
                       return {
                         type: 'paid',
                         label: t?.profile?.bookingMethods?.paid || '💰 Zaplatené',
@@ -1222,7 +1217,16 @@ const UserProfile = () => {
                       };
                     }
 
-                    // PRIORITA 4: Neznámy typ (fallback)
+                    // PRIORITA 4: Pending platená rezervácia (bez potvrdenia)
+                    if (session.booking_type === 'paid' && (!session.amount_paid || session.amount_paid === 0)) {
+                      return {
+                        type: 'pending',
+                        label: t?.profile?.bookingMethods?.pending || '⏳ Čaká sa na platbu',
+                        badgeClass: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                      };
+                    }
+
+                    // PRIORITA 5: Neznámy typ (fallback)
                     return {
                       type: 'unknown',
                       label: t?.profile?.bookingMethods?.reservation || 'Rezervácia',

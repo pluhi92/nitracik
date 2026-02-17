@@ -1808,6 +1808,90 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
     };
     
     return transporter.sendMail(mailOptions);
+  },
+
+  sendPaymentFailedEmail: async (userEmail, firstName, data) => {
+    const { selectedDate, selectedTime, trainingType, totalPrice } = data;
+    
+    const mailOptions = {
+      from: SENDER,
+      to: userEmail,
+      subject: '⚠️ Vaša platba zlyhala - Nitráčik',
+      html: `
+        <!DOCTYPE html>
+        <html lang="sk">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; background-color: #f4f4f4; margin: 0; padding: 0; }
+            .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }
+            .header { background-color: #e74c3c; padding: 20px; text-align: center; color: white; }
+            .header h1 { margin: 0; font-size: 24px; }
+            .content { padding: 30px; }
+            .alert-box { background-color: #fdeaea; border-left: 4px solid #e74c3c; padding: 15px; margin: 20px 0; border-radius: 4px; }
+            .alert-box strong { color: #c0392b; }
+            .booking-details { background-color: #f9f9f9; padding: 15px; border-radius: 4px; margin: 20px 0; }
+            .detail-row { display: flex; justify-content: space-between; margin: 10px 0; }
+            .detail-label { font-weight: bold; color: #333; }
+            .detail-value { color: #666; }
+            .btn { display: inline-block; padding: 12px 30px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px; margin: 10px 0; }
+            .footer { background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 12px; color: #666; }
+            .footer p { margin: 5px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>⚠️ Platba zlyhala</h1>
+            </div>
+            <div class="content">
+              <p>Ahoj ${firstName || 'Osôbka'},</p>
+              
+              <div class="alert-box">
+                <strong>Vaša platba sa nepodarila!</strong> Skúsili sme spracovať vašu platbu, ale z neznámych dôvodov (napr. chyba siete, problém s kartou) sa to nepodarilo.
+              </div>
+
+              <p>Detaily vašej rezervácie:</p>
+              <div class="booking-details">
+                <div class="detail-row">
+                  <span class="detail-label">Typ tréningu:</span>
+                  <span class="detail-value">${trainingType || 'N/A'}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Dátum & Čas:</span>
+                  <span class="detail-value">${selectedDate || ''} ${selectedTime || ''}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Suma:</span>
+                  <span class="detail-value">${totalPrice || ''} €</span>
+                </div>
+              </div>
+
+              <h3 style="color: #333;">Čo môžete urobiť?</h3>
+              <ul style="color: #666;">
+                <li><strong>Skúste znova:</strong> Návštevou svojho profilu sa pokúste rezerváciu ešte raz s rovnakými údajmi.</li>
+                <li><strong>Skontrolujte svoju kartu:</strong> Uistite sa, že máte dostatok prostriedkov a že sú detaily karty správne.</li>
+                <li><strong>Kontaktujte nás:</strong> Ak problém pretrváva, prosím <a href="mailto:info@nitracik.sk">kontaktujte nás</a>.</li>
+              </ul>
+
+              <p>Vaša rezervácia <strong>nebola potvrdená</strong>, keďže sme nedostali potvrdenie platby. Môžete sa pokúsiť rezervovať znova.</p>
+
+              <center>
+                <a href="${process.env.FRONTEND_URL}/booking" class="btn">Pokúsiť sa znova</a>
+              </center>
+            </div>
+            <div class="footer">
+              <p>© 2026 O.z. Nitráčik</p>
+              <p>Ak ste si túto správu nevyžiadali, prosím ju ignorujte.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+
+    return transporter.sendMail(mailOptions);
   }
 }; // Koniec module.exports
 
