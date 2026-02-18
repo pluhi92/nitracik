@@ -1512,9 +1512,9 @@ const Booking = () => {
             </h5>
           </div>
           <div className="p-6">
-            <Form.Group className="mb-6">
+            <Form.Group className="mb-3">
               <Form.Label className="font-bold text-gray-800">
-                {t?.booking?.photoConsent || 'Photo Publication Consent'} <span className="text-red-500">*</span>
+                {t?.booking?.photoConsent || 'Photo Publication Consent'}
               </Form.Label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className={`border rounded-lg p-4 h-full transition-all duration-200 ${photoConsent === true
@@ -1531,7 +1531,7 @@ const Booking = () => {
                     label={
                       <span className={photoConsent === true ? "font-bold text-green-600" : "text-gray-700"}>
                         <i className="bi bi-check-circle me-2"></i>
-                        {t?.booking?.agree || 'AGREE to publish photos of my children'}
+                        <span className="text-red-500">*</span> {t?.booking?.agree || 'AGREE to publish photos of my children'}
                       </span>
                     }
                   />
@@ -1558,6 +1558,24 @@ const Booking = () => {
               </div>
             </Form.Group>
 
+            {/* Photo Consent Info Text */}
+            <div className="mb-6 pb-4 border-b border-gray-200">
+              <p className="text-gray-400 text-sm leading-relaxed italic">
+                <span className="text-red-500 font-bold">*</span>
+                {' '}
+                {t?.booking?.photoConsentInfo || 'Ako zákonný zástupca dieťaťa udeľujem občianske združenie Nitráčik o.z. súhlas na spracúvanie fotografií, videí nášho dieťaťa. Informáciu o podmienkach spracúvania osobných údajov nájdete '}
+                {' '}
+                <a
+                  href="/photo-consent-info"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 font-bold underline hover:no-underline transition-colors"
+                >
+                  {t?.booking?.here || 'TU'}
+                </a>
+              </p>
+            </div>
+
             {/* Checkbox - Service Consent (only for card payments) */}
             {!useSeasonTicket && !isCreditMode && (
               <Form.Group className="mb-4">
@@ -1574,7 +1592,7 @@ const Booking = () => {
                         onClick={() => setShowServiceConsentModal(true)}
                         className="text-primary-600 hover:text-primary-700 underline font-medium"
                       >
-                        Súhlas so začatím poskytovania služby
+                        {t?.booking?.serviceConsentTitle || 'Súhlas so začatím poskytovania služby'}
                       </button>
                     </span>
                   }
@@ -1780,7 +1798,7 @@ const Booking = () => {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto">
             {/* Header */}
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-900">Súhlas so začatím poskytovania služby</h2>
+              <h2 className="text-xl font-bold text-gray-900">{t?.booking?.serviceConsentTitle || 'Súhlas so začatím poskytovania služby'}</h2>
               <button
                 onClick={closeServiceConsentModal}
                 className="text-gray-500 hover:text-gray-700"

@@ -40,6 +40,7 @@ const Checklist = lazy(() => import('./components/Checklist'));
 const Archive = lazy(() => import('./components/Archive'));
 const BlogPage = lazy(() => import('./components/BlogPage'));
 const BlogArticle = lazy(() => import('./components/BlogArticle'));
+const PhotoConsentInfo = lazy(() => import('./components/PhotoConsentInfo'));
 const NotFound = lazy(() => import('./components/NotFound'));
 
 
@@ -91,6 +92,7 @@ const AppContent = () => {
             <Route path="/gdpr/cookies" element={<CookiesInfo />} />
             <Route path="/gdpr/contact-form" element={<ContactFormInfo />} />
             <Route path="/gdpr/social-networks" element={<SocialNetworksInfo />} />
+            <Route path="/photo-consent-info" element={<PhotoConsentInfo />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/credit-option" element={<CreditOption />} />
             <Route path="/admin/checklist/:trainingId" element={<Checklist />} />
