@@ -638,6 +638,17 @@ const Booking = () => {
     } catch (error) {
       console.error('Booking error:', error);
 
+      if (error.response?.status === 401) {
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userRole');
+        setWarningMessage('Relácia vypršala. Prihláste sa prosím znova.');
+        setLoading(false);
+        navigate('/login');
+        return;
+      }
+
       if (error.response?.data?.error) {
         setWarningMessage(error.response.data.error);
       } else {
