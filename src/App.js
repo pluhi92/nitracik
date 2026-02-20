@@ -30,12 +30,18 @@ const RefundOption = lazy(() => import('./components/RefundOption'));
 const Schedule = lazy(() => import('./components/Schedule'));
 const FAQ = lazy(() => import('./components/FAQ'));
 const Gdpr = lazy(() => import('./components/Gdpr'));
+const RegistrationInfo = lazy(() => import('./components/RegistrationInfo'));
+const CookiesInfo = lazy(() => import('./components/CookiesInfo'));
+const ContactFormInfo = lazy(() => import('./components/ContactFormInfo'));
+const SocialNetworksInfo = lazy(() => import('./components/SocialNetworksInfo'));
 const Terms = lazy(() => import('./components/Terms'));
 const CreditOption = lazy(() => import('./components/CreditOption'));
 const Checklist = lazy(() => import('./components/Checklist'));
 const Archive = lazy(() => import('./components/Archive'));
 const BlogPage = lazy(() => import('./components/BlogPage'));
 const BlogArticle = lazy(() => import('./components/BlogArticle'));
+const PhotoConsentInfo = lazy(() => import('./components/PhotoConsentInfo'));
+const NotFound = lazy(() => import('./components/NotFound'));
 
 
 // Inicializácia dayjs s lokálnym nastavením
@@ -82,12 +88,18 @@ const AppContent = () => {
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/gdpr" element={<Gdpr />} />
+            <Route path="/gdpr/registration" element={<RegistrationInfo />} />
+            <Route path="/gdpr/cookies" element={<CookiesInfo />} />
+            <Route path="/gdpr/contact-form" element={<ContactFormInfo />} />
+            <Route path="/gdpr/social-networks" element={<SocialNetworksInfo />} />
+            <Route path="/photo-consent-info" element={<PhotoConsentInfo />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/credit-option" element={<CreditOption />} />
             <Route path="/admin/checklist/:trainingId" element={<Checklist />} />
             <Route path="/archive" element={<Archive />} />
             <Route path="/blog" element={<BlogPage />} />
             <Route path="/blog/:slug" element={<BlogArticle />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </main>

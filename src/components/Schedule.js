@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from '../contexts/LanguageContext';
 import MobileSchedule from './MobileSchedule';
 import api from '../api/api';
@@ -9,6 +9,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 const Schedule = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Scroll to top when component mounts or location changes
+  useEffect(() => {
+    setTimeout(() => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }, 0);
+  }, [location]);
   const [trainingSessions, setTrainingSessions] = useState([]);
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedSession, setSelectedSession] = useState(null);
@@ -36,6 +46,17 @@ const Schedule = () => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, [fetchTrainingSessions]);
+
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && selectedSession) {
+        setSelectedSession(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [selectedSession]);
 
   const goToPreviousWeek = () => {
     const prev = new Date(currentWeek);
@@ -323,8 +344,11 @@ const Schedule = () => {
                               }}
                             >
                               <div
-                                className="font-extrabold text-[11px] uppercase tracking-wide opacity-90"
-                                style={{ color: t.color_hex }}
+                                className="font-extrabold text-sm uppercase tracking-wide"
+                                style={{ 
+                                  color: 'white',
+                                  textShadow: '1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black, 0 0 3px black'
+                                }}
                               >
                                 {t.training_type}
                               </div>

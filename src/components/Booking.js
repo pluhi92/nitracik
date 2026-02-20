@@ -12,6 +12,7 @@ import api from '../api/api';
 import { HexColorPicker } from "react-colorful";
 
 const Booking = () => {
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(localStorage.getItem('isLoggedIn') === 'true');
   const [userData, setUserData] = useState(null);
   const [trainingType, setTrainingType] = useState('');
@@ -38,6 +39,20 @@ const Booking = () => {
   const [trainingTypes, setTrainingTypes] = useState([]);
   const [selectedTypeObj, setSelectedTypeObj] = useState(null);
   const [showCreateTypeModal, setShowCreateTypeModal] = useState(false);
+
+  // Scroll to top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollButton(window.scrollY > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   const [newTypeName, setNewTypeName] = useState('');
   const [newTypeDesc, setNewTypeDesc] = useState('');
   const [newTypePrice1, setNewTypePrice1] = useState(15);
@@ -794,7 +809,16 @@ const Booking = () => {
     : seasonTickets;
 
   return (
-    <div className="max-w-6xl mx-auto mt-8 px-4 sm:px-6">
+    <div className="max-w-6xl mx-auto mt-8 px-4 sm:px-6 relative">
+      {showScrollButton && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 border-2 border-gray-700 text-gray-700 hover:text-gray-900 hover:border-gray-900 hover:shadow-2xl rounded-full shadow-lg transition-all duration-300 z-50 bg-white/80 w-16 h-16 flex items-center justify-center"
+          aria-label="Scroll to top"
+        >
+          <span className="text-3xl font-black leading-none translate-y-1">^</span>
+        </button>
+      )}
       <h2 className="text-3xl font-bold text-center text-primary-600 mb-8">
         {t?.booking?.title || 'Book Your Training'}
       </h2>
@@ -1488,9 +1512,9 @@ const Booking = () => {
             </h5>
           </div>
           <div className="p-6">
-            <Form.Group className="mb-6">
+            <Form.Group className="mb-3">
               <Form.Label className="font-bold text-gray-800">
-                {t?.booking?.photoConsent || 'Photo Publication Consent'} <span className="text-red-500">*</span>
+                {t?.booking?.photoConsent || 'Photo Publication Consent'}
               </Form.Label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className={`border rounded-lg p-4 h-full transition-all duration-200 ${photoConsent === true
@@ -1507,7 +1531,7 @@ const Booking = () => {
                     label={
                       <span className={photoConsent === true ? "font-bold text-green-600" : "text-gray-700"}>
                         <i className="bi bi-check-circle me-2"></i>
-                        {t?.booking?.agree || 'AGREE to publish photos of my children'}
+                        <span className="text-red-500">*</span> {t?.booking?.agree || 'AGREE to publish photos of my children'}
                       </span>
                     }
                   />
@@ -1534,6 +1558,24 @@ const Booking = () => {
               </div>
             </Form.Group>
 
+            {/* Photo Consent Info Text */}
+            <div className="mb-6 pb-4 border-b border-gray-200">
+              <p className="text-gray-400 text-sm leading-relaxed italic">
+                <span className="text-red-500 font-bold">*</span>
+                {' '}
+                {t?.booking?.photoConsentInfo || 'Ako zákonný zástupca dieťaťa udeľujem občianske združenie Nitráčik o.z. súhlas na spracúvanie fotografií, videí nášho dieťaťa. Informáciu o podmienkach spracúvania osobných údajov nájdete '}
+                {' '}
+                <a
+                  href="/photo-consent-info"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 font-bold underline hover:no-underline transition-colors"
+                >
+                  {t?.booking?.here || 'TU'}
+                </a>
+              </p>
+            </div>
+
             {/* Checkbox - Service Consent (only for card payments) */}
             {!useSeasonTicket && !isCreditMode && (
               <Form.Group className="mb-4">
@@ -1550,7 +1592,7 @@ const Booking = () => {
                         onClick={() => setShowServiceConsentModal(true)}
                         className="text-primary-600 hover:text-primary-700 underline font-medium"
                       >
-                        Súhlas so začatím poskytovania služby
+                        {t?.booking?.serviceConsentTitle || 'Súhlas so začatím poskytovania služby'}
                       </button>
                     </span>
                   }
@@ -1756,7 +1798,7 @@ const Booking = () => {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto">
             {/* Header */}
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-900">Súhlas so začatím poskytovania služby</h2>
+              <h2 className="text-xl font-bold text-gray-900">{t?.booking?.serviceConsentTitle || 'Súhlas so začatím poskytovania služby'}</h2>
               <button
                 onClick={closeServiceConsentModal}
                 className="text-gray-500 hover:text-gray-700"

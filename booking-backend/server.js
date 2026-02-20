@@ -208,22 +208,27 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
     const paymentIntent = event.data.object;
     const amountCents = paymentIntent.amount;
     const amountEur = amountCents / 100;
+    const bookingId = paymentIntent.metadata?.bookingId;
 
     if (DEBUG_LOGS) {
       console.log('❌ [STRIPE WEBHOOK] Payment failed for PaymentIntent:', paymentIntent.id, 'Amount:', amountEur, 'EUR');
     }
 
+    if (!bookingId) {
+      console.warn('⚠️ [STRIPE WEBHOOK] Missing bookingId in payment_intent metadata');
+      return res.json({ received: true });
+    }
+
     const client = await pool.connect();
     try {
-      // Find most recent unpaid booking (NO userId check since metadata is not available)
       const bookingResult = await client.query(
         `SELECT b.id, b.session_id, u.email, u.first_name, ta.training_type, ta.training_date
          FROM bookings b
          JOIN users u ON b.user_id = u.id
          LEFT JOIN training_availability ta ON b.training_id = ta.id
-         WHERE b.amount_paid IS NULL AND b.active = false
-         ORDER BY b.booked_at DESC
-         LIMIT 1`
+         WHERE b.id = $1 AND b.amount_paid IS NULL AND b.active = false
+         LIMIT 1`,
+        [bookingId]
       );
 
       if (bookingResult.rows.length > 0) {
@@ -1925,7 +1930,28 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
 
       const sessionDate = new Date(training.training_date).toLocaleDateString('sk-SK');
 
-      // 3. Create Stripe checkout session
+      // 3. Vytvorenie DOČASNÉHO záznamu (amount_paid je NULL, active = false kým platba neprojde)
+      const bookingResult = await client.query(
+        `INSERT INTO bookings (
+          user_id, training_id, number_of_children, amount_paid, payment_time, 
+          session_id, booked_at, children_ages, photo_consent, mobile, note, accompanying_person, active, booking_type
+        ) VALUES ($1, $2, $3, NULL, NULL, NULL, NOW(), $4, $5, $6, $7, $8, false, 'paid')
+        RETURNING id`,
+        [
+          userId,
+          training.id,
+          childrenCount,
+          childrenAge || '',
+          photoConsent !== null ? photoConsent : false,
+          mobile || '',
+          note || '',
+          accompanyingPerson || false,
+        ]
+      );
+
+      const bookingId = bookingResult.rows[0].id;
+
+      // 4. Create Stripe checkout session
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [{
@@ -1942,6 +1968,11 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         mode: 'payment',
         success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}&booking_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.FRONTEND_URL}/payment-cancelled`,
+        payment_intent_data: {
+          metadata: {
+            bookingId: bookingId.toString()
+          }
+        },
         metadata: {
           userId: userId.toString(),
           trainingId: training.id.toString(),
@@ -1959,28 +1990,13 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         },
       });
 
-      // 4. Vytvorenie DOČASNÉHO záznamu (amount_paid je NULL, active = false kým platba neprojde)
-      const bookingResult = await client.query(
-        `INSERT INTO bookings (
-          user_id, training_id, number_of_children, amount_paid, payment_time, 
-          session_id, booked_at, children_ages, photo_consent, mobile, note, accompanying_person, active, booking_type
-        ) VALUES ($1, $2, $3, NULL, NULL, $4, NOW(), $5, $6, $7, $8, $9, false, 'paid')
-        RETURNING id`,
-        [
-          userId,
-          training.id,
-          childrenCount,
-          session.id,
-          childrenAge || '',
-          photoConsent !== null ? photoConsent : false,
-          mobile || '',
-          note || '',
-          accompanyingPerson || false,
-        ]
+      await client.query(
+        `UPDATE bookings SET session_id = $1 WHERE id = $2`,
+        [session.id, bookingId]
       );
 
       await client.query('COMMIT');
-      res.json({ sessionId: session.id, bookingId: bookingResult.rows[0].id });
+      res.json({ sessionId: session.id, bookingId });
 
     } catch (error) {
       await client.query('ROLLBACK');
