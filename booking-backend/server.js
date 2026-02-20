@@ -909,9 +909,8 @@ app.get('/api/archived-sessions/user/:userId', async (req, res) => {
 
 // Update /api/admin/payment-report endpoint
 app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
-  // Check if user is admin
-  const userEmail = req.session.email;
-  if (userEmail !== 'info@nitracik.sk') {
+  // Check if user is admin by role
+  if (req.session.role !== 'admin') {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 

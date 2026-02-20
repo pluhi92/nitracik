@@ -525,7 +525,7 @@ const Booking = () => {
           creditId: selectedCredit.id,
           trainingId: trainingId,
           childrenAges: childrenAges.join(', '),
-          photoConsent: photoConsent,
+          photoConsent: photoConsent === true ? true : false,
           mobile: mobile,
           note: note,
           accompanyingPerson: accompanyingPerson
@@ -597,7 +597,7 @@ const Booking = () => {
           selectedTime,
           childrenCount,
           childrenAge: childrenAgeString,
-          photoConsent,
+          photoConsent: photoConsent === true ? true : false,
           mobile,
           note,
           accompanyingPerson: false,
@@ -1524,68 +1524,29 @@ const Booking = () => {
           </div>
           <div className="p-6">
             <Form.Group className="mb-3">
-              <Form.Label className="font-bold text-gray-800">
-                {t?.booking?.photoConsent || 'Photo Publication Consent'}
-              </Form.Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className={`border rounded-lg p-4 h-full transition-all duration-200 ${photoConsent === true
-                  ? "border-green-500 bg-green-50 shadow-sm"
-                  : "border-gray-300 hover:border-gray-400"
-                  }`}>
-                  <Form.Check
-                    type="radio"
-                    name="photoConsent"
-                    id="photoConsentAgree"
-                    checked={photoConsent === true}
-                    onChange={() => setPhotoConsent(true)}
-                    required
-                    label={
-                      <span className={photoConsent === true ? "font-bold text-green-600" : "text-gray-700"}>
-                        <i className="bi bi-check-circle me-2"></i>
-                        <span className="text-red-500">*</span> {t?.booking?.agree || 'AGREE to publish photos of my children'}
-                      </span>
-                    }
-                  />
-                </div>
-                <div className={`border rounded-lg p-4 h-full transition-all duration-200 ${photoConsent === false
-                  ? "border-secondary-600 bg-secondary-50 shadow-sm"
-                  : "border-gray-300 hover:border-gray-400"
-                  }`}>
-                  <Form.Check
-                    type="radio"
-                    name="photoConsent"
-                    id="photoConsentDisagree"
-                    checked={photoConsent === false}
-                    onChange={() => setPhotoConsent(false)}
-                    required
-                    label={
-                      <span className={photoConsent === false ? "font-bold text-secondary-600" : "text-gray-700"}>
-                        <i className="bi bi-x-circle me-2"></i>
-                        {t?.booking?.disagree || 'DISAGREE to publish photos of my children'}
-                      </span>
-                    }
-                  />
-                </div>
-              </div>
+              <Form.Check
+                type="checkbox"
+                id="photoConsent"
+                checked={photoConsent === true}
+                onChange={e => setPhotoConsent(e.target.checked)}
+                label={
+                  <span className="text-sm text-gray-700 leading-relaxed">
+                    Ako zákonní zástupcovia dieťaťa udeľujeme občianske združenie Nitráčik o.z. súhlas na spracúvanie fotografií, videí nášho dieťaťa. Informáciu o podmienkach spracúvania osobných údajov nájdete
+                    {' '}
+                    <a
+                      href="/photo-consent-info"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 font-bold underline hover:no-underline transition-colors"
+                    >
+                      TU
+                    </a>
+                  </span>
+                }
+              />
             </Form.Group>
 
-            {/* Photo Consent Info Text */}
-            <div className="mb-6 pb-4 border-b border-gray-200">
-              <p className="text-gray-400 text-sm leading-relaxed italic">
-                <span className="text-red-500 font-bold">*</span>
-                {' '}
-                {t?.booking?.photoConsentInfo || 'Ako zákonný zástupca dieťaťa udeľujem občianske združenie Nitráčik o.z. súhlas na spracúvanie fotografií, videí nášho dieťaťa. Informáciu o podmienkach spracúvania osobných údajov nájdete '}
-                {' '}
-                <a
-                  href="/photo-consent-info"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 font-bold underline hover:no-underline transition-colors"
-                >
-                  {t?.booking?.here || 'TU'}
-                </a>
-              </p>
-            </div>
+            {/* ...existing code... */}
 
             {/* Checkbox - Service Consent (only for card payments) */}
             {!useSeasonTicket && !isCreditMode && (
@@ -1623,7 +1584,6 @@ const Booking = () => {
                     {t.booking.consentText
                       .split('{terms}')
                       .map((part, index) => (
-                        /* ZMENA: Použitie React.Fragment s kľúčom namiesto <> */
                         <React.Fragment key={index}>
                           {index === 0 ? (
                             <>
@@ -1655,6 +1615,7 @@ const Booking = () => {
                       ))}
                   </span>
                 }
+                style={{ marginBottom: '24px' }}
               />
             </Form.Group>
           </div>
