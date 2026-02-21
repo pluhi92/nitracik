@@ -633,8 +633,26 @@ app.use(
   })
 );
 
+const isProduction = process.env.NODE_ENV === 'production';
+const normalizeOrigin = (value) => value.trim().replace(/\/$/, '');
+const allowedOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:3000')
+  .split(',')
+  .map(normalizeOrigin)
+  .filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    const normalizedOrigin = normalizeOrigin(origin);
+    if (allowedOrigins.includes(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
 }));
@@ -653,13 +671,14 @@ app.use(session({
     tableName: 'user_sessions',
   }),
   secret: process.env.SESSION_SECRET || 'your_secret_key',
+  proxy: isProduction,
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false,
+    secure: isProduction,
     httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 1000 * 60 * 60 * 24,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: 1000 * 60 * 60 * 24 * 7,
   },
 }));
 
@@ -890,9 +909,8 @@ app.get('/api/archived-sessions/user/:userId', async (req, res) => {
 
 // Update /api/admin/payment-report endpoint
 app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
-  // Check if user is admin
-  const userEmail = req.session.email;
-  if (userEmail !== 'info@nitracik.sk') {
+  // Check if user is admin by role
+  if (req.session.role !== 'admin') {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
