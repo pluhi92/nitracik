@@ -1798,7 +1798,7 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
     const bookingResult = await client.query(
       `INSERT INTO bookings (user_id, training_id, number_of_children, amount_paid, payment_time, booked_at, active, booking_type, children_ages, photo_consent, mobile, note, accompanying_person)
        VALUES ($1, $2, $3, 0, NULL, NOW(), true, 'season_ticket', $4, $5, $6, $7, $8) RETURNING id`,
-      [userId, training.id, childrenCount, childrenAge, photoConsent, mobile, note, accompanyingPerson]
+      [userId, training.id, childrenCount, childrenAge, (photoConsent === true ? true : null), mobile, note, accompanyingPerson]
     );
     const bookingId = bookingResult.rows[0].id;
 
@@ -1960,7 +1960,7 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
           training.id,
           childrenCount,
           childrenAge || '',
-          photoConsent !== null ? photoConsent : false,
+          photoConsent === true ? true : null,
           mobile || '',
           note || '',
           accompanyingPerson || false,
@@ -2000,7 +2000,7 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
           childrenCount: childrenCount.toString(),
           childrenAge: childrenAge?.toString() || '',
           totalPrice: calculatedPrice.toString(),
-          photoConsent: photoConsent?.toString() || 'false',
+          photoConsent: photoConsent === true ? 'true' : 'null',
           mobile: mobile || '',
           note: note || '',
           accompanyingPerson: accompanyingPerson?.toString() || 'false',
@@ -2149,7 +2149,7 @@ function validateMobile(mobile) {
 
 app.post('/api/register', registerLimiter, async (req, res) => {
   // Turnstile token z frontendu
-  const { firstName, lastName, email, password, address, _honey, turnstileToken } = req.body;
+  const { firstName, lastName, email, password, address, _honey, turnstileToken, noMarketingChecked } = req.body;
 
   // 1. HONEYPOT KONTROLA (už si mal)
   if (_honey) {
@@ -2216,13 +2216,18 @@ app.post('/api/register', registerLimiter, async (req, res) => {
     // Vytvorenie verifikačného tokenu
     const verificationToken = uuidv4();
 
-    // Vloženie užívateľa
+    // TU JE LOGIKA:
+    // Ak užívateľ zaškrtol "Nemám záujem" (noMarketingChecked === true), zapíšeme NULL.
+    // Ak nezaškrtol (chce maily), zapíšeme TRUE.
+    const marketingConsent = noMarketingChecked ? null : true;
+
+    // Vloženie užívateľa s marketing_consent
     const newUser = await client.query(
       `INSERT INTO users 
-      (first_name, last_name, email, password, address, role, created_at, verified, verification_token)
-       VALUES ($1, $2, $3, $4, $5, 'user', NOW(), false, $6) 
+      (first_name, last_name, email, password, address, role, created_at, verified, verification_token, marketing_consent)
+       VALUES ($1, $2, $3, $4, $5, 'user', NOW(), false, $6, $7) 
        RETURNING id, email, first_name`,
-      [firstName, lastName, email, hashedPassword, address, verificationToken]
+      [firstName, lastName, email, hashedPassword, address, verificationToken, marketingConsent]
     );
 
     await client.query('COMMIT');
@@ -3494,7 +3499,7 @@ app.post('/api/bookings/use-credit', async (req, res) => {
     // 5. Prepare data
     const finalChildrenAges = childrenAges || credit.children_ages || '';
     const rawConsent = photoConsent !== undefined ? photoConsent : credit.photo_consent;
-    const finalPhotoConsent = (rawConsent === true || rawConsent === 'true');
+    const finalPhotoConsent = (rawConsent === true || rawConsent === 'true') ? true : null;
     const finalMobile = mobile || credit.mobile || '';
     const finalNote = note || credit.note || '';
     const finalAccompanyingPerson = accompanyingPerson !== undefined ? accompanyingPerson : (credit.accompanying_person || false);
@@ -4292,7 +4297,7 @@ app.delete('/api/users/:id', async (req, res) => {
       ORDER BY ta.training_date ASC
     `, [userIdToDelete]);
 
-    // Platné permanentky s nevyužitými vstupmi
+    // Platné permanentky s nevyužitými vstupmi (opravený JOIN)
     const activeSeasonTicketsResult = await client.query(`
       SELECT 
         st.id,
@@ -4301,9 +4306,9 @@ app.delete('/api/users/:id', async (req, res) => {
         st.entries_total,
         st.entries_remaining,
         st.amount_paid,
-        tt.name as training_type_name
+        stp.name as training_type_name
       FROM season_tickets st
-      LEFT JOIN training_types tt ON st.training_type_id = tt.id
+      LEFT JOIN season_ticket_products stp ON st.season_ticket_product_id = stp.id
       WHERE st.user_id = $1 
         AND st.expiry_date > NOW()
         AND st.entries_remaining > 0

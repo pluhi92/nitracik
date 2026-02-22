@@ -59,8 +59,10 @@ const Register = () => {
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [showStreetDropdown, setShowStreetDropdown] = useState(false);
 
-  // Checkbox
+  // Checkboxy
   const [agreementChecked, setAgreementChecked] = useState(false);
+  // Nový stav pre marketing
+  const [noMarketingChecked, setNoMarketingChecked] = useState(false);
 
   // Anti-bot & Security
   const [honey, setHoney] = useState('');
@@ -245,7 +247,8 @@ const Register = () => {
         firstName, lastName, email, password,
         address: fullAddress,
         _honey: honey,
-        turnstileToken: captchaToken // POSIELAME TURNSTILE TOKEN NA BACKEND
+        turnstileToken: captchaToken,
+        noMarketingChecked // <-- posielame rovno hodnotu checkboxu
       });
       setApiError(`success: ${response.data.message}`);
       setTimeout(() => navigate('/login'), 3000);
@@ -476,51 +479,59 @@ const Register = () => {
           </div>
 
           {/* CHECKBOX */}
-          <div className="flex items-start gap-3 pt-2">
-            <input
-              type="checkbox"
-              id="agreementChecked"
-              name="agreementChecked"
-              checked={agreementChecked}
-              onChange={(e) => setAgreementChecked(e.target.checked)}
-              className="mt-1 w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500 focus:ring-2 flex-shrink-0"
-            />
-
-            <label
-              htmlFor="agreementChecked"
-              className="text-xs sm:text-sm text-gray-700 leading-relaxed"
-            >
-              {(t?.login?.register?.consentText || '*I agree to the {terms} and declare that I have read the {privacy}.')
-                .split('{terms}')
-                .map((part, index) =>
-                  index === 0 ? (
-                    <>
-                      {part}
-                      <a
-                        href="/terms"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary-500 hover:text-primary-600 underline font-medium"
-                      >
-                        {t?.login?.register?.terms || 'Terms and Conditions'}
-                      </a>
-                    </>
-                  ) : (
-                    <>
-                      {part.split('{privacy}')[0]}
-                      <a
-                        href="/gdpr"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary-500 hover:text-primary-600 underline font-medium"
-                      >
-                        {t?.login?.register?.privacy || 'Privacy Policy'}
-                      </a>
-                      {part.split('{privacy}')[1]}
-                    </>
-                  )
-                )}
-            </label>
+          <div className="flex flex-col gap-2 pt-2">
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="agreementChecked"
+                name="agreementChecked"
+                checked={agreementChecked}
+                onChange={(e) => setAgreementChecked(e.target.checked)}
+                className="mt-1 w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500 focus:ring-2 flex-shrink-0"
+              />
+              <label
+                htmlFor="agreementChecked"
+                className="text-xs sm:text-sm text-gray-700 leading-relaxed font-semibold"
+              >
+                Vyjadrujem súhlas so{' '}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary-500 hover:text-primary-600 underline font-medium"
+                >
+                  Všeobecnými obchodnými podmienkami
+                </a>{' '}
+                a beriem na vedomie, že Informáciu o spracúvaní osobných údajov nájdem{' '}
+                <a
+                  href="/gdpr"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary-500 hover:text-primary-600 underline font-medium"
+                >
+                  TU
+                </a>.
+                {' '}<span className="font-semibold">(povinné)</span>
+              </label>
+            </div>
+            {/* NOVÝ DOBROVOĽNÝ CHECKBOX - MARKETING */}
+            <div className="flex items-start mt-4">
+              <div className="flex items-center h-5">
+                <input
+                  id="noMarketing"
+                  name="noMarketing"
+                  type="checkbox"
+                  checked={noMarketingChecked}
+                  onChange={(e) => setNoMarketingChecked(e.target.checked)}
+                  className="w-4 h-4 text-primary-600 bg-gray-50 border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
+                />
+              </div>
+              <div className="ml-3 text-sm">
+                <label htmlFor="noMarketing" className="text-gray-600 cursor-pointer">
+                  Nemám záujem, aby mi boli zasielané marketingové informácie o vlastných podobných tovaroch a službách súvisiacich s novinkami, súťažami, voľnými termínmi na tréningy, workshopy alebo senzorické hry
+                </label>
+              </div>
+            </div>
           </div>
 
           {/* --- CLOUDFLARE TURNSTILE IMPLEMENTÁCIA --- */}
