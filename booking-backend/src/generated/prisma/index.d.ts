@@ -18002,6 +18002,7 @@ export namespace Prisma {
     created_at: Date | null
     updated_at: Date | null
     mobile: string | null
+    marketing_consent: boolean | null
   }
 
   export type UsersMaxAggregateOutputType = {
@@ -18018,6 +18019,7 @@ export namespace Prisma {
     created_at: Date | null
     updated_at: Date | null
     mobile: string | null
+    marketing_consent: boolean | null
   }
 
   export type UsersCountAggregateOutputType = {
@@ -18034,6 +18036,7 @@ export namespace Prisma {
     created_at: number
     updated_at: number
     mobile: number
+    marketing_consent: number
     _all: number
   }
 
@@ -18060,6 +18063,7 @@ export namespace Prisma {
     created_at?: true
     updated_at?: true
     mobile?: true
+    marketing_consent?: true
   }
 
   export type UsersMaxAggregateInputType = {
@@ -18076,6 +18080,7 @@ export namespace Prisma {
     created_at?: true
     updated_at?: true
     mobile?: true
+    marketing_consent?: true
   }
 
   export type UsersCountAggregateInputType = {
@@ -18092,6 +18097,7 @@ export namespace Prisma {
     created_at?: true
     updated_at?: true
     mobile?: true
+    marketing_consent?: true
     _all?: true
   }
 
@@ -18195,6 +18201,7 @@ export namespace Prisma {
     created_at: Date | null
     updated_at: Date | null
     mobile: string | null
+    marketing_consent: boolean | null
     _count: UsersCountAggregateOutputType | null
     _avg: UsersAvgAggregateOutputType | null
     _sum: UsersSumAggregateOutputType | null
@@ -18230,6 +18237,7 @@ export namespace Prisma {
     created_at?: boolean
     updated_at?: boolean
     mobile?: boolean
+    marketing_consent?: boolean
     bookings?: boolean | users$bookingsArgs<ExtArgs>
     credits?: boolean | users$creditsArgs<ExtArgs>
     season_tickets?: boolean | users$season_ticketsArgs<ExtArgs>
@@ -18250,6 +18258,7 @@ export namespace Prisma {
     created_at?: boolean
     updated_at?: boolean
     mobile?: boolean
+    marketing_consent?: boolean
   }, ExtArgs["result"]["users"]>
 
   export type usersSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -18266,6 +18275,7 @@ export namespace Prisma {
     created_at?: boolean
     updated_at?: boolean
     mobile?: boolean
+    marketing_consent?: boolean
   }, ExtArgs["result"]["users"]>
 
   export type usersSelectScalar = {
@@ -18282,9 +18292,10 @@ export namespace Prisma {
     created_at?: boolean
     updated_at?: boolean
     mobile?: boolean
+    marketing_consent?: boolean
   }
 
-  export type usersOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "first_name" | "last_name" | "email" | "password" | "address" | "verification_token" | "verified" | "reset_token" | "role" | "created_at" | "updated_at" | "mobile", ExtArgs["result"]["users"]>
+  export type usersOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "first_name" | "last_name" | "email" | "password" | "address" | "verification_token" | "verified" | "reset_token" | "role" | "created_at" | "updated_at" | "mobile" | "marketing_consent", ExtArgs["result"]["users"]>
   export type usersInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     bookings?: boolean | users$bookingsArgs<ExtArgs>
     credits?: boolean | users$creditsArgs<ExtArgs>
@@ -18315,6 +18326,7 @@ export namespace Prisma {
       created_at: Date | null
       updated_at: Date | null
       mobile: string | null
+      marketing_consent: boolean | null
     }, ExtArgs["result"]["users"]>
     composites: {}
   }
@@ -18754,6 +18766,7 @@ export namespace Prisma {
     readonly created_at: FieldRef<"users", 'DateTime'>
     readonly updated_at: FieldRef<"users", 'DateTime'>
     readonly mobile: FieldRef<"users", 'String'>
+    readonly marketing_consent: FieldRef<"users", 'Boolean'>
   }
     
 
@@ -23756,7 +23769,8 @@ export namespace Prisma {
     role: 'role',
     created_at: 'created_at',
     updated_at: 'updated_at',
-    mobile: 'mobile'
+    mobile: 'mobile',
+    marketing_consent: 'marketing_consent'
   };
 
   export type UsersScalarFieldEnum = (typeof UsersScalarFieldEnum)[keyof typeof UsersScalarFieldEnum]
@@ -24945,6 +24959,7 @@ export namespace Prisma {
     created_at?: DateTimeNullableFilter<"users"> | Date | string | null
     updated_at?: DateTimeNullableFilter<"users"> | Date | string | null
     mobile?: StringNullableFilter<"users"> | string | null
+    marketing_consent?: BoolNullableFilter<"users"> | boolean | null
     bookings?: BookingsListRelationFilter
     credits?: CreditsListRelationFilter
     season_tickets?: Season_ticketsListRelationFilter
@@ -24964,6 +24979,7 @@ export namespace Prisma {
     created_at?: SortOrderInput | SortOrder
     updated_at?: SortOrderInput | SortOrder
     mobile?: SortOrderInput | SortOrder
+    marketing_consent?: SortOrderInput | SortOrder
     bookings?: bookingsOrderByRelationAggregateInput
     credits?: creditsOrderByRelationAggregateInput
     season_tickets?: season_ticketsOrderByRelationAggregateInput
@@ -24986,6 +25002,7 @@ export namespace Prisma {
     created_at?: DateTimeNullableFilter<"users"> | Date | string | null
     updated_at?: DateTimeNullableFilter<"users"> | Date | string | null
     mobile?: StringNullableFilter<"users"> | string | null
+    marketing_consent?: BoolNullableFilter<"users"> | boolean | null
     bookings?: BookingsListRelationFilter
     credits?: CreditsListRelationFilter
     season_tickets?: Season_ticketsListRelationFilter
@@ -25005,6 +25022,7 @@ export namespace Prisma {
     created_at?: SortOrderInput | SortOrder
     updated_at?: SortOrderInput | SortOrder
     mobile?: SortOrderInput | SortOrder
+    marketing_consent?: SortOrderInput | SortOrder
     _count?: usersCountOrderByAggregateInput
     _avg?: usersAvgOrderByAggregateInput
     _max?: usersMaxOrderByAggregateInput
@@ -25029,6 +25047,7 @@ export namespace Prisma {
     created_at?: DateTimeNullableWithAggregatesFilter<"users"> | Date | string | null
     updated_at?: DateTimeNullableWithAggregatesFilter<"users"> | Date | string | null
     mobile?: StringNullableWithAggregatesFilter<"users"> | string | null
+    marketing_consent?: BoolNullableWithAggregatesFilter<"users"> | boolean | null
   }
 
   export type blog_labelsWhereInput = {
@@ -26279,6 +26298,7 @@ export namespace Prisma {
     created_at?: Date | string | null
     updated_at?: Date | string | null
     mobile?: string | null
+    marketing_consent?: boolean | null
     bookings?: bookingsCreateNestedManyWithoutUsersInput
     credits?: creditsCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsCreateNestedManyWithoutUsersInput
@@ -26298,6 +26318,7 @@ export namespace Prisma {
     created_at?: Date | string | null
     updated_at?: Date | string | null
     mobile?: string | null
+    marketing_consent?: boolean | null
     bookings?: bookingsUncheckedCreateNestedManyWithoutUsersInput
     credits?: creditsUncheckedCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsUncheckedCreateNestedManyWithoutUsersInput
@@ -26316,6 +26337,7 @@ export namespace Prisma {
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
+    marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
     bookings?: bookingsUpdateManyWithoutUsersNestedInput
     credits?: creditsUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUpdateManyWithoutUsersNestedInput
@@ -26335,6 +26357,7 @@ export namespace Prisma {
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
+    marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
     bookings?: bookingsUncheckedUpdateManyWithoutUsersNestedInput
     credits?: creditsUncheckedUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUncheckedUpdateManyWithoutUsersNestedInput
@@ -26354,6 +26377,7 @@ export namespace Prisma {
     created_at?: Date | string | null
     updated_at?: Date | string | null
     mobile?: string | null
+    marketing_consent?: boolean | null
   }
 
   export type usersUpdateManyMutationInput = {
@@ -26369,6 +26393,7 @@ export namespace Prisma {
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
+    marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
   }
 
   export type usersUncheckedUpdateManyInput = {
@@ -26385,6 +26410,7 @@ export namespace Prisma {
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
+    marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
   }
 
   export type blog_labelsCreateInput = {
@@ -27677,6 +27703,7 @@ export namespace Prisma {
     created_at?: SortOrder
     updated_at?: SortOrder
     mobile?: SortOrder
+    marketing_consent?: SortOrder
   }
 
   export type usersAvgOrderByAggregateInput = {
@@ -27697,6 +27724,7 @@ export namespace Prisma {
     created_at?: SortOrder
     updated_at?: SortOrder
     mobile?: SortOrder
+    marketing_consent?: SortOrder
   }
 
   export type usersMinOrderByAggregateInput = {
@@ -27713,6 +27741,7 @@ export namespace Prisma {
     created_at?: SortOrder
     updated_at?: SortOrder
     mobile?: SortOrder
+    marketing_consent?: SortOrder
   }
 
   export type usersSumOrderByAggregateInput = {
@@ -29233,6 +29262,7 @@ export namespace Prisma {
     created_at?: Date | string | null
     updated_at?: Date | string | null
     mobile?: string | null
+    marketing_consent?: boolean | null
     credits?: creditsCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsCreateNestedManyWithoutUsersInput
   }
@@ -29251,6 +29281,7 @@ export namespace Prisma {
     created_at?: Date | string | null
     updated_at?: Date | string | null
     mobile?: string | null
+    marketing_consent?: boolean | null
     credits?: creditsUncheckedCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsUncheckedCreateNestedManyWithoutUsersInput
   }
@@ -29410,6 +29441,7 @@ export namespace Prisma {
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
+    marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
     credits?: creditsUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUpdateManyWithoutUsersNestedInput
   }
@@ -29428,6 +29460,7 @@ export namespace Prisma {
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
+    marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
     credits?: creditsUncheckedUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUncheckedUpdateManyWithoutUsersNestedInput
   }
@@ -29632,6 +29665,7 @@ export namespace Prisma {
     created_at?: Date | string | null
     updated_at?: Date | string | null
     mobile?: string | null
+    marketing_consent?: boolean | null
     bookings?: bookingsCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsCreateNestedManyWithoutUsersInput
   }
@@ -29650,6 +29684,7 @@ export namespace Prisma {
     created_at?: Date | string | null
     updated_at?: Date | string | null
     mobile?: string | null
+    marketing_consent?: boolean | null
     bookings?: bookingsUncheckedCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsUncheckedCreateNestedManyWithoutUsersInput
   }
@@ -29757,6 +29792,7 @@ export namespace Prisma {
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
+    marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
     bookings?: bookingsUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUpdateManyWithoutUsersNestedInput
   }
@@ -29775,6 +29811,7 @@ export namespace Prisma {
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
+    marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
     bookings?: bookingsUncheckedUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUncheckedUpdateManyWithoutUsersNestedInput
   }
@@ -30480,6 +30517,7 @@ export namespace Prisma {
     created_at?: Date | string | null
     updated_at?: Date | string | null
     mobile?: string | null
+    marketing_consent?: boolean | null
     bookings?: bookingsCreateNestedManyWithoutUsersInput
     credits?: creditsCreateNestedManyWithoutUsersInput
   }
@@ -30498,6 +30536,7 @@ export namespace Prisma {
     created_at?: Date | string | null
     updated_at?: Date | string | null
     mobile?: string | null
+    marketing_consent?: boolean | null
     bookings?: bookingsUncheckedCreateNestedManyWithoutUsersInput
     credits?: creditsUncheckedCreateNestedManyWithoutUsersInput
   }
@@ -30573,6 +30612,7 @@ export namespace Prisma {
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
+    marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
     bookings?: bookingsUpdateManyWithoutUsersNestedInput
     credits?: creditsUpdateManyWithoutUsersNestedInput
   }
@@ -30591,6 +30631,7 @@ export namespace Prisma {
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
+    marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
     bookings?: bookingsUncheckedUpdateManyWithoutUsersNestedInput
     credits?: creditsUncheckedUpdateManyWithoutUsersNestedInput
   }

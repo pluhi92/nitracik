@@ -768,13 +768,18 @@ const SeasonTickets = () => {
                     className="mt-1 w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500 focus:ring-2 flex-shrink-0"
                   />
                   <label htmlFor="serviceConsent" className="text-xs sm:text-sm text-gray-700 leading-relaxed">
-                    <button
-                      type="button"
-                      onClick={() => setShowServiceConsentModal(true)}
-                      className="text-primary-500 hover:text-primary-600 underline font-medium"
-                    >
-                      Súhlas so začatím poskytovania služby
-                    </button>
+                    <span className="font-semibold">
+                      Súhlasím so{' '}
+                      <button
+                        type="button"
+                        onClick={() => setShowServiceConsentModal(true)}
+                        className="text-primary-500 hover:text-primary-600 underline font-medium px-0 inline"
+                        style={{ background: 'none', border: 'none', padding: 0, margin: 0, cursor: 'pointer' }}
+                      >
+                        začatím poskytovania služby
+                      </button>
+                      {' '}pred uplynutím lehoty na odstúpenie od zmluvy. (povinné)
+                    </span>
                   </label>
                 </div>
               </div>
@@ -791,24 +796,17 @@ const SeasonTickets = () => {
                     className="mt-1 w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500 focus:ring-2 flex-shrink-0"
                   />
                   <label htmlFor="agreementChecked" className="text-xs sm:text-sm text-gray-700 leading-relaxed">
-                    {t?.booking?.consentText?.split('{terms}').map((part, index) =>
-                      index === 0 ? (
-                        <React.Fragment key={index}>
-                          {part}
-                          <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:text-primary-600 underline font-medium">
-                            {t?.booking?.terms || 'Všeobecnými obchodnými podmienkami'}
-                          </a>
-                        </React.Fragment>
-                      ) : (
-                        <React.Fragment key={index}>
-                          {part.split('{privacy}')[0]}
-                          <a href="/gdpr" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:text-primary-600 underline font-medium">
-                            {t?.booking?.privacy || 'Zásadami ochrany osobných údajov'}
-                          </a>
-                          {part.split('{privacy}')[1]}
-                        </React.Fragment>
-                      )
-                    )}
+                    <span className="font-semibold">
+                      Vyjadrujem súhlas so{' '}
+                      <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:text-primary-600 underline font-medium">
+                        Všeobecnými obchodnými podmienkami
+                      </a>
+                      {' '}a beriem na vedomie, že Informáciu o spracúvaní osobných údajov nájdem{' '}
+                      <a href="/gdpr" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:text-primary-600 underline font-medium">
+                        TU
+                      </a>.
+                      {' '}<span className="font-semibold">(povinné)</span>
+                    </span>
                   </label>
                 </div>
               </div>

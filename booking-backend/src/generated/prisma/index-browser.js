@@ -276,7 +276,8 @@ exports.Prisma.UsersScalarFieldEnum = {
   role: 'role',
   created_at: 'created_at',
   updated_at: 'updated_at',
-  mobile: 'mobile'
+  mobile: 'mobile',
+  marketing_consent: 'marketing_consent'
 };
 
 exports.Prisma.Blog_labelsScalarFieldEnum = {

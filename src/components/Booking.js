@@ -525,7 +525,7 @@ const Booking = () => {
           creditId: selectedCredit.id,
           trainingId: trainingId,
           childrenAges: childrenAges.join(', '),
-          photoConsent: photoConsent === true ? true : false,
+          photoConsent: photoConsent === true ? true : null,
           mobile: mobile,
           note: note,
           accompanyingPerson: accompanyingPerson
@@ -597,7 +597,7 @@ const Booking = () => {
           selectedTime,
           childrenCount,
           childrenAge: childrenAgeString,
-          photoConsent: photoConsent === true ? true : false,
+          photoConsent: photoConsent === true ? true : null,
           mobile,
           note,
           accompanyingPerson: false,
@@ -617,7 +617,7 @@ const Booking = () => {
           childrenCount,
           childrenAge: childrenAgeString,
           totalPrice: calculateTotalPrice(),
-          photoConsent,
+          photoConsent: photoConsent === true ? true : null,
           mobile,
           note,
           accompanyingPerson,
@@ -1528,11 +1528,10 @@ const Booking = () => {
                 type="checkbox"
                 id="photoConsent"
                 checked={photoConsent === true}
-                onChange={e => setPhotoConsent(e.target.checked)}
+                onChange={e => setPhotoConsent(e.target.checked ? true : null)}
                 label={
                   <span className="text-sm text-gray-700 leading-relaxed">
-                    Ako zákonní zástupcovia dieťaťa udeľujeme občianske združenie Nitráčik o.z. súhlas na spracúvanie fotografií, videí nášho dieťaťa. Informáciu o podmienkach spracúvania osobných údajov nájdete
-                    {' '}
+                    Ako zákonní zástupcovia dieťaťa udeľujeme občianske združenie Nitráčik o.z. súhlas na spracúvanie fotografií, videí nášho dieťaťa. Informáciu o podmienkach spracúvania osobných údajov nájdete{' '}
                     <a
                       href="/photo-consent-info"
                       target="_blank"
@@ -1546,7 +1545,6 @@ const Booking = () => {
               />
             </Form.Group>
 
-            {/* ...existing code... */}
 
             {/* Checkbox - Service Consent (only for card payments) */}
             {!useSeasonTicket && !isCreditMode && (
@@ -1558,14 +1556,17 @@ const Booking = () => {
                   onChange={() => setServiceConsent(!serviceConsent)}
                   required
                   label={
-                    <span className="text-sm text-gray-700 leading-relaxed">
+                    <span className="text-sm text-gray-700 leading-relaxed font-semibold">
+                      Súhlasím so{' '}
                       <button
                         type="button"
                         onClick={() => setShowServiceConsentModal(true)}
-                        className="text-primary-600 hover:text-primary-700 underline font-medium"
+                        className="text-primary-600 hover:text-primary-700 underline font-medium px-0 inline"
+                        style={{ background: 'none', border: 'none', padding: 0, margin: 0, cursor: 'pointer' }}
                       >
-                        {t?.booking?.serviceConsentTitle || 'Súhlas so začatím poskytovania služby'}
+                        začatím poskytovania služby
                       </button>
+                      {' '}pred uplynutím lehoty na odstúpenie od zmluvy. (povinné)
                     </span>
                   }
                 />
@@ -1579,42 +1580,29 @@ const Booking = () => {
                 checked={consent}
                 onChange={() => setConsent(!consent)}
                 required
-                label={
-                  <span className="text-sm text-gray-700 leading-relaxed">
-                    {t.booking.consentText
-                      .split('{terms}')
-                      .map((part, index) => (
-                        <React.Fragment key={index}>
-                          {index === 0 ? (
-                            <>
-                              {part}
-                              <a
-                                href="/terms"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary-600 hover:text-primary-700 underline font-medium"
-                              >
-                                {t.booking.terms}
-                              </a>
-                            </>
-                          ) : (
-                            <>
-                              {part.split('{privacy}')[0]}
-                              <a
-                                href="/gdpr"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary-600 hover:text-primary-700 underline font-medium"
-                              >
-                                {t.booking.privacy}
-                              </a>
-                              {part.split('{privacy}')[1]}
-                            </>
-                          )}
-                        </React.Fragment>
-                      ))}
-                  </span>
-                }
+                  label={
+                    <span className="text-sm text-gray-700 leading-relaxed font-semibold">
+                      Vyjadrujem súhlas so{' '}
+                      <a
+                        href="/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-600 hover:text-primary-700 underline font-medium"
+                      >
+                        Všeobecnými obchodnými podmienkami
+                      </a>
+                      {' '}a beriem na vedomie, že Informáciu o spracúvaní osobných údajov nájdem{' '}
+                      <a
+                        href="/gdpr"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-600 hover:text-primary-700 underline font-medium"
+                      >
+                        TU
+                      </a>.
+                      {' '}<span className="font-semibold">(povinné)</span>
+                    </span>
+                  }
                 style={{ marginBottom: '24px' }}
               />
             </Form.Group>
