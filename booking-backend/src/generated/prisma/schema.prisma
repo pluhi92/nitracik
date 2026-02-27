@@ -34,6 +34,8 @@ model bookings {
   refunds                refunds[]
   season_ticket_usage    season_ticket_usage[]
   checked_in             Boolean                @default(false)
+  age_group              String?                @default("child") @db.VarChar(10)
+  number_of_adults       Int?
 
   @@index([credit_id], map: "idx_bookings_credit_id")
 }
@@ -159,6 +161,7 @@ model training_availability {
   created_at       DateTime?       @default(now()) @db.Timestamptz(6)
   cancelled        Boolean?        @default(false)
   training_type_id Int?
+  theme            String?         @db.VarChar(50)
   bookings         bookings[]
   credits          credits[]
   training_types   training_types? @relation(fields: [training_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -183,6 +186,7 @@ model training_types {
   active                               Boolean?                               @default(true)
   created_at                           DateTime?                              @default(now()) @db.Timestamptz(6)
   color_hex                            String?                                @default("#3b82f6") @db.VarChar(7)
+  audience_type                        String                                 @default("children") @db.VarChar(20)
   training_availability                training_availability[]
   training_prices                      training_prices[]
   season_ticket_usage                  season_ticket_usage[]

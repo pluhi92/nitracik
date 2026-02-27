@@ -2755,6 +2755,7 @@ export namespace Prisma {
     number_of_children: number | null
     amount_paid: Decimal | null
     credit_id: number | null
+    number_of_adults: number | null
   }
 
   export type BookingsSumAggregateOutputType = {
@@ -2764,6 +2765,7 @@ export namespace Prisma {
     number_of_children: number | null
     amount_paid: Decimal | null
     credit_id: number | null
+    number_of_adults: number | null
   }
 
   export type BookingsMinAggregateOutputType = {
@@ -2787,6 +2789,8 @@ export namespace Prisma {
     archived_training_date: Date | null
     archived_training_type: string | null
     checked_in: boolean | null
+    age_group: string | null
+    number_of_adults: number | null
   }
 
   export type BookingsMaxAggregateOutputType = {
@@ -2810,6 +2814,8 @@ export namespace Prisma {
     archived_training_date: Date | null
     archived_training_type: string | null
     checked_in: boolean | null
+    age_group: string | null
+    number_of_adults: number | null
   }
 
   export type BookingsCountAggregateOutputType = {
@@ -2833,6 +2839,8 @@ export namespace Prisma {
     archived_training_date: number
     archived_training_type: number
     checked_in: number
+    age_group: number
+    number_of_adults: number
     _all: number
   }
 
@@ -2844,6 +2852,7 @@ export namespace Prisma {
     number_of_children?: true
     amount_paid?: true
     credit_id?: true
+    number_of_adults?: true
   }
 
   export type BookingsSumAggregateInputType = {
@@ -2853,6 +2862,7 @@ export namespace Prisma {
     number_of_children?: true
     amount_paid?: true
     credit_id?: true
+    number_of_adults?: true
   }
 
   export type BookingsMinAggregateInputType = {
@@ -2876,6 +2886,8 @@ export namespace Prisma {
     archived_training_date?: true
     archived_training_type?: true
     checked_in?: true
+    age_group?: true
+    number_of_adults?: true
   }
 
   export type BookingsMaxAggregateInputType = {
@@ -2899,6 +2911,8 @@ export namespace Prisma {
     archived_training_date?: true
     archived_training_type?: true
     checked_in?: true
+    age_group?: true
+    number_of_adults?: true
   }
 
   export type BookingsCountAggregateInputType = {
@@ -2922,6 +2936,8 @@ export namespace Prisma {
     archived_training_date?: true
     archived_training_type?: true
     checked_in?: true
+    age_group?: true
+    number_of_adults?: true
     _all?: true
   }
 
@@ -3032,6 +3048,8 @@ export namespace Prisma {
     archived_training_date: Date | null
     archived_training_type: string | null
     checked_in: boolean
+    age_group: string | null
+    number_of_adults: number | null
     _count: BookingsCountAggregateOutputType | null
     _avg: BookingsAvgAggregateOutputType | null
     _sum: BookingsSumAggregateOutputType | null
@@ -3074,6 +3092,8 @@ export namespace Prisma {
     archived_training_date?: boolean
     archived_training_type?: boolean
     checked_in?: boolean
+    age_group?: boolean
+    number_of_adults?: boolean
     training_availability?: boolean | bookings$training_availabilityArgs<ExtArgs>
     users?: boolean | bookings$usersArgs<ExtArgs>
     credits?: boolean | bookings$creditsArgs<ExtArgs>
@@ -3103,6 +3123,8 @@ export namespace Prisma {
     archived_training_date?: boolean
     archived_training_type?: boolean
     checked_in?: boolean
+    age_group?: boolean
+    number_of_adults?: boolean
     training_availability?: boolean | bookings$training_availabilityArgs<ExtArgs>
     users?: boolean | bookings$usersArgs<ExtArgs>
     credits?: boolean | bookings$creditsArgs<ExtArgs>
@@ -3129,6 +3151,8 @@ export namespace Prisma {
     archived_training_date?: boolean
     archived_training_type?: boolean
     checked_in?: boolean
+    age_group?: boolean
+    number_of_adults?: boolean
     training_availability?: boolean | bookings$training_availabilityArgs<ExtArgs>
     users?: boolean | bookings$usersArgs<ExtArgs>
     credits?: boolean | bookings$creditsArgs<ExtArgs>
@@ -3155,9 +3179,11 @@ export namespace Prisma {
     archived_training_date?: boolean
     archived_training_type?: boolean
     checked_in?: boolean
+    age_group?: boolean
+    number_of_adults?: boolean
   }
 
-  export type bookingsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "user_id" | "training_id" | "booked_at" | "number_of_children" | "amount_paid" | "payment_time" | "session_id" | "payment_intent_id" | "credit_id" | "children_ages" | "photo_consent" | "mobile" | "note" | "accompanying_person" | "active" | "booking_type" | "archived_training_date" | "archived_training_type" | "checked_in", ExtArgs["result"]["bookings"]>
+  export type bookingsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "user_id" | "training_id" | "booked_at" | "number_of_children" | "amount_paid" | "payment_time" | "session_id" | "payment_intent_id" | "credit_id" | "children_ages" | "photo_consent" | "mobile" | "note" | "accompanying_person" | "active" | "booking_type" | "archived_training_date" | "archived_training_type" | "checked_in" | "age_group" | "number_of_adults", ExtArgs["result"]["bookings"]>
   export type bookingsInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     training_availability?: boolean | bookings$training_availabilityArgs<ExtArgs>
     users?: boolean | bookings$usersArgs<ExtArgs>
@@ -3207,6 +3233,8 @@ export namespace Prisma {
       archived_training_date: Date | null
       archived_training_type: string | null
       checked_in: boolean
+      age_group: string | null
+      number_of_adults: number | null
     }, ExtArgs["result"]["bookings"]>
     composites: {}
   }
@@ -3655,6 +3683,8 @@ export namespace Prisma {
     readonly archived_training_date: FieldRef<"bookings", 'DateTime'>
     readonly archived_training_type: FieldRef<"bookings", 'String'>
     readonly checked_in: FieldRef<"bookings", 'Boolean'>
+    readonly age_group: FieldRef<"bookings", 'String'>
+    readonly number_of_adults: FieldRef<"bookings", 'Int'>
   }
     
 
@@ -13506,6 +13536,7 @@ export namespace Prisma {
     created_at: Date | null
     cancelled: boolean | null
     training_type_id: number | null
+    theme: string | null
   }
 
   export type Training_availabilityMaxAggregateOutputType = {
@@ -13516,6 +13547,7 @@ export namespace Prisma {
     created_at: Date | null
     cancelled: boolean | null
     training_type_id: number | null
+    theme: string | null
   }
 
   export type Training_availabilityCountAggregateOutputType = {
@@ -13526,6 +13558,7 @@ export namespace Prisma {
     created_at: number
     cancelled: number
     training_type_id: number
+    theme: number
     _all: number
   }
 
@@ -13550,6 +13583,7 @@ export namespace Prisma {
     created_at?: true
     cancelled?: true
     training_type_id?: true
+    theme?: true
   }
 
   export type Training_availabilityMaxAggregateInputType = {
@@ -13560,6 +13594,7 @@ export namespace Prisma {
     created_at?: true
     cancelled?: true
     training_type_id?: true
+    theme?: true
   }
 
   export type Training_availabilityCountAggregateInputType = {
@@ -13570,6 +13605,7 @@ export namespace Prisma {
     created_at?: true
     cancelled?: true
     training_type_id?: true
+    theme?: true
     _all?: true
   }
 
@@ -13667,6 +13703,7 @@ export namespace Prisma {
     created_at: Date | null
     cancelled: boolean | null
     training_type_id: number | null
+    theme: string | null
     _count: Training_availabilityCountAggregateOutputType | null
     _avg: Training_availabilityAvgAggregateOutputType | null
     _sum: Training_availabilitySumAggregateOutputType | null
@@ -13696,6 +13733,7 @@ export namespace Prisma {
     created_at?: boolean
     cancelled?: boolean
     training_type_id?: boolean
+    theme?: boolean
     bookings?: boolean | training_availability$bookingsArgs<ExtArgs>
     credits?: boolean | training_availability$creditsArgs<ExtArgs>
     training_types?: boolean | training_availability$training_typesArgs<ExtArgs>
@@ -13710,6 +13748,7 @@ export namespace Prisma {
     created_at?: boolean
     cancelled?: boolean
     training_type_id?: boolean
+    theme?: boolean
     training_types?: boolean | training_availability$training_typesArgs<ExtArgs>
   }, ExtArgs["result"]["training_availability"]>
 
@@ -13721,6 +13760,7 @@ export namespace Prisma {
     created_at?: boolean
     cancelled?: boolean
     training_type_id?: boolean
+    theme?: boolean
     training_types?: boolean | training_availability$training_typesArgs<ExtArgs>
   }, ExtArgs["result"]["training_availability"]>
 
@@ -13732,9 +13772,10 @@ export namespace Prisma {
     created_at?: boolean
     cancelled?: boolean
     training_type_id?: boolean
+    theme?: boolean
   }
 
-  export type training_availabilityOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "training_type" | "training_date" | "max_participants" | "created_at" | "cancelled" | "training_type_id", ExtArgs["result"]["training_availability"]>
+  export type training_availabilityOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "training_type" | "training_date" | "max_participants" | "created_at" | "cancelled" | "training_type_id" | "theme", ExtArgs["result"]["training_availability"]>
   export type training_availabilityInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     bookings?: boolean | training_availability$bookingsArgs<ExtArgs>
     credits?: boolean | training_availability$creditsArgs<ExtArgs>
@@ -13763,6 +13804,7 @@ export namespace Prisma {
       created_at: Date | null
       cancelled: boolean | null
       training_type_id: number | null
+      theme: string | null
     }, ExtArgs["result"]["training_availability"]>
     composites: {}
   }
@@ -14196,6 +14238,7 @@ export namespace Prisma {
     readonly created_at: FieldRef<"training_availability", 'DateTime'>
     readonly cancelled: FieldRef<"training_availability", 'Boolean'>
     readonly training_type_id: FieldRef<"training_availability", 'Int'>
+    readonly theme: FieldRef<"training_availability", 'String'>
   }
     
 
@@ -15801,6 +15844,7 @@ export namespace Prisma {
     active: boolean | null
     created_at: Date | null
     color_hex: string | null
+    audience_type: string | null
   }
 
   export type Training_typesMaxAggregateOutputType = {
@@ -15812,6 +15856,7 @@ export namespace Prisma {
     active: boolean | null
     created_at: Date | null
     color_hex: string | null
+    audience_type: string | null
   }
 
   export type Training_typesCountAggregateOutputType = {
@@ -15823,6 +15868,7 @@ export namespace Prisma {
     active: number
     created_at: number
     color_hex: number
+    audience_type: number
     _all: number
   }
 
@@ -15848,6 +15894,7 @@ export namespace Prisma {
     active?: true
     created_at?: true
     color_hex?: true
+    audience_type?: true
   }
 
   export type Training_typesMaxAggregateInputType = {
@@ -15859,6 +15906,7 @@ export namespace Prisma {
     active?: true
     created_at?: true
     color_hex?: true
+    audience_type?: true
   }
 
   export type Training_typesCountAggregateInputType = {
@@ -15870,6 +15918,7 @@ export namespace Prisma {
     active?: true
     created_at?: true
     color_hex?: true
+    audience_type?: true
     _all?: true
   }
 
@@ -15968,6 +16017,7 @@ export namespace Prisma {
     active: boolean | null
     created_at: Date | null
     color_hex: string | null
+    audience_type: string
     _count: Training_typesCountAggregateOutputType | null
     _avg: Training_typesAvgAggregateOutputType | null
     _sum: Training_typesSumAggregateOutputType | null
@@ -15998,6 +16048,7 @@ export namespace Prisma {
     active?: boolean
     created_at?: boolean
     color_hex?: boolean
+    audience_type?: boolean
     training_availability?: boolean | training_types$training_availabilityArgs<ExtArgs>
     training_prices?: boolean | training_types$training_pricesArgs<ExtArgs>
     season_ticket_usage?: boolean | training_types$season_ticket_usageArgs<ExtArgs>
@@ -16014,6 +16065,7 @@ export namespace Prisma {
     active?: boolean
     created_at?: boolean
     color_hex?: boolean
+    audience_type?: boolean
   }, ExtArgs["result"]["training_types"]>
 
   export type training_typesSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -16025,6 +16077,7 @@ export namespace Prisma {
     active?: boolean
     created_at?: boolean
     color_hex?: boolean
+    audience_type?: boolean
   }, ExtArgs["result"]["training_types"]>
 
   export type training_typesSelectScalar = {
@@ -16036,9 +16089,10 @@ export namespace Prisma {
     active?: boolean
     created_at?: boolean
     color_hex?: boolean
+    audience_type?: boolean
   }
 
-  export type training_typesOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "description" | "duration_minutes" | "accompanying_person_price" | "active" | "created_at" | "color_hex", ExtArgs["result"]["training_types"]>
+  export type training_typesOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "description" | "duration_minutes" | "accompanying_person_price" | "active" | "created_at" | "color_hex" | "audience_type", ExtArgs["result"]["training_types"]>
   export type training_typesInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     training_availability?: boolean | training_types$training_availabilityArgs<ExtArgs>
     training_prices?: boolean | training_types$training_pricesArgs<ExtArgs>
@@ -16066,6 +16120,7 @@ export namespace Prisma {
       active: boolean | null
       created_at: Date | null
       color_hex: string | null
+      audience_type: string
     }, ExtArgs["result"]["training_types"]>
     composites: {}
   }
@@ -16501,6 +16556,7 @@ export namespace Prisma {
     readonly active: FieldRef<"training_types", 'Boolean'>
     readonly created_at: FieldRef<"training_types", 'DateTime'>
     readonly color_hex: FieldRef<"training_types", 'String'>
+    readonly audience_type: FieldRef<"training_types", 'String'>
   }
     
 
@@ -23595,7 +23651,9 @@ export namespace Prisma {
     booking_type: 'booking_type',
     archived_training_date: 'archived_training_date',
     archived_training_type: 'archived_training_type',
-    checked_in: 'checked_in'
+    checked_in: 'checked_in',
+    age_group: 'age_group',
+    number_of_adults: 'number_of_adults'
   };
 
   export type BookingsScalarFieldEnum = (typeof BookingsScalarFieldEnum)[keyof typeof BookingsScalarFieldEnum]
@@ -23717,7 +23775,8 @@ export namespace Prisma {
     max_participants: 'max_participants',
     created_at: 'created_at',
     cancelled: 'cancelled',
-    training_type_id: 'training_type_id'
+    training_type_id: 'training_type_id',
+    theme: 'theme'
   };
 
   export type Training_availabilityScalarFieldEnum = (typeof Training_availabilityScalarFieldEnum)[keyof typeof Training_availabilityScalarFieldEnum]
@@ -23741,7 +23800,8 @@ export namespace Prisma {
     accompanying_person_price: 'accompanying_person_price',
     active: 'active',
     created_at: 'created_at',
-    color_hex: 'color_hex'
+    color_hex: 'color_hex',
+    audience_type: 'audience_type'
   };
 
   export type Training_typesScalarFieldEnum = (typeof Training_typesScalarFieldEnum)[keyof typeof Training_typesScalarFieldEnum]
@@ -23986,6 +24046,8 @@ export namespace Prisma {
     archived_training_date?: DateTimeNullableFilter<"bookings"> | Date | string | null
     archived_training_type?: StringNullableFilter<"bookings"> | string | null
     checked_in?: BoolFilter<"bookings"> | boolean
+    age_group?: StringNullableFilter<"bookings"> | string | null
+    number_of_adults?: IntNullableFilter<"bookings"> | number | null
     training_availability?: XOR<Training_availabilityNullableScalarRelationFilter, training_availabilityWhereInput> | null
     users?: XOR<UsersNullableScalarRelationFilter, usersWhereInput> | null
     credits?: XOR<CreditsNullableScalarRelationFilter, creditsWhereInput> | null
@@ -24014,6 +24076,8 @@ export namespace Prisma {
     archived_training_date?: SortOrderInput | SortOrder
     archived_training_type?: SortOrderInput | SortOrder
     checked_in?: SortOrder
+    age_group?: SortOrderInput | SortOrder
+    number_of_adults?: SortOrderInput | SortOrder
     training_availability?: training_availabilityOrderByWithRelationInput
     users?: usersOrderByWithRelationInput
     credits?: creditsOrderByWithRelationInput
@@ -24045,6 +24109,8 @@ export namespace Prisma {
     archived_training_date?: DateTimeNullableFilter<"bookings"> | Date | string | null
     archived_training_type?: StringNullableFilter<"bookings"> | string | null
     checked_in?: BoolFilter<"bookings"> | boolean
+    age_group?: StringNullableFilter<"bookings"> | string | null
+    number_of_adults?: IntNullableFilter<"bookings"> | number | null
     training_availability?: XOR<Training_availabilityNullableScalarRelationFilter, training_availabilityWhereInput> | null
     users?: XOR<UsersNullableScalarRelationFilter, usersWhereInput> | null
     credits?: XOR<CreditsNullableScalarRelationFilter, creditsWhereInput> | null
@@ -24073,6 +24139,8 @@ export namespace Prisma {
     archived_training_date?: SortOrderInput | SortOrder
     archived_training_type?: SortOrderInput | SortOrder
     checked_in?: SortOrder
+    age_group?: SortOrderInput | SortOrder
+    number_of_adults?: SortOrderInput | SortOrder
     _count?: bookingsCountOrderByAggregateInput
     _avg?: bookingsAvgOrderByAggregateInput
     _max?: bookingsMaxOrderByAggregateInput
@@ -24104,6 +24172,8 @@ export namespace Prisma {
     archived_training_date?: DateTimeNullableWithAggregatesFilter<"bookings"> | Date | string | null
     archived_training_type?: StringNullableWithAggregatesFilter<"bookings"> | string | null
     checked_in?: BoolWithAggregatesFilter<"bookings"> | boolean
+    age_group?: StringNullableWithAggregatesFilter<"bookings"> | string | null
+    number_of_adults?: IntNullableWithAggregatesFilter<"bookings"> | number | null
   }
 
   export type creditsWhereInput = {
@@ -24704,6 +24774,7 @@ export namespace Prisma {
     created_at?: DateTimeNullableFilter<"training_availability"> | Date | string | null
     cancelled?: BoolNullableFilter<"training_availability"> | boolean | null
     training_type_id?: IntNullableFilter<"training_availability"> | number | null
+    theme?: StringNullableFilter<"training_availability"> | string | null
     bookings?: BookingsListRelationFilter
     credits?: CreditsListRelationFilter
     training_types?: XOR<Training_typesNullableScalarRelationFilter, training_typesWhereInput> | null
@@ -24717,6 +24788,7 @@ export namespace Prisma {
     created_at?: SortOrderInput | SortOrder
     cancelled?: SortOrderInput | SortOrder
     training_type_id?: SortOrderInput | SortOrder
+    theme?: SortOrderInput | SortOrder
     bookings?: bookingsOrderByRelationAggregateInput
     credits?: creditsOrderByRelationAggregateInput
     training_types?: training_typesOrderByWithRelationInput
@@ -24733,6 +24805,7 @@ export namespace Prisma {
     created_at?: DateTimeNullableFilter<"training_availability"> | Date | string | null
     cancelled?: BoolNullableFilter<"training_availability"> | boolean | null
     training_type_id?: IntNullableFilter<"training_availability"> | number | null
+    theme?: StringNullableFilter<"training_availability"> | string | null
     bookings?: BookingsListRelationFilter
     credits?: CreditsListRelationFilter
     training_types?: XOR<Training_typesNullableScalarRelationFilter, training_typesWhereInput> | null
@@ -24746,6 +24819,7 @@ export namespace Prisma {
     created_at?: SortOrderInput | SortOrder
     cancelled?: SortOrderInput | SortOrder
     training_type_id?: SortOrderInput | SortOrder
+    theme?: SortOrderInput | SortOrder
     _count?: training_availabilityCountOrderByAggregateInput
     _avg?: training_availabilityAvgOrderByAggregateInput
     _max?: training_availabilityMaxOrderByAggregateInput
@@ -24764,6 +24838,7 @@ export namespace Prisma {
     created_at?: DateTimeNullableWithAggregatesFilter<"training_availability"> | Date | string | null
     cancelled?: BoolNullableWithAggregatesFilter<"training_availability"> | boolean | null
     training_type_id?: IntNullableWithAggregatesFilter<"training_availability"> | number | null
+    theme?: StringNullableWithAggregatesFilter<"training_availability"> | string | null
   }
 
   export type training_pricesWhereInput = {
@@ -24831,6 +24906,7 @@ export namespace Prisma {
     active?: BoolNullableFilter<"training_types"> | boolean | null
     created_at?: DateTimeNullableFilter<"training_types"> | Date | string | null
     color_hex?: StringNullableFilter<"training_types"> | string | null
+    audience_type?: StringFilter<"training_types"> | string
     training_availability?: Training_availabilityListRelationFilter
     training_prices?: Training_pricesListRelationFilter
     season_ticket_usage?: Season_ticket_usageListRelationFilter
@@ -24846,6 +24922,7 @@ export namespace Prisma {
     active?: SortOrderInput | SortOrder
     created_at?: SortOrderInput | SortOrder
     color_hex?: SortOrderInput | SortOrder
+    audience_type?: SortOrder
     training_availability?: training_availabilityOrderByRelationAggregateInput
     training_prices?: training_pricesOrderByRelationAggregateInput
     season_ticket_usage?: season_ticket_usageOrderByRelationAggregateInput
@@ -24864,6 +24941,7 @@ export namespace Prisma {
     active?: BoolNullableFilter<"training_types"> | boolean | null
     created_at?: DateTimeNullableFilter<"training_types"> | Date | string | null
     color_hex?: StringNullableFilter<"training_types"> | string | null
+    audience_type?: StringFilter<"training_types"> | string
     training_availability?: Training_availabilityListRelationFilter
     training_prices?: Training_pricesListRelationFilter
     season_ticket_usage?: Season_ticket_usageListRelationFilter
@@ -24879,6 +24957,7 @@ export namespace Prisma {
     active?: SortOrderInput | SortOrder
     created_at?: SortOrderInput | SortOrder
     color_hex?: SortOrderInput | SortOrder
+    audience_type?: SortOrder
     _count?: training_typesCountOrderByAggregateInput
     _avg?: training_typesAvgOrderByAggregateInput
     _max?: training_typesMaxOrderByAggregateInput
@@ -24898,6 +24977,7 @@ export namespace Prisma {
     active?: BoolNullableWithAggregatesFilter<"training_types"> | boolean | null
     created_at?: DateTimeNullableWithAggregatesFilter<"training_types"> | Date | string | null
     color_hex?: StringNullableWithAggregatesFilter<"training_types"> | string | null
+    audience_type?: StringWithAggregatesFilter<"training_types"> | string
   }
 
   export type user_sessionsWhereInput = {
@@ -25304,6 +25384,8 @@ export namespace Prisma {
     archived_training_date?: Date | string | null
     archived_training_type?: string | null
     checked_in?: boolean
+    age_group?: string | null
+    number_of_adults?: number | null
     training_availability?: training_availabilityCreateNestedOneWithoutBookingsInput
     users?: usersCreateNestedOneWithoutBookingsInput
     credits?: creditsCreateNestedOneWithoutBookingsInput
@@ -25332,6 +25414,8 @@ export namespace Prisma {
     archived_training_date?: Date | string | null
     archived_training_type?: string | null
     checked_in?: boolean
+    age_group?: string | null
+    number_of_adults?: number | null
     refunds?: refundsUncheckedCreateNestedManyWithoutBookingsInput
     season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutBookingsInput
   }
@@ -25353,6 +25437,8 @@ export namespace Prisma {
     archived_training_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     archived_training_type?: NullableStringFieldUpdateOperationsInput | string | null
     checked_in?: BoolFieldUpdateOperationsInput | boolean
+    age_group?: NullableStringFieldUpdateOperationsInput | string | null
+    number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     training_availability?: training_availabilityUpdateOneWithoutBookingsNestedInput
     users?: usersUpdateOneWithoutBookingsNestedInput
     credits?: creditsUpdateOneWithoutBookingsNestedInput
@@ -25381,6 +25467,8 @@ export namespace Prisma {
     archived_training_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     archived_training_type?: NullableStringFieldUpdateOperationsInput | string | null
     checked_in?: BoolFieldUpdateOperationsInput | boolean
+    age_group?: NullableStringFieldUpdateOperationsInput | string | null
+    number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     refunds?: refundsUncheckedUpdateManyWithoutBookingsNestedInput
     season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutBookingsNestedInput
   }
@@ -25406,6 +25494,8 @@ export namespace Prisma {
     archived_training_date?: Date | string | null
     archived_training_type?: string | null
     checked_in?: boolean
+    age_group?: string | null
+    number_of_adults?: number | null
   }
 
   export type bookingsUpdateManyMutationInput = {
@@ -25425,6 +25515,8 @@ export namespace Prisma {
     archived_training_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     archived_training_type?: NullableStringFieldUpdateOperationsInput | string | null
     checked_in?: BoolFieldUpdateOperationsInput | boolean
+    age_group?: NullableStringFieldUpdateOperationsInput | string | null
+    number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type bookingsUncheckedUpdateManyInput = {
@@ -25448,6 +25540,8 @@ export namespace Prisma {
     archived_training_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     archived_training_type?: NullableStringFieldUpdateOperationsInput | string | null
     checked_in?: BoolFieldUpdateOperationsInput | boolean
+    age_group?: NullableStringFieldUpdateOperationsInput | string | null
+    number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type creditsCreateInput = {
@@ -26040,6 +26134,7 @@ export namespace Prisma {
     max_participants?: number | null
     created_at?: Date | string | null
     cancelled?: boolean | null
+    theme?: string | null
     bookings?: bookingsCreateNestedManyWithoutTraining_availabilityInput
     credits?: creditsCreateNestedManyWithoutTraining_availabilityInput
     training_types?: training_typesCreateNestedOneWithoutTraining_availabilityInput
@@ -26053,6 +26148,7 @@ export namespace Prisma {
     created_at?: Date | string | null
     cancelled?: boolean | null
     training_type_id?: number | null
+    theme?: string | null
     bookings?: bookingsUncheckedCreateNestedManyWithoutTraining_availabilityInput
     credits?: creditsUncheckedCreateNestedManyWithoutTraining_availabilityInput
   }
@@ -26063,6 +26159,7 @@ export namespace Prisma {
     max_participants?: NullableIntFieldUpdateOperationsInput | number | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelled?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    theme?: NullableStringFieldUpdateOperationsInput | string | null
     bookings?: bookingsUpdateManyWithoutTraining_availabilityNestedInput
     credits?: creditsUpdateManyWithoutTraining_availabilityNestedInput
     training_types?: training_typesUpdateOneWithoutTraining_availabilityNestedInput
@@ -26076,6 +26173,7 @@ export namespace Prisma {
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelled?: NullableBoolFieldUpdateOperationsInput | boolean | null
     training_type_id?: NullableIntFieldUpdateOperationsInput | number | null
+    theme?: NullableStringFieldUpdateOperationsInput | string | null
     bookings?: bookingsUncheckedUpdateManyWithoutTraining_availabilityNestedInput
     credits?: creditsUncheckedUpdateManyWithoutTraining_availabilityNestedInput
   }
@@ -26088,6 +26186,7 @@ export namespace Prisma {
     created_at?: Date | string | null
     cancelled?: boolean | null
     training_type_id?: number | null
+    theme?: string | null
   }
 
   export type training_availabilityUpdateManyMutationInput = {
@@ -26096,6 +26195,7 @@ export namespace Prisma {
     max_participants?: NullableIntFieldUpdateOperationsInput | number | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelled?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    theme?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type training_availabilityUncheckedUpdateManyInput = {
@@ -26106,6 +26206,7 @@ export namespace Prisma {
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelled?: NullableBoolFieldUpdateOperationsInput | boolean | null
     training_type_id?: NullableIntFieldUpdateOperationsInput | number | null
+    theme?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type training_pricesCreateInput = {
@@ -26161,6 +26262,7 @@ export namespace Prisma {
     active?: boolean | null
     created_at?: Date | string | null
     color_hex?: string | null
+    audience_type?: string
     training_availability?: training_availabilityCreateNestedManyWithoutTraining_typesInput
     training_prices?: training_pricesCreateNestedManyWithoutTraining_typesInput
     season_ticket_usage?: season_ticket_usageCreateNestedManyWithoutTraining_typesInput
@@ -26176,6 +26278,7 @@ export namespace Prisma {
     active?: boolean | null
     created_at?: Date | string | null
     color_hex?: string | null
+    audience_type?: string
     training_availability?: training_availabilityUncheckedCreateNestedManyWithoutTraining_typesInput
     training_prices?: training_pricesUncheckedCreateNestedManyWithoutTraining_typesInput
     season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutTraining_typesInput
@@ -26190,6 +26293,7 @@ export namespace Prisma {
     active?: NullableBoolFieldUpdateOperationsInput | boolean | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     color_hex?: NullableStringFieldUpdateOperationsInput | string | null
+    audience_type?: StringFieldUpdateOperationsInput | string
     training_availability?: training_availabilityUpdateManyWithoutTraining_typesNestedInput
     training_prices?: training_pricesUpdateManyWithoutTraining_typesNestedInput
     season_ticket_usage?: season_ticket_usageUpdateManyWithoutTraining_typesNestedInput
@@ -26205,6 +26309,7 @@ export namespace Prisma {
     active?: NullableBoolFieldUpdateOperationsInput | boolean | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     color_hex?: NullableStringFieldUpdateOperationsInput | string | null
+    audience_type?: StringFieldUpdateOperationsInput | string
     training_availability?: training_availabilityUncheckedUpdateManyWithoutTraining_typesNestedInput
     training_prices?: training_pricesUncheckedUpdateManyWithoutTraining_typesNestedInput
     season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutTraining_typesNestedInput
@@ -26220,6 +26325,7 @@ export namespace Prisma {
     active?: boolean | null
     created_at?: Date | string | null
     color_hex?: string | null
+    audience_type?: string
   }
 
   export type training_typesUpdateManyMutationInput = {
@@ -26230,6 +26336,7 @@ export namespace Prisma {
     active?: NullableBoolFieldUpdateOperationsInput | boolean | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     color_hex?: NullableStringFieldUpdateOperationsInput | string | null
+    audience_type?: StringFieldUpdateOperationsInput | string
   }
 
   export type training_typesUncheckedUpdateManyInput = {
@@ -26241,6 +26348,7 @@ export namespace Prisma {
     active?: NullableBoolFieldUpdateOperationsInput | boolean | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     color_hex?: NullableStringFieldUpdateOperationsInput | string | null
+    audience_type?: StringFieldUpdateOperationsInput | string
   }
 
   export type user_sessionsCreateInput = {
@@ -26785,6 +26893,8 @@ export namespace Prisma {
     archived_training_date?: SortOrder
     archived_training_type?: SortOrder
     checked_in?: SortOrder
+    age_group?: SortOrder
+    number_of_adults?: SortOrder
   }
 
   export type bookingsAvgOrderByAggregateInput = {
@@ -26794,6 +26904,7 @@ export namespace Prisma {
     number_of_children?: SortOrder
     amount_paid?: SortOrder
     credit_id?: SortOrder
+    number_of_adults?: SortOrder
   }
 
   export type bookingsMaxOrderByAggregateInput = {
@@ -26817,6 +26928,8 @@ export namespace Prisma {
     archived_training_date?: SortOrder
     archived_training_type?: SortOrder
     checked_in?: SortOrder
+    age_group?: SortOrder
+    number_of_adults?: SortOrder
   }
 
   export type bookingsMinOrderByAggregateInput = {
@@ -26840,6 +26953,8 @@ export namespace Prisma {
     archived_training_date?: SortOrder
     archived_training_type?: SortOrder
     checked_in?: SortOrder
+    age_group?: SortOrder
+    number_of_adults?: SortOrder
   }
 
   export type bookingsSumOrderByAggregateInput = {
@@ -26849,6 +26964,7 @@ export namespace Prisma {
     number_of_children?: SortOrder
     amount_paid?: SortOrder
     credit_id?: SortOrder
+    number_of_adults?: SortOrder
   }
 
   export type IntWithAggregatesFilter<$PrismaModel = never> = {
@@ -27485,6 +27601,7 @@ export namespace Prisma {
     created_at?: SortOrder
     cancelled?: SortOrder
     training_type_id?: SortOrder
+    theme?: SortOrder
   }
 
   export type training_availabilityAvgOrderByAggregateInput = {
@@ -27501,6 +27618,7 @@ export namespace Prisma {
     created_at?: SortOrder
     cancelled?: SortOrder
     training_type_id?: SortOrder
+    theme?: SortOrder
   }
 
   export type training_availabilityMinOrderByAggregateInput = {
@@ -27511,6 +27629,7 @@ export namespace Prisma {
     created_at?: SortOrder
     cancelled?: SortOrder
     training_type_id?: SortOrder
+    theme?: SortOrder
   }
 
   export type training_availabilitySumOrderByAggregateInput = {
@@ -27588,6 +27707,7 @@ export namespace Prisma {
     active?: SortOrder
     created_at?: SortOrder
     color_hex?: SortOrder
+    audience_type?: SortOrder
   }
 
   export type training_typesAvgOrderByAggregateInput = {
@@ -27605,6 +27725,7 @@ export namespace Prisma {
     active?: SortOrder
     created_at?: SortOrder
     color_hex?: SortOrder
+    audience_type?: SortOrder
   }
 
   export type training_typesMinOrderByAggregateInput = {
@@ -27616,6 +27737,7 @@ export namespace Prisma {
     active?: SortOrder
     created_at?: SortOrder
     color_hex?: SortOrder
+    audience_type?: SortOrder
   }
 
   export type training_typesSumOrderByAggregateInput = {
@@ -27980,6 +28102,14 @@ export namespace Prisma {
     set?: boolean
   }
 
+  export type NullableIntFieldUpdateOperationsInput = {
+    set?: number | null
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
   export type training_availabilityUpdateOneWithoutBookingsNestedInput = {
     create?: XOR<training_availabilityCreateWithoutBookingsInput, training_availabilityUncheckedCreateWithoutBookingsInput>
     connectOrCreate?: training_availabilityCreateOrConnectWithoutBookingsInput
@@ -28036,14 +28166,6 @@ export namespace Prisma {
     update?: season_ticket_usageUpdateWithWhereUniqueWithoutBookingsInput | season_ticket_usageUpdateWithWhereUniqueWithoutBookingsInput[]
     updateMany?: season_ticket_usageUpdateManyWithWhereWithoutBookingsInput | season_ticket_usageUpdateManyWithWhereWithoutBookingsInput[]
     deleteMany?: season_ticket_usageScalarWhereInput | season_ticket_usageScalarWhereInput[]
-  }
-
-  export type NullableIntFieldUpdateOperationsInput = {
-    set?: number | null
-    increment?: number
-    decrement?: number
-    multiply?: number
-    divide?: number
   }
 
   export type refundsUncheckedUpdateManyWithoutBookingsNestedInput = {
@@ -29229,6 +29351,7 @@ export namespace Prisma {
     max_participants?: number | null
     created_at?: Date | string | null
     cancelled?: boolean | null
+    theme?: string | null
     credits?: creditsCreateNestedManyWithoutTraining_availabilityInput
     training_types?: training_typesCreateNestedOneWithoutTraining_availabilityInput
   }
@@ -29241,6 +29364,7 @@ export namespace Prisma {
     created_at?: Date | string | null
     cancelled?: boolean | null
     training_type_id?: number | null
+    theme?: string | null
     credits?: creditsUncheckedCreateNestedManyWithoutTraining_availabilityInput
   }
 
@@ -29402,6 +29526,7 @@ export namespace Prisma {
     max_participants?: NullableIntFieldUpdateOperationsInput | number | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelled?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    theme?: NullableStringFieldUpdateOperationsInput | string | null
     credits?: creditsUpdateManyWithoutTraining_availabilityNestedInput
     training_types?: training_typesUpdateOneWithoutTraining_availabilityNestedInput
   }
@@ -29414,6 +29539,7 @@ export namespace Prisma {
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelled?: NullableBoolFieldUpdateOperationsInput | boolean | null
     training_type_id?: NullableIntFieldUpdateOperationsInput | number | null
+    theme?: NullableStringFieldUpdateOperationsInput | string | null
     credits?: creditsUncheckedUpdateManyWithoutTraining_availabilityNestedInput
   }
 
@@ -29586,6 +29712,8 @@ export namespace Prisma {
     archived_training_date?: Date | string | null
     archived_training_type?: string | null
     checked_in?: boolean
+    age_group?: string | null
+    number_of_adults?: number | null
     training_availability?: training_availabilityCreateNestedOneWithoutBookingsInput
     users?: usersCreateNestedOneWithoutBookingsInput
     refunds?: refundsCreateNestedManyWithoutBookingsInput
@@ -29612,6 +29740,8 @@ export namespace Prisma {
     archived_training_date?: Date | string | null
     archived_training_type?: string | null
     checked_in?: boolean
+    age_group?: string | null
+    number_of_adults?: number | null
     refunds?: refundsUncheckedCreateNestedManyWithoutBookingsInput
     season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutBookingsInput
   }
@@ -29632,6 +29762,7 @@ export namespace Prisma {
     max_participants?: number | null
     created_at?: Date | string | null
     cancelled?: boolean | null
+    theme?: string | null
     bookings?: bookingsCreateNestedManyWithoutTraining_availabilityInput
     training_types?: training_typesCreateNestedOneWithoutTraining_availabilityInput
   }
@@ -29644,6 +29775,7 @@ export namespace Prisma {
     created_at?: Date | string | null
     cancelled?: boolean | null
     training_type_id?: number | null
+    theme?: string | null
     bookings?: bookingsUncheckedCreateNestedManyWithoutTraining_availabilityInput
   }
 
@@ -29734,6 +29866,8 @@ export namespace Prisma {
     archived_training_date?: DateTimeNullableFilter<"bookings"> | Date | string | null
     archived_training_type?: StringNullableFilter<"bookings"> | string | null
     checked_in?: BoolFilter<"bookings"> | boolean
+    age_group?: StringNullableFilter<"bookings"> | string | null
+    number_of_adults?: IntNullableFilter<"bookings"> | number | null
   }
 
   export type training_availabilityUpsertWithoutCreditsInput = {
@@ -29753,6 +29887,7 @@ export namespace Prisma {
     max_participants?: NullableIntFieldUpdateOperationsInput | number | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelled?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    theme?: NullableStringFieldUpdateOperationsInput | string | null
     bookings?: bookingsUpdateManyWithoutTraining_availabilityNestedInput
     training_types?: training_typesUpdateOneWithoutTraining_availabilityNestedInput
   }
@@ -29765,6 +29900,7 @@ export namespace Prisma {
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelled?: NullableBoolFieldUpdateOperationsInput | boolean | null
     training_type_id?: NullableIntFieldUpdateOperationsInput | number | null
+    theme?: NullableStringFieldUpdateOperationsInput | string | null
     bookings?: bookingsUncheckedUpdateManyWithoutTraining_availabilityNestedInput
   }
 
@@ -29833,6 +29969,8 @@ export namespace Prisma {
     archived_training_date?: Date | string | null
     archived_training_type?: string | null
     checked_in?: boolean
+    age_group?: string | null
+    number_of_adults?: number | null
     training_availability?: training_availabilityCreateNestedOneWithoutBookingsInput
     users?: usersCreateNestedOneWithoutBookingsInput
     credits?: creditsCreateNestedOneWithoutBookingsInput
@@ -29860,6 +29998,8 @@ export namespace Prisma {
     archived_training_date?: Date | string | null
     archived_training_type?: string | null
     checked_in?: boolean
+    age_group?: string | null
+    number_of_adults?: number | null
     season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutBookingsInput
   }
 
@@ -29896,6 +30036,8 @@ export namespace Prisma {
     archived_training_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     archived_training_type?: NullableStringFieldUpdateOperationsInput | string | null
     checked_in?: BoolFieldUpdateOperationsInput | boolean
+    age_group?: NullableStringFieldUpdateOperationsInput | string | null
+    number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     training_availability?: training_availabilityUpdateOneWithoutBookingsNestedInput
     users?: usersUpdateOneWithoutBookingsNestedInput
     credits?: creditsUpdateOneWithoutBookingsNestedInput
@@ -29923,6 +30065,8 @@ export namespace Prisma {
     archived_training_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     archived_training_type?: NullableStringFieldUpdateOperationsInput | string | null
     checked_in?: BoolFieldUpdateOperationsInput | boolean
+    age_group?: NullableStringFieldUpdateOperationsInput | string | null
+    number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutBookingsNestedInput
   }
 
@@ -29943,6 +30087,8 @@ export namespace Prisma {
     archived_training_date?: Date | string | null
     archived_training_type?: string | null
     checked_in?: boolean
+    age_group?: string | null
+    number_of_adults?: number | null
     training_availability?: training_availabilityCreateNestedOneWithoutBookingsInput
     users?: usersCreateNestedOneWithoutBookingsInput
     credits?: creditsCreateNestedOneWithoutBookingsInput
@@ -29970,6 +30116,8 @@ export namespace Prisma {
     archived_training_date?: Date | string | null
     archived_training_type?: string | null
     checked_in?: boolean
+    age_group?: string | null
+    number_of_adults?: number | null
     refunds?: refundsUncheckedCreateNestedManyWithoutBookingsInput
   }
 
@@ -30020,6 +30168,7 @@ export namespace Prisma {
     active?: boolean | null
     created_at?: Date | string | null
     color_hex?: string | null
+    audience_type?: string
     training_availability?: training_availabilityCreateNestedManyWithoutTraining_typesInput
     training_prices?: training_pricesCreateNestedManyWithoutTraining_typesInput
     season_ticket_product_training_types?: season_ticket_product_training_typesCreateNestedManyWithoutTraining_typesInput
@@ -30034,6 +30183,7 @@ export namespace Prisma {
     active?: boolean | null
     created_at?: Date | string | null
     color_hex?: string | null
+    audience_type?: string
     training_availability?: training_availabilityUncheckedCreateNestedManyWithoutTraining_typesInput
     training_prices?: training_pricesUncheckedCreateNestedManyWithoutTraining_typesInput
     season_ticket_product_training_types?: season_ticket_product_training_typesUncheckedCreateNestedManyWithoutTraining_typesInput
@@ -30072,6 +30222,8 @@ export namespace Prisma {
     archived_training_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     archived_training_type?: NullableStringFieldUpdateOperationsInput | string | null
     checked_in?: BoolFieldUpdateOperationsInput | boolean
+    age_group?: NullableStringFieldUpdateOperationsInput | string | null
+    number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     training_availability?: training_availabilityUpdateOneWithoutBookingsNestedInput
     users?: usersUpdateOneWithoutBookingsNestedInput
     credits?: creditsUpdateOneWithoutBookingsNestedInput
@@ -30099,6 +30251,8 @@ export namespace Prisma {
     archived_training_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     archived_training_type?: NullableStringFieldUpdateOperationsInput | string | null
     checked_in?: BoolFieldUpdateOperationsInput | boolean
+    age_group?: NullableStringFieldUpdateOperationsInput | string | null
+    number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     refunds?: refundsUncheckedUpdateManyWithoutBookingsNestedInput
   }
 
@@ -30161,6 +30315,7 @@ export namespace Prisma {
     active?: NullableBoolFieldUpdateOperationsInput | boolean | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     color_hex?: NullableStringFieldUpdateOperationsInput | string | null
+    audience_type?: StringFieldUpdateOperationsInput | string
     training_availability?: training_availabilityUpdateManyWithoutTraining_typesNestedInput
     training_prices?: training_pricesUpdateManyWithoutTraining_typesNestedInput
     season_ticket_product_training_types?: season_ticket_product_training_typesUpdateManyWithoutTraining_typesNestedInput
@@ -30175,6 +30330,7 @@ export namespace Prisma {
     active?: NullableBoolFieldUpdateOperationsInput | boolean | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     color_hex?: NullableStringFieldUpdateOperationsInput | string | null
+    audience_type?: StringFieldUpdateOperationsInput | string
     training_availability?: training_availabilityUncheckedUpdateManyWithoutTraining_typesNestedInput
     training_prices?: training_pricesUncheckedUpdateManyWithoutTraining_typesNestedInput
     season_ticket_product_training_types?: season_ticket_product_training_typesUncheckedUpdateManyWithoutTraining_typesNestedInput
@@ -30385,6 +30541,7 @@ export namespace Prisma {
     active?: boolean | null
     created_at?: Date | string | null
     color_hex?: string | null
+    audience_type?: string
     training_availability?: training_availabilityCreateNestedManyWithoutTraining_typesInput
     training_prices?: training_pricesCreateNestedManyWithoutTraining_typesInput
     season_ticket_usage?: season_ticket_usageCreateNestedManyWithoutTraining_typesInput
@@ -30399,6 +30556,7 @@ export namespace Prisma {
     active?: boolean | null
     created_at?: Date | string | null
     color_hex?: string | null
+    audience_type?: string
     training_availability?: training_availabilityUncheckedCreateNestedManyWithoutTraining_typesInput
     training_prices?: training_pricesUncheckedCreateNestedManyWithoutTraining_typesInput
     season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutTraining_typesInput
@@ -30460,6 +30618,7 @@ export namespace Prisma {
     active?: NullableBoolFieldUpdateOperationsInput | boolean | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     color_hex?: NullableStringFieldUpdateOperationsInput | string | null
+    audience_type?: StringFieldUpdateOperationsInput | string
     training_availability?: training_availabilityUpdateManyWithoutTraining_typesNestedInput
     training_prices?: training_pricesUpdateManyWithoutTraining_typesNestedInput
     season_ticket_usage?: season_ticket_usageUpdateManyWithoutTraining_typesNestedInput
@@ -30474,6 +30633,7 @@ export namespace Prisma {
     active?: NullableBoolFieldUpdateOperationsInput | boolean | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     color_hex?: NullableStringFieldUpdateOperationsInput | string | null
+    audience_type?: StringFieldUpdateOperationsInput | string
     training_availability?: training_availabilityUncheckedUpdateManyWithoutTraining_typesNestedInput
     training_prices?: training_pricesUncheckedUpdateManyWithoutTraining_typesNestedInput
     season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutTraining_typesNestedInput
@@ -30743,6 +30903,8 @@ export namespace Prisma {
     archived_training_date?: Date | string | null
     archived_training_type?: string | null
     checked_in?: boolean
+    age_group?: string | null
+    number_of_adults?: number | null
     users?: usersCreateNestedOneWithoutBookingsInput
     credits?: creditsCreateNestedOneWithoutBookingsInput
     refunds?: refundsCreateNestedManyWithoutBookingsInput
@@ -30769,6 +30931,8 @@ export namespace Prisma {
     archived_training_date?: Date | string | null
     archived_training_type?: string | null
     checked_in?: boolean
+    age_group?: string | null
+    number_of_adults?: number | null
     refunds?: refundsUncheckedCreateNestedManyWithoutBookingsInput
     season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutBookingsInput
   }
@@ -30836,6 +31000,7 @@ export namespace Prisma {
     active?: boolean | null
     created_at?: Date | string | null
     color_hex?: string | null
+    audience_type?: string
     training_prices?: training_pricesCreateNestedManyWithoutTraining_typesInput
     season_ticket_usage?: season_ticket_usageCreateNestedManyWithoutTraining_typesInput
     season_ticket_product_training_types?: season_ticket_product_training_typesCreateNestedManyWithoutTraining_typesInput
@@ -30850,6 +31015,7 @@ export namespace Prisma {
     active?: boolean | null
     created_at?: Date | string | null
     color_hex?: string | null
+    audience_type?: string
     training_prices?: training_pricesUncheckedCreateNestedManyWithoutTraining_typesInput
     season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutTraining_typesInput
     season_ticket_product_training_types?: season_ticket_product_training_typesUncheckedCreateNestedManyWithoutTraining_typesInput
@@ -30932,6 +31098,7 @@ export namespace Prisma {
     active?: NullableBoolFieldUpdateOperationsInput | boolean | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     color_hex?: NullableStringFieldUpdateOperationsInput | string | null
+    audience_type?: StringFieldUpdateOperationsInput | string
     training_prices?: training_pricesUpdateManyWithoutTraining_typesNestedInput
     season_ticket_usage?: season_ticket_usageUpdateManyWithoutTraining_typesNestedInput
     season_ticket_product_training_types?: season_ticket_product_training_typesUpdateManyWithoutTraining_typesNestedInput
@@ -30946,6 +31113,7 @@ export namespace Prisma {
     active?: NullableBoolFieldUpdateOperationsInput | boolean | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     color_hex?: NullableStringFieldUpdateOperationsInput | string | null
+    audience_type?: StringFieldUpdateOperationsInput | string
     training_prices?: training_pricesUncheckedUpdateManyWithoutTraining_typesNestedInput
     season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutTraining_typesNestedInput
     season_ticket_product_training_types?: season_ticket_product_training_typesUncheckedUpdateManyWithoutTraining_typesNestedInput
@@ -30959,6 +31127,7 @@ export namespace Prisma {
     active?: boolean | null
     created_at?: Date | string | null
     color_hex?: string | null
+    audience_type?: string
     training_availability?: training_availabilityCreateNestedManyWithoutTraining_typesInput
     season_ticket_usage?: season_ticket_usageCreateNestedManyWithoutTraining_typesInput
     season_ticket_product_training_types?: season_ticket_product_training_typesCreateNestedManyWithoutTraining_typesInput
@@ -30973,6 +31142,7 @@ export namespace Prisma {
     active?: boolean | null
     created_at?: Date | string | null
     color_hex?: string | null
+    audience_type?: string
     training_availability?: training_availabilityUncheckedCreateNestedManyWithoutTraining_typesInput
     season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutTraining_typesInput
     season_ticket_product_training_types?: season_ticket_product_training_typesUncheckedCreateNestedManyWithoutTraining_typesInput
@@ -31002,6 +31172,7 @@ export namespace Prisma {
     active?: NullableBoolFieldUpdateOperationsInput | boolean | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     color_hex?: NullableStringFieldUpdateOperationsInput | string | null
+    audience_type?: StringFieldUpdateOperationsInput | string
     training_availability?: training_availabilityUpdateManyWithoutTraining_typesNestedInput
     season_ticket_usage?: season_ticket_usageUpdateManyWithoutTraining_typesNestedInput
     season_ticket_product_training_types?: season_ticket_product_training_typesUpdateManyWithoutTraining_typesNestedInput
@@ -31016,6 +31187,7 @@ export namespace Prisma {
     active?: NullableBoolFieldUpdateOperationsInput | boolean | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     color_hex?: NullableStringFieldUpdateOperationsInput | string | null
+    audience_type?: StringFieldUpdateOperationsInput | string
     training_availability?: training_availabilityUncheckedUpdateManyWithoutTraining_typesNestedInput
     season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutTraining_typesNestedInput
     season_ticket_product_training_types?: season_ticket_product_training_typesUncheckedUpdateManyWithoutTraining_typesNestedInput
@@ -31027,6 +31199,7 @@ export namespace Prisma {
     max_participants?: number | null
     created_at?: Date | string | null
     cancelled?: boolean | null
+    theme?: string | null
     bookings?: bookingsCreateNestedManyWithoutTraining_availabilityInput
     credits?: creditsCreateNestedManyWithoutTraining_availabilityInput
   }
@@ -31038,6 +31211,7 @@ export namespace Prisma {
     max_participants?: number | null
     created_at?: Date | string | null
     cancelled?: boolean | null
+    theme?: string | null
     bookings?: bookingsUncheckedCreateNestedManyWithoutTraining_availabilityInput
     credits?: creditsUncheckedCreateNestedManyWithoutTraining_availabilityInput
   }
@@ -31143,6 +31317,7 @@ export namespace Prisma {
     created_at?: DateTimeNullableFilter<"training_availability"> | Date | string | null
     cancelled?: BoolNullableFilter<"training_availability"> | boolean | null
     training_type_id?: IntNullableFilter<"training_availability"> | number | null
+    theme?: StringNullableFilter<"training_availability"> | string | null
   }
 
   export type training_pricesUpsertWithWhereUniqueWithoutTraining_typesInput = {
@@ -31220,6 +31395,8 @@ export namespace Prisma {
     archived_training_date?: Date | string | null
     archived_training_type?: string | null
     checked_in?: boolean
+    age_group?: string | null
+    number_of_adults?: number | null
     training_availability?: training_availabilityCreateNestedOneWithoutBookingsInput
     credits?: creditsCreateNestedOneWithoutBookingsInput
     refunds?: refundsCreateNestedManyWithoutBookingsInput
@@ -31246,6 +31423,8 @@ export namespace Prisma {
     archived_training_date?: Date | string | null
     archived_training_type?: string | null
     checked_in?: boolean
+    age_group?: string | null
+    number_of_adults?: number | null
     refunds?: refundsUncheckedCreateNestedManyWithoutBookingsInput
     season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutBookingsInput
   }
@@ -31589,6 +31768,8 @@ export namespace Prisma {
     archived_training_date?: Date | string | null
     archived_training_type?: string | null
     checked_in?: boolean
+    age_group?: string | null
+    number_of_adults?: number | null
   }
 
   export type bookingsUpdateWithoutCreditsInput = {
@@ -31608,6 +31789,8 @@ export namespace Prisma {
     archived_training_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     archived_training_type?: NullableStringFieldUpdateOperationsInput | string | null
     checked_in?: BoolFieldUpdateOperationsInput | boolean
+    age_group?: NullableStringFieldUpdateOperationsInput | string | null
+    number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     training_availability?: training_availabilityUpdateOneWithoutBookingsNestedInput
     users?: usersUpdateOneWithoutBookingsNestedInput
     refunds?: refundsUpdateManyWithoutBookingsNestedInput
@@ -31634,6 +31817,8 @@ export namespace Prisma {
     archived_training_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     archived_training_type?: NullableStringFieldUpdateOperationsInput | string | null
     checked_in?: BoolFieldUpdateOperationsInput | boolean
+    age_group?: NullableStringFieldUpdateOperationsInput | string | null
+    number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     refunds?: refundsUncheckedUpdateManyWithoutBookingsNestedInput
     season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutBookingsNestedInput
   }
@@ -31658,6 +31843,8 @@ export namespace Prisma {
     archived_training_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     archived_training_type?: NullableStringFieldUpdateOperationsInput | string | null
     checked_in?: BoolFieldUpdateOperationsInput | boolean
+    age_group?: NullableStringFieldUpdateOperationsInput | string | null
+    number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type season_ticket_offersCreateManySeason_ticket_productsInput = {
@@ -31819,6 +32006,8 @@ export namespace Prisma {
     archived_training_date?: Date | string | null
     archived_training_type?: string | null
     checked_in?: boolean
+    age_group?: string | null
+    number_of_adults?: number | null
   }
 
   export type creditsCreateManyTraining_availabilityInput = {
@@ -31855,6 +32044,8 @@ export namespace Prisma {
     archived_training_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     archived_training_type?: NullableStringFieldUpdateOperationsInput | string | null
     checked_in?: BoolFieldUpdateOperationsInput | boolean
+    age_group?: NullableStringFieldUpdateOperationsInput | string | null
+    number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     users?: usersUpdateOneWithoutBookingsNestedInput
     credits?: creditsUpdateOneWithoutBookingsNestedInput
     refunds?: refundsUpdateManyWithoutBookingsNestedInput
@@ -31881,6 +32072,8 @@ export namespace Prisma {
     archived_training_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     archived_training_type?: NullableStringFieldUpdateOperationsInput | string | null
     checked_in?: BoolFieldUpdateOperationsInput | boolean
+    age_group?: NullableStringFieldUpdateOperationsInput | string | null
+    number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     refunds?: refundsUncheckedUpdateManyWithoutBookingsNestedInput
     season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutBookingsNestedInput
   }
@@ -31905,6 +32098,8 @@ export namespace Prisma {
     archived_training_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     archived_training_type?: NullableStringFieldUpdateOperationsInput | string | null
     checked_in?: BoolFieldUpdateOperationsInput | boolean
+    age_group?: NullableStringFieldUpdateOperationsInput | string | null
+    number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type creditsUpdateWithoutTraining_availabilityInput = {
@@ -31966,6 +32161,7 @@ export namespace Prisma {
     max_participants?: number | null
     created_at?: Date | string | null
     cancelled?: boolean | null
+    theme?: string | null
   }
 
   export type training_pricesCreateManyTraining_typesInput = {
@@ -31992,6 +32188,7 @@ export namespace Prisma {
     max_participants?: NullableIntFieldUpdateOperationsInput | number | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelled?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    theme?: NullableStringFieldUpdateOperationsInput | string | null
     bookings?: bookingsUpdateManyWithoutTraining_availabilityNestedInput
     credits?: creditsUpdateManyWithoutTraining_availabilityNestedInput
   }
@@ -32003,6 +32200,7 @@ export namespace Prisma {
     max_participants?: NullableIntFieldUpdateOperationsInput | number | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelled?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    theme?: NullableStringFieldUpdateOperationsInput | string | null
     bookings?: bookingsUncheckedUpdateManyWithoutTraining_availabilityNestedInput
     credits?: creditsUncheckedUpdateManyWithoutTraining_availabilityNestedInput
   }
@@ -32014,6 +32212,7 @@ export namespace Prisma {
     max_participants?: NullableIntFieldUpdateOperationsInput | number | null
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelled?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    theme?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type training_pricesUpdateWithoutTraining_typesInput = {
@@ -32088,6 +32287,8 @@ export namespace Prisma {
     archived_training_date?: Date | string | null
     archived_training_type?: string | null
     checked_in?: boolean
+    age_group?: string | null
+    number_of_adults?: number | null
   }
 
   export type creditsCreateManyUsersInput = {
@@ -32138,6 +32339,8 @@ export namespace Prisma {
     archived_training_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     archived_training_type?: NullableStringFieldUpdateOperationsInput | string | null
     checked_in?: BoolFieldUpdateOperationsInput | boolean
+    age_group?: NullableStringFieldUpdateOperationsInput | string | null
+    number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     training_availability?: training_availabilityUpdateOneWithoutBookingsNestedInput
     credits?: creditsUpdateOneWithoutBookingsNestedInput
     refunds?: refundsUpdateManyWithoutBookingsNestedInput
@@ -32164,6 +32367,8 @@ export namespace Prisma {
     archived_training_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     archived_training_type?: NullableStringFieldUpdateOperationsInput | string | null
     checked_in?: BoolFieldUpdateOperationsInput | boolean
+    age_group?: NullableStringFieldUpdateOperationsInput | string | null
+    number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     refunds?: refundsUncheckedUpdateManyWithoutBookingsNestedInput
     season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutBookingsNestedInput
   }
@@ -32188,6 +32393,8 @@ export namespace Prisma {
     archived_training_date?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     archived_training_type?: NullableStringFieldUpdateOperationsInput | string | null
     checked_in?: BoolFieldUpdateOperationsInput | boolean
+    age_group?: NullableStringFieldUpdateOperationsInput | string | null
+    number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type creditsUpdateWithoutUsersInput = {

@@ -83,14 +83,23 @@ const Booking = () => {
   const [newTypeDuration, setNewTypeDuration] = useState(60); // Default 60 min
   const [pricingMode, setPricingMode] = useState('tiered'); // 'fixed' alebo 'tiered'
   const [fixedPricePerChild, setFixedPricePerChild] = useState(15); // Pre fixný režim
+  const [ageGroup, setAgeGroup] = useState('child'); // 'child' | 'adult'
+  const [newAudienceType, setNewAudienceType] = useState('children'); // pre admin modal
+  
+  // Admin - téma pre detské tréningy
+  const [sessionTheme, setSessionTheme] = useState('');
+  const [useSessionTheme, setUseSessionTheme] = useState(false);
 
   const calculateTotalPrice = () => {
-    if (!selectedTypeObj || !childrenCount) return 0;
+    if (!selectedTypeObj) return 0;
 
-    const priceObj = selectedTypeObj.prices.find(p => p.child_count === childrenCount);
+    // Pre dospelých použijeme cenu pre child_count = 1, pre deti podľa počtu detí
+    const childCount = ageGroup === 'adult' ? 1 : childrenCount;
+    const priceObj = selectedTypeObj.prices.find(p => p.child_count === childCount);
     let basePrice = priceObj ? parseFloat(priceObj.price) : 0;
 
-    if (accompanyingPerson) {
+    // Sprievádzajúca osoba len pre deti
+    if (accompanyingPerson && ageGroup === 'child') {
       const accPrice = selectedTypeObj.accompanying_person_price ? parseFloat(selectedTypeObj.accompanying_person_price) : 3;
       basePrice += accPrice;
     }
@@ -152,6 +161,35 @@ const Booking = () => {
     }
     setChildrenAges(newAges);
   }, [childrenCount, childrenAges]);
+
+  // Reset formulára pri zmene ageGroup
+  useEffect(() => {
+    setIsAlreadyBooked(false);
+    setWarningMessage('');
+
+    // Reset child-only flows when switching audiences
+    setIsCreditMode(false);
+    setSelectedCredit(null);
+    setUseSeasonTicket(false);
+    setSelectedSeasonTicket('');
+    setServiceConsent(false);
+
+    // Ak je zobrazená hláška o duplicite, vymažeme ju
+    if (warningMessage === (t?.booking?.alreadyBooked || 'You are already booked for this session. Please check your profile.')) {
+      setWarningMessage('');
+    }
+
+    // Reset výberov
+    setSelectedDate('');
+    setSelectedTime('');
+    setTrainingId(null);
+    setChildrenAges([]);
+    setChildrenCount(ageGroup === 'adult' ? 1 : 1);
+    setAccompanyingPerson(false);
+    setPhotoConsent(null);
+    setNote('');
+    setMobile('');
+  }, [ageGroup, t]);
 
   useEffect(() => {
     const fetchTrainingDates = async () => {
@@ -223,10 +261,13 @@ const Booking = () => {
       }
     };
 
-    const fetchTypes = async () => {
-      const response = await api.get(
-        `/api/training-types?admin=${isAdmin}`
-      );
+    const fetchTypes = async (audience = null) => {
+      const params = new URLSearchParams();
+      if (isAdmin) params.set('admin', 'true');
+      if (audience) params.set('audience', audience);
+
+      const qs = params.toString();
+      const response = await api.get(`/api/training-types${qs ? `?${qs}` : ''}`);
       setTrainingTypes(response.data);
     };
 
@@ -235,9 +276,9 @@ const Booking = () => {
       fetchSeasonTickets();
       fetchCredits();
       fetchUserBookings();
-      fetchTypes();
+      fetchTypes(ageGroup === 'adult' ? 'adults' : 'children');
     }
-  }, [isLoggedIn, isAdmin]);
+  }, [isLoggedIn, isAdmin, ageGroup]);
 
   useEffect(() => {
     // Ak nemáme ID alebo dáta, končíme
@@ -254,7 +295,6 @@ const Booking = () => {
       setTrainingType(typeObj.name);
     }
   }, [trainingTypeId, trainingTypes]);
-
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -291,10 +331,15 @@ const Booking = () => {
   const handleAddTrainingDate = async (e) => {
     e.preventDefault();
     try {
+      // Zistíme či je vybraný detský tréning
+      const selectedType = trainingTypes.find(t => t.id === parseInt(newTrainingType));
+      const isChildrenType = selectedType?.audience_type === 'children';
+      
       await api.post('/api/set-training', {
         trainingType: newTrainingType,
         trainingDate: newTrainingDate,
         maxParticipants: parseInt(maxParticipants),
+        theme: isChildrenType && useSessionTheme ? sessionTheme : null,
       });
 
       const fetchResponse = await api.get('/api/training-dates');
@@ -303,6 +348,8 @@ const Booking = () => {
 
       setNewTrainingDate('');
       setMaxParticipants(10);
+      setSessionTheme('');
+      setUseSessionTheme(false);
 
       alert('Training date added successfully!');
     } catch (error) {
@@ -326,7 +373,7 @@ const Booking = () => {
         acc[training.training_type][date] = [];
       }
       // TU JE KĽÚČOVÁ ZMENA (rovnako ako vyššie):
-      acc[training.training_type][date].push({ time, id: training.id });
+      acc[training.training_type][date].push({ time, id: training.id, theme: training.theme });
       return acc;
     }, {});
   };
@@ -334,37 +381,51 @@ const Booking = () => {
   const handleCreateType = async (e) => {
     e.preventDefault();
 
-    // Príprava cien podľa zvoleného režimu
+    // Príprava cien podľa cieľovej skupiny
     let calculatedPrices = [];
+    const price = parseFloat(fixedPricePerChild);
 
-    if (pricingMode === 'fixed') {
-      // Ak je fixná cena, vypočítame násobky
-      const price = parseFloat(fixedPricePerChild);
+    if (newAudienceType === 'adults') {
+      // Pre dospelých - len jedna cena (za osobu)
+      calculatedPrices = [
+        { child_count: 1, price: price }
+      ];
+    } else if (newAudienceType === 'both') {
+      // Pre "Oboje" - zatiaľ len fixná cena
       calculatedPrices = [
         { child_count: 1, price: price },
         { child_count: 2, price: price * 2 },
-        { child_count: 3, price: price * 3 },
+        { child_count: 3, price: price * 3 }
       ];
     } else {
-      // Ak sú množstevné zľavy, berieme manuálne vstupy
-      calculatedPrices = [
-        { child_count: 1, price: newTypePrice1 },
-        { child_count: 2, price: newTypePrice2 },
-        { child_count: 3, price: newTypePrice3 },
-      ];
+      // Pre deti - podľa zvoleného režimu
+      if (pricingMode === 'fixed') {
+        calculatedPrices = [
+          { child_count: 1, price: price },
+          { child_count: 2, price: price * 2 },
+          { child_count: 3, price: price * 3 }
+        ];
+      } else {
+        calculatedPrices = [
+          { child_count: 1, price: parseFloat(newTypePrice1) || 0 },
+          { child_count: 2, price: parseFloat(newTypePrice2) || 0 },
+          { child_count: 3, price: parseFloat(newTypePrice3) || 0 }
+        ];
+      }
     }
 
     try {
       await api.post('/api/admin/training-types', {
         name: newTypeName,
         description: newTypeDesc,
-        durationMinutes: parseInt(newTypeDuration), // Posielame dĺžku trvania
-        accompanyingPrice: parseFloat(newAccompanyingPrice),
+        durationMinutes: parseInt(newTypeDuration),
+        accompanyingPrice: newAudienceType === 'children' ? parseFloat(newAccompanyingPrice) : 0,
         colorHex: newTypeColor,
+        audienceType: newAudienceType,
         prices: calculatedPrices
       });
 
-      alert("New Training Type Created!");
+      alert("Nový typ tréningu bol vytvorený!");
       setShowCreateTypeModal(false);
 
       // Reset formulára na defaulty
@@ -373,12 +434,14 @@ const Booking = () => {
       setNewTypeDuration(60);
       setNewTypeColor('#3b82f6');
       setPricingMode('tiered');
+      setNewAudienceType('children'); // Reset na default
+      setFixedPricePerChild(15);
 
       const response = await api.get(`/api/training-types?admin=true`);
       setTrainingTypes(response.data);
     } catch (error) {
       console.error(error);
-      alert("Failed to create type");
+      alert("Nepodarilo sa vytvoriť typ tréningu");
     }
   };
 
@@ -513,8 +576,16 @@ const Booking = () => {
     setLoading(true);
     setWarningMessage('');
 
+    // Validate date and time are selected for all booking types
+    if (!trainingId || !selectedDate || !selectedTime) {
+      setWarningMessage(t?.booking?.selectDateTimeRequired || 'Please select date and time for your booking.');
+      setLoading(false);
+      return;
+    }
+
     if (isCreditMode) {
-      if (childrenAges.some(age => age === '')) {
+      // For child credits, validate that all ages are selected
+      if (ageGroup === 'child' && childrenAges.some(age => age === '')) {
         setWarningMessage(t?.booking?.selectAllAges || 'Please select an age for all children.');
         setLoading(false);
         return;
@@ -524,11 +595,11 @@ const Booking = () => {
         await api.post('/api/bookings/use-credit', {
           creditId: selectedCredit.id,
           trainingId: trainingId,
-          childrenAges: childrenAges.join(', '),
+          childrenAges: ageGroup === 'child' ? childrenAges.join(', ') : '',
           photoConsent: photoConsent === true ? true : null,
           mobile: mobile,
           note: note,
-          accompanyingPerson: accompanyingPerson
+          accompanyingPerson: ageGroup === 'child' ? accompanyingPerson : false
         });
 
         alert(t?.booking?.creditSuccess || 'Booked with credit!');
@@ -547,7 +618,7 @@ const Booking = () => {
       return;
     }
 
-    if (childrenAges.some(age => age === '')) {
+    if (ageGroup === 'child' && childrenAges.some(age => age === '')) {
       setWarningMessage(t?.booking?.selectAllAges || 'Please select an age for all children.');
       setLoading(false);
       return;
@@ -560,7 +631,7 @@ const Booking = () => {
       return;
     }
 
-    const childrenAgeString = childrenAges.join(', ');
+    const childrenAgeString = ageGroup === 'child' ? childrenAges.join(', ') : '';
 
     try {
       if (useSeasonTicket && selectedSeasonTicket) {
@@ -572,10 +643,13 @@ const Booking = () => {
           return;
         }
 
-        if (selectedTicket.entries_remaining < childrenCount) {
+        // For adults, we need 1 entry; for children, we need childrenCount entries
+        const entriesNeeded = ageGroup === 'adult' ? 1 : childrenCount;
+
+        if (selectedTicket.entries_remaining < entriesNeeded) {
           const message = t?.booking?.notEnoughEntries || 'Not enough entries in your season ticket. Needed: {needed}, Available: {available}';
           setWarningMessage(
-            message.replace('{needed}', childrenCount).replace('{available}', selectedTicket.entries_remaining)
+            message.replace('{needed}', entriesNeeded).replace('{available}', selectedTicket.entries_remaining)
           );
           setLoading(false);
           return;
@@ -595,12 +669,13 @@ const Booking = () => {
           trainingType,
           selectedDate,
           selectedTime,
-          childrenCount,
+          childrenCount: entriesNeeded,
           childrenAge: childrenAgeString,
           photoConsent: photoConsent === true ? true : null,
           mobile,
           note,
           accompanyingPerson: false,
+          ageGroup,
         });
 
         if (response.data.success) {
@@ -608,6 +683,55 @@ const Booking = () => {
           navigate('/profile');
         }
       } else {
+        // Adult booking branch
+        if (ageGroup === 'adult') {
+          try {
+            const paymentSession = await api.post('/api/create-adult-payment-session', {
+              userId: userData.id,
+              trainingId,
+              trainingType,
+              selectedDate,
+              selectedTime,
+              mobile,
+              note,
+            });
+
+            const stripe = await stripePromise;
+            
+            // Store booking ID and session ID for recovery if payment fails
+            localStorage.setItem('pendingBookingId', paymentSession.data.bookingId);
+            localStorage.setItem('pendingSessionId', paymentSession.data.sessionId);
+            
+            const { error } = await stripe.redirectToCheckout({
+              sessionId: paymentSession.data.sessionId,
+            });
+
+            if (error) throw error;
+          } catch (error) {
+            console.error('Adult booking error:', error);
+
+            if (error.response?.status === 401) {
+              localStorage.removeItem('isLoggedIn');
+              localStorage.removeItem('userId');
+              localStorage.removeItem('userName');
+              localStorage.removeItem('userRole');
+              setWarningMessage('Relácia vypršala. Prihláste sa prosím znova.');
+              setLoading(false);
+              navigate('/login');
+              return;
+            }
+
+            if (error.response?.data?.error) {
+              setWarningMessage(error.response.data.error);
+            } else {
+              setWarningMessage(t?.booking?.error || 'Error processing booking. Please try again.');
+            }
+
+            setLoading(false);
+          }
+          return;
+        }
+
         const paymentSession = await api.post('/api/create-payment-session', {
           userId: userData.id,
           trainingId,
@@ -708,6 +832,20 @@ const Booking = () => {
 
   const currentType = trainingTypes.find(t => t.name === trainingType);
 
+  // Filter credits based on training type audience
+  const getCreditsForAudience = (audience) => {
+    return credits.filter(credit => {
+      const creditType = trainingTypes.find(t => t.name === credit.training_type);
+      if (!creditType) return false;
+      // For 'children' audience, show credits from children or both types
+      // For 'adults' audience, show credits from adults or both types
+      return creditType.audience_type === audience || creditType.audience_type === 'both';
+    });
+  };
+
+  const childCredits = getCreditsForAudience('children');
+  const adultCredits = getCreditsForAudience('adults');
+
   const selectCredit = (credit, fillForm = false) => {
     setSelectedCredit(credit);
 
@@ -718,33 +856,44 @@ const Booking = () => {
       setTrainingType(credit.training_type);
     }
 
-    setChildrenCount(credit.child_count);
-    setAccompanyingPerson(credit.accompanying_person === true);
-
+    // Determine if this is an adult credit based on training type
+    const isAdultCredit = creditType?.audience_type === 'adults';
+    
     let parsedAges = [];
-    if (credit.children_ages) {
-      console.log('[DEBUG] Original children_ages:', credit.children_ages);
+    
+    // For adult credits, don't set children-related fields
+    if (isAdultCredit) {
+      setChildrenCount(1);
+      setChildrenAges([]);
+      setAccompanyingPerson(false);
+    } else {
+      setChildrenCount(credit.child_count);
+      setAccompanyingPerson(credit.accompanying_person === true);
 
-      if (typeof credit.children_ages === 'string') {
-        parsedAges = credit.children_ages
-          .split(',')
-          .map(age => age.trim())
-          .map(age => {
-            const parsed = parseInt(age);
-            return isNaN(parsed) ? '' : parsed;
-          });
-      } else if (Array.isArray(credit.children_ages)) {
-        parsedAges = credit.children_ages.map(age => parseInt(age)).filter(age => !isNaN(age));
+      if (credit.children_ages) {
+        console.log('[DEBUG] Original children_ages:', credit.children_ages);
+
+        if (typeof credit.children_ages === 'string') {
+          parsedAges = credit.children_ages
+            .split(',')
+            .map(age => age.trim())
+            .map(age => {
+              const parsed = parseInt(age);
+              return isNaN(parsed) ? '' : parsed;
+            });
+        } else if (Array.isArray(credit.children_ages)) {
+          parsedAges = credit.children_ages.map(age => parseInt(age)).filter(age => !isNaN(age));
+        }
       }
+
+      console.log('[DEBUG] Parsed ages:', parsedAges);
+
+      if (parsedAges.length !== credit.child_count) {
+        parsedAges = Array(credit.child_count).fill('');
+      }
+
+      setChildrenAges(parsedAges);
     }
-
-    console.log('[DEBUG] Parsed ages:', parsedAges);
-
-    if (parsedAges.length !== credit.child_count) {
-      parsedAges = Array(credit.child_count).fill('');
-    }
-
-    setChildrenAges(parsedAges);
 
     if (fillForm) {
       console.log('[DEBUG] Filling form with original data:', {
@@ -834,6 +983,32 @@ const Booking = () => {
         {t?.booking?.title || 'Book Your Training'}
       </h2>
 
+      {/* Age Group Toggle */}
+      <div className="flex justify-center mb-8">
+        <div className="bg-gray-100 rounded-lg p-1 flex">
+          <button
+            className={`px-6 py-2 rounded-md font-medium transition-colors ${
+              ageGroup === 'child'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+            onClick={() => setAgeGroup('child')}
+          >
+            Tréning pre deti
+          </button>
+          <button
+            className={`px-6 py-2 rounded-md font-medium transition-colors ${
+              ageGroup === 'adult'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+            onClick={() => setAgeGroup('adult')}
+          >
+            Tréning pre dospelých
+          </button>
+        </div>
+      </div>
+
       <div className="flex justify-between gap-4 mb-6">
         <button
           className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
@@ -847,17 +1022,35 @@ const Booking = () => {
         </button>
         <button
           className="bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-          onClick={() => navigate('/season-tickets')}
+          onClick={() => navigate(`/season-tickets?audience=${ageGroup}`)}
         >
           {t?.booking?.seasonTickets || 'Purchase Season Ticket'}
         </button>
       </div>
 
-      {credits.length > 0 && (
+      {/* Credit notification for Children */}
+      {ageGroup === 'child' && childCredits.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center mb-6">
           <strong className="text-blue-800 text-lg">
-            {t?.booking?.youHaveCredit || 'You have'} {credits.length}{' '}
-            {credits.length === 1 ? 'credit' : 'credits'}!
+            {t?.booking?.youHaveCredit || 'You have'} {childCredits.length}{' '}
+            {childCredits.length === 1 ? 'credit' : 'credits'}!
+          </strong>
+          <br />
+          <button
+            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium mt-2 transition-colors"
+            onClick={() => setShowCreditModal(true)}
+          >
+            🎫 {t?.booking?.useCredit || 'Use Credit'}
+          </button>
+        </div>
+      )}
+
+      {/* Credit notification for Adults */}
+      {ageGroup === 'adult' && adultCredits.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center mb-6">
+          <strong className="text-blue-800 text-lg">
+            {t?.booking?.youHaveCredit || 'You have'} {adultCredits.length}{' '}
+            {adultCredits.length === 1 ? 'credit' : 'credits'}!
           </strong>
           <br />
           <button
@@ -883,14 +1076,19 @@ const Booking = () => {
           </div>
 
           <Form onSubmit={handleAddTrainingDate}>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="md:col-span-1">
                 <Form.Label className="font-medium text-gray-700">
                   {t?.admin?.trainingType || 'Training Type'}
                 </Form.Label>
                 <Form.Select
                   value={newTrainingType}
-                  onChange={(e) => setNewTrainingType(e.target.value)}
+                  onChange={(e) => {
+                    setNewTrainingType(e.target.value);
+                    // Reset témy pri zmene typu tréningu
+                    setUseSessionTheme(false);
+                    setSessionTheme('');
+                  }}
                   className="w-full"
                 >
                   <option value="">-- Select Type --</option>
@@ -932,16 +1130,49 @@ const Booking = () => {
                 />
               </div>
 
-              <div className="md:col-span-1 flex items-end gap-2">
-                <div className="flex-grow">
-                  <Form.Label className="font-medium text-gray-700 text-xs">Max Part.</Form.Label>
-                  <Form.Control
-                    type="number"
-                    min="1"
-                    value={maxParticipants}
-                    onChange={(e) => setMaxParticipants(e.target.value)}
-                  />
-                </div>
+              <div>
+                <Form.Label className="font-medium text-gray-700 text-xs">Max Part.</Form.Label>
+                <Form.Control
+                  type="number"
+                  min="1"
+                  value={maxParticipants}
+                  onChange={(e) => setMaxParticipants(e.target.value)}
+                />
+              </div>
+
+              {/* Téma - len pre detské tréningy */}
+              {(() => {
+                const selectedType = trainingTypes.find(t => t.id === parseInt(newTrainingType));
+                const isChildrenType = selectedType?.audience_type === 'children';
+                
+                if (!isChildrenType) return null;
+                
+                return (
+                  <div className="md:col-span-1">
+                    <Form.Check
+                      type="checkbox"
+                      id="useTheme"
+                      checked={useSessionTheme}
+                      onChange={(e) => {
+                        setUseSessionTheme(e.target.checked);
+                        if (!e.target.checked) setSessionTheme('');
+                      }}
+                      label={<span className="font-medium text-gray-700 text-sm">Pridať tému</span>}
+                      className="mb-1"
+                    />
+                    <Form.Control
+                      type="text"
+                      placeholder="napr. VIANOCE, HASIČI"
+                      value={sessionTheme}
+                      onChange={(e) => setSessionTheme(e.target.value)}
+                      disabled={!useSessionTheme}
+                      className={!useSessionTheme ? 'bg-gray-100' : ''}
+                    />
+                  </div>
+                );
+              })()}
+
+              <div className="flex items-end">
                 <Button type="submit" className="bg-primary-500 border-primary-500">
                   {t?.admin?.addSession || 'Add'}
                 </Button>
@@ -958,7 +1189,19 @@ const Booking = () => {
           <div className="space-y-2">
             {trainingTypes.map(type => (
               <div key={type.id} className="flex items-center justify-between bg-white p-3 rounded-lg border">
-                <span>{type.name}</span>
+                <div className="flex items-center gap-3">
+                  <span>{type.name}</span>
+                  {type.audience_type && (
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                      type.audience_type === 'children' ? 'bg-blue-100 text-blue-800' :
+                      type.audience_type === 'adults' ? 'bg-green-100 text-green-800' :
+                      'bg-purple-100 text-purple-800'
+                    }`}>
+                      {type.audience_type === 'children' ? 'Deti' :
+                       type.audience_type === 'adults' ? 'Dospelí' : 'Oboje'}
+                    </span>
+                  )}
+                </div>
                 <Form.Check
                   type="switch"
                   id={`active-switch-${type.id}`}
@@ -985,7 +1228,42 @@ const Booking = () => {
 
         <Form onSubmit={handleCreateType}>
           <Modal.Body>
-            {/* 1. Základné info */}
+            {/* 1. Cieľová skupina - PRVÁ vec ktorú nastavíme */}
+            <Form.Group className="mb-4">
+              <Form.Label className="block font-bold mb-2 text-gray-700">Cieľová skupina *</Form.Label>
+              <div className="flex gap-3">
+                <Form.Check
+                  type="radio"
+                  label="Deti"
+                  name="audienceType"
+                  value="children"
+                  checked={newAudienceType === 'children'}
+                  onChange={(e) => setNewAudienceType(e.target.value)}
+                  className="me-3"
+                />
+                <Form.Check
+                  type="radio"
+                  label="Dospelí"
+                  name="audienceType"
+                  value="adults"
+                  checked={newAudienceType === 'adults'}
+                  onChange={(e) => setNewAudienceType(e.target.value)}
+                  className="me-3"
+                />
+                <Form.Check
+                  type="radio"
+                  label="Oboje"
+                  name="audienceType"
+                  value="both"
+                  checked={newAudienceType === 'both'}
+                  onChange={(e) => setNewAudienceType(e.target.value)}
+                />
+              </div>
+            </Form.Group>
+
+            <hr className="my-4" />
+
+            {/* 2. Základné info */}
             <div className="grid grid-cols-2 gap-4 mb-3">
               <Form.Group className="col-span-2">
                 <Form.Label>Názov</Form.Label>
@@ -1007,15 +1285,18 @@ const Booking = () => {
                 />
               </Form.Group>
 
-              <Form.Group>
-                <Form.Label>Sprevádzajúca osoba (€)</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.01"
-                  value={newAccompanyingPrice}
-                  onChange={e => setNewAccompanyingPrice(e.target.value)}
-                />
-              </Form.Group>
+              {/* Sprevádzajúca osoba - LEN pre Deti */}
+              {newAudienceType === 'children' && (
+                <Form.Group>
+                  <Form.Label>Sprevádzajúca osoba (€)</Form.Label>
+                  <Form.Control
+                    type="number"
+                    step="0.01"
+                    value={newAccompanyingPrice}
+                    onChange={e => setNewAccompanyingPrice(e.target.value)}
+                  />
+                </Form.Group>
+              )}
             </div>
 
             <Form.Group className="mb-3">
@@ -1080,32 +1361,16 @@ const Booking = () => {
 
             <hr className="my-4" />
 
-            {/* 2. Stratégia cien */}
+            {/* 3. Stratégia cien - podľa cieľovej skupiny */}
             <h6 className="font-bold mb-3">Cenová stratégia</h6>
-            <div className="flex gap-4 mb-4">
-              <Form.Check
-                type="radio"
-                label="Fixná cena za dieťa"
-                name="pricingMode"
-                id="modeFixed"
-                checked={pricingMode === 'fixed'}
-                onChange={() => setPricingMode('fixed')}
-              />
-              <Form.Check
-                type="radio"
-                label="Vlastné / stupňované zľavy"
-                name="pricingMode"
-                id="modeTiered"
-                checked={pricingMode === 'tiered'}
-                onChange={() => setPricingMode('tiered')}
-              />
-            </div>
-
-            {/* 3. Vstupy pre ceny podľa stratégie */}
-            <div className="bg-gray-50 p-3 rounded border">
-              {pricingMode === 'fixed' ? (
+            
+            {/* Pre Dospelých alebo Oboje - LEN fixná cena */}
+            {(newAudienceType === 'adults' || newAudienceType === 'both') ? (
+              <div className="bg-gray-50 p-3 rounded border">
                 <Form.Group>
-                  <Form.Label className="font-bold text-primary-600">Cena za 1 dieťa (€)</Form.Label>
+                  <Form.Label className="font-bold text-primary-600">
+                    {newAudienceType === 'adults' ? 'Cena za osobu (€)' : 'Fixná cena (€)'}
+                  </Form.Label>
                   <Form.Control
                     type="number"
                     step="0.01"
@@ -1113,45 +1378,86 @@ const Booking = () => {
                     onChange={e => setFixedPricePerChild(e.target.value)}
                   />
                   <Form.Text className="text-muted">
-                    Systém automaticky vypočíta:
-                    2 Children = €{(fixedPricePerChild * 2).toFixed(2)},
-                    3 Children = €{(fixedPricePerChild * 3).toFixed(2)}
+                    {newAudienceType === 'adults' 
+                      ? 'Jednotná cena pre dospelých.' 
+                      : 'Jednotná fixná cena pre všetkých účastníkov.'}
                   </Form.Text>
                 </Form.Group>
-              ) : (
-                <div className="grid grid-cols-3 gap-3">
-                  <Form.Group>
-                    <Form.Label>1 dieťa (€)</Form.Label>
-                    <Form.Control
-                      type="number"
-                      value={newTypePrice1}
-                      onChange={e => setNewTypePrice1(e.target.value)}
-                    />
-                  </Form.Group>
-
-                  <Form.Group>
-                    <Form.Label>2 deti (€)</Form.Label>
-                    <Form.Control
-                      type="number"
-                      value={newTypePrice2}
-                      onChange={e => setNewTypePrice2(e.target.value)}
-                    />
-                  </Form.Group>
-
-                  <Form.Group>
-                    <Form.Label>3 deti (€)</Form.Label>
-                    <Form.Control
-                      type="number"
-                      value={newTypePrice3}
-                      onChange={e => setNewTypePrice3(e.target.value)}
-                    />
-                  </Form.Group>
-                  <div className="col-span-3">
-                    <Form.Text className="text-muted">Nastavte konkrétne ceny pre zľavu súrodencov.</Form.Text>
-                  </div>
+              </div>
+            ) : (
+              /* Pre Deti - výber medzi fixnou a stupňovanou cenou */
+              <>
+                <div className="flex gap-4 mb-4">
+                  <Form.Check
+                    type="radio"
+                    label="Fixná cena za dieťa"
+                    name="pricingMode"
+                    id="modeFixed"
+                    checked={pricingMode === 'fixed'}
+                    onChange={() => setPricingMode('fixed')}
+                  />
+                  <Form.Check
+                    type="radio"
+                    label="Vlastné / stupňované zľavy"
+                    name="pricingMode"
+                    id="modeTiered"
+                    checked={pricingMode === 'tiered'}
+                    onChange={() => setPricingMode('tiered')}
+                  />
                 </div>
-              )}
-            </div>
+
+                <div className="bg-gray-50 p-3 rounded border">
+                  {pricingMode === 'fixed' ? (
+                    <Form.Group>
+                      <Form.Label className="font-bold text-primary-600">Cena za 1 dieťa (€)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        value={fixedPricePerChild}
+                        onChange={e => setFixedPricePerChild(e.target.value)}
+                      />
+                      <Form.Text className="text-muted">
+                        Systém automaticky vypočíta:
+                        2 deti = €{(fixedPricePerChild * 2).toFixed(2)},
+                        3 deti = €{(fixedPricePerChild * 3).toFixed(2)}
+                      </Form.Text>
+                    </Form.Group>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-3">
+                      <Form.Group>
+                        <Form.Label>1 dieťa (€)</Form.Label>
+                        <Form.Control
+                          type="number"
+                          value={newTypePrice1}
+                          onChange={e => setNewTypePrice1(e.target.value)}
+                        />
+                      </Form.Group>
+
+                      <Form.Group>
+                        <Form.Label>2 deti (€)</Form.Label>
+                        <Form.Control
+                          type="number"
+                          value={newTypePrice2}
+                          onChange={e => setNewTypePrice2(e.target.value)}
+                        />
+                      </Form.Group>
+
+                      <Form.Group>
+                        <Form.Label>3 deti (€)</Form.Label>
+                        <Form.Control
+                          type="number"
+                          value={newTypePrice3}
+                          onChange={e => setNewTypePrice3(e.target.value)}
+                        />
+                      </Form.Group>
+                      <div className="col-span-3">
+                        <Form.Text className="text-muted">Nastavte konkrétne ceny pre zľavu súrodencov.</Form.Text>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
 
           </Modal.Body>
 
@@ -1241,6 +1547,24 @@ const Booking = () => {
                     </option>
                   ))}
                 </Form.Select>
+                
+                {/* Zobrazenie témy ak je vybraný čas a existuje téma */}
+                {(() => {
+                  const selectedSession = trainingId && trainingDates[trainingType][selectedDate]
+                    ? trainingDates[trainingType][selectedDate].find(s => String(s.id) === String(trainingId))
+                    : null;
+                  
+                  if (selectedSession?.theme) {
+                    return (
+                      <div className="mt-2 p-3 bg-primary-50 border border-primary-200 rounded-lg">
+                        <p className="text-black font-bold">
+                          Téma: {selectedSession.theme}
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </Form.Group>
             )}
 
@@ -1328,76 +1652,78 @@ const Booking = () => {
         </div>
 
         {/* Children Information Card */}
-        <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200">
-          <div className="bg-gray-100 bg-opacity-50 border-b border-gray-300 px-6 py-4">
-            <h5 className="text-lg font-bold text-gray-800">
-              {t?.booking?.childrenInfo || 'Children Information'}
-            </h5>
-          </div>
-          <div className="p-6">
-            <Form.Group className="mb-6">
-              <Form.Label className="font-bold text-gray-800">
-                {t?.booking?.childrenCount || 'Number of Children'} <span className="text-red-500">*</span>
-              </Form.Label>
-              <Form.Select
-                value={childrenCount}
-                onChange={(e) => setChildrenCount(parseInt(e.target.value))}
-                required
-                disabled={isCreditMode}
-                className="w-full text-lg py-3"
-              >
-                {/* Dynamické generovanie možností 1, 2, 3 */}
-                {[1, 2, 3].map(num => {
-                  // 1. Zistíme cenu pre daný počet detí z aktuálneho typu tréningu
-                  const priceObj = currentType?.prices?.find(p => p.child_count === num);
-                  // 2. Ak ešte nie je vybraný typ, alebo cena chýba, dáme '?' alebo 0
-                  const displayPrice = priceObj ? priceObj.price : 0;
+        {ageGroup === 'child' && (
+          <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200">
+            <div className="bg-gray-100 bg-opacity-50 border-b border-gray-300 px-6 py-4">
+              <h5 className="text-lg font-bold text-gray-800">
+                {t?.booking?.childrenInfo || 'Children Information'}
+              </h5>
+            </div>
+            <div className="p-6">
+              <Form.Group className="mb-6">
+                <Form.Label className="font-bold text-gray-800">
+                  {t?.booking?.childrenCount || 'Number of Children'} <span className="text-red-500">*</span>
+                </Form.Label>
+                <Form.Select
+                  value={childrenCount}
+                  onChange={(e) => setChildrenCount(parseInt(e.target.value))}
+                  required
+                  disabled={isCreditMode}
+                  className="w-full text-lg py-3"
+                >
+                  {/* Dynamické generovanie možností 1, 2, 3 */}
+                  {[1, 2, 3].map(num => {
+                    // 1. Zistíme cenu pre daný počet detí z aktuálneho typu tréningu
+                    const priceObj = currentType?.prices?.find(p => p.child_count === num);
+                    // 2. Ak ešte nie je vybraný typ, alebo cena chýba, dáme '?' alebo 0
+                    const displayPrice = priceObj ? priceObj.price : 0;
 
-                  // 3. Text pre dieťa/deti
-                  const childLabel = num === 1
-                    ? (t?.booking?.child || 'Child')
-                    : (t?.booking?.children || 'Children');
+                    // 3. Text pre dieťa/deti
+                    const childLabel = num === 1
+                      ? (t?.booking?.child || 'Child')
+                      : (t?.booking?.children || 'Children');
 
-                  return (
-                    <option key={num} value={num}>
-                      {num} {childLabel} - €{displayPrice}
-                    </option>
-                  );
-                })}
-              </Form.Select>
-            </Form.Group>
-
-            <Form.Group className="mb-4">
-              <Form.Label className="font-bold text-gray-800">
-                {t?.booking?.childrenAge || 'Age of Children'} <span className="text-red-500">*</span>
-              </Form.Label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {childrenAges.map((age, index) => (
-                  <div key={index} className="border border-gray-300 rounded-lg p-4">
-                    <Form.Label className="font-medium text-primary-600 mb-2 block">
-                      {t?.booking?.childAge?.replace('{number}', index + 1) || `${index + 1}${getOrdinalSuffix(index + 1)} Child`}
-                    </Form.Label>
-                    <Form.Select
-                      value={age}
-                      onChange={(e) => handleAgeChange(index, e.target.value)}
-                      required
-                      className="w-full"
-                    >
-                      <option value="" disabled>
-                        {t?.booking?.chooseAge || 'Select age'}
+                    return (
+                      <option key={num} value={num}>
+                        {num} {childLabel}{!useSeasonTicket && ` - €${displayPrice}`}
                       </option>
-                      {Array.from({ length: 10 }, (_, i) => i + 1).map((ageOption) => (
-                        <option key={ageOption} value={ageOption}>
-                          {ageOption} {getYearLabel(ageOption)}
+                    );
+                  })}
+                </Form.Select>
+              </Form.Group>
+
+              <Form.Group className="mb-4">
+                <Form.Label className="font-bold text-gray-800">
+                  {t?.booking?.childrenAge || 'Age of Children'} <span className="text-red-500">*</span>
+                </Form.Label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {childrenAges.map((age, index) => (
+                    <div key={index} className="border border-gray-300 rounded-lg p-4">
+                      <Form.Label className="font-medium text-primary-600 mb-2 block">
+                        {t?.booking?.childAge?.replace('{number}', index + 1) || `${index + 1}${getOrdinalSuffix(index + 1)} Child`}
+                      </Form.Label>
+                      <Form.Select
+                        value={age}
+                        onChange={(e) => handleAgeChange(index, e.target.value)}
+                        required
+                        className="w-full"
+                      >
+                        <option value="" disabled>
+                          {t?.booking?.chooseAge || 'Select age'}
                         </option>
-                      ))}
-                    </Form.Select>
-                  </div>
-                ))}
-              </div>
-            </Form.Group>
+                        {Array.from({ length: 10 }, (_, i) => i + 1).map((ageOption) => (
+                          <option key={ageOption} value={ageOption}>
+                            {ageOption} {getYearLabel(ageOption)}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </div>
+                  ))}
+                </div>
+              </Form.Group>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Additional Options Card */}
         <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200">
@@ -1422,43 +1748,47 @@ const Booking = () => {
             </Form.Group>
 
             <Form.Group className="mb-4">
-              <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
-                <Form.Check
-                  type="checkbox"
-                  id="accompanyingPerson"
-                  checked={accompanyingPerson}
-                  onChange={
-                    isCreditMode
-                      ? undefined
-                      : () => setAccompanyingPerson(!accompanyingPerson)
-                  }
-                  disabled={isCreditMode || (useSeasonTicket && selectedSeasonTicket)}
-                  label={
-                    <div>
-                      <span className="font-bold text-gray-800">
-                        {t?.booking?.accompanyingPerson || 'Participation of Accompanying Person'} (3€)
-                      </span>
-                      {accompanyingPerson && (
-                        <div className="text-gray-600 text-sm mt-1">
-                          <i className="bi bi-info-circle"></i> {t?.booking?.accompanyingPersonHelp || 'An accompanying person is someone other than the parent who accompanies the child.'}
-                        </div>
-                      )}
-                      {isCreditMode && (
-                        <div className="text-blue-600 text-sm mt-1">
-                          <i className="bi bi-info-circle"></i> {t?.booking?.creditModeReadOnly || 'Set from original booking - read only'}
-                        </div>
-                      )}
-                      {useSeasonTicket && selectedSeasonTicket && !isCreditMode && (
-                        <div className="text-yellow-600 text-sm mt-1">
-                          <i className="bi bi-exclamation-triangle"></i> {t?.booking?.notCoveredBySeasonTicket || 'Not covered by season ticket'}
-                        </div>
-                      )}
-                    </div>
-                  }
-                />
-              </div>
+              {/* Accompanying Person - Only for child age group */}
+              {ageGroup === 'child' && (
+                <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
+                  <Form.Check
+                    type="checkbox"
+                    id="accompanyingPerson"
+                    checked={accompanyingPerson}
+                    onChange={
+                      isCreditMode
+                        ? undefined
+                        : () => setAccompanyingPerson(!accompanyingPerson)
+                    }
+                    disabled={isCreditMode || (useSeasonTicket && selectedSeasonTicket)}
+                    label={
+                      <div>
+                        <span className="font-bold text-gray-800">
+                          {t?.booking?.accompanyingPerson || 'Participation of Accompanying Person'} (3€)
+                        </span>
+                        {accompanyingPerson && (
+                          <div className="text-gray-600 text-sm mt-1">
+                            <i className="bi bi-info-circle"></i> {t?.booking?.accompanyingPersonHelp || 'An accompanying person is someone other than the parent who accompanies the child.'}
+                          </div>
+                        )}
+                        {isCreditMode && (
+                          <div className="text-blue-600 text-sm mt-1">
+                            <i className="bi bi-info-circle"></i> {t?.booking?.creditModeReadOnly || 'Set from original booking - read only'}
+                          </div>
+                        )}
+                        {useSeasonTicket && selectedSeasonTicket && !isCreditMode && (
+                          <div className="text-yellow-600 text-sm mt-1">
+                            <i className="bi bi-exclamation-triangle"></i> {t?.booking?.notCoveredBySeasonTicket || 'Not covered by season ticket'}
+                          </div>
+                        )}
+                      </div>
+                    }
+                  />
+                </div>
+              )}
             </Form.Group>
 
+            {/* Season Ticket Section - For both child and adult age groups */}
             {!isCreditMode && seasonTickets.length > 0 && (
               <Form.Group className="mb-4">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -1501,8 +1831,8 @@ const Booking = () => {
                             {t?.booking?.seasonTicketOption || 'Season Ticket'} #{ticket.id}
                             {ticket.product_name || ticket.product_code ? ` - ${ticket.product_name || ticket.product_code}` : ''}
                             ({t?.booking?.seasonTicketEntries?.replace('{count}', ticket.entries_remaining) || `Entries: ${ticket.entries_remaining}`})
-                            {ticket.entries_remaining < childrenCount && (
-                              ` - ${(t?.booking?.notEnoughEntries || 'Nedostatok vstupov vo vašej permanentke. Potrebujete: {needed}, Dostupné: {available}').replace('{needed}', childrenCount).replace('{available}', ticket.entries_remaining)}`
+                            {ticket.entries_remaining < (ageGroup === 'adult' ? 1 : childrenCount) && (
+                              ` - ${(t?.booking?.notEnoughEntries || 'Nedostatok vstupov vo vašej permanentke. Potrebujete: {needed}, Dostupné: {available}').replace('{needed}', ageGroup === 'adult' ? 1 : childrenCount).replace('{available}', ticket.entries_remaining)}`
                             )}
                           </option>
                         ))}
@@ -1531,15 +1861,31 @@ const Booking = () => {
                 onChange={e => setPhotoConsent(e.target.checked ? true : null)}
                 label={
                   <span className="text-sm text-gray-700 leading-relaxed">
-                    Ako zákonní zástupcovia dieťaťa udeľujeme občianske združenie Nitráčik o.z. súhlas na spracúvanie fotografií, videí nášho dieťaťa. Informáciu o podmienkach spracúvania osobných údajov nájdete{' '}
-                    <a
-                      href="/photo-consent-info"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 font-bold underline hover:no-underline transition-colors"
-                    >
-                      TU
-                    </a>
+                    {ageGroup === 'child' ? (
+                      <>
+                        Ako zákonní zástupcovia dieťaťa udeľujeme občianske združenie Nitráčik o.z. súhlas na spracúvanie fotografií, videí nášho dieťaťa. Informáciu o podmienkach spracúvania osobných údajov nájdete{' '}
+                        <a
+                          href="/photo-consent-info"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 font-bold underline hover:no-underline transition-colors"
+                        >
+                          TU
+                        </a>
+                      </>
+                    ) : (
+                      <>
+                        Udeľujem súhlas so spracúvaním fotografií a videí môjej osoby počas tréningu. Informáciu o podmienkach spracúvania osobných údajov nájdete{' '}
+                        <a
+                          href="/photo-consent-info"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 font-bold underline hover:no-underline transition-colors"
+                        >
+                          TU
+                        </a>
+                      </>
+                    )}
                   </span>
                 }
               />
@@ -1620,8 +1966,14 @@ const Booking = () => {
                   <span className="ml-2">€{calculateTotalPrice().toFixed(2)}</span>
                 </h4>
                 <div className="text-gray-600 text-sm mt-1">
-                  {childrenCount} {childrenCount === 1 ? t?.booking?.child || 'child' : t?.booking?.children || 'children'}
-                  {accompanyingPerson ? ` + ${t?.booking?.accompanyingPersonShort || 'accompanying person'}` : ''}
+                  {ageGroup === 'adult'
+                    ? (t?.booking?.adultParticipantShort || 'adult participant')
+                    : (
+                      <>
+                        {childrenCount} {childrenCount === 1 ? t?.booking?.child || 'child' : t?.booking?.children || 'children'}
+                        {accompanyingPerson ? ` + ${t?.booking?.accompanyingPersonShort || 'accompanying person'}` : ''}
+                      </>
+                    )}
                 </div>
               </div>
             )}
@@ -1697,60 +2049,62 @@ const Booking = () => {
       </Form>
 
       {/* Credit Selection Modal */}
-      <Modal show={showCreditModal} onHide={() => {
-        setShowCreditModal(false);
-        setFillFormPreference({});
-      }}>
-        <Modal.Header closeButton>
-          <Modal.Title>{t?.booking?.chooseCredit || 'Choose Your Credit'}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {credits.length === 0 ? (
-            <p>{t?.booking?.noCredits || 'No credits available.'}</p>
-          ) : (
-            credits.map((credit) => (
-              <div key={credit.id} className="mb-4 p-4 border border-gray-300 rounded-lg">
-                <p><strong>{t?.booking?.originalDate || 'Original Date'}:</strong> {new Date(credit.original_date).toLocaleString()}</p>
-                <p><strong>{t?.booking?.children || 'Children'}:</strong> {credit.child_count} | <strong>{t?.booking?.accompanyingPerson || 'Accompanying Person'}:</strong> {credit.accompanying_person ? 'Yes' : 'No'}</p>
-                <p><strong>{t?.booking?.trainingType?.label || 'Training Type'}:</strong> {credit.training_type}</p>
-                <p><strong>{t?.booking?.photoConsent || 'Photo Consent'}:</strong> {credit.photo_consent ? 'Agreed' : 'Disagreed'}</p>
-                {credit.mobile && <p><strong>{t?.booking?.mobile || 'Mobile'}:</strong> {credit.mobile}</p>}
-                {credit.note && <p><strong>{t?.booking?.notes || 'Notes'}:</strong> {credit.note}</p>}
+      {(ageGroup === 'child' || ageGroup === 'adult') && (
+        <Modal show={showCreditModal} onHide={() => {
+          setShowCreditModal(false);
+          setFillFormPreference({});
+        }}>
+          <Modal.Header closeButton>
+            <Modal.Title>{t?.booking?.chooseCredit || 'Choose Your Credit'}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {(ageGroup === 'child' ? childCredits : adultCredits).length === 0 ? (
+              <p>{t?.booking?.noCredits || 'No credits available.'}</p>
+            ) : (
+              (ageGroup === 'child' ? childCredits : adultCredits).map((credit) => (
+                <div key={credit.id} className="mb-4 p-4 border border-gray-300 rounded-lg">
+                  <p><strong>{t?.booking?.originalDate || 'Original Date'}:</strong> {new Date(credit.original_date).toLocaleString()}</p>
+                  <p><strong>{t?.booking?.children || 'Children'}:</strong> {credit.child_count} | <strong>{t?.booking?.accompanyingPerson || 'Accompanying Person'}:</strong> {credit.accompanying_person ? 'Yes' : 'No'}</p>
+                  <p><strong>{t?.booking?.trainingType?.label || 'Training Type'}:</strong> {credit.training_type}</p>
+                  <p><strong>{t?.booking?.photoConsent || 'Photo Consent'}:</strong> {credit.photo_consent ? 'Agreed' : 'Disagreed'}</p>
+                  {credit.mobile && <p><strong>{t?.booking?.mobile || 'Mobile'}:</strong> {credit.mobile}</p>}
+                  {credit.note && <p><strong>{t?.booking?.notes || 'Notes'}:</strong> {credit.note}</p>}
 
-                <Form.Check
-                  type="checkbox"
-                  id={`fill-form-${credit.id}`}
-                  label={t?.booking?.fillFormFromOriginal || 'Fill in the form based on the original booking'}
-                  className="mb-3 mt-3"
-                  checked={fillFormPreference[credit.id] || false}
-                  onChange={(e) => {
-                    setFillFormPreference(prev => ({
-                      ...prev,
-                      [credit.id]: e.target.checked
-                    }));
-                  }}
-                />
+                  <Form.Check
+                    type="checkbox"
+                    id={`fill-form-${credit.id}`}
+                    label={t?.booking?.fillFormFromOriginal || 'Fill in the form based on the original booking'}
+                    className="mb-3 mt-3"
+                    checked={fillFormPreference[credit.id] || false}
+                    onChange={(e) => {
+                      setFillFormPreference(prev => ({
+                        ...prev,
+                        [credit.id]: e.target.checked
+                      }));
+                    }}
+                  />
 
-                <Button
-                  variant="primary"
-                  onClick={() => selectCredit(credit, fillFormPreference[credit.id] || false)}
-                  className="w-full"
-                >
-                  {t?.booking?.useThisCredit || 'Use this credit'}
-                </Button>
-              </div>
-            ))
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => {
-            setShowCreditModal(false);
-            setFillFormPreference({});
-          }}>
-            {t?.booking?.cancel || 'Cancel'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+                  <Button
+                    variant="primary"
+                    onClick={() => selectCredit(credit, fillFormPreference[credit.id] || false)}
+                    className="w-full"
+                  >
+                    {t?.booking?.useThisCredit || 'Use this credit'}
+                  </Button>
+                </div>
+              ))
+            )}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => {
+              setShowCreditModal(false);
+              setFillFormPreference({});
+            }}>
+              {t?.booking?.cancel || 'Cancel'}
+            </Button>
+          </Modal.Footer>
+        </Modal>
+      )}
 
       {/* Service Consent Modal */}
       {showServiceConsentModal && (

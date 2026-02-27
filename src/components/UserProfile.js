@@ -1268,6 +1268,13 @@ const UserProfile = () => {
                             </span>
                           </div>
                         </div>
+                        {session.theme && (
+                          <div className="mt-2 text-center">
+                            <span className="text-black font-bold text-sm">
+                              Téma: {session.theme}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <div
                         data-tooltip-id="cancel-tooltip"

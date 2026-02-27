@@ -141,7 +141,9 @@ exports.Prisma.BookingsScalarFieldEnum = {
   booking_type: 'booking_type',
   archived_training_date: 'archived_training_date',
   archived_training_type: 'archived_training_type',
-  checked_in: 'checked_in'
+  checked_in: 'checked_in',
+  age_group: 'age_group',
+  number_of_adults: 'number_of_adults'
 };
 
 exports.Prisma.CreditsScalarFieldEnum = {
@@ -236,7 +238,8 @@ exports.Prisma.Training_availabilityScalarFieldEnum = {
   max_participants: 'max_participants',
   created_at: 'created_at',
   cancelled: 'cancelled',
-  training_type_id: 'training_type_id'
+  training_type_id: 'training_type_id',
+  theme: 'theme'
 };
 
 exports.Prisma.Training_pricesScalarFieldEnum = {
@@ -254,7 +257,8 @@ exports.Prisma.Training_typesScalarFieldEnum = {
   accompanying_person_price: 'accompanying_person_price',
   active: 'active',
   created_at: 'created_at',
-  color_hex: 'color_hex'
+  color_hex: 'color_hex',
+  audience_type: 'audience_type'
 };
 
 exports.Prisma.User_sessionsScalarFieldEnum = {

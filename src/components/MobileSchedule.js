@@ -180,6 +180,11 @@ const MobileSchedule = ({ trainingSessions, getTrainingsForDay }) => {
 
                     <div className="flex-1 ml-4 border-l pl-4 border-gray-100">
                       <h4 className="font-bold text-gray-800 text-lg">{session.training_type}</h4>
+                      {session.theme && (
+                        <p className="text-black font-bold text-sm mt-1">
+                          Téma: {session.theme}
+                        </p>
+                      )}
                       <div className="flex items-center justify-between mt-3">
                         {/* ZMENA: Adresa namiesto 'Hala' */}
                         <span className="text-[10px] text-gray-400 font-medium uppercase tracking-tight">

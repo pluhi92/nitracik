@@ -400,6 +400,11 @@ const Schedule = () => {
                       ({selectedSession.duration_minutes || 60} min)
                     </span>
                   </p>
+                  {selectedSession.theme && (
+                    <p className="text-black font-bold text-sm mt-1">
+                      Téma: {selectedSession.theme}
+                    </p>
+                  )}
                   <a
                     href="https://www.google.com/maps/search/?api=1&query=Štefánikova+trieda+148"
                     target="_blank"
