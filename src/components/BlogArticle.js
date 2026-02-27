@@ -162,6 +162,22 @@ const BlogArticle = () => {
         >
           {post.content}
         </div>
+        {/* Zdroj */}
+        {post.source_url && (
+          <div className="mt-5 pt-4 border-top">
+            <p className="text-muted">
+              <strong>Zdroj:</strong>{' '}
+              <a 
+                href={post.source_url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary"
+              >
+                {post.source_url}
+              </a>
+            </p>
+          </div>
+        )}
 
         {/* Footer s tlačidlom na zdieľanie */}
         <div className="mt-5 pt-4 border-top text-center">

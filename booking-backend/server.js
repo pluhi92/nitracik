@@ -38,6 +38,7 @@ dayjs.extend(timezone);
 dayjs.locale('sk');
 
 const APP_TIMEZONE = 'Europe/Bratislava';
+const DEBUG_LOGS = process.env.DEBUG_LOGS === 'true';
 
 const to24Hour = (timeWithMeridiem) => {
   if (!timeWithMeridiem) return null;
@@ -63,13 +64,6 @@ const multer = require('multer');
 const sharp = require('sharp');
 
 app.set('trust proxy', 1);
-
-
-app.use((req, res, next) => {
-  console.log('REQ IP:', req.ip);
-  console.log('XFF:', req.headers['x-forwarded-for']);
-  next();
-});
 
 const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hodina
@@ -103,13 +97,13 @@ const fileFilter = (req, file, cb) => {
 const createSlug = (title) => {
   return title
     .toString()
-    .normalize('NFD')                   
-    .replace(/[\u0300-\u036f]/g, '')   
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, '-')               
-    .replace(/[^\w\-]+/g, '')           
-    .replace(/\-\-+/g, '-');            
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\-]+/g, '')
+    .replace(/\-\-+/g, '-');
 };
 
 // ✅ SHARP: Zvýšený buffer limit (Sharp potom skomprimuje)
@@ -125,19 +119,19 @@ const upload = multer({
 async function processImage(buffer, filename) {
   try {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    
+
     const webpFilename = `blog-${uniqueSuffix}.webp`;
     const outputPath = path.join(uploadDir, webpFilename);
-    
+
     const thumbFilename = `blog-${uniqueSuffix}-thumb.webp`;
     const thumbPath = path.join(uploadDir, thumbFilename);
 
     // ✅ HLAVNÁ ÚPRAVA: pridané { failOnError: false }
     // Toto zabezpečí, že Sharp ignoruje chybu "Invalid SOS parameters"
-    
+
     // 1. Spracovanie hlavného obrázka
-    await sharp(buffer, { failOnError: false }) 
-      .rotate() 
+    await sharp(buffer, { failOnError: false })
+      .rotate()
       .resize({
         width: 1200,
         height: 1200,
@@ -151,13 +145,13 @@ async function processImage(buffer, filename) {
       .toFile(outputPath);
 
     // 2. Spracovanie thumbnailu (tiež pridaj failOnError)
-    await sharp(buffer, { failOnError: false }) 
-      .rotate() 
+    await sharp(buffer, { failOnError: false })
+      .rotate()
       .resize({
         width: 300,
-        height: 200, 
+        height: 200,
         fit: 'cover',
-        position: 'centre' 
+        position: 'centre'
       })
       .webp({
         quality: 80,
@@ -189,7 +183,9 @@ async function processImage(buffer, filename) {
 }
 
 app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  console.log('🔹 [DEBUG] Webhook hit!'); // 1. Zistíme, či sem vôbec Stripe trafí
+  if (DEBUG_LOGS) {
+    console.log('� [STRIPE WEBHOOK] Received'); // Stripe webhook notification
+  }
   const sig = req.headers['stripe-signature'];
   let event;
 
@@ -199,15 +195,91 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
-    console.log('[DEBUG] Webhook Event Received:', event.type);
+    if (DEBUG_LOGS) {
+      console.log('🔔 [STRIPE WEBHOOK] Event:', event.type);
+    }
   } catch (err) {
     console.error('[DEBUG] Webhook Signature Verification Failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  // === HANDLER FOR PAYMENT FAILURE ===
+  if (event.type === 'payment_intent.payment_failed') {
+    const paymentIntent = event.data.object;
+    const amountCents = paymentIntent.amount;
+    const amountEur = amountCents / 100;
+    const bookingId = paymentIntent.metadata?.bookingId;
+
+    if (DEBUG_LOGS) {
+      console.log('❌ [STRIPE WEBHOOK] Payment failed for PaymentIntent:', paymentIntent.id, 'Amount:', amountEur, 'EUR');
+    }
+
+    if (!bookingId) {
+      console.warn('⚠️ [STRIPE WEBHOOK] Missing bookingId in payment_intent metadata');
+      return res.json({ received: true });
+    }
+
+    const client = await pool.connect();
+    try {
+      const bookingResult = await client.query(
+        `SELECT b.id, b.session_id, u.email, u.first_name, ta.training_type, ta.training_date
+         FROM bookings b
+         JOIN users u ON b.user_id = u.id
+         LEFT JOIN training_availability ta ON b.training_id = ta.id
+         WHERE b.id = $1 AND b.amount_paid IS NULL AND b.active = false
+         LIMIT 1`,
+        [bookingId]
+      );
+
+      if (bookingResult.rows.length > 0) {
+        const booking = bookingResult.rows[0];
+
+        // Mark booking as definitely inactive
+        await client.query(
+          `UPDATE bookings SET active = false WHERE id = $1`,
+          [booking.id]
+        );
+
+        // Send payment failed email
+        try {
+          const trainingDate = booking.training_date ? dayjs(booking.training_date).tz(APP_TIMEZONE) : null;
+          await emailService.sendPaymentFailedEmail(booking.email, booking.first_name, {
+            selectedDate: trainingDate ? trainingDate.format('DD.MM.YYYY') : 'N/A',
+            selectedTime: trainingDate ? trainingDate.format('HH:mm') : 'N/A',
+            trainingType: booking.training_type || 'Tréning',
+            totalPrice: amountEur.toFixed(2)
+          });
+          console.log('✅ [STRIPE WEBHOOK] Payment failed email sent to:', booking.email);
+        } catch (emailError) {
+          console.error('[ERROR] Failed to send payment failed email:', emailError.message);
+        }
+      } else {
+        if (DEBUG_LOGS) {
+          console.warn('⚠️ [STRIPE WEBHOOK] No unpaid booking found');
+        }
+      }
+    } catch (error) {
+      console.error('[ERROR] Error handling payment_intent.payment_failed:', error.message);
+      console.error('[ERROR] Error stack:', error.stack);
+    } finally {
+      client.release();
+    }
+
+    return res.json({ received: true });
+  }
+
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    console.log('📦 [DEBUG] Session data:', JSON.stringify(session.metadata, null, 2));
+    
+    // ✅ CRITICAL: Only process if payment was actually successful
+    if (session.payment_status !== 'paid') {
+      console.log(`⚠️ [STRIPE WEBHOOK] Payment not completed. Status: ${session.payment_status}`);
+      return res.json({ received: true });
+    }
+    
+    if (DEBUG_LOGS) {
+      console.log('📦 [DEBUG] Session data:', JSON.stringify(session.metadata, null, 2));
+    }
     const client = await pool.connect();
 
     // Initialize email data variables
@@ -219,26 +291,26 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
 
       // === 1. SEASON TICKET (Permanentka) ===
       if (session.metadata.type === 'season_ticket') {
-        const { userId, entries, totalPrice, trainingTypeId } = session.metadata;
-        console.log(`Processing Season Ticket for User: ${userId}, Entries: ${entries}, Price: ${totalPrice}, TrainingType: ${trainingTypeId}`);
+        const { userId, entries, totalPrice, productId } = session.metadata;
+        console.log(`Processing Season Ticket for User: ${userId}, Entries: ${entries}, Price: ${totalPrice}, Product: ${productId}`);
 
         // Konverzia typov (Stripe posiela stringy)
         const entriesInt = parseInt(entries, 10);
         const priceFloat = parseFloat(totalPrice);
-        const trainingTypeIdInt = parseInt(trainingTypeId, 10);
+        const productIdInt = parseInt(productId, 10);
 
-        if (!trainingTypeIdInt) {
-          throw new Error('Training type is missing for season ticket purchase');
+        if (!productIdInt) {
+          throw new Error('Product ID is missing for season ticket purchase');
         }
 
         // Bezpečnostná kontrola: overiť cenu podľa ponuky
         const offerResult = await client.query(
-          `SELECT price FROM season_ticket_offers WHERE training_type_id = $1 AND entries = $2 AND active = TRUE`,
-          [trainingTypeIdInt, entriesInt]
+          `SELECT price FROM season_ticket_offers WHERE season_ticket_product_id = $1 AND entries = $2 AND active = TRUE`,
+          [productIdInt, entriesInt]
         );
 
         if (offerResult.rows.length === 0) {
-          console.error(`[SECURITY] Offer not found. TrainingType: ${trainingTypeIdInt}, Entries: ${entriesInt}`);
+          console.error(`[SECURITY] Offer not found. Product: ${productIdInt}, Entries: ${entriesInt}`);
           throw new Error('Season ticket offer not found');
         }
 
@@ -257,7 +329,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         const ticketResult = await client.query(
           `INSERT INTO season_tickets (
               user_id, 
-              training_type_id,
+              season_ticket_product_id,
               entries_total, 
               entries_remaining, 
               purchase_date, 
@@ -272,7 +344,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
            RETURNING id`,
           [
             parseInt(userId, 10),            // $1: user_id
-            trainingTypeIdInt,               // $2: training_type_id
+            productIdInt,                    // $2: season_ticket_product_id
             entriesInt,                      // $3: entries_total (aj remaining)
             expiryDate,                      // $4: expiry_date
             session.id,                      // $5: stripe_payment_id
@@ -283,11 +355,11 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
 
         console.log('[DEBUG] Season ticket created ID:', ticketResult.rows[0].id);
 
-        const typeResult = await client.query(
-          `SELECT name FROM training_types WHERE id = $1`,
-          [trainingTypeIdInt]
+        const productResult = await client.query(
+          `SELECT name FROM season_ticket_products WHERE id = $1`,
+          [productIdInt]
         );
-        const trainingTypeName = typeResult.rows[0]?.name || '';
+        const productName = productResult.rows[0]?.name || '';
 
         // Odoslanie emailu užívateľovi
         const userResult = await client.query(
@@ -299,7 +371,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
 
         if (user) {
           // Store email data to send AFTER transaction commits
-          var emailDataToSend = {
+          emailDataToSend = {
             type: 'season_ticket_confirmation',
             userEmail: user.email,
             firstName: user.first_name,
@@ -308,7 +380,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
             entries: entriesInt,
             totalPrice: priceFloat,
             expiryDate,
-            trainingTypeName,
+            productName,
             stripePaymentId
           };
         }
@@ -354,7 +426,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
             throw new Error(`Training type '${trainingType}' not found`);
           }
           const trainingTypeId = typeIdResult.rows[0].id;
-          
+
           const time24 = to24Hour(selectedTime);
           const trainingDateTimeUtc = toUtcDateTime(selectedDate, time24);
 
@@ -378,7 +450,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           if (!displayTime) displayTime = trainingLocal.format('HH:mm');
         }
         const bookingsResult = await client.query(
-          `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1`,
+          `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1 AND active = true`,
           [training.id]
         );
         const bookedCount = parseInt(bookingsResult.rows[0].booked_children, 10);
@@ -386,14 +458,15 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           throw new Error('Session is full');
         }
 
-        // Update existing booking with payment details
+        // Update existing booking with payment details and activate it
         const paymentIntentId = session.payment_intent;
         const updateResult = await client.query(
           `UPDATE bookings 
            SET amount_paid = $1, 
                payment_time = $2, 
                payment_intent_id = $3, 
-               session_id = NULL 
+               session_id = NULL,
+               active = true
            WHERE session_id = $4 
            RETURNING *`,
           [parseFloat(totalPrice), new Date(session.created * 1000), paymentIntentId, session.id]
@@ -404,11 +477,10 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         }
 
         const booking = updateResult.rows[0];
-        console.log('[DEBUG] Booking updated with payment details:', {
+        console.log('✅ [STRIPE SUCCESS] Booking confirmed:', {
           bookingId: booking.id,
           paymentIntentId,
-          amountPaid: totalPrice,
-          sessionId: session.id
+          amountPaid: totalPrice
         });
 
         const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
@@ -418,7 +490,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         const targetEmail = user.email || session.customer_details?.email;
         const firstName = user.first_name || 'Osôbka';
 
-        var bookingEmailData = {
+        bookingEmailData = {
           targetEmail,
           selectedDate: displayDate,
           selectedTime: displayTime,
@@ -443,6 +515,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
     } catch (error) {
       await client.query('ROLLBACK');
       console.error('[DEBUG] Webhook processing error:', error.message);
+      console.error('[DEBUG] Error stack:', error.stack);
     } finally {
       client.release();
     }
@@ -457,17 +530,17 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
   if (emailDataToSend) {
     console.log('📧 [DEBUG] Sending season ticket confirmation email to:', emailDataToSend.userEmail);
     emailService.sendSeasonTicketConfirmation(
-      emailDataToSend.userEmail, 
-      emailDataToSend.firstName, 
+      emailDataToSend.userEmail,
+      emailDataToSend.firstName,
       {
         entries: emailDataToSend.entries,
         totalPrice: emailDataToSend.totalPrice,
         expiryDate: emailDataToSend.expiryDate,
-        trainingTypeName: emailDataToSend.trainingTypeName,
+        productName: emailDataToSend.productName,
         stripePaymentId: emailDataToSend.stripePaymentId
       }
     ).catch(err => console.error('Failed to send season ticket confirmation email:', err.message));
-    
+
     // Send admin notification
     emailService.sendAdminSeasonTicketPurchase('info@nitracik.sk', {
       user: {
@@ -480,7 +553,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
       totalPrice: emailDataToSend.totalPrice,
       expiryDate: emailDataToSend.expiryDate,
       stripePaymentId: emailDataToSend.stripePaymentId,
-      trainingTypeName: emailDataToSend.trainingTypeName
+      productName: emailDataToSend.productName
     }).catch(err => console.error('Failed to send admin season ticket notification:', err.message));
   }
 
@@ -560,8 +633,26 @@ app.use(
   })
 );
 
+const isProduction = process.env.NODE_ENV === 'production';
+const normalizeOrigin = (value) => value.trim().replace(/\/$/, '');
+const allowedOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:3000')
+  .split(',')
+  .map(normalizeOrigin)
+  .filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    const normalizedOrigin = normalizeOrigin(origin);
+    if (allowedOrigins.includes(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
 }));
@@ -580,13 +671,14 @@ app.use(session({
     tableName: 'user_sessions',
   }),
   secret: process.env.SESSION_SECRET || 'your_secret_key',
+  proxy: isProduction,
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false,
+    secure: isProduction,
     httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 1000 * 60 * 60 * 24,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: 1000 * 60 * 60 * 24 * 7,
   },
 }));
 
@@ -604,16 +696,12 @@ app.use((error, req, res, next) => {
 
 const isAdmin = async (req, res, next) => {
   try {
-    console.log(`[isAdmin] Checking admin access for userId=${req.session.userId}, session.role=${req.session.role}`);
-    
     if (!req.session.userId) {
-      console.log(`[isAdmin] ❌ DENIED: No userId in session`);
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
     // 1. PRIORITA 1: Kontrola role v session (najrýchlejšie, nastavená pri login)
     if (req.session.role === 'admin') {
-      console.log(`[isAdmin] ✅ ALLOWED: session.role === 'admin' (userId=${req.session.userId})`);
       return next();
     }
 
@@ -626,21 +714,17 @@ const isAdmin = async (req, res, next) => {
       );
 
       if (!result.rows.length) {
-        console.log(`[isAdmin] ❌ DENIED: User not found in DB (userId=${req.session.userId})`);
         return res.status(401).json({ error: 'User not found' });
       }
 
       const user = result.rows[0];
-      console.log(`[isAdmin] User found: email=${user.email}, role=${user.role}`);
 
       // Check DB role
       if (user.role === 'admin') {
-        console.log(`[isAdmin] ✅ ALLOWED: DB role === 'admin' (email=${user.email})`);
         return next();
       }
 
       // Žiadna podmienka nesplnená → pristup odmietnutý
-      console.log(`[isAdmin] ❌ DENIED: User ${user.email} is not admin (role=${user.role})`);
       return res.status(403).json({ error: 'Forbidden: Admin access required' });
 
     } finally {
@@ -653,7 +737,9 @@ const isAdmin = async (req, res, next) => {
 };
 
 function isAuthenticated(req, res, next) {
-  console.log('Session data in isAuthenticated:', req.session);
+  if (DEBUG_LOGS) {
+    console.log('[isAuthenticated] userId:', req.session.userId, 'role:', req.session.role);
+  }
   if (req.session.userId) {
     // Fetch user email to check admin status
     pool.query('SELECT email FROM users WHERE id = $1', [req.session.userId], (err, result) => {
@@ -724,20 +810,14 @@ app.get('/api/admin/bookings', isAdmin, async (req, res) => {
         b.active,
         b.booking_type,
         b.amount_paid,
-        COALESCE(SUM(b.number_of_children) OVER (PARTITION BY ta.id), 0) AS total_children,
-        (ta.max_participants - COALESCE(SUM(b.number_of_children) OVER (PARTITION BY ta.id), 0)) AS available_spots
+        COALESCE(SUM(b.number_of_children) FILTER (WHERE b.active = true) OVER (PARTITION BY ta.id), 0) AS total_children,
+        (ta.max_participants - COALESCE(SUM(b.number_of_children) FILTER (WHERE b.active = true) OVER (PARTITION BY ta.id), 0)) AS available_spots
       FROM training_availability ta
       LEFT JOIN bookings b 
         ON ta.id = b.training_id
       LEFT JOIN users u 
-        ON b.user_id = u.id
+        ON b.user_id = u.id AND b.active = true
       WHERE ta.training_date >= NOW() - INTERVAL '60 minutes'
-        AND (
-          b.active = true
-          OR NOT EXISTS (
-            SELECT 1 FROM bookings b2 WHERE b2.credit_id = b.id
-          )
-        )
       ORDER BY ta.training_date DESC, ta.training_type;
     `);
 
@@ -761,12 +841,12 @@ app.get('/api/admin/season-tickets', async (req, res) => {
               s.entries_total,
               s.entries_remaining,
               s.expiry_date,
-              s.training_type_id,
-              t.name AS training_type_name,
-              t.name AS training_type
+              s.season_ticket_product_id,
+              p.name AS product_name,
+              p.code AS product_code
        FROM season_tickets s
        JOIN users u ON s.user_id = u.id
-       LEFT JOIN training_types t ON s.training_type_id = t.id
+       LEFT JOIN season_ticket_products p ON s.season_ticket_product_id = p.id
        WHERE s.entries_remaining > 0 AND s.expiry_date >= NOW()`
     );
     res.json(tickets.rows);
@@ -829,9 +909,8 @@ app.get('/api/archived-sessions/user/:userId', async (req, res) => {
 
 // Update /api/admin/payment-report endpoint
 app.post('/api/admin/payment-report', isAuthenticated, async (req, res) => {
-  // Check if user is admin
-  const userEmail = req.session.email;
-  if (userEmail !== 'info@nitracik.sk') {
+  // Check if user is admin by role
+  if (req.session.role !== 'admin') {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 
@@ -1227,29 +1306,219 @@ app.put('/api/admin/training-types/:id/toggle', isAdmin, async (req, res) => {
   }
 });
 
-// --- SEASON TICKET OFFERS (USER) ---
+// --- SEASON TICKET PRODUCTS ---
+// GET /api/season-ticket-products - zoznam produktov (USER)
+app.get('/api/season-ticket-products', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        p.id, 
+        p.code,
+        p.name, 
+        p.description,
+        p.active,
+        COALESCE(
+          json_agg(
+            json_build_object('id', tt.id, 'name', tt.name)
+            ORDER BY tt.name
+          ) FILTER (WHERE tt.id IS NOT NULL),
+          '[]'
+        ) as training_types
+       FROM season_ticket_products p
+       LEFT JOIN season_ticket_product_training_types sptt ON p.id = sptt.season_ticket_product_id
+       LEFT JOIN training_types tt ON sptt.training_type_id = tt.id
+       WHERE p.active = TRUE
+       GROUP BY p.id, p.code, p.name, p.description, p.active
+       ORDER BY p.name ASC`
+    );
+
+    // Transform to expected format
+    const products = result.rows.map(row => ({
+      id: row.id,
+      code: row.code,
+      name: row.name,
+      description: row.description,
+      trainingTypes: row.training_types.map(tt => tt.name),
+      trainingTypeIds: row.training_types.map(tt => tt.id)
+    }));
+
+    res.json(products);
+  } catch (error) {
+    console.error('Error fetching season ticket products:', error);
+    res.status(500).json({ error: 'Failed to fetch season ticket products' });
+  }
+});
+
+// GET /api/season-ticket-products/:id/offers - varianty pre produkt
+app.get('/api/season-ticket-products/:id/offers', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `SELECT 
+        o.id,
+        o.entries, 
+        o.price, 
+        o.active
+       FROM season_ticket_offers o
+       WHERE o.season_ticket_product_id = $1 AND o.active = TRUE
+       ORDER BY o.entries ASC`,
+      [id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching product offers:', error);
+    res.status(500).json({ error: 'Failed to fetch offers' });
+  }
+});
+
+// --- ADMIN: Season Ticket Products ---
+app.get('/api/admin/season-ticket-products', isAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        p.id, 
+        p.code,
+        p.name, 
+        p.description,
+        p.active,
+        COALESCE(
+          json_agg(
+            json_build_object('id', tt.id, 'name', tt.name)
+            ORDER BY tt.name
+          ) FILTER (WHERE tt.id IS NOT NULL),
+          '[]'
+        ) as training_types
+       FROM season_ticket_products p
+       LEFT JOIN season_ticket_product_training_types sptt ON p.id = sptt.season_ticket_product_id
+       LEFT JOIN training_types tt ON sptt.training_type_id = tt.id
+       GROUP BY p.id, p.code, p.name, p.description, p.active
+       ORDER BY p.name ASC`
+    );
+
+    const products = result.rows.map(row => ({
+      id: row.id,
+      code: row.code,
+      name: row.name,
+      description: row.description,
+      active: row.active,
+      trainingTypes: row.training_types
+    }));
+
+    res.json(products);
+  } catch (error) {
+    console.error('Error fetching admin season ticket products:', error);
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
+// POST /api/admin/season-ticket-products - vytvoriť nový produkt
+app.post('/api/admin/season-ticket-products', isAdmin, async (req, res) => {
+  const { code, name, description, trainingTypeIds, offers } = req.body;
+
+  if (!code || !name || !Array.isArray(trainingTypeIds) || trainingTypeIds.length === 0) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  // Validácia unique training types
+  const uniqueTypeIds = new Set(trainingTypeIds);
+  if (uniqueTypeIds.size !== trainingTypeIds.length) {
+    return res.status(400).json({ error: 'Duplicate training types provided' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Vytvoriť produkt
+    const productResult = await client.query(
+      `INSERT INTO season_ticket_products (code, name, description, active, created_at)
+       VALUES ($1, $2, $3, true, NOW())
+       RETURNING id`,
+      [code, name, description || null]
+    );
+    const productId = productResult.rows[0].id;
+
+    // 2. Pripojiť training types
+    for (const trainingTypeId of trainingTypeIds) {
+      await client.query(
+        `INSERT INTO season_ticket_product_training_types (season_ticket_product_id, training_type_id)
+         VALUES ($1, $2)`,
+        [productId, trainingTypeId]
+      );
+    }
+
+    // 3. Vytvoriť offers (ak sú poskytnuté)
+    if (Array.isArray(offers) && offers.length > 0) {
+      const allowedEntries = [3, 5, 10];
+
+      for (const offer of offers) {
+        const entries = parseInt(offer.entries, 10);
+        const price = parseFloat(offer.price);
+
+        if (!allowedEntries.includes(entries) || Number.isNaN(price)) {
+          throw new Error('Invalid offer data');
+        }
+
+        await client.query(
+          `INSERT INTO season_ticket_offers (season_ticket_product_id, entries, price, active, created_at, updated_at)
+           VALUES ($1, $2, $3, true, NOW(), NOW())`,
+          [productId, entries, price]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json({ success: true, id: productId });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error creating season ticket product:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// PUT /api/admin/season-ticket-products/:id/toggle - zapnúť/vypnúť produkt
+app.put('/api/admin/season-ticket-products/:id/toggle', isAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { active } = req.body;
+
+  try {
+    await pool.query('UPDATE season_ticket_products SET active = $1 WHERE id = $2', [active, id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error toggling product:', error);
+    res.status(500).json({ error: 'Failed to update status' });
+  }
+});
+
+// --- SEASON TICKET OFFERS (USER) --- 
+// DEPRECATED: Use /api/season-ticket-products instead
 app.get('/api/season-ticket-offers', async (req, res) => {
   try {
-    const trainingTypeId = req.query.trainingTypeId ? parseInt(req.query.trainingTypeId, 10) : null;
+    const productId = req.query.productId ? parseInt(req.query.productId, 10) : null;
     const params = [];
     let whereClause = 'WHERE o.active = TRUE';
 
-    if (trainingTypeId) {
-      params.push(trainingTypeId);
-      whereClause += ` AND o.training_type_id = $${params.length}`;
+    if (productId) {
+      params.push(productId);
+      whereClause += ` AND o.season_ticket_product_id = $${params.length}`;
     }
 
     const result = await pool.query(
       `SELECT o.id,
-              o.training_type_id,
+              o.season_ticket_product_id,
               o.entries,
               o.price,
               o.active,
-              t.name AS training_type_name
+              p.name AS product_name,
+              p.code AS product_code
        FROM season_ticket_offers o
-       JOIN training_types t ON t.id = o.training_type_id
+       JOIN season_ticket_products p ON p.id = o.season_ticket_product_id
        ${whereClause}
-       ORDER BY t.name ASC, o.entries ASC`,
+       ORDER BY p.name ASC, o.entries ASC`,
       params
     );
 
@@ -1265,14 +1534,15 @@ app.get('/api/admin/season-ticket-offers', isAdmin, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT o.id,
-              o.training_type_id,
+              o.season_ticket_product_id,
               o.entries,
               o.price,
               o.active,
-              t.name AS training_type_name
+              p.name AS product_name,
+              p.code AS product_code
        FROM season_ticket_offers o
-       JOIN training_types t ON t.id = o.training_type_id
-       ORDER BY t.name ASC, o.entries ASC`
+       JOIN season_ticket_products p ON p.id = o.season_ticket_product_id
+       ORDER BY p.name ASC, o.entries ASC`
     );
 
     res.json(result.rows);
@@ -1283,10 +1553,10 @@ app.get('/api/admin/season-ticket-offers', isAdmin, async (req, res) => {
 });
 
 app.post('/api/admin/season-ticket-offers', isAdmin, async (req, res) => {
-  const { trainingTypeId, offers } = req.body;
+  const { productId, offers } = req.body;
   const allowedEntries = [3, 5, 10];
 
-  if (!trainingTypeId || !Array.isArray(offers)) {
+  if (!productId || !Array.isArray(offers)) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
@@ -1304,11 +1574,11 @@ app.post('/api/admin/season-ticket-offers', isAdmin, async (req, res) => {
       }
 
       await client.query(
-        `INSERT INTO season_ticket_offers (training_type_id, entries, price, active, created_at, updated_at)
+        `INSERT INTO season_ticket_offers (season_ticket_product_id, entries, price, active, created_at, updated_at)
          VALUES ($1, $2, $3, $4, NOW(), NOW())
-         ON CONFLICT (training_type_id, entries)
+         ON CONFLICT (season_ticket_product_id, entries)
          DO UPDATE SET price = EXCLUDED.price, active = EXCLUDED.active, updated_at = NOW()`,
-        [trainingTypeId, entries, price, active]
+        [productId, entries, price, active]
       );
     }
 
@@ -1376,11 +1646,22 @@ app.get('/api/season-tickets/:userId', isAuthenticated, async (req, res) => {
               s.entries_remaining,
               s.purchase_date,
               s.expiry_date,
-              s.training_type_id,
-              t.name AS training_type_name
+              s.season_ticket_product_id,
+              p.name AS product_name,
+              p.code AS product_code,
+              COALESCE(
+                json_agg(
+                  json_build_object('id', tt.id, 'name', tt.name)
+                  ORDER BY tt.name
+                ) FILTER (WHERE tt.id IS NOT NULL),
+                '[]'
+              ) as training_types
        FROM season_tickets s
-       LEFT JOIN training_types t ON s.training_type_id = t.id
+       LEFT JOIN season_ticket_products p ON s.season_ticket_product_id = p.id
+       LEFT JOIN season_ticket_product_training_types sptt ON p.id = sptt.season_ticket_product_id
+       LEFT JOIN training_types tt ON sptt.training_type_id = tt.id
        WHERE s.user_id = $1
+       GROUP BY s.id, s.entries_total, s.entries_remaining, s.purchase_date, s.expiry_date, s.season_ticket_product_id, p.name, p.code
        ORDER BY s.purchase_date DESC`,
       [userId]
     );
@@ -1393,20 +1674,20 @@ app.get('/api/season-tickets/:userId', isAuthenticated, async (req, res) => {
 
 app.post('/api/create-season-ticket-payment', isAuthenticated, async (req, res) => {
   try {
-    const { userId, entries, totalPrice, trainingTypeId } = req.body;
-    if (!userId || !entries || !totalPrice || !trainingTypeId) {
+    const { userId, entries, totalPrice, productId } = req.body;
+    if (!userId || !entries || !totalPrice || !productId) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
     const entriesInt = parseInt(entries, 10);
-    const trainingTypeIdInt = parseInt(trainingTypeId, 10);
+    const productIdInt = parseInt(productId, 10);
 
     const offerResult = await pool.query(
-      `SELECT o.price, t.name AS training_type_name
+      `SELECT o.price, p.name AS product_name
        FROM season_ticket_offers o
-       JOIN training_types t ON t.id = o.training_type_id
-       WHERE o.training_type_id = $1 AND o.entries = $2 AND o.active = TRUE`,
-      [trainingTypeIdInt, entriesInt]
+       JOIN season_ticket_products p ON p.id = o.season_ticket_product_id
+       WHERE o.season_ticket_product_id = $1 AND o.entries = $2 AND o.active = TRUE`,
+      [productIdInt, entriesInt]
     );
 
     if (offerResult.rows.length === 0) {
@@ -1418,7 +1699,7 @@ app.post('/api/create-season-ticket-payment', isAuthenticated, async (req, res) 
       return res.status(400).json({ error: 'Price validation failed' });
     }
 
-    const productName = `Season Ticket (${entriesInt} Entries) - ${offerResult.rows[0].training_type_name}`;
+    const productName = `Permanentka: ${offerResult.rows[0].product_name} (${entriesInt} vstupov)`;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -1432,12 +1713,12 @@ app.post('/api/create-season-ticket-payment', isAuthenticated, async (req, res) 
       }],
       mode: 'payment',
       success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/payment-canceled`,
+      cancel_url: `${process.env.FRONTEND_URL}/payment-cancelled`,
       metadata: {
         userId: userId.toString(),
         entries: entriesInt.toString(),
         totalPrice: dbPrice.toString(),
-        trainingTypeId: trainingTypeIdInt.toString(),
+        productId: productIdInt.toString(),
         type: 'season_ticket',
       },
     });
@@ -1465,18 +1746,26 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
 
     // 1. Verify season ticket (Získame aj celkový počet a expiráciu)
     const ticketResult = await client.query(
-      `SELECT entries_remaining, entries_total, expiry_date, training_type_id FROM season_tickets WHERE id = $1 AND user_id = $2`,
+      `SELECT entries_remaining, entries_total, expiry_date, season_ticket_product_id FROM season_tickets WHERE id = $1 AND user_id = $2`,
       [seasonTicketId, userId]
     );
     if (ticketResult.rows.length === 0) {
       return res.status(404).json({ error: 'Season ticket not found' });
     }
 
-    const ticketTrainingTypeId = ticketResult.rows[0].training_type_id;
-    if (ticketTrainingTypeId && parseInt(trainingTypeId, 10) !== ticketTrainingTypeId) {
+    const ticket = ticketResult.rows[0]; // Tu máme entries_total aj expiry_date
+    const seasonTicketProductId = ticket.season_ticket_product_id;
+
+    // Nová validácia: Skontroluj či je training type v produkte
+    const validResult = await client.query(
+      `SELECT 1 FROM season_ticket_product_training_types
+       WHERE season_ticket_product_id = $1 AND training_type_id = $2`,
+      [seasonTicketProductId, trainingTypeId]
+    );
+
+    if (validResult.rowCount === 0) {
       return res.status(400).json({ error: 'Season ticket is not valid for this training type.' });
     }
-    const ticket = ticketResult.rows[0]; // Tu máme entries_total aj expiry_date
 
     if (ticket.entries_remaining < childrenCount) {
       return res.status(400).json({ error: 'Not enough entries remaining in your season ticket' });
@@ -1495,9 +1784,9 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
     }
     const training = trainingResult.rows[0];
 
-    // Check availability
+    // Check availability (only active bookings count)
     const bookingsResult = await client.query(
-      `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1`,
+      `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1 AND active = true`,
       [training.id]
     );
     const bookedChildren = parseInt(bookingsResult.rows[0].booked_children, 10);
@@ -1509,7 +1798,7 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
     const bookingResult = await client.query(
       `INSERT INTO bookings (user_id, training_id, number_of_children, amount_paid, payment_time, booked_at, active, booking_type, children_ages, photo_consent, mobile, note, accompanying_person)
        VALUES ($1, $2, $3, 0, NULL, NOW(), true, 'season_ticket', $4, $5, $6, $7, $8) RETURNING id`,
-      [userId, training.id, childrenCount, childrenAge, photoConsent, mobile, note, accompanyingPerson]
+      [userId, training.id, childrenCount, childrenAge, (photoConsent === true ? true : null), mobile, note, accompanyingPerson]
     );
     const bookingId = bookingResult.rows[0].id;
 
@@ -1537,6 +1826,7 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
       // 1. User Email (s detailmi o zostatku)
       await emailService.sendUserBookingEmail(user.email, {
         date: training.training_date, // Používame dátum z DB pre istotu
+        start_time: dayjs(training.training_date).tz(APP_TIMEZONE).format('HH:mm'),
         trainingType: training.training_type,
         userName: user.first_name,
         paymentType: 'season_ticket',
@@ -1554,6 +1844,8 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
         childrenCount,
         childrenAge,
         trainingType: training.training_type,
+        selectedDate: dayjs(training.training_date).tz(APP_TIMEZONE).format('DD.MM.YYYY (dddd)'),
+        selectedTime: dayjs(training.training_date).tz(APP_TIMEZONE).format('HH:mm'),
         photoConsent,
         note,
         seasonTicketId,
@@ -1656,7 +1948,28 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
 
       const sessionDate = new Date(training.training_date).toLocaleDateString('sk-SK');
 
-      // 3. Create Stripe checkout session
+      // 3. Vytvorenie DOČASNÉHO záznamu (amount_paid je NULL, active = false kým platba neprojde)
+      const bookingResult = await client.query(
+        `INSERT INTO bookings (
+          user_id, training_id, number_of_children, amount_paid, payment_time, 
+          session_id, booked_at, children_ages, photo_consent, mobile, note, accompanying_person, active, booking_type
+        ) VALUES ($1, $2, $3, NULL, NULL, NULL, NOW(), $4, $5, $6, $7, $8, false, 'paid')
+        RETURNING id`,
+        [
+          userId,
+          training.id,
+          childrenCount,
+          childrenAge || '',
+          photoConsent === true ? true : null,
+          mobile || '',
+          note || '',
+          accompanyingPerson || false,
+        ]
+      );
+
+      const bookingId = bookingResult.rows[0].id;
+
+      // 4. Create Stripe checkout session
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [{
@@ -1672,7 +1985,12 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         }],
         mode: 'payment',
         success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}&booking_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.FRONTEND_URL}/payment-canceled`,
+        cancel_url: `${process.env.FRONTEND_URL}/payment-cancelled`,
+        payment_intent_data: {
+          metadata: {
+            bookingId: bookingId.toString()
+          }
+        },
         metadata: {
           userId: userId.toString(),
           trainingId: training.id.toString(),
@@ -1681,8 +1999,8 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
           selectedTime,
           childrenCount: childrenCount.toString(),
           childrenAge: childrenAge?.toString() || '',
-          totalPrice: calculatedPrice.toString(), // Ukladáme vypočítanú cenu
-          photoConsent: photoConsent?.toString() || 'false',
+          totalPrice: calculatedPrice.toString(),
+          photoConsent: photoConsent === true ? 'true' : 'null',
           mobile: mobile || '',
           note: note || '',
           accompanyingPerson: accompanyingPerson?.toString() || 'false',
@@ -1690,29 +2008,13 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         },
       });
 
-      // 4. Vytvorenie záznamu (ostáva rovnaké, len používame calculatedPrice)
-      const bookingResult = await client.query(
-        `INSERT INTO bookings (
-          user_id, training_id, number_of_children, amount_paid, payment_time, 
-          session_id, booked_at, children_ages, photo_consent, mobile, note, accompanying_person, active, booking_type
-        ) VALUES ($1, $2, $3, $4, NULL, $5, NOW(), $6, $7, $8, $9, $10, true, 'paid')
-        RETURNING id`,
-        [
-          userId,
-          training.id,
-          childrenCount,
-          calculatedPrice,
-          session.id,
-          childrenAge || '',
-          photoConsent !== null ? photoConsent : false,
-          mobile || '',
-          note || '',
-          accompanyingPerson || false,
-        ]
+      await client.query(
+        `UPDATE bookings SET session_id = $1 WHERE id = $2`,
+        [session.id, bookingId]
       );
 
       await client.query('COMMIT');
-      res.json({ sessionId: session.id, bookingId: bookingResult.rows[0].id });
+      res.json({ sessionId: session.id, bookingId });
 
     } catch (error) {
       await client.query('ROLLBACK');
@@ -1735,22 +2037,51 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
   try {
     await client.query('BEGIN');
     const session = await stripe.checkout.sessions.retrieve(session_id);
+    
     if (session.payment_status === 'paid') {
       const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
       const amountPaid = paymentIntent.amount / 100; // Convert from cents to euros
       const paymentTime = new Date(paymentIntent.created * 1000);
 
-      // Update existing booking with payment details
+      // Update booking with payment details ONLY if payment succeeded
+      // Also activate it since payment is now confirmed
       await client.query(
         `UPDATE bookings 
-         SET amount_paid = $1, payment_time = $2, session_id = NULL 
+         SET amount_paid = $1, payment_time = $2, session_id = NULL, active = true
          WHERE id = $3`,
         [amountPaid, paymentTime, booking_id]
       );
-    }
+      await client.query('COMMIT');
+      res.redirect('/user-profile');
+    } else {
+      // Payment failed or is not yet paid - Mark as inactive (soft delete)
+      // Get booking details for email notification
+      const bookingResult = await client.query(
+        `SELECT b.*, u.first_name, u.email, ta.training_type, ta.training_date
+         FROM bookings b
+         JOIN users u ON b.user_id = u.id
+         JOIN training_availability ta ON b.training_id = ta.id
+         WHERE b.id = $1`,
+        [booking_id]
+      );
 
-    await client.query('COMMIT');
-    res.redirect('/user-profile'); // Redirect to profile after success
+      const booking = bookingResult.rows[0];
+
+      // Mark booking inactive
+      await client.query(
+        `UPDATE bookings 
+         SET active = false
+         WHERE id = $1 AND amount_paid IS NULL`,
+        [booking_id]
+      );
+      await client.query('COMMIT');
+
+      // Email sa posielá automaticky cez webhook (payment_intent.payment_failed event)
+      // Takže tu neposielame email znova
+
+      // Redirect to cancel page with error
+      res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=payment_failed`);
+    }
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error confirming payment:', error);
@@ -1758,11 +2089,6 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
   } finally {
     client.release();
   }
-});
-
-app.use((req, res, next) => {
-  console.log('Session data:', req.session);
-  next();
 });
 
 function validateEnvVariables() {
@@ -1823,7 +2149,7 @@ function validateMobile(mobile) {
 
 app.post('/api/register', registerLimiter, async (req, res) => {
   // Turnstile token z frontendu
-  const { firstName, lastName, email, password, address, _honey, turnstileToken } = req.body;
+  const { firstName, lastName, email, password, address, _honey, turnstileToken, noMarketingChecked } = req.body;
 
   // 1. HONEYPOT KONTROLA (už si mal)
   if (_honey) {
@@ -1838,7 +2164,7 @@ app.post('/api/register', registerLimiter, async (req, res) => {
 
   try {
     const verificationUrl = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
-    
+
     // Vytvoríme form-data namiesto JSON objektu
     const formData = new URLSearchParams();
     formData.append('secret', process.env.CLOUDFLARE_SECRET);
@@ -1864,11 +2190,10 @@ app.post('/api/register', registerLimiter, async (req, res) => {
   if (!firstName || !lastName || !email || !password || !address) {
     return res.status(400).json({ message: 'Všetky polia sú povinné.' });
   }
-
   // Validácia hesla
   if (!PASSWORD_REGEX.test(password)) {
     return res.status(400).json({
-      message: 'Heslo musí mať min. 8 znakov, veľké a malé písmeno, číslo a špeciálny znak.'
+      message: 'Heslo musí mať min. 8 znakov, veľké a malé písmeno a číslo.'
     });
   }
 
@@ -1891,13 +2216,18 @@ app.post('/api/register', registerLimiter, async (req, res) => {
     // Vytvorenie verifikačného tokenu
     const verificationToken = uuidv4();
 
-    // Vloženie užívateľa
+    // TU JE LOGIKA:
+    // Ak užívateľ zaškrtol "Nemám záujem" (noMarketingChecked === true), zapíšeme NULL.
+    // Ak nezaškrtol (chce maily), zapíšeme TRUE.
+    const marketingConsent = noMarketingChecked ? null : true;
+
+    // Vloženie užívateľa s marketing_consent
     const newUser = await client.query(
       `INSERT INTO users 
-      (first_name, last_name, email, password, address, role, created_at, verified, verification_token)
-       VALUES ($1, $2, $3, $4, $5, 'user', NOW(), false, $6) 
+      (first_name, last_name, email, password, address, role, created_at, verified, verification_token, marketing_consent)
+       VALUES ($1, $2, $3, $4, $5, 'user', NOW(), false, $6, $7) 
        RETURNING id, email, first_name`,
-      [firstName, lastName, email, hashedPassword, address, verificationToken]
+      [firstName, lastName, email, hashedPassword, address, verificationToken, marketingConsent]
     );
 
     await client.query('COMMIT');
@@ -1953,7 +2283,7 @@ app.post('/api/reset-password', async (req, res) => {
   // --- 1. PRIDANÁ VALIDÁCIA HESLA ---
   if (!newPassword || !PASSWORD_REGEX.test(newPassword)) {
     return res.status(400).json({
-      message: 'Heslo musí mať min. 8 znakov, veľké a malé písmeno, číslo a špeciálny znak.'
+      message: 'Heslo musí mať min. 8 znakov, veľké a malé písmeno a číslo.'
     });
   }
 
@@ -2015,7 +2345,7 @@ app.post('/api/login', async (req, res) => {
     if (result.rows.length > 0) {
       const user = result.rows[0];
       const validPassword = await bcrypt.compare(password, user.password);
-      
+
       if (validPassword) {
         if (!user.verified) {
           return res.status(403).json({ message: 'Please verify your email before logging in.' });
@@ -2023,21 +2353,23 @@ app.post('/api/login', async (req, res) => {
 
         // --- NOVÁ LOGIKA PRE ROLU ---
         // Skontrolujeme, či je v .env zozname adminov
-        let userRole = user.role; 
+        let userRole = user.role;
         if (user.role === 'admin') {
           userRole = 'admin';
         }
 
         // Uložíme do session (pre backend checky)
         req.session.userId = user.id;
-        req.session.role = userRole; 
+        req.session.role = userRole;
 
-        console.log('Session after login:', req.session);
+        if (DEBUG_LOGS) {
+          console.log('[Login] User authenticated:', {userId: user.id, role: userRole, email: user.email});
+        }
 
         // VRÁTIME ROLE FRONTENDU (aby React vedel zobraziť menu)
-        res.json({ 
-          message: 'Login successful', 
-          userId: user.id, 
+        res.json({
+          message: 'Login successful',
+          userId: user.id,
           userName: `${user.first_name} ${user.last_name}`,
           role: userRole // <--- TOTO JE KĽÚČOVÉ
         });
@@ -2101,10 +2433,10 @@ app.get('/api/users/:id', async (req, res) => {
     if (result.rows.length > 0) {
       const user = result.rows[0];
 
-// Check DB role
-        let userRole = user.role;
-        if (userRole !== 'admin') {
-          // Role not admin from DB, stay as is
+      // Check DB role
+      let userRole = user.role;
+      if (userRole !== 'admin') {
+        // Role not admin from DB, stay as is
       }
 
       // Vrátime dáta, ale prepíšeme rolu tou správnou
@@ -2144,7 +2476,7 @@ app.get('/api/check-availability', async (req, res) => {
         return res.status(404).json({ error: `Training type '${trainingType}' not found` });
       }
       const trainingTypeId = typeIdResult.rows[0].id;
-      
+
       const time24 = to24Hour(selectedTime);
       const trainingDateTimeUtc = toUtcDateTime(selectedDate, time24);
       trainingResult = await pool.query(
@@ -2333,7 +2665,7 @@ app.post('/api/replace-booking/:bookingId', isAuthenticated, async (req, res) =>
     const availabilityResult = await client.query(
       `SELECT ta.id, ta.max_participants, COALESCE(SUM(b.number_of_children),0) AS booked
        FROM training_availability ta
-       LEFT JOIN bookings b ON ta.id = b.training_id
+       LEFT JOIN bookings b ON ta.id = b.training_id AND b.active = true
        WHERE ta.id = $1
        GROUP BY ta.id`,
       [newTrainingId]
@@ -2397,7 +2729,7 @@ app.get('/api/replacement-sessions/:bookingId', isAuthenticated, async (req, res
       `SELECT ta.id, ta.training_type, ta.training_date, ta.max_participants,
               (ta.max_participants - COALESCE(SUM(b.number_of_children), 0)) as available_spots
        FROM training_availability ta
-       LEFT JOIN bookings b ON ta.id = b.training_id
+       LEFT JOIN bookings b ON ta.id = b.training_id AND b.active = true
        WHERE ta.training_type_id = $1 
          AND ta.training_date > $2
          AND ta.id != $3
@@ -3167,7 +3499,7 @@ app.post('/api/bookings/use-credit', async (req, res) => {
     // 5. Prepare data
     const finalChildrenAges = childrenAges || credit.children_ages || '';
     const rawConsent = photoConsent !== undefined ? photoConsent : credit.photo_consent;
-    const finalPhotoConsent = (rawConsent === true || rawConsent === 'true');
+    const finalPhotoConsent = (rawConsent === true || rawConsent === 'true') ? true : null;
     const finalMobile = mobile || credit.mobile || '';
     const finalNote = note || credit.note || '';
     const finalAccompanyingPerson = accompanyingPerson !== undefined ? accompanyingPerson : (credit.accompanying_person || false);
@@ -3215,7 +3547,7 @@ app.post('/api/bookings/use-credit', async (req, res) => {
       // 1. User Email
       await emailService.sendUserBookingEmail(user.email, {
         date: training.training_date,
-        start_time: dayjs(training.training_date).format('HH:mm'), // Alebo ak máš selectedTime v body
+        start_time: dayjs(training.training_date).tz(APP_TIMEZONE).format('HH:mm'), // Alebo ak máš selectedTime v body
         trainingType: training.training_type,
         userName: user.first_name,
         paymentType: 'credit'
@@ -3270,7 +3602,7 @@ app.get('/api/get-session-id', async (req, res) => {
       return res.status(404).json({ error: `Training type '${training_type}' not found` });
     }
     const trainingTypeId = typeIdResult.rows[0].id;
-    
+
     // Parse time (e.g., '01:00 PM' -> '13:00:00')
     const time24 = to24Hour(time);
     const trainingDateTimeUtc = toUtcDateTime(date, time24);
@@ -3409,6 +3741,7 @@ app.get('/api/blog-posts', async (req, res) => {
         bp.slug, 
         bp.perex, 
         bp.content, 
+        bp.source_url,
         bp.image_url, 
         bp.label_id,
         bp.created_at, 
@@ -3428,22 +3761,22 @@ app.get('/api/blog-posts', async (req, res) => {
 
 app.post('/api/admin/blog-posts', isAdmin, async (req, res) => {
   try {
-    const { title, perex, content, image_url, label_id } = req.body;
-    
+    const { title, perex, content, source_url, image_url, label_id } = req.body;
+
     let slug = createSlug(title);
-    
+
     const check = await pool.query('SELECT id FROM blog_posts WHERE slug = $1', [slug]);
     if (check.rows.length > 0) {
       slug = `${slug}-${Date.now()}`;
     }
 
     const result = await pool.query(
-      `INSERT INTO blog_posts (title, slug, perex, content, image_url, label_id, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      `INSERT INTO blog_posts (title, slug, perex, content, source_url, image_url, label_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
        RETURNING *`,
-      [title, slug, perex, content || null, image_url || null, label_id || null]
+      [title, slug, perex, content || null, source_url || null, image_url || null, label_id || null]
     );
-    
+
     console.log(`✅ Blog post created: ${title} with label_id: ${label_id}`);
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -3455,22 +3788,22 @@ app.post('/api/admin/blog-posts', isAdmin, async (req, res) => {
 app.put('/api/admin/blog-posts/:id', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, perex, content, image_url, label_id } = req.body;
-    
+    const { title, perex, content, source_url, image_url, label_id } = req.body;
+
     const slug = createSlug(title);
 
     const result = await pool.query(
       `UPDATE blog_posts 
-       SET title = $1, slug = $2, perex = $3, content = $4, image_url = $5, label_id = $6, updated_at = NOW()
-       WHERE id = $7
+       SET title = $1, slug = $2, perex = $3, content = $4, source_url = $5, image_url = $6, label_id = $7, updated_at = NOW()
+       WHERE id = $8
        RETURNING *`,
-      [title, slug, perex, content || null, image_url || null, label_id || null, id]
+      [title, slug, perex, content || null, source_url || null, image_url || null, label_id || null, id]
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Post not found' });
     }
-    
+
     console.log(`✅ Blog post updated: ${title} with label_id: ${label_id}`);
     res.json(result.rows[0]);
   } catch (error) {
@@ -3496,7 +3829,7 @@ app.delete('/api/admin/blog-posts/:id', isAdmin, async (req, res) => {
 app.get('/api/blog-posts/:idOrSlug', async (req, res) => {
   try {
     const { idOrSlug } = req.params;
-    
+
     console.log(`🔍 Hľadám článok podľa: "${idOrSlug}"`);
 
     let query;
@@ -3505,8 +3838,8 @@ app.get('/api/blog-posts/:idOrSlug', async (req, res) => {
     const isId = /^\d+$/.test(idOrSlug);
 
     if (isId) {
-       console.log('👉 Detekované ako ID (číslo)');
-       query = `
+      console.log('👉 Detekované ako ID (číslo)');
+      query = `
          SELECT 
            bp.*, 
            bl.name as label_name,
@@ -3515,10 +3848,10 @@ app.get('/api/blog-posts/:idOrSlug', async (req, res) => {
          LEFT JOIN blog_labels bl ON bp.label_id = bl.id
          WHERE bp.id = $1
        `;
-       params = [parseInt(idOrSlug)];
+      params = [parseInt(idOrSlug)];
     } else {
-       console.log('👉 Detekované ako SLUG (text)');
-       query = `
+      console.log('👉 Detekované ako SLUG (text)');
+      query = `
          SELECT 
            bp.*,
            bl.name as label_name,
@@ -3527,16 +3860,16 @@ app.get('/api/blog-posts/:idOrSlug', async (req, res) => {
          LEFT JOIN blog_labels bl ON bp.label_id = bl.id
          WHERE bp.slug = $1
        `;
-       params = [idOrSlug];
+      params = [idOrSlug];
     }
 
     const result = await pool.query(query, params);
-    
+
     if (result.rows.length === 0) {
       console.log('❌ Článok nebol nájdený v DB');
       return res.status(404).json({ error: 'Post not found' });
     }
-    
+
     console.log(`✅ Článok nájdený: ${result.rows[0].title}`);
     res.json(result.rows[0]);
 
@@ -3580,37 +3913,37 @@ app.post('/api/admin/upload-blog-image', isAdmin, upload.single('image'), async 
 app.delete('/api/admin/delete-blog-image', isAdmin, async (req, res) => {
   try {
     const { imageUrl } = req.body;
-    
+
     if (!imageUrl) {
       return res.status(400).json({ error: 'Chýba URL obrázka' });
     }
 
     const filename = path.basename(imageUrl);
     const filePath = path.join(uploadDir, filename);
-    
+
     // ✅ Zmaž aj thumbnail
     const thumbFilename = filename.replace('.webp', '-thumb.webp');
     const thumbPath = path.join(uploadDir, thumbFilename);
-    
+
     let deletedFiles = [];
-    
+
     // Zmaž hlavný obrázok
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
       deletedFiles.push(filename);
       console.log(`🗑️ Obrázok zmazaný: ${filename}`);
     }
-    
+
     // ✅ Zmaž thumbnail ak existuje
     if (fs.existsSync(thumbPath)) {
       fs.unlinkSync(thumbPath);
       deletedFiles.push(thumbFilename);
       console.log(`🗑️ Thumbnail zmazaný: ${thumbFilename}`);
     }
-    
+
     if (deletedFiles.length > 0) {
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         message: 'Obrázok bol zmazaný',
         deletedFiles: deletedFiles
       });
@@ -3650,11 +3983,11 @@ app.get('/api/blog-labels/:id', async (req, res) => {
       'SELECT id, name, color, created_at FROM blog_labels WHERE id = $1',
       [id]
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Label not found' });
     }
-    
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error fetching blog label:', error);
@@ -3666,7 +3999,7 @@ app.get('/api/blog-labels/:id', async (req, res) => {
 app.post('/api/admin/blog-labels', isAdmin, async (req, res) => {
   try {
     const { name, color } = req.body;
-    
+
     if (!name || !color) {
       return res.status(400).json({ error: 'Name and color are required' });
     }
@@ -3687,7 +4020,7 @@ app.post('/api/admin/blog-labels', isAdmin, async (req, res) => {
        RETURNING *`,
       [name.trim(), color]
     );
-    
+
     console.log(`✅ Label created: ${name} (${color})`);
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -3723,11 +4056,11 @@ app.put('/api/admin/blog-labels/:id', isAdmin, async (req, res) => {
        RETURNING *`,
       [name.trim(), color, id]
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Label not found' });
     }
-    
+
     console.log(`✅ Label updated: ${name} (${color})`);
     res.json(result.rows[0]);
   } catch (error) {
@@ -3740,25 +4073,25 @@ app.put('/api/admin/blog-labels/:id', isAdmin, async (req, res) => {
 app.delete('/api/admin/blog-labels/:id', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // First, remove label_id from all posts that use this label
     await pool.query(
       'UPDATE blog_posts SET label_id = NULL WHERE label_id = $1',
       [id]
     );
-    
+
     // Then delete the label
     const result = await pool.query(
       'DELETE FROM blog_labels WHERE id = $1 RETURNING id, name',
       [id]
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Label not found' });
     }
-    
+
     console.log(`🗑️ Label deleted: ${result.rows[0].name}`);
-    res.json({ 
+    res.json({
       message: 'Label deleted successfully',
       deletedLabel: result.rows[0]
     });
@@ -3964,7 +4297,7 @@ app.delete('/api/users/:id', async (req, res) => {
       ORDER BY ta.training_date ASC
     `, [userIdToDelete]);
 
-    // Platné permanentky s nevyužitými vstupmi
+    // Platné permanentky s nevyužitými vstupmi (opravený JOIN)
     const activeSeasonTicketsResult = await client.query(`
       SELECT 
         st.id,
@@ -3973,9 +4306,9 @@ app.delete('/api/users/:id', async (req, res) => {
         st.entries_total,
         st.entries_remaining,
         st.amount_paid,
-        tt.name as training_type_name
+        stp.name as training_type_name
       FROM season_tickets st
-      LEFT JOIN training_types tt ON st.training_type_id = tt.id
+      LEFT JOIN season_ticket_products stp ON st.season_ticket_product_id = stp.id
       WHERE st.user_id = $1 
         AND st.expiry_date > NOW()
         AND st.entries_remaining > 0
@@ -4022,7 +4355,7 @@ app.delete('/api/users/:id', async (req, res) => {
     if (userInfo && userInfo.email) {
       console.log(`Sending delete email to: ${userInfo.email}`);
       emailService.sendAccountDeletedEmail(
-        userInfo.email, 
+        userInfo.email,
         userNameForEmail,
         {
           activeBookings,
@@ -4061,6 +4394,32 @@ app.delete('/api/users/:id', async (req, res) => {
     client.release();
   }
 });
+
+// === PENDING PAYMENT CLEANUP ===
+// Run every 6 hours to clean up old pending payments (older than 24 hours)
+setInterval(async () => {
+  try {
+    const client = await pool.connect();
+    
+    // Delete pending bookings older than 24 hours (no payment confirmed)
+    const result = await client.query(`
+      DELETE FROM bookings
+      WHERE active = false 
+        AND amount_paid IS NULL 
+        AND booking_type = 'paid'
+        AND booked_at < NOW() - INTERVAL '24 hours'
+      RETURNING id
+    `);
+
+    if (result.rows.length > 0) {
+      console.log(`[CLEANUP] Removed ${result.rows.length} old pending bookings`);
+    }
+    
+    client.release();
+  } catch (err) {
+    console.error('[CLEANUP] Error removing old pending bookings:', err.message);
+  }
+}, 6 * 60 * 60 * 1000); // Run every 6 hours
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

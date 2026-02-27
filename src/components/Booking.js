@@ -12,6 +12,7 @@ import api from '../api/api';
 import { HexColorPicker } from "react-colorful";
 
 const Booking = () => {
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(localStorage.getItem('isLoggedIn') === 'true');
   const [userData, setUserData] = useState(null);
   const [trainingType, setTrainingType] = useState('');
@@ -38,6 +39,20 @@ const Booking = () => {
   const [trainingTypes, setTrainingTypes] = useState([]);
   const [selectedTypeObj, setSelectedTypeObj] = useState(null);
   const [showCreateTypeModal, setShowCreateTypeModal] = useState(false);
+
+  // Scroll to top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollButton(window.scrollY > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   const [newTypeName, setNewTypeName] = useState('');
   const [newTypeDesc, setNewTypeDesc] = useState('');
   const [newTypePrice1, setNewTypePrice1] = useState(15);
@@ -115,7 +130,13 @@ const Booking = () => {
     if (!useSeasonTicket) return;
 
     const selectedTicket = seasonTickets.find(ticket => ticket.id === parseInt(selectedSeasonTicket));
-    if (selectedTicket && selectedTypeObj && selectedTicket.training_type_id !== selectedTypeObj.id) {
+    const ticketMatchesType = selectedTicket && selectedTypeObj
+      ? Array.isArray(selectedTicket.training_types)
+        ? selectedTicket.training_types.some((type) => type.id === selectedTypeObj.id)
+        : false
+      : true;
+
+    if (selectedTicket && selectedTypeObj && !ticketMatchesType) {
       setUseSeasonTicket(false);
       setSelectedSeasonTicket('');
     }
@@ -504,7 +525,7 @@ const Booking = () => {
           creditId: selectedCredit.id,
           trainingId: trainingId,
           childrenAges: childrenAges.join(', '),
-          photoConsent: photoConsent,
+          photoConsent: photoConsent === true ? true : null,
           mobile: mobile,
           note: note,
           accompanyingPerson: accompanyingPerson
@@ -552,9 +573,9 @@ const Booking = () => {
         }
 
         if (selectedTicket.entries_remaining < childrenCount) {
+          const message = t?.booking?.notEnoughEntries || 'Not enough entries in your season ticket. Needed: {needed}, Available: {available}';
           setWarningMessage(
-            t?.booking?.notEnoughEntries?.replace('{needed}', childrenCount)?.replace('{available}', selectedTicket.entries_remaining) ||
-            `Not enough entries in your season ticket. Needed: ${childrenCount}, Available: ${selectedTicket.entries_remaining}`
+            message.replace('{needed}', childrenCount).replace('{available}', selectedTicket.entries_remaining)
           );
           setLoading(false);
           return;
@@ -576,7 +597,7 @@ const Booking = () => {
           selectedTime,
           childrenCount,
           childrenAge: childrenAgeString,
-          photoConsent,
+          photoConsent: photoConsent === true ? true : null,
           mobile,
           note,
           accompanyingPerson: false,
@@ -596,13 +617,18 @@ const Booking = () => {
           childrenCount,
           childrenAge: childrenAgeString,
           totalPrice: calculateTotalPrice(),
-          photoConsent,
+          photoConsent: photoConsent === true ? true : null,
           mobile,
           note,
           accompanyingPerson,
         });
 
         const stripe = await stripePromise;
+        
+        // Store booking ID and session ID for recovery if payment fails
+        localStorage.setItem('pendingBookingId', paymentSession.data.bookingId);
+        localStorage.setItem('pendingSessionId', paymentSession.data.sessionId);
+        
         const { error } = await stripe.redirectToCheckout({
           sessionId: paymentSession.data.sessionId,
         });
@@ -611,6 +637,17 @@ const Booking = () => {
       }
     } catch (error) {
       console.error('Booking error:', error);
+
+      if (error.response?.status === 401) {
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userRole');
+        setWarningMessage('Relácia vypršala. Prihláste sa prosím znova.');
+        setLoading(false);
+        navigate('/login');
+        return;
+      }
 
       if (error.response?.data?.error) {
         setWarningMessage(error.response.data.error);
@@ -673,14 +710,14 @@ const Booking = () => {
 
   const selectCredit = (credit, fillForm = false) => {
     setSelectedCredit(credit);
-    
+
     // Nájdi ID typu na základe mena
     const creditType = trainingTypes.find(t => t.name === credit.training_type);
     if (creditType) {
       setTrainingTypeId(creditType.id);
       setTrainingType(credit.training_type);
     }
-    
+
     setChildrenCount(credit.child_count);
     setAccompanyingPerson(credit.accompanying_person === true);
 
@@ -775,11 +812,24 @@ const Booking = () => {
   }
 
   const availableSeasonTickets = selectedTypeObj
-    ? seasonTickets.filter(ticket => parseInt(ticket.training_type_id, 10) === selectedTypeObj.id)
+    ? seasonTickets.filter((ticket) =>
+      Array.isArray(ticket.training_types)
+        ? ticket.training_types.some((type) => type.id === selectedTypeObj.id)
+        : false
+    )
     : seasonTickets;
 
   return (
-    <div className="max-w-6xl mx-auto mt-8 px-4 sm:px-6">
+    <div className="max-w-6xl mx-auto mt-8 px-4 sm:px-6 relative">
+      {showScrollButton && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 border-2 border-gray-700 text-gray-700 hover:text-gray-900 hover:border-gray-900 hover:shadow-2xl rounded-full shadow-lg transition-all duration-300 z-50 bg-white/80 w-16 h-16 flex items-center justify-center"
+          aria-label="Scroll to top"
+        >
+          <span className="text-3xl font-black leading-none translate-y-1">^</span>
+        </button>
+      )}
       <h2 className="text-3xl font-bold text-center text-primary-600 mb-8">
         {t?.booking?.title || 'Book Your Training'}
       </h2>
@@ -1442,16 +1492,17 @@ const Booking = () => {
                         value={selectedSeasonTicket}
                         onChange={(e) => setSelectedSeasonTicket(e.target.value)}
                         required={useSeasonTicket}
-                        className="w-full text-lg py-3"
+                        className="w-full text-xs sm:text-sm md:text-base py-3"
+                        style={{ whiteSpace: 'normal' }}
                       >
                         <option value="">{t?.booking?.selectSeasonTicket || 'Choose a Season Ticket'}</option>
                         {availableSeasonTickets.map((ticket) => (
                           <option key={ticket.id} value={ticket.id}>
                             {t?.booking?.seasonTicketOption || 'Season Ticket'} #{ticket.id}
-                            {ticket.training_type_name ? ` - ${ticket.training_type_name}` : ''}
+                            {ticket.product_name || ticket.product_code ? ` - ${ticket.product_name || ticket.product_code}` : ''}
                             ({t?.booking?.seasonTicketEntries?.replace('{count}', ticket.entries_remaining) || `Entries: ${ticket.entries_remaining}`})
                             {ticket.entries_remaining < childrenCount && (
-                              <span className="text-red-500"> - {t?.booking?.notEnoughEntries || 'Not enough entries'}</span>
+                              ` - ${(t?.booking?.notEnoughEntries || 'Nedostatok vstupov vo vašej permanentke. Potrebujete: {needed}, Dostupné: {available}').replace('{needed}', childrenCount).replace('{available}', ticket.entries_remaining)}`
                             )}
                           </option>
                         ))}
@@ -1472,51 +1523,28 @@ const Booking = () => {
             </h5>
           </div>
           <div className="p-6">
-            <Form.Group className="mb-6">
-              <Form.Label className="font-bold text-gray-800">
-                {t?.booking?.photoConsent || 'Photo Publication Consent'} <span className="text-red-500">*</span>
-              </Form.Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className={`border rounded-lg p-4 h-full transition-all duration-200 ${photoConsent === true
-                  ? "border-green-500 bg-green-50 shadow-sm"
-                  : "border-gray-300 hover:border-gray-400"
-                  }`}>
-                  <Form.Check
-                    type="radio"
-                    name="photoConsent"
-                    id="photoConsentAgree"
-                    checked={photoConsent === true}
-                    onChange={() => setPhotoConsent(true)}
-                    required
-                    label={
-                      <span className={photoConsent === true ? "font-bold text-green-600" : "text-gray-700"}>
-                        <i className="bi bi-check-circle me-2"></i>
-                        {t?.booking?.agree || 'AGREE to publish photos of my children'}
-                      </span>
-                    }
-                  />
-                </div>
-                <div className={`border rounded-lg p-4 h-full transition-all duration-200 ${photoConsent === false
-                  ? "border-secondary-600 bg-secondary-50 shadow-sm"
-                  : "border-gray-300 hover:border-gray-400"
-                  }`}>
-                  <Form.Check
-                    type="radio"
-                    name="photoConsent"
-                    id="photoConsentDisagree"
-                    checked={photoConsent === false}
-                    onChange={() => setPhotoConsent(false)}
-                    required
-                    label={
-                      <span className={photoConsent === false ? "font-bold text-secondary-600" : "text-gray-700"}>
-                        <i className="bi bi-x-circle me-2"></i>
-                        {t?.booking?.disagree || 'DISAGREE to publish photos of my children'}
-                      </span>
-                    }
-                  />
-                </div>
-              </div>
+            <Form.Group className="mb-3">
+              <Form.Check
+                type="checkbox"
+                id="photoConsent"
+                checked={photoConsent === true}
+                onChange={e => setPhotoConsent(e.target.checked ? true : null)}
+                label={
+                  <span className="text-sm text-gray-700 leading-relaxed">
+                    Ako zákonní zástupcovia dieťaťa udeľujeme občianske združenie Nitráčik o.z. súhlas na spracúvanie fotografií, videí nášho dieťaťa. Informáciu o podmienkach spracúvania osobných údajov nájdete{' '}
+                    <a
+                      href="/photo-consent-info"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 font-bold underline hover:no-underline transition-colors"
+                    >
+                      TU
+                    </a>
+                  </span>
+                }
+              />
             </Form.Group>
+
 
             {/* Checkbox - Service Consent (only for card payments) */}
             {!useSeasonTicket && !isCreditMode && (
@@ -1528,14 +1556,17 @@ const Booking = () => {
                   onChange={() => setServiceConsent(!serviceConsent)}
                   required
                   label={
-                    <span className="text-sm text-gray-700 leading-relaxed">
+                    <span className="text-sm text-gray-700 leading-relaxed font-semibold">
+                      Súhlasím so{' '}
                       <button
                         type="button"
                         onClick={() => setShowServiceConsentModal(true)}
-                        className="text-primary-600 hover:text-primary-700 underline font-medium"
+                        className="text-primary-600 hover:text-primary-700 underline font-medium px-0 inline"
+                        style={{ background: 'none', border: 'none', padding: 0, margin: 0, cursor: 'pointer' }}
                       >
-                        Súhlas so začatím poskytovania služby
+                        začatím poskytovania služby
                       </button>
+                      {' '}pred uplynutím lehoty na odstúpenie od zmluvy. (povinné)
                     </span>
                   }
                 />
@@ -1549,43 +1580,30 @@ const Booking = () => {
                 checked={consent}
                 onChange={() => setConsent(!consent)}
                 required
-                label={
-                  <span className="text-sm text-gray-700 leading-relaxed">
-                    {t.booking.consentText
-                      .split('{terms}')
-                      .map((part, index) => (
-                        /* ZMENA: Použitie React.Fragment s kľúčom namiesto <> */
-                        <React.Fragment key={index}>
-                          {index === 0 ? (
-                            <>
-                              {part}
-                              <a
-                                href="/terms"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary-600 hover:text-primary-700 underline font-medium"
-                              >
-                                {t.booking.terms}
-                              </a>
-                            </>
-                          ) : (
-                            <>
-                              {part.split('{privacy}')[0]}
-                              <a
-                                href="/gdpr"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary-600 hover:text-primary-700 underline font-medium"
-                              >
-                                {t.booking.privacy}
-                              </a>
-                              {part.split('{privacy}')[1]}
-                            </>
-                          )}
-                        </React.Fragment>
-                      ))}
-                  </span>
-                }
+                  label={
+                    <span className="text-sm text-gray-700 leading-relaxed font-semibold">
+                      Vyjadrujem súhlas so{' '}
+                      <a
+                        href="/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-600 hover:text-primary-700 underline font-medium"
+                      >
+                        Všeobecnými obchodnými podmienkami
+                      </a>
+                      {' '}a beriem na vedomie, že Informáciu o spracúvaní osobných údajov nájdem{' '}
+                      <a
+                        href="/gdpr"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary-600 hover:text-primary-700 underline font-medium"
+                      >
+                        TU
+                      </a>.
+                      {' '}<span className="font-semibold">(povinné)</span>
+                    </span>
+                  }
+                style={{ marginBottom: '24px' }}
               />
             </Form.Group>
           </div>
@@ -1740,7 +1758,7 @@ const Booking = () => {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto">
             {/* Header */}
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-900">Súhlas so začatím poskytovania služby</h2>
+              <h2 className="text-xl font-bold text-gray-900">{t?.booking?.serviceConsentTitle || 'Súhlas so začatím poskytovania služby'}</h2>
               <button
                 onClick={closeServiceConsentModal}
                 className="text-gray-500 hover:text-gray-700"

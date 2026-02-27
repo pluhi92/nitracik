@@ -276,7 +276,8 @@ const Archive = () => {
                                                                         </div>
                                                                         {session.booking_type && (
                                                                             <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                                                                                {session.booking_type === 'paid' && '💰 Zaplatené'}
+                                                                                {session.booking_type === 'paid' && session.amount_paid > 0 && '💰 Zaplatené'}
+                                                                                {session.booking_type === 'paid' && (!session.amount_paid || session.amount_paid === 0) && '⏳ Čakajúce'}
                                                                                 {session.booking_type === 'credit' && '💳 Kredit'}
                                                                                 {session.booking_type === 'season_ticket' && '🎫 Permanentka'}
                                                                             </div>

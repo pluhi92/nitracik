@@ -23,6 +23,7 @@ const Blog = ({ limit = null, showViewAll = true }) => {
     title: '',
     perex: '',
     content: '',
+    source_url: '',
     image_url: '',
     label_id: null
   });
@@ -190,7 +191,7 @@ const Blog = ({ limit = null, showViewAll = true }) => {
       });
 
       setShowCreateModal(false);
-      setFormData({ title: '', perex: '', content: '', image_url: '', label_id: null });
+      setFormData({ title: '', perex: '', content: '', source_url: '', image_url: '', label_id: null });
       setSelectedFile(null);
       setImagePreview(null);
       setUploadMethod('url');
@@ -255,7 +256,7 @@ const Blog = ({ limit = null, showViewAll = true }) => {
   };
 
   const handleOpenCreateModal = () => {
-    setFormData({ title: '', perex: '', content: '', image_url: '', label_id: null });
+    setFormData({ title: '', perex: '', content: '', source_url: '', image_url: '', label_id: null });
     setSelectedFile(null);
     setImagePreview(null);
     setUploadMethod('url');
@@ -269,6 +270,7 @@ const Blog = ({ limit = null, showViewAll = true }) => {
       title: post.title,
       perex: post.perex,
       content: post.content || '',
+      source_url: post.source_url || '',
       image_url: post.image_url || '',
       label_id: post.label_id || null
     });
@@ -502,6 +504,18 @@ const Blog = ({ limit = null, showViewAll = true }) => {
                 onChange={(e) => setFormData({ ...formData, content: e.target.value })}
               />
             </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Zdroj (URL)</Form.Label>
+              <Form.Control
+                type="text"
+                value={formData.source_url}
+                onChange={(e) => setFormData({ ...formData, source_url: e.target.value })}
+                placeholder="https://priklad.sk"
+              />
+              <Form.Text className="text-muted">
+                Voliteľné: URL zdroja článku. Ak je vyplnené, zobrazí sa ako odkaz na konci článku.
+              </Form.Text>
+            </Form.Group>
             {/* LABEL SELECTOR */}
             <Form.Group className="mb-3">
               <Form.Label>Kategória článku</Form.Label>
@@ -699,6 +713,18 @@ const Blog = ({ limit = null, showViewAll = true }) => {
                 value={formData.content}
                 onChange={(e) => setFormData({ ...formData, content: e.target.value })}
               />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Zdroj (URL)</Form.Label>
+              <Form.Control
+                type="text"
+                value={formData.source_url}
+                onChange={(e) => setFormData({ ...formData, source_url: e.target.value })}
+                placeholder="https://priklad.sk"
+              />
+              <Form.Text className="text-muted">
+                Voliteľné: URL zdroja článku. Ak je vyplnené, zobrazí sa ako odkaz na konci článku.
+              </Form.Text>
             </Form.Group>
             {/* LABEL SELECTOR */}
             <Form.Group className="mb-3">

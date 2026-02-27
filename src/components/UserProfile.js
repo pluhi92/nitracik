@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Modal, Button } from 'react-bootstrap';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Tooltip } from 'react-tooltip';
@@ -14,6 +14,16 @@ const SpinnerIcon = ({ className }) => (
 
 const UserProfile = () => {
   const { t } = useTranslation();
+  const location = useLocation();
+
+  // Scroll to top when component mounts or location changes
+  useEffect(() => {
+    setTimeout(() => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }, 0);
+  }, [location]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -494,7 +504,9 @@ const UserProfile = () => {
                                       ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                                       : participant.booking_type === 'paid' && participant.active === false
                                         ? 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200'
-                                        : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                        : participant.booking_type === 'paid' && (!participant.amount_paid || participant.amount_paid === 0)
+                                          ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                                          : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                                   }
                                 `}>
                                   {participant.booking_type === 'credit'
@@ -503,7 +515,9 @@ const UserProfile = () => {
                                       ? '🎫 Season Ticket'
                                       : participant.booking_type === 'paid' && participant.active === false
                                         ? '❌ Cancelled'
-                                        : '💰 Paid'}
+                                        : participant.booking_type === 'paid' && (!participant.amount_paid || participant.amount_paid === 0)
+                                          ? '⏳ Pending'
+                                          : '💰 Paid'}
                                 </span>
                                 {participant.amount_paid > 0 && (
                                   <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
@@ -983,7 +997,7 @@ const UserProfile = () => {
                           {ticket.email}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
-                          {ticket.training_type_name || ticket.training_type || '-'}
+                          {ticket.product_name || ticket.product_code || ticket.training_type_name || ticket.training_type || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                           {ticket.entries_total}
@@ -1068,7 +1082,12 @@ const UserProfile = () => {
                     {activeTickets.map((ticket, index) => (
                       <tr key={`${ticket.id || 'ticket'}-${ticket.purchase_date || ''}-${index}`} className="hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">
-                          {ticket.training_type_name || ticket.training_type || '-'}
+                          <div>{ticket.product_name || ticket.product_code || ticket.training_type_name || ticket.training_type || '-'}</div>
+                          {ticket.training_types && ticket.training_types.length > 0 && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {ticket.training_types.map((type) => type.name).join(', ')}
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
                           {ticket.entries_total}
@@ -1116,7 +1135,12 @@ const UserProfile = () => {
                         {historyTickets.map((ticket, index) => (
                           <tr key={`${ticket.id || 'ticket'}-${ticket.purchase_date || ''}-${index}`}>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                              {ticket.training_type_name || ticket.training_type || '-'}
+                              <div>{ticket.product_name || ticket.product_code || ticket.training_type_name || ticket.training_type || '-'}</div>
+                              {ticket.training_types && ticket.training_types.length > 0 && (
+                                <div className="text-xs text-gray-400">
+                                  {ticket.training_types.map((type) => type.name).join(', ')}
+                                </div>
+                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
                               {ticket.entries_remaining === 0 ? (
@@ -1194,17 +1218,8 @@ const UserProfile = () => {
                       };
                     }
 
-                    // PRIORITA 2: Fallback na credit_id (pre starší kód)
-                    if (session.credit_id) {
-                      return {
-                        type: 'credit',
-                        label: t?.profile?.bookingMethods?.credit || '💳 Kredit',
-                        badgeClass: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                      };
-                    }
-
-                    // PRIORITA 3: Platená rezervácia
-                    if (session.booking_type === 'paid' || (session.amount_paid && session.amount_paid > 0)) {
+                    // PRIORITA 3: Platená rezervácia (MUST have both conditions)
+                    if (session.booking_type === 'paid' && session.amount_paid && session.amount_paid > 0) {
                       return {
                         type: 'paid',
                         label: t?.profile?.bookingMethods?.paid || '💰 Zaplatené',
@@ -1212,7 +1227,16 @@ const UserProfile = () => {
                       };
                     }
 
-                    // PRIORITA 4: Neznámy typ (fallback)
+                    // PRIORITA 4: Pending platená rezervácia (bez potvrdenia)
+                    if (session.booking_type === 'paid' && (!session.amount_paid || session.amount_paid === 0)) {
+                      return {
+                        type: 'pending',
+                        label: t?.profile?.bookingMethods?.pending || '⏳ Čaká sa na platbu',
+                        badgeClass: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                      };
+                    }
+
+                    // PRIORITA 5: Neznámy typ (fallback)
                     return {
                       type: 'unknown',
                       label: t?.profile?.bookingMethods?.reservation || 'Rezervácia',

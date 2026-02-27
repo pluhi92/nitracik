@@ -73,6 +73,7 @@ const AboutUs = () => {
   ];
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   // User Context
   const { user } = useUser();
@@ -197,6 +198,16 @@ useEffect(() => {
     return () => window.removeEventListener('resize', updateCardsPerView);
   }, []);
 
+  // Scroll to top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollButton(window.scrollY > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
 // ✅ SAMOSTATNÝ EFFECT PRE NAČÍTANIE ADMIN DÁT - updatovaný
 useEffect(() => {
   const loadAdminConfig = async () => {
@@ -277,11 +288,23 @@ useEffect(() => {
     }
   }, [showAboutEditModal, aboutContent]);
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const reviewGapRem = reviewCardsPerView === 1 ? 0 : reviewCardsPerView === 2 ? 1.5 : 2;
 
   return (
-    <section className="px-6 py-12 text-center bg-inherit rounded-xl shadow-xl transition-colors duration-300 text-secondary">
+    <section className="relative px-6 py-12 text-center bg-inherit rounded-xl shadow-xl transition-colors duration-300 text-secondary">
+      {showScrollButton && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 border-2 border-gray-700 text-gray-700 hover:text-gray-900 hover:border-gray-900 hover:shadow-2xl rounded-full shadow-lg transition-all duration-300 z-50 bg-white/80 w-16 h-16 flex items-center justify-center"
+          aria-label="Scroll to top"
+        >
+          <span className="text-3xl font-black leading-none translate-y-1">^</span>
+        </button>
+      )}
       {/* Alert message */}
       {alertMessage.text && (
         <div className="max-w-6xl mx-auto mb-6">
@@ -345,13 +368,13 @@ useEffect(() => {
       </div>
 
       {/* About Us Text Section */}
-      <section className="max-w-6xl mx-auto px-6 py-12 mb-16 relative">
+      <section className="max-w-6xl mx-auto px-6 py-12 mb-16 bg-white rounded-xl shadow-lg relative">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
             <h2 className="text-3xl font-bold mb-6 text-secondary">
               {aboutContent.title}
             </h2>
-            <div className="prose prose-lg text-gray-700 dark:text-gray-300">
+            <div className="prose prose-lg text-gray-700 dark:text-gray-300 text-justify">
               <p>
                 {aboutContent.description}
               </p>
@@ -418,7 +441,7 @@ useEffect(() => {
               </a>
             </span>
           </div>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 mb-0">
             Overené recenzie z Google
           </p>
         </div>
@@ -553,7 +576,7 @@ useEffect(() => {
       <section className="max-w-6xl mx-auto px-6 py-12 mb-16 bg-white rounded-xl shadow-lg">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-secondary">
-            {t?.about?.meetTheOwner || 'Stretnite sa s majiteľkou'}
+            {t?.about?.meetTheOwner || 'Zoznámte sa so zakladateľkou'}
           </h2>
         </div>
 
@@ -572,23 +595,38 @@ useEffect(() => {
           </div>
 
           {/* Text */}
-          <div>
-            <h3 className="text-2xl font-bold mb-4">
-              Ahoj! Volám sa Saška
+          <div className="text-left">
+            <h3 className="text-2xl font-bold mb-4 text-center">
+              Ahoj! Volám sa Saška.
             </h3>
-            <div className="prose prose-lg text-gray-700 mb-6">
+            <div className="prose prose-lg text-gray-700 mb-6 text-justify">
               <p>
-                Ahoj! Volám sa Saška a stojím za lokálnym projektom Nitráčik.
-                Mojou vášňou je vytvárať priestor, kde sa deti môžu rozvíjať,
-                učiť sa novým veciam a hlavne - baviť sa!
+                Stojím za lokálnym projektom Nitráčik, ktorý od počiatku zahŕňam láskou,
+                nápadmi a tvorivou energiou. Úprimne verím a dúfam, že túto láskavú energiu
+                pocítiš nielen na webe, ale aj pri osobnom stretnutí na hodinách, v krásnych
+                priestoroch Nitráčika v srdci Nitry.
               </p>
               <p className="mt-4">
-                Verím, že každé dieťa má v sebe neobmedzený potenciál, a mojou
-                úlohou je pomôcť mu tento potenciál objaviť.
+                „Chcem aspoň trochou prispieť k tomu, aby bol tento svet lepším miestom pre život.. nielen pre môjho syna."
+              </p>
+              <p className="mt-4">
+                PREČO práve skrz Nitráčik o.z.? ..lebo je to
+              </p>
+              <ul className="list-disc pl-6 mt-2">
+                <li>ZMYSLUPLNÉ</li>
+                <li>KREATÍVNE</li>
+                <li>BAVÍ MA TO a</li>
+                <li>NAPĽŇA.</li>
+              </ul>
+              <p className="mt-4">
+                Nitráčik je “niečo” čo som dlho hľadala a našla.
+              </p>
+              <p className="mt-4">
+                Ďakujem, že si jeho súčasťou a podporuješ ho v jeho raste. 🤍
               </p>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 text-center">
               <Link
                 to="/contact"
                 className="inline-flex items-center text-primary-600 hover:text-primary-700 font-semibold"
@@ -690,7 +728,7 @@ useEffect(() => {
       </Modal>
 
       {/* Join Us Section */}
-      <div className="max-w-6xl mx-auto px-6 py-12 rounded-xl shadow-xl bg-overlay-90 backdrop-blur-sm">
+      <div className="max-w-6xl mx-auto px-6 py-8 rounded-xl shadow-xl bg-overlay-90 backdrop-blur-sm">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="text-left">
             <h2 className="text-3xl font-bold mb-6 text-secondary">
@@ -755,11 +793,11 @@ useEffect(() => {
             )}
           </div>
 
-          <div className="rounded-lg shadow-lg overflow-hidden">
+          <div className="rounded-lg shadow-lg overflow-hidden h-[350px] lg:h-auto">
             <img
               src="/images/nitracik_join_us.jpg"
               alt="Children enjoying messy sensory play at Nitracik"
-              className="w-full h-[350px] object-cover"
+              className="w-full h-full object-contain"
               onError={(e) => {
                 e.target.src = 'https://picsum.photos/500/350?random=6';
               }}

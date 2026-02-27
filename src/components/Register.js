@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from '../contexts/LanguageContext';
 import api from '../api/api';
 import { Turnstile } from '@marsidev/react-turnstile'; // IMPORT CLOUDFLARE TURNSTILE
@@ -27,6 +27,16 @@ const SpinnerIcon = ({ className }) => (
 const Register = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Scroll to top when component mounts or location changes
+  useEffect(() => {
+    setTimeout(() => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }, 0);
+  }, [location]);
 
   // --- STATE ---
   const [firstName, setFirstName] = useState('');
@@ -49,8 +59,10 @@ const Register = () => {
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [showStreetDropdown, setShowStreetDropdown] = useState(false);
 
-  // Checkbox
+  // Checkboxy
   const [agreementChecked, setAgreementChecked] = useState(false);
+  // Nový stav pre marketing
+  const [noMarketingChecked, setNoMarketingChecked] = useState(false);
 
   // Anti-bot & Security
   const [honey, setHoney] = useState('');
@@ -235,7 +247,8 @@ const Register = () => {
         firstName, lastName, email, password,
         address: fullAddress,
         _honey: honey,
-        turnstileToken: captchaToken // POSIELAME TURNSTILE TOKEN NA BACKEND
+        turnstileToken: captchaToken,
+        noMarketingChecked // <-- posielame rovno hodnotu checkboxu
       });
       setApiError(`success: ${response.data.message}`);
       setTimeout(() => navigate('/login'), 3000);
@@ -389,7 +402,7 @@ const Register = () => {
           </div>
 
           {/* HESLO */}
-          <div className="p-5 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
+          <div className="px-3 py-5 sm:p-5 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">{t?.login?.register?.password || 'Password'}</label>
               <div className="relative">
@@ -466,51 +479,59 @@ const Register = () => {
           </div>
 
           {/* CHECKBOX */}
-          <div className="flex items-start gap-3 pt-2">
-            <input
-              type="checkbox"
-              id="agreementChecked"
-              name="agreementChecked"
-              checked={agreementChecked}
-              onChange={(e) => setAgreementChecked(e.target.checked)}
-              className="mt-1 w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500 focus:ring-2 flex-shrink-0"
-            />
-
-            <label
-              htmlFor="agreementChecked"
-              className="text-xs sm:text-sm text-gray-700 leading-relaxed"
-            >
-              {(t?.login?.register?.consentText || '*I agree to the {terms} and declare that I have read the {privacy}.')
-                .split('{terms}')
-                .map((part, index) =>
-                  index === 0 ? (
-                    <>
-                      {part}
-                      <a
-                        href="/terms"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary-500 hover:text-primary-600 underline font-medium"
-                      >
-                        {t?.login?.register?.terms || 'Terms and Conditions'}
-                      </a>
-                    </>
-                  ) : (
-                    <>
-                      {part.split('{privacy}')[0]}
-                      <a
-                        href="/gdpr"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary-500 hover:text-primary-600 underline font-medium"
-                      >
-                        {t?.login?.register?.privacy || 'Privacy Policy'}
-                      </a>
-                      {part.split('{privacy}')[1]}
-                    </>
-                  )
-                )}
-            </label>
+          <div className="flex flex-col gap-2 pt-2">
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="agreementChecked"
+                name="agreementChecked"
+                checked={agreementChecked}
+                onChange={(e) => setAgreementChecked(e.target.checked)}
+                className="mt-1 w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500 focus:ring-2 flex-shrink-0"
+              />
+              <label
+                htmlFor="agreementChecked"
+                className="text-xs sm:text-sm text-gray-700 leading-relaxed font-semibold"
+              >
+                Vyjadrujem súhlas so{' '}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary-500 hover:text-primary-600 underline font-medium"
+                >
+                  Všeobecnými obchodnými podmienkami
+                </a>{' '}
+                a beriem na vedomie, že Informáciu o spracúvaní osobných údajov nájdem{' '}
+                <a
+                  href="/gdpr"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary-500 hover:text-primary-600 underline font-medium"
+                >
+                  TU
+                </a>.
+                {' '}<span className="font-semibold">(povinné)</span>
+              </label>
+            </div>
+            {/* NOVÝ DOBROVOĽNÝ CHECKBOX - MARKETING */}
+            <div className="flex items-start mt-4">
+              <div className="flex items-center h-5">
+                <input
+                  id="noMarketing"
+                  name="noMarketing"
+                  type="checkbox"
+                  checked={noMarketingChecked}
+                  onChange={(e) => setNoMarketingChecked(e.target.checked)}
+                  className="w-4 h-4 text-primary-600 bg-gray-50 border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
+                />
+              </div>
+              <div className="ml-3 text-sm">
+                <label htmlFor="noMarketing" className="text-gray-600 cursor-pointer">
+                  Nemám záujem, aby mi boli zasielané marketingové informácie o vlastných podobných tovaroch a službách súvisiacich s novinkami, súťažami, voľnými termínmi na tréningy, workshopy alebo senzorické hry
+                </label>
+              </div>
+            </div>
           </div>
 
           {/* --- CLOUDFLARE TURNSTILE IMPLEMENTÁCIA --- */}

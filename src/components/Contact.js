@@ -210,15 +210,14 @@ function Contact() {
                     htmlFor="agreementChecked"
                     className="text-xs sm:text-sm text-gray-700 leading-relaxed"
                   >
-                    Vyhlasujem, že som sa oboznámil/a so{' '}
+                    Vyhlasujem, že mi bola poskytnutá{' '}
                     <a
-                      href="/gdpr"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      href="/gdpr/contact-form"
                       className="text-primary-500 hover:text-primary-600 underline font-medium"
                     >
-                      Zásadami ochrany osobných údajov
+                      Informácia o spracúvaní osobných údajov
                     </a>
+                    .
                   </label>
                 </div>
 

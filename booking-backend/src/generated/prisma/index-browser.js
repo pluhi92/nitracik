@@ -190,10 +190,24 @@ exports.Prisma.Season_ticket_usageScalarFieldEnum = {
   created_at: 'created_at'
 };
 
+exports.Prisma.Season_ticket_productsScalarFieldEnum = {
+  id: 'id',
+  code: 'code',
+  name: 'name',
+  description: 'description',
+  active: 'active',
+  created_at: 'created_at'
+};
+
+exports.Prisma.Season_ticket_product_training_typesScalarFieldEnum = {
+  season_ticket_product_id: 'season_ticket_product_id',
+  training_type_id: 'training_type_id'
+};
+
 exports.Prisma.Season_ticketsScalarFieldEnum = {
   id: 'id',
   user_id: 'user_id',
-  training_type_id: 'training_type_id',
+  season_ticket_product_id: 'season_ticket_product_id',
   entries_total: 'entries_total',
   entries_remaining: 'entries_remaining',
   purchase_date: 'purchase_date',
@@ -207,7 +221,7 @@ exports.Prisma.Season_ticketsScalarFieldEnum = {
 
 exports.Prisma.Season_ticket_offersScalarFieldEnum = {
   id: 'id',
-  training_type_id: 'training_type_id',
+  season_ticket_product_id: 'season_ticket_product_id',
   entries: 'entries',
   price: 'price',
   active: 'active',
@@ -262,7 +276,8 @@ exports.Prisma.UsersScalarFieldEnum = {
   role: 'role',
   created_at: 'created_at',
   updated_at: 'updated_at',
-  mobile: 'mobile'
+  mobile: 'mobile',
+  marketing_consent: 'marketing_consent'
 };
 
 exports.Prisma.Blog_labelsScalarFieldEnum = {
@@ -278,6 +293,7 @@ exports.Prisma.Blog_postsScalarFieldEnum = {
   slug: 'slug',
   perex: 'perex',
   content: 'content',
+  source_url: 'source_url',
   image_url: 'image_url',
   created_at: 'created_at',
   updated_at: 'updated_at',
@@ -331,6 +347,8 @@ exports.Prisma.ModelName = {
   faqs: 'faqs',
   refunds: 'refunds',
   season_ticket_usage: 'season_ticket_usage',
+  season_ticket_products: 'season_ticket_products',
+  season_ticket_product_training_types: 'season_ticket_product_training_types',
   season_tickets: 'season_tickets',
   season_ticket_offers: 'season_ticket_offers',
   training_availability: 'training_availability',

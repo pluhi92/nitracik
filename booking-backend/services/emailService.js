@@ -2,7 +2,11 @@
 const nodemailer = require('nodemailer');
 const path = require('path');
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
 require('dayjs/locale/sk');
+dayjs.extend(utc);
+dayjs.extend(timezone);
 dayjs.locale('sk');
 
 // Nastavenie adresy odosielateľa z Google Workspace
@@ -89,7 +93,7 @@ const getAttendeesList = async (trainingId) => {
     }
 
     const firstRow = result.rows[0];
-    const trainingDate = dayjs(firstRow.training_date);
+    const trainingDate = dayjs(firstRow.training_date).tz('Europe/Bratislava');
     const formattedDate = trainingDate.format('DD.MM.YYYY');
     const dayName = trainingDate.format('dddd');
     const time = trainingDate.format('HH:mm');
@@ -242,8 +246,8 @@ module.exports = {
   // 2. Booking email (UPRAVENÉ PRE PERMANENTKY)
   sendUserBookingEmail: async (userEmail, sessionDetails) => {
     const userName = sessionDetails.userName || 'Osôbka';
-    const bookingDate = dayjs(sessionDetails.date).format('DD.MM.YYYY');
-    const bookingDay = dayjs(sessionDetails.date).format('dddd');
+    const bookingDate = dayjs(sessionDetails.date).tz('Europe/Bratislava').format('DD.MM.YYYY');
+    const bookingDay = dayjs(sessionDetails.date).tz('Europe/Bratislava').format('dddd');
     const formattedDateString = `${bookingDate} (${bookingDay})`;
 
     const SUBJECTS = {
@@ -265,7 +269,7 @@ module.exports = {
     let seasonTicketRows = '';
     // Skontrolujeme, či máme dáta o permanentke (posielame ich teraz zo server.js)
     if (pType === 'season_ticket' && sessionDetails.remainingEntries !== undefined) {
-      const expiryFormatted = dayjs(sessionDetails.expiryDate).format('DD.MM.YYYY');
+      const expiryFormatted = dayjs(sessionDetails.expiryDate).tz('Europe/Bratislava').format('DD.MM.YYYY');
       seasonTicketRows = `
         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #eab308;">
           <div style="color: #9333ea; font-weight: bold; margin-bottom: 5px;">🎫 Stav permanentky:</div>
@@ -510,10 +514,11 @@ module.exports = {
   },
 
   // --- 4. USER: SEASON TICKET PURCHASE (STRIPE WEBHOOK) ---
-  sendSeasonTicketConfirmation: async (userEmail, userName, { entries, totalPrice, expiryDate, trainingTypeName, stripePaymentId }) => {
+  sendSeasonTicketConfirmation: async (userEmail, userName, { entries, totalPrice, expiryDate, productName, trainingTypeName, stripePaymentId }) => {
     // Naformátujeme dátumy do slovenčiny
-    const formattedPurchaseDate = dayjs().format('DD.MM.YYYY');
-    const formattedExpiryDate = dayjs(expiryDate).format('DD.MM.YYYY');
+    const formattedPurchaseDate = dayjs().tz('Europe/Bratislava').format('DD.MM.YYYY');
+    const formattedExpiryDate = dayjs(expiryDate).tz('Europe/Bratislava').format('DD.MM.YYYY');
+    const displayProductName = productName || trainingTypeName;
 
     const subject = 'Potvrdenie nákupu permanentky | Nitráčik';
 
@@ -549,14 +554,14 @@ module.exports = {
                 <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName}.</p>
                 
                 <p>Máme obrovskú radosť! Vaša objednávka <strong>permanentky do Nitráčika</strong> bola úspešne potvrdená.</p> 
-                ${trainingTypeName ? `<p>Typ permanentky: <strong>${trainingTypeName}</strong></p>` : ''}
-                ${trainingTypeName ? `<p style="font-size: 13px; color: #666;">Odteraz ju môžete využiť na hodinu <strong>${trainingTypeName}</strong>. Permanentka sa vám zobrazí v rezervačnom formulári.</p>` : ''}
+                ${displayProductName ? `<p>Typ permanentky: <strong>${displayProductName}</strong></p>` : ''}
+                ${displayProductName ? `<p style="font-size: 13px; color: #666;">Odteraz ju môžete využiť podľa typu <strong>${displayProductName}</strong>. Permanentka sa vám zobrazí v rezervačnom formulári.</p>` : ''}
                 
                 <p>Už teraz sa tešíme na všetky Vaše budúce návštevy. S permanentkou máte vstup do nášho farebného sveta ešte jednoduchší.</p>
 
                 <div class="highlight-box">
                    <div class="highlight-item">🎟️ <strong>Počet vstupov:</strong> ${entries}</div>
-                   ${trainingTypeName ? `<div class="highlight-item">🎨 <strong>Typ tréningu:</strong> ${trainingTypeName}</div>` : ''}
+                   ${displayProductName ? `<div class="highlight-item">🎨 <strong>Typ permanentky:</strong> ${displayProductName}</div>` : ''}
                    <div class="highlight-item">💰 <strong>Cena:</strong> ${totalPrice} €</div>
                    <div class="highlight-item">📅 <strong>Dátum nákupu:</strong> ${formattedPurchaseDate}</div>
                    <div class="highlight-item">⏳ <strong>Platnosť (6 mesiacov):</strong> ${formattedExpiryDate}</div>
@@ -609,8 +614,8 @@ module.exports = {
 
   // --- 4b. ADMIN: SEASON TICKET PURCHASE NOTIFICATION ---
   sendAdminSeasonTicketPurchase: async (adminEmail, data) => {
-    const formattedPurchaseDate = dayjs().format('DD.MM.YYYY');
-    const formattedExpiryDate = dayjs(data.expiryDate).format('DD.MM.YYYY');
+    const formattedPurchaseDate = dayjs().tz('Europe/Bratislava').format('DD.MM.YYYY');
+    const formattedExpiryDate = dayjs(data.expiryDate).tz('Europe/Bratislava').format('DD.MM.YYYY');
 
     const mailOptions = {
       from: SENDER,
@@ -651,7 +656,7 @@ module.exports = {
                   
                   <p style="font-size: 16px; font-weight: bold; margin-bottom: 15px; margin-top: 20px; color: #2563eb;">Detaily permanentky</p>
                   <div class="info-row"><span class="info-label">🎟️ Počet vstupov:</span> ${data.entries}</div>
-                  ${data.trainingTypeName ? `<div class="info-row"><span class="info-label">🎨 Typ tréningu:</span> ${data.trainingTypeName}</div>` : ''}
+                  ${(data.productName || data.trainingTypeName) ? `<div class="info-row"><span class="info-label">🎨 Typ permanentky:</span> ${data.productName || data.trainingTypeName}</div>` : ''}
                   <div class="info-row"><span class="info-label">💰 Cena:</span> ${data.totalPrice} €</div>
                   <div class="info-row"><span class="info-label">📅 Dátum nákupu:</span> ${formattedPurchaseDate}</div>
                   <div class="info-row"><span class="info-label">⏳ Platnosť do:</span> ${formattedExpiryDate}</div>
@@ -859,8 +864,8 @@ module.exports = {
     const trainingId = data.trainingId || (data.training && data.training.id);
     const attendeesData = await getAttendeesList(trainingId);
 
-    // Formátovanie dátumu
-    const dateStr = new Date(data.training.training_date).toLocaleString('sk-SK');
+    // Formátovanie dátumu (lokalny cas)
+    const dateStr = dayjs(data.training.training_date).tz('Europe/Bratislava').format('D. M. YYYY HH:mm');
     const mailOptions = {
       from: SENDER,
       to: adminEmail,
@@ -965,7 +970,7 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
     }
 
     const attendeesData = await getAttendeesList(booking.training_id);
-    const dateStr = new Date(booking.training_date).toLocaleString('sk-SK');
+    const dateStr = dayjs(booking.training_date).tz('Europe/Bratislava').format('D. M. YYYY HH:mm');
 
     // --- SPOLOČNÝ FOOTER HTML (Aby sme to nepísali 2x) ---
     const footerHtml = `
@@ -1337,7 +1342,7 @@ sendMassCancellationSeasonTicket: async (userEmail, firstName, trainingType, dat
                   </a>
               </div>
               <p style="margin: 0;">© 2026 O.z. Nitráčik. Všetky práva vyhradené.</p>
-              <p style="margin: 5px 0 0 0;">oznitracik@gmail.com</p>
+              <p style="margin: 5px 0 0 0;">info@nitracik.sk</p>
             </div>
           </div>
         </div>
@@ -1435,7 +1440,7 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
                   </a>
               </div>
               <p style="margin: 0;">© 2026 O.z. Nitráčik. Všetky práva vyhradené.</p>
-              <p style="margin: 5px 0 0 0;">oznitracik@gmail.com</p>
+              <p style="margin: 5px 0 0 0;">info@nitracik.sk</p>
             </div>
           </div>
         </div>
@@ -1582,7 +1587,7 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
 
   // --- 10a. REFUND CONFIRMATION (USER) ---
   sendRefundConfirmationEmail: async (userEmail, { userName, refundId, amount, trainingType, trainingDate }) => {
-    const formattedDate = trainingDate ? dayjs(trainingDate).format('DD.MM.YYYY') : null;
+    const formattedDate = trainingDate ? dayjs(trainingDate).tz('Europe/Bratislava').format('DD.MM.YYYY') : null;
     const subject = 'Potvrdenie refundu | Nitráčik';
 
     const html = `
@@ -1802,6 +1807,90 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
       attachments: getCommonAttachments()
     };
     
+    return transporter.sendMail(mailOptions);
+  },
+
+  sendPaymentFailedEmail: async (userEmail, firstName, data) => {
+    const { selectedDate, selectedTime, trainingType, totalPrice } = data;
+    
+    const mailOptions = {
+      from: SENDER,
+      to: userEmail,
+      subject: '⚠️ Vaša platba zlyhala - Nitráčik',
+      html: `
+        <!DOCTYPE html>
+        <html lang="sk">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; background-color: #f4f4f4; margin: 0; padding: 0; }
+            .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }
+            .header { background-color: #e74c3c; padding: 20px; text-align: center; color: white; }
+            .header h1 { margin: 0; font-size: 24px; }
+            .content { padding: 30px; }
+            .alert-box { background-color: #fdeaea; border-left: 4px solid #e74c3c; padding: 15px; margin: 20px 0; border-radius: 4px; }
+            .alert-box strong { color: #c0392b; }
+            .booking-details { background-color: #f9f9f9; padding: 15px; border-radius: 4px; margin: 20px 0; }
+            .detail-row { display: flex; justify-content: space-between; margin: 10px 0; }
+            .detail-label { font-weight: bold; color: #333; }
+            .detail-value { color: #666; }
+            .btn { display: inline-block; padding: 12px 30px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px; margin: 10px 0; }
+            .footer { background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 12px; color: #666; }
+            .footer p { margin: 5px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>⚠️ Platba zlyhala</h1>
+            </div>
+            <div class="content">
+              <p>Ahoj ${firstName || 'Osôbka'},</p>
+              
+              <div class="alert-box">
+                <strong>Vaša platba sa nepodarila!</strong> Skúsili sme spracovať vašu platbu, ale z neznámych dôvodov (napr. chyba siete, problém s kartou) sa to nepodarilo.
+              </div>
+
+              <p>Detaily vašej rezervácie:</p>
+              <div class="booking-details">
+                <div class="detail-row">
+                  <span class="detail-label">Typ tréningu:</span>
+                  <span class="detail-value">${trainingType || 'N/A'}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Dátum & Čas:</span>
+                  <span class="detail-value">${selectedDate || ''} ${selectedTime || ''}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Suma:</span>
+                  <span class="detail-value">${totalPrice || ''} €</span>
+                </div>
+              </div>
+
+              <h3 style="color: #333;">Čo môžete urobiť?</h3>
+              <ul style="color: #666;">
+                <li><strong>Skúste znova:</strong> Návštevou svojho profilu sa pokúste rezerváciu ešte raz s rovnakými údajmi.</li>
+                <li><strong>Skontrolujte svoju kartu:</strong> Uistite sa, že máte dostatok prostriedkov a že sú detaily karty správne.</li>
+                <li><strong>Kontaktujte nás:</strong> Ak problém pretrváva, prosím <a href="mailto:info@nitracik.sk">kontaktujte nás</a>.</li>
+              </ul>
+
+              <p>Vaša rezervácia <strong>nebola potvrdená</strong>, keďže sme nedostali potvrdenie platby. Môžete sa pokúsiť rezervovať znova.</p>
+
+              <center>
+                <a href="${process.env.FRONTEND_URL}/booking" class="btn">Pokúsiť sa znova</a>
+              </center>
+            </div>
+            <div class="footer">
+              <p>© 2026 O.z. Nitráčik</p>
+              <p>Ak ste si túto správu nevyžiadali, prosím ju ignorujte.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+
     return transporter.sendMail(mailOptions);
   }
 }; // Koniec module.exports

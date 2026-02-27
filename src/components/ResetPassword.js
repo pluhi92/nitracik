@@ -29,7 +29,6 @@ const ResetPassword = () => {
     uppercase: false,
     lowercase: false,
     number: false,
-    specialChar: false,
   });
 
   const navigate = useNavigate();
@@ -42,7 +41,6 @@ const ResetPassword = () => {
       uppercase: /[A-Z]/.test(value),
       lowercase: /[a-z]/.test(value),
       number: /[0-9]/.test(value),
-      specialChar: /[!@#$%^&*(),.?":{}|<>]/.test(value),
     };
 
     setPasswordConstraints(constraints);
@@ -139,10 +137,6 @@ const ResetPassword = () => {
                         <li className={`flex items-center gap-2 ${passwordConstraints.number ? 'text-green-600' : 'text-gray-500'}`}>
                           {passwordConstraints.number ? <CheckIcon className="w-4 h-4" /> : <XIcon className="w-4 h-4" />}
                           Číslo
-                        </li>
-                        <li className={`flex items-center gap-2 ${passwordConstraints.specialChar ? 'text-green-600' : 'text-gray-500'}`}>
-                          {passwordConstraints.specialChar ? <CheckIcon className="w-4 h-4" /> : <XIcon className="w-4 h-4" />}
-                          Špeciálny znak (!@#$%...)
                         </li>
                       </ul>
                     </div>
