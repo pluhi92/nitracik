@@ -587,6 +587,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           paymentIntentId,
           trainingId: training.id,
           isAdult: true,
+          paymentType: 'paid',
         };
 
         console.log('[DEBUG] Adult booking data stored, will send emails after transaction commits');
@@ -649,7 +650,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         start_time: bookingEmailData.selectedTime,
         trainingType: bookingEmailData.trainingType,
         userName: bookingEmailData.firstName,
-        paymentType: 'payment',
+        paymentType: 'paid',
         theme: bookingEmailData.theme
       }).catch(err => console.error('Failed to send adult booking email:', err.message));
     } else {
@@ -1939,19 +1940,36 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
     // --- EMAILY ---
     try {
       // 1. User Email (s detailmi o zostatku)
-      await emailService.sendUserBookingEmail(user.email, {
-        date: training.training_date, // Používame dátum z DB pre istotu
-        start_time: dayjs(training.training_date).tz(APP_TIMEZONE).format('HH:mm'),
-        trainingType: training.training_type,
-        userName: user.first_name,
-        paymentType: 'season_ticket',
-        // Data pre permanentku:
-        usedEntries: childrenCount,
-        remainingEntries: newBalance,
-        totalEntries: ticket.entries_total,
-        expiryDate: ticket.expiry_date,
-        theme: training.theme
-      });
+      // Použijeme iný email template pre dospelých
+      if (isAdultBooking) {
+        await emailService.sendAdultBookingEmail(user.email, {
+          date: training.training_date,
+          start_time: dayjs(training.training_date).tz(APP_TIMEZONE).format('HH:mm'),
+          trainingType: training.training_type,
+          userName: user.first_name,
+          paymentType: 'season_ticket',
+          // Data pre permanentku:
+          usedEntries: childrenCount,
+          remainingEntries: newBalance,
+          totalEntries: ticket.entries_total,
+          expiryDate: ticket.expiry_date,
+          theme: training.theme
+        });
+      } else {
+        await emailService.sendUserBookingEmail(user.email, {
+          date: training.training_date, // Používame dátum z DB pre istotu
+          start_time: dayjs(training.training_date).tz(APP_TIMEZONE).format('HH:mm'),
+          trainingType: training.training_type,
+          userName: user.first_name,
+          paymentType: 'season_ticket',
+          // Data pre permanentku:
+          usedEntries: childrenCount,
+          remainingEntries: newBalance,
+          totalEntries: ticket.entries_total,
+          expiryDate: ticket.expiry_date,
+          theme: training.theme
+        });
+      }
 
       // 2. Admin Email (s trainingId pre tabuľku)
       await emailService.sendAdminSeasonTicketUsage('info@nitracik.sk', {
@@ -3689,14 +3707,26 @@ app.post('/api/bookings/use-credit', async (req, res) => {
     // --- ODOSLANIE EMAILOV (Až po commite) ---
     try {
       // 1. User Email
-      await emailService.sendUserBookingEmail(user.email, {
-        date: training.training_date,
-        start_time: dayjs(training.training_date).tz(APP_TIMEZONE).format('HH:mm'),
-        trainingType: training.training_type,
-        userName: user.first_name,
-        paymentType: 'credit',
-        theme: training.theme
-      });
+      // Použijeme iný email template pre dospelých
+      if (isAdultTraining) {
+        await emailService.sendAdultBookingEmail(user.email, {
+          date: training.training_date,
+          start_time: dayjs(training.training_date).tz(APP_TIMEZONE).format('HH:mm'),
+          trainingType: training.training_type,
+          userName: user.first_name,
+          paymentType: 'credit',
+          theme: training.theme
+        });
+      } else {
+        await emailService.sendUserBookingEmail(user.email, {
+          date: training.training_date,
+          start_time: dayjs(training.training_date).tz(APP_TIMEZONE).format('HH:mm'),
+          trainingType: training.training_type,
+          userName: user.first_name,
+          paymentType: 'credit',
+          theme: training.theme
+        });
+      }
 
       // 2. Admin Email
       await emailService.sendAdminCreditUsage('info@nitracik.sk', {
