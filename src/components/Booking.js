@@ -189,7 +189,7 @@ const Booking = () => {
     setPhotoConsent(null);
     setNote('');
     setMobile('');
-  }, [ageGroup, t]);
+  }, [ageGroup, t, warningMessage]);
 
   useEffect(() => {
     const fetchTrainingDates = async () => {
