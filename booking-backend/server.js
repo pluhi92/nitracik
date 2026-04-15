@@ -59,7 +59,7 @@ const toUtcDateTimeFromLocalInput = (localDateTime) => {
   if (!localDateTime) return null;
   return dayjs.tz(localDateTime, APP_TIMEZONE).utc().toDate();
 };
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$/;
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 const multer = require('multer');
 const sharp = require('sharp');
 
