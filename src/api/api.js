@@ -15,4 +15,18 @@ api.makeImageUrl = (path) => {
   return `${BASE_URL}${path}`;              // Ak je to lokálna cesta
 };
 
+// ✅ INTERCEPTOR PRE 401 RESPONSE (SESSION EXPIRATION)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Session vypršala - redirect na login
+      console.log('[API Interceptor] Session expired, redirecting to login');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

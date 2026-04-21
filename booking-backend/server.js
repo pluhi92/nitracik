@@ -770,11 +770,12 @@ app.use(session({
   proxy: isProduction,
   resave: false,
   saveUninitialized: false,
+  rolling: true,  // Session sa obnoví pri každom requeste
   cookie: {
     secure: isProduction,
     httpOnly: true,
     sameSite: isProduction ? 'none' : 'lax',
-    maxAge: 1000 * 60 * 60 * 24 * 7,
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 dní od poslednej aktivity
   },
 }));
 
@@ -833,21 +834,16 @@ const isAdmin = async (req, res, next) => {
 };
 
 function isAuthenticated(req, res, next) {
-  if (DEBUG_LOGS) {
-    console.log('[isAuthenticated] userId:', req.session.userId, 'role:', req.session.role);
+  if (!req.session.userId) {
+    // Logujeme len keď user NIE je autentifikovaný (pre debugging)
+    if (DEBUG_LOGS) {
+      console.log('[isAuthenticated] Unauthorized - no session');
+    }
+    return res.status(401).json({ message: 'Unauthorized' });
   }
-  if (req.session.userId) {
-    // Fetch user email to check admin status
-    pool.query('SELECT email FROM users WHERE id = $1', [req.session.userId], (err, result) => {
-      if (err || !result.rows.length) {
-        return res.status(401).json({ message: 'Unauthorized' });
-      }
-      req.session.email = result.rows[0].email;
-      next();
-    });
-  } else {
-    res.status(401).json({ message: 'Unauthorized' });
-  }
+  
+  // User je OK, pokračujeme bez logovania
+  next();
 }
 
 
