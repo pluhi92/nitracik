@@ -65,7 +65,7 @@ const Navbar = () => {
 
   const navLinks = [
     { path: '/about', label: t?.navbar?.about || 'About Nitracik' },
-    { path: '/schedule', label: t?.navbar?.schedule || 'Schedule' },
+    { path: '/aktivity', label: t?.navbar?.activities || 'Aktivity' },
     { path: '/booking', label: t?.navbar?.booking || 'Book your session' },
     { path: '/contact', label: t?.navbar?.contact || 'Contact' },
   ];

@@ -1,5 +1,5 @@
 // Booking.js
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Login from './Login';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IMaskInput } from 'react-imask';
@@ -12,6 +12,20 @@ import api from '../api/api';
 import { HexColorPicker } from "react-colorful";
 
 const Booking = () => {
+  const toDateKey = (value) => {
+    const date = value instanceof Date ? value : new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  };
+
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(localStorage.getItem('isLoggedIn') === 'true');
   const [userData, setUserData] = useState(null);
@@ -76,9 +90,11 @@ const Booking = () => {
   const [isCreditMode, setIsCreditMode] = useState(false);
   const [serviceConsent, setServiceConsent] = useState(false);
   const [showServiceConsentModal, setShowServiceConsentModal] = useState(false);
+  const [showDuplicateBookingModal, setShowDuplicateBookingModal] = useState(false);
+  const [duplicateBookingModalContext, setDuplicateBookingModalContext] = useState(null);
+  const [duplicateBookingConfirmedKey, setDuplicateBookingConfirmedKey] = useState('');
   const [fillFormPreference, setFillFormPreference] = useState({});
   const [userBookings, setUserBookings] = useState([]);
-  const [isAlreadyBooked, setIsAlreadyBooked] = useState(false);
   const [trainingId, setTrainingId] = useState(null);
   const [newTypeDuration, setNewTypeDuration] = useState(60); // Default 60 min
   const [pricingMode, setPricingMode] = useState('tiered'); // 'fixed' alebo 'tiered'
@@ -89,6 +105,8 @@ const Booking = () => {
   // Admin - téma pre detské tréningy
   const [sessionTheme, setSessionTheme] = useState('');
   const [useSessionTheme, setUseSessionTheme] = useState(false);
+  const [lockedReservation, setLockedReservation] = useState(null);
+  const [isLockedSelectionApplied, setIsLockedSelectionApplied] = useState(false);
 
   const calculateTotalPrice = () => {
     if (!selectedTypeObj) return 0;
@@ -125,6 +143,60 @@ const Booking = () => {
       return t?.booking?.yearPlural5Plus || 'rokov';
     }
     return age === 1 ? t?.booking?.yearSingular || 'year' : t?.booking?.yearPlural || 'years';
+  };
+
+  const getBookingDateTime = useCallback((booking) => {
+    const bookingDateObj = new Date(booking.training_date);
+
+    return {
+      date: toDateKey(bookingDateObj),
+      time: bookingDateObj.toLocaleTimeString('sk-SK', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      })
+    };
+  }, []);
+
+  const createDuplicateDateKey = (typeName, dateKey) => `${typeName || ''}::${dateKey || ''}`;
+  const createDuplicateSessionKey = (typeName, dateKey, timeValue) => `${typeName || ''}::${dateKey || ''}::${timeValue || ''}`;
+
+  const hasDuplicateBookingForDate = useCallback((typeName, dateKey) =>
+    userBookings.some((booking) => {
+      if (booking.active === false) return false;
+
+      const bookingDateTime = getBookingDateTime(booking);
+
+      return booking.training_type === typeName && bookingDateTime.date === dateKey;
+    }), [userBookings, getBookingDateTime]);
+
+  const hasDuplicateBookingForSession = useCallback((typeName, dateKey, timeValue) =>
+    userBookings.some((booking) => {
+      if (booking.active === false) return false;
+
+      const bookingDateTime = getBookingDateTime(booking);
+
+      return booking.training_type === typeName && bookingDateTime.date === dateKey && bookingDateTime.time === timeValue;
+    }), [userBookings, getBookingDateTime]);
+
+  const closeDuplicateBookingModal = () => {
+    setShowDuplicateBookingModal(false);
+    setDuplicateBookingModalContext(null);
+  };
+
+  const applyDateSelection = (formattedDate) => {
+    setSelectedDate(formattedDate);
+    setSelectedTime('');
+    setTrainingId(null);
+
+    setTimeout(() => {
+      if (timeSelectRef.current) {
+        timeSelectRef.current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }
+    }, 300);
   };
 
   const timeSelectRef = useRef(null);
@@ -164,8 +236,9 @@ const Booking = () => {
 
   // Reset formulára pri zmene ageGroup
   useEffect(() => {
-    setIsAlreadyBooked(false);
     setWarningMessage('');
+    setDuplicateBookingConfirmedKey('');
+    closeDuplicateBookingModal();
 
     // Reset child-only flows when switching audiences
     setIsCreditMode(false);
@@ -173,11 +246,6 @@ const Booking = () => {
     setUseSeasonTicket(false);
     setSelectedSeasonTicket('');
     setServiceConsent(false);
-
-    // Ak je zobrazená hláška o duplicite, vymažeme ju
-    if (warningMessage === (t?.booking?.alreadyBooked || 'You are already booked for this session. Please check your profile.')) {
-      setWarningMessage('');
-    }
 
     // Reset výberov
     setSelectedDate('');
@@ -189,14 +257,43 @@ const Booking = () => {
     setPhotoConsent(null);
     setNote('');
     setMobile('');
-  }, [ageGroup, t, warningMessage]);
+  }, [ageGroup]);
+
+  useEffect(() => {
+    if (!location.state?.incomingLocked) {
+      return;
+    }
+
+    const nextLocked = {
+      incomingId: location.state.incomingId,
+      incomingTypeId: location.state.incomingTypeId,
+      incomingType: location.state.incomingType,
+      incomingDate: location.state.incomingDate,
+      incomingTime: location.state.incomingTime,
+      incomingAgeGroup: location.state.incomingAgeGroup || 'child'
+    };
+
+    setLockedReservation((prev) => {
+      if (
+        prev &&
+        String(prev.incomingId) === String(nextLocked.incomingId) &&
+        String(prev.incomingTypeId) === String(nextLocked.incomingTypeId) &&
+        prev.incomingType === nextLocked.incomingType
+      ) {
+        return prev;
+      }
+
+      setIsLockedSelectionApplied(false);
+      return nextLocked;
+    });
+  }, [location.state]);
 
   useEffect(() => {
     const fetchTrainingDates = async () => {
       try {
         const response = await api.get('/api/training-dates');
         const dates = response.data.reduce((acc, training) => {
-          const date = new Date(training.training_date).toLocaleDateString('en-CA');
+          const date = toDateKey(training.training_date);
           const time = new Date(training.training_date).toLocaleTimeString('sk-SK', {
             hour: '2-digit',
             minute: '2-digit',
@@ -272,13 +369,15 @@ const Booking = () => {
     };
 
     if (isLoggedIn) {
+      const targetAudience = (lockedReservation?.incomingAgeGroup || ageGroup) === 'adult' ? 'adults' : 'children';
+
       fetchTrainingDates();
       fetchSeasonTickets();
       fetchCredits();
       fetchUserBookings();
-      fetchTypes(ageGroup === 'adult' ? 'adults' : 'children');
+      fetchTypes(targetAudience);
     }
-  }, [isLoggedIn, isAdmin, ageGroup]);
+  }, [isLoggedIn, isAdmin, ageGroup, lockedReservation]);
 
   useEffect(() => {
     // Ak nemáme ID alebo dáta, končíme
@@ -360,7 +459,7 @@ const Booking = () => {
 
   const processTrainingDates = (data) => {
     return data.reduce((acc, training) => {
-      const date = new Date(training.training_date).toLocaleDateString('en-CA');
+      const date = toDateKey(training.training_date);
       const time = new Date(training.training_date).toLocaleTimeString('sk-SK', { // ← Zmena na sk-SK
         hour: '2-digit',
         minute: '2-digit',
@@ -459,6 +558,8 @@ const Booking = () => {
   const handleTypeChange = (e) => {
     const newId = e.target.value; // Teraz to bude ID (číslo/string) alebo prázdny string
     setTrainingTypeId(newId);     // Nastavíme ID -> useEffect hore sa postará o zvyšok
+    setDuplicateBookingConfirmedKey('');
+    closeDuplicateBookingModal();
 
     // Ak je prázdny value (placeholder), resetujeme všetko
     if (!newId) {
@@ -473,38 +574,34 @@ const Booking = () => {
   };
 
   useEffect(() => {
-    // Resetujeme stav pri zmene
-    setIsAlreadyBooked(false);
-
-    // Ak je zobrazená hláška o duplicite, vymažeme ju
-    if (warningMessage === (t?.booking?.alreadyBooked || 'You are already booked for this session. Please check your profile.')) {
-      setWarningMessage('');
+    if (!lockedReservation || !isLockedSelectionApplied || showDuplicateBookingModal) {
+      return;
     }
 
-    if (trainingType && selectedDate && selectedTime && userBookings.length > 0) {
-      const alreadyBooked = userBookings.some(booking => {
-        if (booking.active === false) return false;
+    const effectiveType = trainingType || lockedReservation.incomingType;
+    const incomingDate = lockedReservation.incomingDate;
+    const incomingTime = lockedReservation.incomingTime;
 
-        const bookingDateObj = new Date(booking.training_date);
-        const bDate = bookingDateObj.toLocaleDateString('en-CA');
-        const bTime = bookingDateObj.toLocaleTimeString('sk-SK', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        });
+    if (!effectiveType || !incomingDate || !incomingTime) {
+      return;
+    }
 
-        return booking.training_type === trainingType &&
-          bDate === selectedDate &&
-          bTime === selectedTime;
+    const sessionKey = createDuplicateSessionKey(effectiveType, incomingDate, incomingTime);
+
+    if (duplicateBookingConfirmedKey === sessionKey) {
+      return;
+    }
+
+    if (hasDuplicateBookingForSession(effectiveType, incomingDate, incomingTime)) {
+      setDuplicateBookingModalContext({
+        source: 'activity',
+        typeName: effectiveType,
+        date: incomingDate,
+        time: incomingTime
       });
-
-      if (alreadyBooked) {
-        setIsAlreadyBooked(true);
-        setWarningMessage(t?.booking?.alreadyBooked || 'You are already booked for this session. Please check your profile.');
-      }
+      setShowDuplicateBookingModal(true);
     }
-    // eslint-disable-next-line
-  }, [trainingType, selectedDate, selectedTime, userBookings, t]);
+  }, [lockedReservation, isLockedSelectionApplied, showDuplicateBookingModal, trainingType, duplicateBookingConfirmedKey, userBookings, hasDuplicateBookingForSession]);
 
   useEffect(() => {
     const checkAvailability = async () => {
@@ -537,33 +634,81 @@ const Booking = () => {
   }, [trainingId, childrenCount]);
 
   useEffect(() => {
-    if (location.state) {
-      const {
-        incomingId,
-        incomingTypeId, // NOVÉ
-        incomingType,
-        incomingDate,
-        incomingTime
-      } = location.state;
+    if (!lockedReservation) {
+      return;
+    }
 
-      if (incomingDate) setSelectedDate(incomingDate);
-      if (incomingTime) setSelectedTime(incomingTime);
-      if (incomingId) setTrainingId(incomingId);
+    const {
+      incomingTypeId,
+      incomingType,
+      incomingAgeGroup
+    } = lockedReservation;
 
-      // LOGIKA PRE TYP TRÉNINGU
-      if (incomingTypeId) {
-        // Ak máme ID (ideálna situácia), nastavíme ID
-        setTrainingTypeId(incomingTypeId);
-      } else if (incomingType && trainingTypes.length > 0) {
-        // Fallback: Ak máme len názov (napr. starý odkaz), nájdeme ID
-        const found = trainingTypes.find(t => t.name === incomingType);
-        if (found) setTrainingTypeId(found.id);
+    if (incomingAgeGroup && ageGroup !== incomingAgeGroup) {
+      setAgeGroup(incomingAgeGroup);
+      return;
+    }
+
+    if (incomingTypeId && trainingTypes.length > 0) {
+      const foundById = trainingTypes.find(t => t.id === Number(incomingTypeId));
+
+      if (foundById) {
+        setTrainingTypeId(String(foundById.id));
+        setTrainingType(foundById.name);
+        setSelectedTypeObj(foundById);
+        return;
+      }
+    }
+
+    if (incomingType && trainingTypes.length > 0) {
+      const foundByName = trainingTypes.find(t => t.name === incomingType);
+
+      if (foundByName) {
+        setTrainingTypeId(String(foundByName.id));
+        setTrainingType(foundByName.name);
+        setSelectedTypeObj(foundByName);
+      }
+    }
+  }, [lockedReservation, trainingTypes, ageGroup, isCreditMode]);
+
+  useEffect(() => {
+    if (!lockedReservation?.incomingId || isLockedSelectionApplied) {
+      return;
+    }
+
+    const effectiveType = trainingType || lockedReservation.incomingType;
+
+    if (!effectiveType || !trainingDates[effectiveType]) {
+      return;
+    }
+
+    const entries = Object.entries(trainingDates[effectiveType]);
+    const incomingId = String(lockedReservation.incomingId);
+
+    for (const [dateKey, sessions] of entries) {
+      const matchedSession = sessions.find((session) => String(session.id) === incomingId);
+
+      if (!matchedSession) {
+        continue;
       }
 
-      // Vyčistenie history
-      window.history.replaceState({}, document.title);
+      if (selectedDate !== dateKey) {
+        setSelectedDate(dateKey);
+      }
+
+      if (selectedTime !== matchedSession.time) {
+        setSelectedTime(matchedSession.time);
+      }
+
+      if (String(trainingId) !== String(matchedSession.id)) {
+        setTrainingId(String(matchedSession.id));
+      }
+
+      setIsLockedSelectionApplied(true);
+
+      return;
     }
-  }, [location, trainingTypes]); // Pridané trainingTypes do závislosti
+  }, [lockedReservation, trainingType, trainingDates, selectedDate, selectedTime, trainingId, isLockedSelectionApplied]);
 
   const handleAgeChange = (index, age) => {
     const newAges = [...childrenAges];
@@ -799,18 +944,57 @@ const Booking = () => {
   }, [location.search, navigate, t]);
 
   const handleDateSelect = (formattedDate) => {
-    setSelectedDate(formattedDate);
-    setSelectedTime('');
+    const duplicateDateKey = createDuplicateDateKey(trainingType, formattedDate);
 
-    // Scroll to time select after state update - smooth scroll s väčším delay
-    setTimeout(() => {
-      if (timeSelectRef.current) {
-        timeSelectRef.current.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        });
-      }
-    }, 300);
+    if (
+      trainingType &&
+      hasDuplicateBookingForDate(trainingType, formattedDate) &&
+      duplicateBookingConfirmedKey !== duplicateDateKey
+    ) {
+      setDuplicateBookingModalContext({
+        source: 'calendar',
+        typeName: trainingType,
+        date: formattedDate
+      });
+      setShowDuplicateBookingModal(true);
+      return;
+    }
+
+    applyDateSelection(formattedDate);
+  };
+
+  const handleDuplicateBookingConfirm = () => {
+    if (!duplicateBookingModalContext) {
+      return;
+    }
+
+    if (duplicateBookingModalContext.source === 'activity') {
+      setDuplicateBookingConfirmedKey(
+        createDuplicateSessionKey(
+          duplicateBookingModalContext.typeName,
+          duplicateBookingModalContext.date,
+          duplicateBookingModalContext.time
+        )
+      );
+      closeDuplicateBookingModal();
+      return;
+    }
+
+    setDuplicateBookingConfirmedKey(
+      createDuplicateDateKey(duplicateBookingModalContext.typeName, duplicateBookingModalContext.date)
+    );
+    closeDuplicateBookingModal();
+    applyDateSelection(duplicateBookingModalContext.date);
+  };
+
+  const handleDuplicateBookingCancel = () => {
+    const duplicateSource = duplicateBookingModalContext?.source;
+
+    closeDuplicateBookingModal();
+
+    if (duplicateSource === 'activity') {
+      navigate('/aktivity');
+    }
   };
 
   const formatAvailabilityMessage = () => {
@@ -992,6 +1176,7 @@ const Booking = () => {
                 ? 'bg-white text-blue-600 shadow-sm'
                 : 'text-gray-600 hover:text-gray-800'
             }`}
+            disabled={Boolean(lockedReservation)}
             onClick={() => setAgeGroup('child')}
           >
             Tréning pre deti
@@ -1002,12 +1187,19 @@ const Booking = () => {
                 ? 'bg-white text-blue-600 shadow-sm'
                 : 'text-gray-600 hover:text-gray-800'
             }`}
+            disabled={Boolean(lockedReservation)}
             onClick={() => setAgeGroup('adult')}
           >
             Tréning pre dospelých
           </button>
         </div>
       </div>
+
+      {lockedReservation && (
+        <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900">
+          Vybraný termín je predvyplnený z aktivít a v tomto formulári je uzamknutý.
+        </div>
+      )}
 
       <div className="flex justify-between gap-4 mb-6">
         <button
@@ -1329,7 +1521,7 @@ const Booking = () => {
                   </button>
                 </div>
 
-                {/* Malý náhľad ako to bude vyzerať v Schedule */}
+                {/* Maly nahlad ako to bude vyzerat v Aktivity */}
                 <div className="ml-auto hidden sm:block">
                   <div className="text-[10px] text-gray-400 uppercase font-bold mb-1">Náhľad v rozvrhu</div>
                   <div
@@ -1490,7 +1682,7 @@ const Booking = () => {
               <Form.Select
                 value={trainingTypeId} // Zmena: viazané na ID
                 onChange={handleTypeChange}
-                disabled={isCreditMode}
+                disabled={isCreditMode || Boolean(lockedReservation)}
                 className="w-full text-lg py-3"
               >
                 <option value="">{t?.booking?.trainingType?.placeholder || 'Choose training type...'}</option>
@@ -1516,6 +1708,7 @@ const Booking = () => {
                     selectedDate={selectedDate}
                     onDateSelect={handleDateSelect}
                     minDate={new Date()}
+                    disabled={Boolean(lockedReservation)}
                     weekendClassName="bg-gray-100"
                   />
                 </div>
@@ -1538,6 +1731,7 @@ const Booking = () => {
                       .find(s => String(s.id) === String(id));
                     setSelectedTime(sessionObj?.time || '');
                   }}
+                  disabled={Boolean(lockedReservation)}
                   className="w-full text-lg py-3"
                 >
                   <option value="">-- {t?.booking?.selectTime || 'Choose a Time Slot'} --</option>
@@ -1988,7 +2182,7 @@ const Booking = () => {
             <Button
               type="submit"
               className="w-full py-4 font-bold text-lg bg-green-500 border-green-500 hover:bg-green-600"
-              disabled={!consent || loading || !availability.isAvailable || isAlreadyBooked || (useSeasonTicket && !selectedSeasonTicket) || (isCreditMode && (!selectedDate || !selectedTime)) || (!useSeasonTicket && !isCreditMode && !serviceConsent)}
+              disabled={!consent || loading || !availability.isAvailable || (useSeasonTicket && !selectedSeasonTicket) || (isCreditMode && (!selectedDate || !selectedTime)) || (!useSeasonTicket && !isCreditMode && !serviceConsent)}
               data-tooltip-id="booking-tooltip"
               data-tooltip-content={
                 !availability.isAvailable
@@ -2047,6 +2241,29 @@ const Booking = () => {
           </div>
         </div>
       </Form>
+
+      <Modal show={showDuplicateBookingModal} onHide={handleDuplicateBookingCancel} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>{t?.booking?.duplicateBookingTitle || 'Duplicate booking confirmation'}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="mb-0 text-gray-700">
+            {duplicateBookingModalContext?.source === 'activity'
+              ? t?.booking?.duplicateBookingSessionMessage || 'You already have a booking for this session. Do you really want to create another one?'
+              : t?.booking?.duplicateBookingDateMessage || 'You already have a booking on this date. Do you really want to continue and create another one?'}
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleDuplicateBookingCancel}>
+            {duplicateBookingModalContext?.source === 'activity'
+              ? t?.booking?.duplicateBookingBackToActivities || t?.activities?.backToActivities || 'Back to activities'
+              : t?.booking?.duplicateBookingCancel || t?.booking?.cancel || 'No'}
+          </Button>
+          <Button variant="primary" onClick={handleDuplicateBookingConfirm}>
+            {t?.booking?.duplicateBookingConfirm || 'Yes, continue'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {/* Credit Selection Modal */}
       {(ageGroup === 'child' || ageGroup === 'adult') && (

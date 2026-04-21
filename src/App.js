@@ -27,7 +27,8 @@ const PaymentSuccess = lazy(() => import('./components/PaymentSuccess'));
 const PaymentCancelled = lazy(() => import('./components/PaymentCancelled'));
 const SeasonTickets = lazy(() => import('./components/SeasonTickets'));
 const RefundOption = lazy(() => import('./components/RefundOption'));
-const Schedule = lazy(() => import('./components/Schedule'));
+const ActivityList = lazy(() => import('./components/ActivityList'));
+const ActivityDetail = lazy(() => import('./components/ActivityDetail'));
 const FAQ = lazy(() => import('./components/FAQ'));
 const Gdpr = lazy(() => import('./components/Gdpr'));
 const RegistrationInfo = lazy(() => import('./components/RegistrationInfo'));
@@ -85,7 +86,8 @@ const AppContent = () => {
             <Route path="/payment-cancelled" element={<PaymentCancelled />} />
             <Route path="/season-tickets" element={<SeasonTickets />} />
             <Route path="/refund-option" element={<RefundOption />} />
-            <Route path="/schedule" element={<Schedule />} />
+            <Route path="/aktivity" element={<ActivityList />} />
+            <Route path="/aktivity/:type" element={<ActivityDetail />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/gdpr" element={<Gdpr />} />
             <Route path="/gdpr/registration" element={<RegistrationInfo />} />
