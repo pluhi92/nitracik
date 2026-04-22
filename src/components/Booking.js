@@ -750,6 +750,7 @@ const Booking = () => {
         mobile,
         note,
         allowDuplicate,
+         photoConsent: photoConsent === true ? true : null,
       });
 
       const stripe = await stripePromise;

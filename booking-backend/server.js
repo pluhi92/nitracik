@@ -532,6 +532,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           totalPrice,
           mobile,
           note,
+           photoConsent,
         } = session.metadata;
 
         if (!userId || !trainingType || !totalPrice) {
@@ -565,10 +566,11 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
                active = true,
                age_group = 'adult',
                number_of_adults = 1,
-               number_of_children = 0
+                number_of_children = 0,
+                photo_consent = $5
            WHERE session_id = $4
            RETURNING *`,
-          [parseFloat(totalPrice), new Date(session.created * 1000), paymentIntentId, session.id]
+           [parseFloat(totalPrice), new Date(session.created * 1000), paymentIntentId, session.id, (photoConsent === 'true' ? true : null)]
         );
 
         if (updateResult.rowCount === 0) {
@@ -591,7 +593,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           mobile,
           childrenCount: 1,
           childrenAge: null,
-          photoConsent: null,
+           photoConsent: photoConsent === 'true' ? true : null,
           accompanyingPerson: false,
           note,
           totalPrice,
@@ -4752,6 +4754,7 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
       mobile,
       note,
       allowDuplicate,
+       photoConsent,
     } = req.body;
 
     const allowDuplicateBooking = allowDuplicate === true || allowDuplicate === 'true';
@@ -4840,10 +4843,10 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
       const bookingResult = await client.query(
         `INSERT INTO bookings (
           user_id, training_id, number_of_children, number_of_adults, amount_paid,
-          payment_time, session_id, booked_at, mobile, note, active, booking_type, age_group
-        ) VALUES ($1, $2, 0, 1, NULL, NULL, NULL, NOW(), $3, $4, false, 'paid', 'adult')
+           payment_time, session_id, booked_at, mobile, note, photo_consent, active, booking_type, age_group
+         ) VALUES ($1, $2, 0, 1, NULL, NULL, NULL, NOW(), $3, $4, $5, false, 'paid', 'adult')
         RETURNING id`,
-        [userId, training.id, mobile || '', note || '']
+         [userId, training.id, mobile || '', note || '', (photoConsent === true ? true : null)]
       );
       const bookingId = bookingResult.rows[0].id;
 
@@ -4877,6 +4880,7 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
           mobile: mobile || '',
           note: note || '',
           type: 'adult_training_session',
+           photoConsent: photoConsent === true ? 'true' : 'null',
         },
       });
 
