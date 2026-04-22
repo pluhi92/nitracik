@@ -716,6 +716,85 @@ const Booking = () => {
     setChildrenAges(newAges);
   };
 
+  const createCurrentDateDuplicateKey = () => createDuplicateDateKey(trainingType, selectedDate);
+  const createCurrentSessionDuplicateKey = () => createDuplicateSessionKey(trainingType, selectedDate, selectedTime);
+
+  const isDuplicateApprovedForCurrentSelection = () => {
+    const currentDateKey = createCurrentDateDuplicateKey();
+    const currentSessionKey = createCurrentSessionDuplicateKey();
+
+    return duplicateBookingConfirmedKey === currentDateKey || duplicateBookingConfirmedKey === currentSessionKey;
+  };
+
+  const openBackendDuplicateBookingModal = () => {
+    setDuplicateBookingModalContext({
+      source: 'backend',
+      typeName: trainingType,
+      date: selectedDate,
+      time: selectedTime
+    });
+    setShowDuplicateBookingModal(true);
+  };
+
+  const startPaidBookingCheckout = async ({ forceAllowDuplicate = false } = {}) => {
+    const childrenAgeString = ageGroup === 'child' ? childrenAges.join(', ') : '';
+    const allowDuplicate = forceAllowDuplicate || isDuplicateApprovedForCurrentSelection();
+
+    if (ageGroup === 'adult') {
+      const paymentSession = await api.post('/api/create-adult-payment-session', {
+        userId: userData.id,
+        trainingId,
+        trainingType,
+        selectedDate,
+        selectedTime,
+        mobile,
+        note,
+        allowDuplicate,
+      });
+
+      const stripe = await stripePromise;
+
+      // Store booking ID and session ID for recovery if payment fails
+      localStorage.setItem('pendingBookingId', paymentSession.data.bookingId);
+      localStorage.setItem('pendingSessionId', paymentSession.data.sessionId);
+
+      const { error } = await stripe.redirectToCheckout({
+        sessionId: paymentSession.data.sessionId,
+      });
+
+      if (error) throw error;
+      return;
+    }
+
+    const paymentSession = await api.post('/api/create-payment-session', {
+      userId: userData.id,
+      trainingId,
+      trainingType,
+      selectedDate,
+      selectedTime,
+      childrenCount,
+      childrenAge: childrenAgeString,
+      totalPrice: calculateTotalPrice(),
+      photoConsent: photoConsent === true ? true : null,
+      mobile,
+      note,
+      accompanyingPerson,
+      allowDuplicate,
+    });
+
+    const stripe = await stripePromise;
+
+    // Store booking ID and session ID for recovery if payment fails
+    localStorage.setItem('pendingBookingId', paymentSession.data.bookingId);
+    localStorage.setItem('pendingSessionId', paymentSession.data.sessionId);
+
+    const { error } = await stripe.redirectToCheckout({
+      sessionId: paymentSession.data.sessionId,
+    });
+
+    if (error) throw error;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -828,84 +907,18 @@ const Booking = () => {
           navigate('/profile');
         }
       } else {
-        // Adult booking branch
-        if (ageGroup === 'adult') {
-          try {
-            const paymentSession = await api.post('/api/create-adult-payment-session', {
-              userId: userData.id,
-              trainingId,
-              trainingType,
-              selectedDate,
-              selectedTime,
-              mobile,
-              note,
-            });
-
-            const stripe = await stripePromise;
-            
-            // Store booking ID and session ID for recovery if payment fails
-            localStorage.setItem('pendingBookingId', paymentSession.data.bookingId);
-            localStorage.setItem('pendingSessionId', paymentSession.data.sessionId);
-            
-            const { error } = await stripe.redirectToCheckout({
-              sessionId: paymentSession.data.sessionId,
-            });
-
-            if (error) throw error;
-          } catch (error) {
-            console.error('Adult booking error:', error);
-
-            if (error.response?.status === 401) {
-              localStorage.removeItem('isLoggedIn');
-              localStorage.removeItem('userId');
-              localStorage.removeItem('userName');
-              localStorage.removeItem('userRole');
-              setWarningMessage('Relácia vypršala. Prihláste sa prosím znova.');
-              setLoading(false);
-              navigate('/login');
-              return;
-            }
-
-            if (error.response?.data?.error) {
-              setWarningMessage(error.response.data.error);
-            } else {
-              setWarningMessage(t?.booking?.error || 'Error processing booking. Please try again.');
-            }
-
-            setLoading(false);
-          }
-          return;
-        }
-
-        const paymentSession = await api.post('/api/create-payment-session', {
-          userId: userData.id,
-          trainingId,
-          trainingType,
-          selectedDate,
-          selectedTime,
-          childrenCount,
-          childrenAge: childrenAgeString,
-          totalPrice: calculateTotalPrice(),
-          photoConsent: photoConsent === true ? true : null,
-          mobile,
-          note,
-          accompanyingPerson,
-        });
-
-        const stripe = await stripePromise;
-        
-        // Store booking ID and session ID for recovery if payment fails
-        localStorage.setItem('pendingBookingId', paymentSession.data.bookingId);
-        localStorage.setItem('pendingSessionId', paymentSession.data.sessionId);
-        
-        const { error } = await stripe.redirectToCheckout({
-          sessionId: paymentSession.data.sessionId,
-        });
-
-        if (error) throw error;
+        await startPaidBookingCheckout();
+        return;
       }
     } catch (error) {
       console.error('Booking error:', error);
+
+      if (error.response?.status === 409 && error.response?.data?.code === 'DUPLICATE_BOOKING') {
+        openBackendDuplicateBookingModal();
+        setWarningMessage('');
+        setLoading(false);
+        return;
+      }
 
       if (error.response?.status === 401) {
         localStorage.removeItem('isLoggedIn');
@@ -963,8 +976,41 @@ const Booking = () => {
     applyDateSelection(formattedDate);
   };
 
-  const handleDuplicateBookingConfirm = () => {
+  const handleDuplicateBookingConfirm = async () => {
     if (!duplicateBookingModalContext) {
+      return;
+    }
+
+    if (duplicateBookingModalContext.source === 'backend') {
+      setDuplicateBookingConfirmedKey(
+        createDuplicateSessionKey(
+          duplicateBookingModalContext.typeName,
+          duplicateBookingModalContext.date,
+          duplicateBookingModalContext.time
+        )
+      );
+      closeDuplicateBookingModal();
+
+      setLoading(true);
+      setWarningMessage('');
+
+      try {
+        await startPaidBookingCheckout({ forceAllowDuplicate: true });
+      } catch (error) {
+        console.error('Duplicate confirmation booking error:', error);
+
+        if (error.response?.status === 409 && error.response?.data?.code === 'DUPLICATE_BOOKING') {
+          openBackendDuplicateBookingModal();
+          setWarningMessage('');
+        } else if (error.response?.data?.error) {
+          setWarningMessage(error.response.data.error);
+        } else {
+          setWarningMessage(t?.booking?.error || 'Error processing booking. Please try again.');
+        }
+
+        setLoading(false);
+      }
+
       return;
     }
 
@@ -2248,7 +2294,7 @@ const Booking = () => {
         </Modal.Header>
         <Modal.Body>
           <p className="mb-0 text-gray-700">
-            {duplicateBookingModalContext?.source === 'activity'
+            {duplicateBookingModalContext?.source === 'activity' || duplicateBookingModalContext?.source === 'backend'
               ? t?.booking?.duplicateBookingSessionMessage || 'You already have a booking for this session. Do you really want to create another one?'
               : t?.booking?.duplicateBookingDateMessage || 'You already have a booking on this date. Do you really want to continue and create another one?'}
           </p>

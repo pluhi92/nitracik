@@ -116,6 +116,7 @@
   },
   "activities": {
     "title": "Activities",
+    "subtitle": "Find activities that suit you and reserve your time slot.",
     "refresh": "Refresh",
     "children": "For children",
     "adults": "For adults",

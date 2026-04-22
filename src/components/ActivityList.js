@@ -15,24 +15,6 @@ const slugify = (value = '') =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
 
-const hexToRgba = (hex, alpha) => {
-  if (!hex || typeof hex !== 'string') {
-    return `rgba(244, 63, 94, ${alpha})`;
-  }
-
-  const normalized = hex.replace('#', '');
-
-  if (normalized.length !== 6) {
-    return `rgba(244, 63, 94, ${alpha})`;
-  }
-
-  const red = Number.parseInt(normalized.slice(0, 2), 16);
-  const green = Number.parseInt(normalized.slice(2, 4), 16);
-  const blue = Number.parseInt(normalized.slice(4, 6), 16);
-
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-};
-
 const ActivityList = () => {
   const { t, language } = useTranslation();
   const navigate = useNavigate();
@@ -51,8 +33,8 @@ const ActivityList = () => {
       const date = dayjs(value).locale(locale);
       const dayName = date.format('dddd').toUpperCase();
       return locale === 'en'
-        ? `${dayName} ${date.format('D MMM YYYY, HH:mm')}`
-        : `${dayName} ${date.format('D. M. YYYY, HH:mm')}`;
+        ? `${date.format('D MMM YYYY, HH:mm')} | ${dayName}`
+        : `${date.format('D. M. YYYY, HH:mm')} | ${dayName}`;
     },
     [language]
   );
@@ -192,31 +174,50 @@ const ActivityList = () => {
   }
 
   return (
-    <section className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-emerald-50 py-8 md:py-12">
+    <section className="min-h-screen bg-background py-8 md:py-12">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8 rounded-2xl border border-amber-200 bg-white/90 backdrop-blur p-4 sm:p-6 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-white/90 backdrop-blur p-4 sm:p-5 shadow-sm">
+          <div className="text-center">
             <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
               {t?.activities?.title || 'Aktivity'}
             </h1>
+            <p className="mt-2 text-sm sm:text-base text-gray-600 max-w-2xl mx-auto">
+              {t?.activities?.subtitle || 'Najdite pre vas vyhovujuce aktivity a zarezervujte si termin.'}
+            </p>
+          </div>
+
+          <div className="mt-3 flex justify-center">
             <button
               type="button"
               onClick={() => fetchData(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:border-rose-300 hover:bg-rose-50 text-gray-700 transition"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 hover:border-rose-300 hover:bg-rose-50 text-gray-700 transition"
+              aria-label={t?.activities?.refresh || 'Refresh'}
+              title={t?.activities?.refresh || 'Refresh'}
             >
-              <span>{refreshing ? '...' : '↻'}</span>
-              <span>{t?.activities?.refresh || 'Refresh'}</span>
+              <svg
+                viewBox="0 0 24 24"
+                className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                <polyline points="21 3 21 9 15 9" />
+              </svg>
             </button>
           </div>
 
-          <div className="mt-5 flex justify-center">
-            <div className="inline-flex w-full sm:w-auto rounded-xl bg-gray-100 p-1">
+          <div className="mt-3 flex justify-center">
+            <div className="inline-flex w-auto rounded-2xl bg-gray-100 p-1.5">
               <button
                 type="button"
                 onClick={() => setAudience('children')}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                className={`px-6 py-3 rounded-xl text-base font-semibold transition ${
                   audience === 'children'
-                    ? 'bg-white text-rose-700 shadow-sm'
+                    ? 'bg-white text-secondary-900 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -225,9 +226,9 @@ const ActivityList = () => {
               <button
                 type="button"
                 onClick={() => setAudience('adults')}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                className={`px-6 py-3 rounded-xl text-base font-semibold transition ${
                   audience === 'adults'
-                    ? 'bg-white text-rose-700 shadow-sm'
+                    ? 'bg-white text-secondary-700 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -293,8 +294,8 @@ const ActivityList = () => {
                   )}
 
                   {typeDates.length > 0 && (
-                    <div className="max-w-2xl">
-                      <h3 className="font-semibold text-gray-800 mb-3">
+                    <div className="w-full max-w-md mx-auto">
+                      <h3 className="font-semibold text-gray-800 mb-3 text-center">
                         {t?.activities?.availableDates || 'Dostupne terminy'}
                       </h3>
                       <div className="space-y-3">
@@ -307,19 +308,13 @@ const ActivityList = () => {
                               borderLeftColor: type.color_hex || '#f43f5e'
                             }}
                           >
-                            <p className="font-semibold text-gray-900">{formatDate(session.training_date)}</p>
+                            <p className="font-semibold text-gray-900 text-center">{formatDate(session.training_date)}</p>
                             {session.theme && (
-                              <div
-                                className="mt-3 rounded-lg border px-3 py-2"
-                                style={{
-                                  borderColor: type.color_hex || '#fda4af',
-                                  backgroundColor: hexToRgba(type.color_hex, 0.08)
-                                }}
-                              >
-                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                              <div className="mt-3">
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 text-center sm:text-left">
                                   {t?.activities?.theme || 'Tema'}
                                 </p>
-                                <p className="mt-1 text-sm font-semibold text-gray-900">{session.theme}</p>
+                                <p className="mt-1 text-sm font-semibold text-gray-900 text-center sm:text-left">{session.theme}</p>
                               </div>
                             )}
                             <div className="mt-3 flex flex-col sm:flex-row gap-2">

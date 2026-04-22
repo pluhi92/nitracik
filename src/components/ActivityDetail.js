@@ -15,24 +15,6 @@ const slugify = (value = '') =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
 
-const hexToRgba = (hex, alpha) => {
-  if (!hex || typeof hex !== 'string') {
-    return `rgba(244, 63, 94, ${alpha})`;
-  }
-
-  const normalized = hex.replace('#', '');
-
-  if (normalized.length !== 6) {
-    return `rgba(244, 63, 94, ${alpha})`;
-  }
-
-  const red = Number.parseInt(normalized.slice(0, 2), 16);
-  const green = Number.parseInt(normalized.slice(2, 4), 16);
-  const blue = Number.parseInt(normalized.slice(4, 6), 16);
-
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-};
-
 const ActivityDetail = () => {
   const { type } = useParams();
   const { t, language } = useTranslation();
@@ -107,8 +89,8 @@ const ActivityDetail = () => {
     const date = dayjs(value).locale(locale);
     const dayName = date.format('dddd').toUpperCase();
     return locale === 'en'
-      ? `${dayName} ${date.format('D MMM YYYY, HH:mm')}`
-      : `${dayName} ${date.format('D. M. YYYY, HH:mm')}`;
+      ? `${date.format('D MMM YYYY, HH:mm')} | ${dayName}`
+      : `${date.format('D. M. YYYY, HH:mm')} | ${dayName}`;
   };
 
   const handleReserve = (session) => {
@@ -150,7 +132,7 @@ const ActivityDetail = () => {
   }
 
   return (
-    <section className="min-h-screen bg-gradient-to-b from-rose-50 via-white to-amber-50 py-8 md:py-12">
+    <section className="min-h-screen bg-background py-8 md:py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <Link
           to="/aktivity"
@@ -160,7 +142,7 @@ const ActivityDetail = () => {
         </Link>
 
         <article className="rounded-2xl border bg-white shadow-sm overflow-hidden" style={{ borderColor: currentType.color_hex || '#f1f5f9' }}>
-          <header className="p-5 sm:p-6 border-b border-gray-100">
+          <header className="p-4 sm:p-5 border-b border-gray-100">
             <h1 className="text-3xl font-bold tracking-tight" style={{ color: currentType.color_hex || '#111827' }}>
               {currentType.name}
             </h1>
@@ -172,9 +154,9 @@ const ActivityDetail = () => {
             {currentType.description && <p className="mt-3 text-gray-700">{currentType.description}</p>}
           </header>
 
-          <div className="p-5 sm:p-6 bg-gray-50/60">
-            <div className="max-w-2xl">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="p-4 sm:p-5 bg-gray-50/60">
+            <div className="w-full max-w-md mx-auto">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 text-center">
                 {t?.activities?.availableDates || 'Dostupne terminy'}
               </h2>
 
@@ -187,34 +169,30 @@ const ActivityDetail = () => {
                   {dates.map((session) => (
                     <div
                       key={session.id}
-                      className="rounded-xl border border-gray-200 bg-white p-4"
+                      className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4"
                       style={{
                         borderLeftWidth: '4px',
                         borderLeftColor: currentType.color_hex || '#f43f5e'
                       }}
                     >
-                      <p className="font-semibold text-gray-900">{formatDate(session.training_date)}</p>
+                      <p className="font-semibold text-gray-900 text-center">{formatDate(session.training_date)}</p>
                       {session.theme && (
-                        <div
-                          className="mt-3 rounded-lg border px-3 py-2"
-                          style={{
-                            borderColor: currentType.color_hex || '#fda4af',
-                            backgroundColor: hexToRgba(currentType.color_hex, 0.08)
-                          }}
-                        >
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                        <div className="mt-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 text-center sm:text-left">
                             {t?.activities?.theme || 'Tema'}
                           </p>
-                          <p className="mt-1 text-sm font-semibold text-gray-900">{session.theme}</p>
+                          <p className="mt-1 text-sm font-semibold text-gray-900 text-center sm:text-left">{session.theme}</p>
                         </div>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => handleReserve(session)}
-                        className="mt-3 px-4 py-2 rounded-lg bg-rose-600 text-white font-semibold hover:bg-rose-700 transition"
-                      >
-                        {t?.activities?.reserve || 'Rezervovat'}
-                      </button>
+                      <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleReserve(session)}
+                          className="px-4 py-2 rounded-lg bg-rose-600 text-white font-semibold hover:bg-rose-700 transition"
+                        >
+                          {t?.activities?.reserve || 'Rezervovat'}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

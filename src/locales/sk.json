@@ -113,6 +113,7 @@
   },
   "activities": {
     "title": "Aktivity",
+    "subtitle": "Nájdite pre vás vyhovujúce aktivity a zarezervujte si termín.",
     "refresh": "Obnoviť",
     "children": "Pre deti",
     "adults": "Pre dospelých",

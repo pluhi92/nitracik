@@ -224,6 +224,7 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
 
     const pendingBooking = await getBookingById(createResponse.body.bookingId);
     expect(pendingBooking.active).toBe(false);
+    expect(pendingBooking.number_of_children).toBe(0);
     expect(pendingBooking.number_of_adults).toBe(1);
     expect(pendingBooking.age_group).toBe('adult');
 
@@ -244,6 +245,8 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
 
     const paidBooking = await getBookingById(createResponse.body.bookingId);
     expect(paidBooking.active).toBe(true);
+    expect(paidBooking.number_of_children).toBe(0);
+    expect(paidBooking.number_of_adults).toBe(1);
     expect(parseFloat(paidBooking.amount_paid)).toBe(17);
     expect(paidBooking.payment_intent_id).toBeTruthy();
   });
@@ -342,7 +345,7 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
     expect(parseFloat(paidBooking.amount_paid)).toBe(18);
   });
 
-  test('5. duplikovaný booking (2x na ten istý session) s platbou na detský tréning', async () => {
+  test('5. duplikovaný booking pre detský tréning: blok bez allowDuplicate, povolenie s allowDuplicate', async () => {
     const user = await createVerifiedUser('test_child_duplicate@example.com');
     const agent = await loginAsUser(user.email);
     const { trainingType, training } = await createTrainingWithPrice({
@@ -386,6 +389,23 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
       },
     });
 
+    const secondBlocked = await agent.post('/api/create-payment-session').send({
+      userId: user.id,
+      trainingId: training.id,
+      trainingType: trainingType.name,
+      selectedDate: '2026-05-05',
+      selectedTime: '16:00',
+      childrenCount: 1,
+      childrenAge: '9',
+      photoConsent: true,
+      mobile: '+421900000005',
+      note: 'duplicate-child-2',
+      accompanyingPerson: false,
+    });
+    expect(secondBlocked.status).toBe(409);
+    expect(secondBlocked.body.code).toBe('DUPLICATE_BOOKING');
+    expect(secondBlocked.body.requiresConfirmation).toBe(true);
+
     const second = await agent.post('/api/create-payment-session').send({
       userId: user.id,
       trainingId: training.id,
@@ -398,6 +418,7 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
       mobile: '+421900000005',
       note: 'duplicate-child-2',
       accompanyingPerson: false,
+      allowDuplicate: true,
     });
     expect(second.status).toBe(200);
 
@@ -430,7 +451,7 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
     expect(result.rows[0].count).toBe(2);
   });
 
-  test('6. duplikovaný booking (2x na ten istý session) s platbou na dospelácky tréning', async () => {
+  test('6. duplikovaný booking pre dospelácky tréning: blok bez allowDuplicate, povolenie s allowDuplicate', async () => {
     const user = await createVerifiedUser('test_adult_duplicate@example.com');
     const agent = await loginAsUser(user.email);
     const { trainingType, training } = await createTrainingWithPrice({
@@ -466,6 +487,19 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
       },
     });
 
+    const secondBlocked = await agent.post('/api/create-adult-payment-session').send({
+      userId: user.id,
+      trainingId: training.id,
+      trainingType: trainingType.name,
+      selectedDate: '2026-05-06',
+      selectedTime: '18:30',
+      mobile: '+421900000006',
+      note: 'duplicate-adult-2',
+    });
+    expect(secondBlocked.status).toBe(409);
+    expect(secondBlocked.body.code).toBe('DUPLICATE_BOOKING');
+    expect(secondBlocked.body.requiresConfirmation).toBe(true);
+
     const second = await agent.post('/api/create-adult-payment-session').send({
       userId: user.id,
       trainingId: training.id,
@@ -474,6 +508,7 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
       selectedTime: '18:30',
       mobile: '+421900000006',
       note: 'duplicate-adult-2',
+      allowDuplicate: true,
     });
     expect(second.status).toBe(200);
 

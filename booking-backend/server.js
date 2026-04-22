@@ -450,7 +450,17 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           if (!displayTime) displayTime = trainingLocal.format('HH:mm');
         }
         const bookingsResult = await client.query(
-          `SELECT COALESCE(SUM(number_of_children), 0) + COALESCE(SUM(number_of_adults), 0) AS booked_children FROM bookings WHERE training_id = $1 AND active = true`,
+          `SELECT COALESCE(
+             SUM(
+               CASE
+                 WHEN COALESCE(age_group, '') = 'adult' OR COALESCE(number_of_adults, 0) > 0
+                   THEN COALESCE(NULLIF(number_of_adults, 0), 1)
+                 ELSE COALESCE(number_of_children, 0)
+               END
+             ),
+             0
+           ) AS booked_children
+           FROM bookings WHERE training_id = $1 AND active = true`,
           [training.id]
         );
         const bookedCount = parseInt(bookingsResult.rows[0].booked_children, 10);
@@ -554,7 +564,8 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
                session_id = NULL,
                active = true,
                age_group = 'adult',
-               number_of_adults = 1
+               number_of_adults = 1,
+               number_of_children = 0
            WHERE session_id = $4
            RETURNING *`,
           [parseFloat(totalPrice), new Date(session.created * 1000), paymentIntentId, session.id]
@@ -903,11 +914,33 @@ app.get('/api/admin/bookings', isAdmin, async (req, res) => {
         u.last_name,
         u.email,
         b.number_of_children,
+        b.number_of_adults,
+        b.age_group,
         b.active,
         b.booking_type,
         b.amount_paid,
-        COALESCE(SUM(b.number_of_children) FILTER (WHERE b.active = true) OVER (PARTITION BY ta.id), 0) AS total_children,
-        (ta.max_participants - COALESCE(SUM(b.number_of_children) FILTER (WHERE b.active = true) OVER (PARTITION BY ta.id), 0)) AS available_spots
+        COALESCE(
+          SUM(
+            CASE
+              WHEN b.active = true AND (COALESCE(b.age_group, '') = 'adult' OR COALESCE(b.number_of_adults, 0) > 0) THEN 0
+              WHEN b.active = true THEN COALESCE(b.number_of_children, 0)
+              ELSE 0
+            END
+          ) OVER (PARTITION BY ta.id),
+          0
+        ) AS total_children,
+        (
+          ta.max_participants - COALESCE(
+            SUM(
+              CASE
+                WHEN b.active = true AND (COALESCE(b.age_group, '') = 'adult' OR COALESCE(b.number_of_adults, 0) > 0) THEN COALESCE(NULLIF(b.number_of_adults, 0), 1)
+                WHEN b.active = true THEN COALESCE(b.number_of_children, 0)
+                ELSE 0
+              END
+            ) OVER (PARTITION BY ta.id),
+            0
+          )
+        ) AS available_spots
       FROM training_availability ta
       LEFT JOIN bookings b 
         ON ta.id = b.training_id
@@ -1890,7 +1923,17 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
 
     // Check availability (only active bookings count)
     const bookingsResult = await client.query(
-      `SELECT COALESCE(SUM(number_of_children), 0) + COALESCE(SUM(number_of_adults), 0) AS booked_children FROM bookings WHERE training_id = $1 AND active = true`,
+      `SELECT COALESCE(
+         SUM(
+           CASE
+             WHEN COALESCE(age_group, '') = 'adult' OR COALESCE(number_of_adults, 0) > 0
+               THEN COALESCE(NULLIF(number_of_adults, 0), 1)
+             ELSE COALESCE(number_of_children, 0)
+           END
+         ),
+         0
+       ) AS booked_children
+       FROM bookings WHERE training_id = $1 AND active = true`,
       [training.id]
     );
     const bookedChildren = parseInt(bookingsResult.rows[0].booked_children, 10);
@@ -2026,7 +2069,10 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
       mobile,
       note,
       accompanyingPerson,
+      allowDuplicate,
     } = req.body;
+
+    const allowDuplicateBooking = allowDuplicate === true || allowDuplicate === 'true';
 
     // --- 1. VALIDÁCIA VSTUPOV (FIX) ---
     // Skôr než začneme transakciu, overíme, či máme to najhlavnejšie - ID tréningu
@@ -2059,6 +2105,38 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
       }
       const training = trainingResult.rows[0];
 
+      // Serializuje booking pokusy pre user+session, aby nevznikli race-condition duplikáty
+      await client.query(
+        'SELECT pg_advisory_xact_lock($1, $2)',
+        [parseInt(userId, 10), parseInt(training.id, 10)]
+      );
+
+      // Backend safeguard: bez explicitného allowDuplicate nikdy nevytvoríme duplicitný paid booking
+      const duplicateCheckResult = await client.query(
+        `SELECT id, active, booked_at, amount_paid, session_id
+         FROM bookings
+         WHERE user_id = $1
+           AND training_id = $2
+           AND booking_type = 'paid'
+           AND (
+             active = true
+             OR (active = false AND amount_paid IS NULL AND session_id IS NOT NULL)
+           )
+         ORDER BY id DESC
+         LIMIT 1`,
+        [userId, training.id]
+      );
+
+      if (!allowDuplicateBooking && duplicateCheckResult.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Duplicate booking detected for this session. Confirm with allowDuplicate=true to continue.',
+          code: 'DUPLICATE_BOOKING',
+          requiresConfirmation: true,
+          existingBookingId: duplicateCheckResult.rows[0].id,
+        });
+      }
+
       // 2. Výpočet ceny na serveri (Bezpečnosť)
       let calculatedPrice = parseFloat(training.base_price);
       if (accompanyingPerson) {
@@ -2067,7 +2145,16 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
 
       // Validácia kapacity (ostáva rovnaká)
       const bookingsResult = await client.query(
-        `SELECT COALESCE(SUM(number_of_children), 0) + COALESCE(SUM(number_of_adults), 0) AS booked_children 
+        `SELECT COALESCE(
+           SUM(
+             CASE
+               WHEN COALESCE(age_group, '') = 'adult' OR COALESCE(number_of_adults, 0) > 0
+                 THEN COALESCE(NULLIF(number_of_adults, 0), 1)
+               ELSE COALESCE(number_of_children, 0)
+             END
+           ),
+           0
+         ) AS booked_children
          FROM bookings WHERE training_id = $1 AND active = true`,
         [training.id]
       );
@@ -2628,7 +2715,16 @@ app.get('/api/check-availability', async (req, res) => {
 
     const training = trainingResult.rows[0];
     const bookingsResult = await pool.query(
-      `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children
+      `SELECT COALESCE(
+         SUM(
+           CASE
+             WHEN COALESCE(age_group, '') = 'adult' OR COALESCE(number_of_adults, 0) > 0
+               THEN COALESCE(NULLIF(number_of_adults, 0), 1)
+             ELSE COALESCE(number_of_children, 0)
+           END
+         ),
+         0
+       ) AS booked_children
        FROM bookings WHERE training_id = $1 AND active = true`,
       [training.id]
     );
@@ -2795,7 +2891,17 @@ app.post('/api/replace-booking/:bookingId', isAuthenticated, async (req, res) =>
 
     // 2. Check capacity in new session
     const availabilityResult = await client.query(
-      `SELECT ta.id, ta.max_participants, COALESCE(SUM(b.number_of_children),0) AS booked
+      `SELECT ta.id, ta.max_participants,
+              COALESCE(
+                SUM(
+                  CASE
+                    WHEN COALESCE(b.age_group, '') = 'adult' OR COALESCE(b.number_of_adults, 0) > 0
+                      THEN COALESCE(NULLIF(b.number_of_adults, 0), 1)
+                    ELSE COALESCE(b.number_of_children, 0)
+                  END
+                ),
+                0
+              ) AS booked
        FROM training_availability ta
        LEFT JOIN bookings b ON ta.id = b.training_id AND b.active = true
        WHERE ta.id = $1
@@ -2806,7 +2912,12 @@ app.post('/api/replace-booking/:bookingId', isAuthenticated, async (req, res) =>
       throw new Error('New training session not found');
     }
     const availability = availabilityResult.rows[0];
-    if (availability.booked + booking.number_of_children > availability.max_participants) {
+    const bookedParticipants = parseInt(availability.booked, 10);
+    const bookingParticipants = (booking.age_group === 'adult' || Number(booking.number_of_adults) > 0)
+      ? (Number(booking.number_of_adults) || 1)
+      : (Number(booking.number_of_children) || 0);
+
+    if (bookedParticipants + bookingParticipants > availability.max_participants) {
       throw new Error('Not enough spots in the new session');
     }
 
@@ -2857,9 +2968,24 @@ app.get('/api/replacement-sessions/:bookingId', isAuthenticated, async (req, res
     );
     const trainingTypeId = typeIdResult.rows.length > 0 ? typeIdResult.rows[0].id : null;
 
+    const bookingParticipants = (booking.age_group === 'adult' || Number(booking.number_of_adults) > 0)
+      ? (Number(booking.number_of_adults) || 1)
+      : (Number(booking.number_of_children) || 0);
+
     const replacementSessions = await pool.query(
       `SELECT ta.id, ta.training_type, ta.training_date, ta.max_participants,
-              (ta.max_participants - COALESCE(SUM(b.number_of_children), 0)) as available_spots
+              (
+                ta.max_participants - COALESCE(
+                  SUM(
+                    CASE
+                      WHEN COALESCE(b.age_group, '') = 'adult' OR COALESCE(b.number_of_adults, 0) > 0
+                        THEN COALESCE(NULLIF(b.number_of_adults, 0), 1)
+                      ELSE COALESCE(b.number_of_children, 0)
+                    END
+                  ),
+                  0
+                )
+              ) as available_spots
        FROM training_availability ta
        LEFT JOIN bookings b ON ta.id = b.training_id AND b.active = true
        WHERE ta.training_type_id = $1 
@@ -2867,9 +2993,20 @@ app.get('/api/replacement-sessions/:bookingId', isAuthenticated, async (req, res
          AND ta.id != $3
          AND ta.training_date > NOW()
        GROUP BY ta.id
-       HAVING (ta.max_participants - COALESCE(SUM(b.number_of_children), 0)) >= $4
+       HAVING (
+         ta.max_participants - COALESCE(
+           SUM(
+             CASE
+               WHEN COALESCE(b.age_group, '') = 'adult' OR COALESCE(b.number_of_adults, 0) > 0
+                 THEN COALESCE(NULLIF(b.number_of_adults, 0), 1)
+               ELSE COALESCE(b.number_of_children, 0)
+             END
+           ),
+           0
+         )
+       ) >= $4
        ORDER BY ta.training_date ASC`,
-      [trainingTypeId, currentDate, booking.training_id, booking.number_of_children]
+      [trainingTypeId, currentDate, booking.training_id, bookingParticipants]
     );
 
     res.json(replacementSessions.rows);
@@ -3621,19 +3758,38 @@ app.post('/api/bookings/use-credit', async (req, res) => {
       });
     }
 
-    // 4. Check participant count
+    // 4. Determine age_group from training_type and requested participant count
+    const trainingTypeResult = await client.query(
+      `SELECT audience_type FROM training_types WHERE name = $1`,
+      [credit.training_type]
+    );
+    const audienceType = trainingTypeResult.rows[0]?.audience_type || 'children';
+    const isAdultTraining = audienceType === 'adults' || audienceType === 'both';
+    const requestedParticipants = isAdultTraining ? 1 : credit.child_count;
+
+    // 5. Check participant count
     const currentBookings = await client.query(
-      `SELECT COALESCE(SUM(number_of_children), 0) as total 
-       FROM bookings WHERE training_id = $1`,
+      `SELECT COALESCE(
+         SUM(
+           CASE
+             WHEN COALESCE(age_group, '') = 'adult' OR COALESCE(number_of_adults, 0) > 0
+               THEN COALESCE(NULLIF(number_of_adults, 0), 1)
+             ELSE COALESCE(number_of_children, 0)
+           END
+         ),
+         0
+       ) as total
+       FROM bookings
+       WHERE training_id = $1 AND active = true`,
       [trainingId]
     );
-    const totalParticipants = parseInt(currentBookings.rows[0].total) + credit.child_count;
+    const totalParticipants = parseInt(currentBookings.rows[0].total, 10) + requestedParticipants;
     if (totalParticipants > training.max_participants) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Training session is full' });
     }
 
-    // 5. Deactivate original paid booking if exists (keep type as 'paid')
+    // 6. Deactivate original paid booking if exists (keep type as 'paid')
     if (originalSessionId) {
       await client.query(
         'UPDATE bookings SET active = false WHERE user_id = $1 AND training_id = $2 AND booking_type = $3',
@@ -3641,18 +3797,11 @@ app.post('/api/bookings/use-credit', async (req, res) => {
       );
     }
 
-    // 6. Determine age_group from training_type
-    const trainingTypeResult = await client.query(
-      `SELECT audience_type FROM training_types WHERE name = $1`,
-      [credit.training_type]
-    );
-    const audienceType = trainingTypeResult.rows[0]?.audience_type || 'children';
-    const isAdultTraining = audienceType === 'adults' || audienceType === 'both';
+    // 7. Prepare booking payload
     const ageGroup = isAdultTraining ? 'adult' : 'child';
     const numberOfAdults = isAdultTraining ? 1 : null;
     const numberOfChildren = isAdultTraining ? 0 : credit.child_count;
 
-    // 7. Prepare data
     const finalChildrenAges = isAdultTraining ? null : (childrenAges || credit.children_ages || '');
     const rawConsent = photoConsent !== undefined ? photoConsent : credit.photo_consent;
     const finalPhotoConsent = (rawConsent === true || rawConsent === 'true') ? true : null;
@@ -4602,7 +4751,10 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
       selectedTime,
       mobile,
       note,
+      allowDuplicate,
     } = req.body;
+
+    const allowDuplicateBooking = allowDuplicate === true || allowDuplicate === 'true';
 
     if (!trainingId) {
       return res.status(400).json({ error: 'Nebol vybratý konkrétny termín. Prosím, kliknite na požadovaný čas tréningu.' });
@@ -4630,9 +4782,50 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
       const training = trainingResult.rows[0];
       const calculatedPrice = parseFloat(training.base_price);
 
+      // Serializuje booking pokusy pre user+session, aby nevznikli race-condition duplikáty
+      await client.query(
+        'SELECT pg_advisory_xact_lock($1, $2)',
+        [parseInt(userId, 10), parseInt(training.id, 10)]
+      );
+
+      // Backend safeguard: bez explicitného allowDuplicate nikdy nevytvoríme duplicitný paid booking
+      const duplicateCheckResult = await client.query(
+        `SELECT id, active, booked_at, amount_paid, session_id
+         FROM bookings
+         WHERE user_id = $1
+           AND training_id = $2
+           AND booking_type = 'paid'
+           AND (
+             active = true
+             OR (active = false AND amount_paid IS NULL AND session_id IS NOT NULL)
+           )
+         ORDER BY id DESC
+         LIMIT 1`,
+        [userId, training.id]
+      );
+
+      if (!allowDuplicateBooking && duplicateCheckResult.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Duplicate booking detected for this session. Confirm with allowDuplicate=true to continue.',
+          code: 'DUPLICATE_BOOKING',
+          requiresConfirmation: true,
+          existingBookingId: duplicateCheckResult.rows[0].id,
+        });
+      }
+
       // Kapacita: sčítame deti aj dospelých
       const bookingsResult = await client.query(
-        `SELECT COALESCE(SUM(number_of_children), 0) + COALESCE(SUM(number_of_adults), 0) AS booked_count
+        `SELECT COALESCE(
+           SUM(
+             CASE
+               WHEN COALESCE(age_group, '') = 'adult' OR COALESCE(number_of_adults, 0) > 0
+                 THEN COALESCE(NULLIF(number_of_adults, 0), 1)
+               ELSE COALESCE(number_of_children, 0)
+             END
+           ),
+           0
+         ) AS booked_count
          FROM bookings WHERE training_id = $1 AND active = true`,
         [training.id]
       );
@@ -4646,9 +4839,9 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
       // Dočasný booking záznam (active = false, kým platba neprejde)
       const bookingResult = await client.query(
         `INSERT INTO bookings (
-          user_id, training_id, number_of_adults, amount_paid,
+          user_id, training_id, number_of_children, number_of_adults, amount_paid,
           payment_time, session_id, booked_at, mobile, note, active, booking_type, age_group
-        ) VALUES ($1, $2, 1, NULL, NULL, NULL, NOW(), $3, $4, false, 'paid', 'adult')
+        ) VALUES ($1, $2, 0, 1, NULL, NULL, NULL, NOW(), $3, $4, false, 'paid', 'adult')
         RETURNING id`,
         [userId, training.id, mobile || '', note || '']
       );
