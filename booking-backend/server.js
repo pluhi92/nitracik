@@ -2114,28 +2114,49 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
       );
 
       // Backend safeguard: bez explicitného allowDuplicate nikdy nevytvoríme duplicitný paid booking
-      const duplicateCheckResult = await client.query(
-        `SELECT id, active, booked_at, amount_paid, session_id
+      const activeDuplicateCheckResult = await client.query(
+        `SELECT id
          FROM bookings
          WHERE user_id = $1
            AND training_id = $2
            AND booking_type = 'paid'
-           AND (
-             active = true
-             OR (active = false AND amount_paid IS NULL AND session_id IS NOT NULL)
-           )
+           AND active = true
          ORDER BY id DESC
          LIMIT 1`,
         [userId, training.id]
       );
 
-      if (!allowDuplicateBooking && duplicateCheckResult.rows.length > 0) {
+      if (!allowDuplicateBooking && activeDuplicateCheckResult.rows.length > 0) {
         await client.query('ROLLBACK');
         return res.status(409).json({
-          error: 'Duplicate booking detected for this session. Confirm with allowDuplicate=true to continue.',
-          code: 'DUPLICATE_BOOKING',
+          error: 'Duplicate active booking detected for this session. Confirm with allowDuplicate=true to continue.',
+          code: 'ACTIVE_DUPLICATE',
           requiresConfirmation: true,
-          existingBookingId: duplicateCheckResult.rows[0].id,
+          existingBookingId: activeDuplicateCheckResult.rows[0].id,
+        });
+      }
+
+      const pendingDuplicateCheckResult = await client.query(
+        `SELECT id, session_id
+         FROM bookings
+         WHERE user_id = $1
+           AND training_id = $2
+           AND booking_type = 'paid'
+           AND active = false
+           AND amount_paid IS NULL
+           AND session_id IS NOT NULL
+         ORDER BY id DESC
+         LIMIT 1`,
+        [userId, training.id]
+      );
+
+      if (!allowDuplicateBooking && pendingDuplicateCheckResult.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Pending booking already exists for this session. Complete existing payment.',
+          code: 'PENDING_BOOKING',
+          existingBookingId: pendingDuplicateCheckResult.rows[0].id,
+          existingSessionId: pendingDuplicateCheckResult.rows[0].session_id,
         });
       }
 
@@ -2745,6 +2766,67 @@ app.get('/api/check-availability', async (req, res) => {
   } catch (error) {
     console.error('Error checking availability:', error);
     res.status(500).json({ error: 'Failed to check availability' });
+  }
+});
+
+app.get('/api/bookings/duplicate-status', isAuthenticated, async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const trainingId = parseInt(req.query.trainingId, 10);
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!trainingId || Number.isNaN(trainingId)) {
+      return res.status(400).json({ error: 'trainingId is required' });
+    }
+
+    const activeDuplicateCheckResult = await pool.query(
+      `SELECT id
+       FROM bookings
+       WHERE user_id = $1
+         AND training_id = $2
+         AND booking_type = 'paid'
+         AND active = true
+       ORDER BY id DESC
+       LIMIT 1`,
+      [userId, trainingId]
+    );
+
+    if (activeDuplicateCheckResult.rows.length > 0) {
+      return res.json({
+        code: 'ACTIVE_DUPLICATE',
+        existingBookingId: activeDuplicateCheckResult.rows[0].id,
+      });
+    }
+
+    const pendingDuplicateCheckResult = await pool.query(
+      `SELECT id, session_id
+       FROM bookings
+       WHERE user_id = $1
+         AND training_id = $2
+         AND booking_type = 'paid'
+         AND active = false
+         AND amount_paid IS NULL
+         AND session_id IS NOT NULL
+       ORDER BY id DESC
+       LIMIT 1`,
+      [userId, trainingId]
+    );
+
+    if (pendingDuplicateCheckResult.rows.length > 0) {
+      return res.json({
+        code: 'PENDING_BOOKING',
+        existingBookingId: pendingDuplicateCheckResult.rows[0].id,
+        existingSessionId: pendingDuplicateCheckResult.rows[0].session_id,
+      });
+    }
+
+    return res.json({ code: null });
+  } catch (error) {
+    console.error('Error checking duplicate booking status:', error);
+    return res.status(500).json({ error: 'Failed to check duplicate status' });
   }
 });
 
@@ -4792,28 +4874,49 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
       );
 
       // Backend safeguard: bez explicitného allowDuplicate nikdy nevytvoríme duplicitný paid booking
-      const duplicateCheckResult = await client.query(
-        `SELECT id, active, booked_at, amount_paid, session_id
+      const activeDuplicateCheckResult = await client.query(
+        `SELECT id
          FROM bookings
          WHERE user_id = $1
            AND training_id = $2
            AND booking_type = 'paid'
-           AND (
-             active = true
-             OR (active = false AND amount_paid IS NULL AND session_id IS NOT NULL)
-           )
+           AND active = true
          ORDER BY id DESC
          LIMIT 1`,
         [userId, training.id]
       );
 
-      if (!allowDuplicateBooking && duplicateCheckResult.rows.length > 0) {
+      if (!allowDuplicateBooking && activeDuplicateCheckResult.rows.length > 0) {
         await client.query('ROLLBACK');
         return res.status(409).json({
-          error: 'Duplicate booking detected for this session. Confirm with allowDuplicate=true to continue.',
-          code: 'DUPLICATE_BOOKING',
+          error: 'Duplicate active booking detected for this session. Confirm with allowDuplicate=true to continue.',
+          code: 'ACTIVE_DUPLICATE',
           requiresConfirmation: true,
-          existingBookingId: duplicateCheckResult.rows[0].id,
+          existingBookingId: activeDuplicateCheckResult.rows[0].id,
+        });
+      }
+
+      const pendingDuplicateCheckResult = await client.query(
+        `SELECT id, session_id
+         FROM bookings
+         WHERE user_id = $1
+           AND training_id = $2
+           AND booking_type = 'paid'
+           AND active = false
+           AND amount_paid IS NULL
+           AND session_id IS NOT NULL
+         ORDER BY id DESC
+         LIMIT 1`,
+        [userId, training.id]
+      );
+
+      if (!allowDuplicateBooking && pendingDuplicateCheckResult.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Pending booking already exists for this session. Complete existing payment.',
+          code: 'PENDING_BOOKING',
+          existingBookingId: pendingDuplicateCheckResult.rows[0].id,
+          existingSessionId: pendingDuplicateCheckResult.rows[0].session_id,
         });
       }
 

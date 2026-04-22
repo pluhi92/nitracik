@@ -93,6 +93,8 @@ const Booking = () => {
   const [showDuplicateBookingModal, setShowDuplicateBookingModal] = useState(false);
   const [duplicateBookingModalContext, setDuplicateBookingModalContext] = useState(null);
   const [duplicateBookingConfirmedKey, setDuplicateBookingConfirmedKey] = useState('');
+  const [pendingExistingSessionId, setPendingExistingSessionId] = useState('');
+  const [pendingExistingBookingId, setPendingExistingBookingId] = useState(null);
   const [fillFormPreference, setFillFormPreference] = useState({});
   const [userBookings, setUserBookings] = useState([]);
   const [trainingId, setTrainingId] = useState(null);
@@ -170,18 +172,11 @@ const Booking = () => {
       return booking.training_type === typeName && bookingDateTime.date === dateKey;
     }), [userBookings, getBookingDateTime]);
 
-  const hasDuplicateBookingForSession = useCallback((typeName, dateKey, timeValue) =>
-    userBookings.some((booking) => {
-      if (booking.active === false) return false;
-
-      const bookingDateTime = getBookingDateTime(booking);
-
-      return booking.training_type === typeName && bookingDateTime.date === dateKey && bookingDateTime.time === timeValue;
-    }), [userBookings, getBookingDateTime]);
-
   const closeDuplicateBookingModal = () => {
     setShowDuplicateBookingModal(false);
     setDuplicateBookingModalContext(null);
+    setPendingExistingSessionId('');
+    setPendingExistingBookingId(null);
   };
 
   const applyDateSelection = (formattedDate) => {
@@ -574,36 +569,6 @@ const Booking = () => {
   };
 
   useEffect(() => {
-    if (!lockedReservation || !isLockedSelectionApplied || showDuplicateBookingModal) {
-      return;
-    }
-
-    const effectiveType = trainingType || lockedReservation.incomingType;
-    const incomingDate = lockedReservation.incomingDate;
-    const incomingTime = lockedReservation.incomingTime;
-
-    if (!effectiveType || !incomingDate || !incomingTime) {
-      return;
-    }
-
-    const sessionKey = createDuplicateSessionKey(effectiveType, incomingDate, incomingTime);
-
-    if (duplicateBookingConfirmedKey === sessionKey) {
-      return;
-    }
-
-    if (hasDuplicateBookingForSession(effectiveType, incomingDate, incomingTime)) {
-      setDuplicateBookingModalContext({
-        source: 'activity',
-        typeName: effectiveType,
-        date: incomingDate,
-        time: incomingTime
-      });
-      setShowDuplicateBookingModal(true);
-    }
-  }, [lockedReservation, isLockedSelectionApplied, showDuplicateBookingModal, trainingType, duplicateBookingConfirmedKey, userBookings, hasDuplicateBookingForSession]);
-
-  useEffect(() => {
     const checkAvailability = async () => {
       // Ak nemáme ID alebo počet detí, kontrolu nerobíme
       if (!trainingId || !childrenCount) {
@@ -735,6 +700,118 @@ const Booking = () => {
     });
     setShowDuplicateBookingModal(true);
   };
+
+  const openSelectionDuplicateBookingModal = ({ typeName, date, time, source = 'selection' }) => {
+    setDuplicateBookingModalContext({
+      source,
+      typeName,
+      date,
+      time,
+    });
+    setShowDuplicateBookingModal(true);
+  };
+
+  const openPendingDuplicateBookingModal = (existingSessionId, existingBookingId, context = {}) => {
+    const {
+      typeName = trainingType,
+      date = selectedDate,
+      time = selectedTime,
+      origin = null,
+    } = context;
+
+    setPendingExistingSessionId(existingSessionId || '');
+    setPendingExistingBookingId(existingBookingId || null);
+    setDuplicateBookingModalContext({
+      source: 'pending',
+      origin,
+      typeName,
+      date,
+      time
+    });
+    setShowDuplicateBookingModal(true);
+  };
+
+  const checkDuplicateStatusForTraining = useCallback(async ({
+    selectedTrainingId,
+    typeName,
+    date,
+    time,
+    source = 'selection',
+  }) => {
+    if (!selectedTrainingId) {
+      return false;
+    }
+
+    try {
+      const response = await api.get('/api/bookings/duplicate-status', {
+        params: { trainingId: selectedTrainingId },
+      });
+
+      if (response.data?.code === 'ACTIVE_DUPLICATE') {
+        openSelectionDuplicateBookingModal({
+          typeName,
+          date,
+          time,
+          source,
+        });
+        return true;
+      }
+
+      if (response.data?.code === 'PENDING_BOOKING') {
+        openPendingDuplicateBookingModal(
+          response.data?.existingSessionId,
+          response.data?.existingBookingId,
+          {
+            typeName,
+            date,
+            time,
+            origin: source,
+          }
+        );
+        return true;
+      }
+    } catch (error) {
+      console.error('Duplicate status check failed:', error);
+    }
+
+    return false;
+  }, []);
+
+  useEffect(() => {
+    if (!lockedReservation || !isLockedSelectionApplied || showDuplicateBookingModal) {
+      return;
+    }
+
+    const effectiveType = trainingType || lockedReservation.incomingType;
+    const incomingDate = lockedReservation.incomingDate;
+    const incomingTime = lockedReservation.incomingTime;
+    const incomingId = lockedReservation.incomingId;
+
+    if (!effectiveType || !incomingDate || !incomingTime || !incomingId) {
+      return;
+    }
+
+    const sessionKey = createDuplicateSessionKey(effectiveType, incomingDate, incomingTime);
+
+    if (duplicateBookingConfirmedKey === sessionKey) {
+      return;
+    }
+
+    checkDuplicateStatusForTraining({
+      selectedTrainingId: incomingId,
+      typeName: effectiveType,
+      date: incomingDate,
+      time: incomingTime,
+      source: 'activity',
+    });
+  }, [
+    lockedReservation,
+    isLockedSelectionApplied,
+    showDuplicateBookingModal,
+    trainingType,
+    duplicateBookingConfirmedKey,
+    checkDuplicateStatusForTraining,
+  ]);
 
   const startPaidBookingCheckout = async ({ forceAllowDuplicate = false } = {}) => {
     const childrenAgeString = ageGroup === 'child' ? childrenAges.join(', ') : '';
@@ -914,8 +991,20 @@ const Booking = () => {
     } catch (error) {
       console.error('Booking error:', error);
 
-      if (error.response?.status === 409 && error.response?.data?.code === 'DUPLICATE_BOOKING') {
+      const duplicateCode = error.response?.data?.code;
+
+      if (error.response?.status === 409 && (duplicateCode === 'DUPLICATE_BOOKING' || duplicateCode === 'ACTIVE_DUPLICATE')) {
         openBackendDuplicateBookingModal();
+        setWarningMessage('');
+        setLoading(false);
+        return;
+      }
+
+      if (error.response?.status === 409 && duplicateCode === 'PENDING_BOOKING') {
+        openPendingDuplicateBookingModal(
+          error.response?.data?.existingSessionId,
+          error.response?.data?.existingBookingId
+        );
         setWarningMessage('');
         setLoading(false);
         return;
@@ -975,11 +1064,105 @@ const Booking = () => {
     }
 
     applyDateSelection(formattedDate);
+
+    const daySessions = trainingType && trainingDates[trainingType]?.[formattedDate]
+      ? trainingDates[trainingType][formattedDate]
+      : [];
+
+    // Ak je na dátume len jeden slot, vieme overiť duplicitu okamžite už po kliknutí na dátum.
+    if (daySessions.length === 1) {
+      const onlySession = daySessions[0];
+      const sessionKey = createDuplicateSessionKey(trainingType, formattedDate, onlySession.time);
+
+      if (duplicateBookingConfirmedKey !== sessionKey) {
+        checkDuplicateStatusForTraining({
+          selectedTrainingId: onlySession.id,
+          typeName: trainingType,
+          date: formattedDate,
+          time: onlySession.time,
+          source: 'selection',
+        });
+      }
+    }
+  };
+
+  const handleTimeSlotSelect = async (e) => {
+    const id = e.target.value;
+    setTrainingId(id);
+
+    const sessionObj = trainingDates[trainingType][selectedDate]
+      .find(s => String(s.id) === String(id));
+    const nextTime = sessionObj?.time || '';
+    setSelectedTime(nextTime);
+
+    if (!id || !sessionObj) {
+      return;
+    }
+
+    const sessionKey = createDuplicateSessionKey(trainingType, selectedDate, nextTime);
+
+    if (duplicateBookingConfirmedKey === sessionKey) {
+      return;
+    }
+
+    await checkDuplicateStatusForTraining({
+      selectedTrainingId: id,
+      typeName: trainingType,
+      date: selectedDate,
+      time: nextTime,
+      source: 'selection',
+    });
   };
 
   const handleDuplicateBookingConfirm = async () => {
     if (!duplicateBookingModalContext) {
       return;
+    }
+
+    if (duplicateBookingModalContext.source === 'pending') {
+      closeDuplicateBookingModal();
+
+      setLoading(true);
+      setWarningMessage('');
+
+      try {
+        const stripe = await stripePromise;
+
+        if (!pendingExistingSessionId) {
+          throw new Error('Missing pending Stripe session id');
+        }
+
+        const { error } = await stripe.redirectToCheckout({
+          sessionId: pendingExistingSessionId,
+        });
+
+        if (error) {
+          throw error;
+        }
+        return;
+      } catch (error) {
+        console.error('Pending booking redirect error:', error);
+
+        // Fallback: ak je pôvodná Stripe session expirovaná, vytvoríme novú s explicitným allowDuplicate.
+        try {
+          await startPaidBookingCheckout({ forceAllowDuplicate: true });
+          return;
+        } catch (fallbackError) {
+          console.error('Pending booking fallback checkout error:', fallbackError);
+
+          if (fallbackError.response?.status === 409 && (fallbackError.response?.data?.code === 'DUPLICATE_BOOKING' || fallbackError.response?.data?.code === 'ACTIVE_DUPLICATE')) {
+            openBackendDuplicateBookingModal();
+            setWarningMessage('');
+          } else if (fallbackError.response?.data?.error) {
+            setWarningMessage(fallbackError.response.data.error);
+          } else {
+            setWarningMessage('Nepodarilo sa presmerovať na rozpracovanú platbu. Skúste to prosím znova.');
+          }
+
+          setLoading(false);
+          return;
+        }
+      }
     }
 
     if (duplicateBookingModalContext.source === 'backend') {
@@ -1000,8 +1183,14 @@ const Booking = () => {
       } catch (error) {
         console.error('Duplicate confirmation booking error:', error);
 
-        if (error.response?.status === 409 && error.response?.data?.code === 'DUPLICATE_BOOKING') {
+        if (error.response?.status === 409 && (error.response?.data?.code === 'DUPLICATE_BOOKING' || error.response?.data?.code === 'ACTIVE_DUPLICATE')) {
           openBackendDuplicateBookingModal();
+          setWarningMessage('');
+        } else if (error.response?.status === 409 && error.response?.data?.code === 'PENDING_BOOKING') {
+          openPendingDuplicateBookingModal(
+            error.response?.data?.existingSessionId,
+            error.response?.data?.existingBookingId
+          );
           setWarningMessage('');
         } else if (error.response?.data?.error) {
           setWarningMessage(error.response.data.error);
@@ -1027,6 +1216,18 @@ const Booking = () => {
       return;
     }
 
+    if (duplicateBookingModalContext.source === 'selection') {
+      setDuplicateBookingConfirmedKey(
+        createDuplicateSessionKey(
+          duplicateBookingModalContext.typeName,
+          duplicateBookingModalContext.date,
+          duplicateBookingModalContext.time
+        )
+      );
+      closeDuplicateBookingModal();
+      return;
+    }
+
     setDuplicateBookingConfirmedKey(
       createDuplicateDateKey(duplicateBookingModalContext.typeName, duplicateBookingModalContext.date)
     );
@@ -1039,7 +1240,7 @@ const Booking = () => {
 
     closeDuplicateBookingModal();
 
-    if (duplicateSource === 'activity') {
+    if (duplicateSource === 'activity' || (duplicateSource === 'pending' && duplicateBookingModalContext?.origin === 'activity')) {
       navigate('/aktivity');
     }
   };
@@ -1769,15 +1970,7 @@ const Booking = () => {
                 </Form.Label>
                 <Form.Select
                   value={trainingId || ""} // Value je teraz ID
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    setTrainingId(id); // Nastavíme ID okamžite
-
-                    // Čas si dohľadáme len kvôli vizuálnemu zobrazeniu (napr. do sumáru objednávky)
-                    const sessionObj = trainingDates[trainingType][selectedDate]
-                      .find(s => String(s.id) === String(id));
-                    setSelectedTime(sessionObj?.time || '');
-                  }}
+                  onChange={handleTimeSlotSelect}
                   disabled={Boolean(lockedReservation)}
                   className="w-full text-lg py-3"
                 >
@@ -2295,19 +2488,28 @@ const Booking = () => {
         </Modal.Header>
         <Modal.Body>
           <p className="mb-0 text-gray-700">
-            {duplicateBookingModalContext?.source === 'activity' || duplicateBookingModalContext?.source === 'backend'
+            {duplicateBookingModalContext?.source === 'pending'
+              ? 'Na tento termín už máte rozpracovanú rezerváciu. Dokončite platbu.'
+              : duplicateBookingModalContext?.source === 'activity' || duplicateBookingModalContext?.source === 'backend' || duplicateBookingModalContext?.source === 'selection'
               ? t?.booking?.duplicateBookingSessionMessage || 'You already have a booking for this session. Do you really want to create another one?'
               : t?.booking?.duplicateBookingDateMessage || 'You already have a booking on this date. Do you really want to continue and create another one?'}
           </p>
+          {duplicateBookingModalContext?.source === 'pending' && pendingExistingBookingId && (
+            <p className="mt-2 mb-0 text-sm text-gray-500">ID rezervácie: {pendingExistingBookingId}</p>
+          )}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={handleDuplicateBookingCancel}>
-            {duplicateBookingModalContext?.source === 'activity'
+            {duplicateBookingModalContext?.source === 'pending'
+              ? 'Zrušiť'
+              : duplicateBookingModalContext?.source === 'activity'
               ? t?.booking?.duplicateBookingBackToActivities || t?.activities?.backToActivities || 'Back to activities'
               : t?.booking?.duplicateBookingCancel || t?.booking?.cancel || 'No'}
           </Button>
           <Button variant="primary" onClick={handleDuplicateBookingConfirm}>
-            {t?.booking?.duplicateBookingConfirm || 'Yes, continue'}
+            {duplicateBookingModalContext?.source === 'pending'
+              ? 'Dokončiť platbu'
+              : t?.booking?.duplicateBookingConfirm || 'Yes, continue'}
           </Button>
         </Modal.Footer>
       </Modal>

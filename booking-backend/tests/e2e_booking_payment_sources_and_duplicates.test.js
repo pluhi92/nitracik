@@ -403,7 +403,7 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
       accompanyingPerson: false,
     });
     expect(secondBlocked.status).toBe(409);
-    expect(secondBlocked.body.code).toBe('DUPLICATE_BOOKING');
+    expect(secondBlocked.body.code).toBe('ACTIVE_DUPLICATE');
     expect(secondBlocked.body.requiresConfirmation).toBe(true);
 
     const second = await agent.post('/api/create-payment-session').send({
@@ -497,7 +497,7 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
       note: 'duplicate-adult-2',
     });
     expect(secondBlocked.status).toBe(409);
-    expect(secondBlocked.body.code).toBe('DUPLICATE_BOOKING');
+    expect(secondBlocked.body.code).toBe('ACTIVE_DUPLICATE');
     expect(secondBlocked.body.requiresConfirmation).toBe(true);
 
     const second = await agent.post('/api/create-adult-payment-session').send({
