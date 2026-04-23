@@ -2397,11 +2397,6 @@ function normalizeEmail(email) {
   return email.trim().toLowerCase();
 }
 
-function isWhitespaceOnly(str) {
-  if (!str) return true;
-  return str.trim().length === 0;
-}
-
 // DEBUG: Funkcia pre testovanie whitespace
 function testWhitespace(value, name) {
   const isWhitespace = isWhitespaceOnly(value);
