@@ -1,3 +1,7 @@
+function isWhitespaceOnly(str) {
+  if (!str) return true;
+  return str.trim().length === 0;
+}
 require('dotenv').config();
 
 // Time handling rules
@@ -2388,6 +2392,22 @@ function validateMobile(mobile) {
   return mobileRegex.test(mobile);
 }
 
+function normalizeEmail(email) {
+  if (!email) return '';
+  return email.trim().toLowerCase();
+}
+
+function isWhitespaceOnly(str) {
+  if (!str) return true;
+  return str.trim().length === 0;
+}
+
+// DEBUG: Funkcia pre testovanie whitespace
+function testWhitespace(value, name) {
+  const isWhitespace = isWhitespaceOnly(value);
+  console.log(`[WHITESPACE DEBUG] ${name}: "${value}" | is Whitespace: ${isWhitespace}`);
+  return isWhitespace;
+}
 app.post('/api/register', registerLimiter, async (req, res) => {
   // Turnstile token z frontendu
   const { firstName, lastName, email, password, address, _honey, turnstileToken, noMarketingChecked } = req.body;
@@ -2431,6 +2451,17 @@ app.post('/api/register', registerLimiter, async (req, res) => {
   if (!firstName || !lastName || !email || !password || !address) {
     return res.status(400).json({ message: 'Všetky polia sú povinné.' });
   }
+
+    // Validácia whitespace-only hodnôt
+    if (isWhitespaceOnly(firstName) || isWhitespaceOnly(lastName) || isWhitespaceOnly(address)) {
+      return res.status(400).json({ message: 'Všetky polia sú povinné.' });
+    }
+
+      // DEBUG
+      if (testWhitespace(firstName, 'firstName') || testWhitespace(lastName, 'lastName') || testWhitespace(address, 'address')) {
+        console.log(`[WHITESPACE] Registrácia zamietnutá - zistené whitespace-only hodnoty`);
+        return res.status(400).json({ message: 'Všetky polia sú povinné.' });
+      }
   // Validácia hesla
   if (!PASSWORD_REGEX.test(password)) {
     return res.status(400).json({
@@ -2444,7 +2475,8 @@ app.post('/api/register', registerLimiter, async (req, res) => {
     await client.query('BEGIN');
 
     // Kontrola existencie emailu
-    const userCheck = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+    const normalizedEmail = normalizeEmail(email);
+    const userCheck = await client.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [normalizedEmail]);
     if (userCheck.rows.length > 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({ message: 'Užívateľ s týmto emailom už existuje.' });
@@ -2498,7 +2530,8 @@ app.post('/api/forgot-password', async (req, res) => {
   const { email } = req.body;
 
   try {
-    const user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const normalizedEmail = normalizeEmail(email);
+    const user = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [normalizedEmail]);
     if (user.rows.length === 0) {
       return res.status(404).json({ message: 'User not found.' });
     }
@@ -2582,7 +2615,8 @@ app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const normalizedEmail = normalizeEmail(email);
+    const result = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [normalizedEmail]);
     if (result.rows.length > 0) {
       const user = result.rows[0];
       const validPassword = await bcrypt.compare(password, user.password);

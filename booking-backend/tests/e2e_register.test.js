@@ -3,6 +3,7 @@
 
 const request = require('supertest');
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const { 
   cleanupTestData, 
   pool 
@@ -24,14 +25,36 @@ const axios = require('axios');
 
 // Vytvorenie testovacej Express aplikácie
 const app = express();
+app.set('trust proxy', 1);
 app.use(express.json());
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { message: 'Príliš veľa pokusov o registráciu z tejto IP adresy, skúste to prosím neskôr.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const testScopedRegisterLimiter = (req, res, next) => {
+  const email = normalizeEmail(req.body?.email);
+  if (email.startsWith('test_register_ratelimit_')) {
+    return registerLimiter(req, res, next);
+  }
+  return next();
+};
 
 // Import PASSWORD_REGEX z hlavného servera (rovnaký ako v produkcii)
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
 // Register endpoint (kopíruje logiku z server.js)
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', testScopedRegisterLimiter, async (req, res) => {
   const { firstName, lastName, email, password, address, _honey, turnstileToken } = req.body;
+  const normalizedEmail = normalizeEmail(email);
 
   // 1. HONEYPOT KONTROLA
   if (_honey) {
@@ -54,6 +77,10 @@ app.post('/api/register', async (req, res) => {
     const captchaResponse = await axios.post(verificationUrl, formData);
     const captchaData = captchaResponse.data;
 
+  function isWhitespaceOnly(str) {
+    if (!str) return true;
+    return str.trim().length === 0;
+  }
     if (!captchaData.success) {
       console.error('Turnstile verification failed:', captchaData);
       return res.status(400).json({ message: 'Overenie Captcha zlyhalo. Skúste to znova.' });
@@ -64,8 +91,17 @@ app.post('/api/register', async (req, res) => {
   }
 
   // 3. VALIDÁCIA POVINNÝCH POLÍ
-  if (!firstName || !lastName || !email || !password || !address) {
+  if (!firstName || !lastName || !normalizedEmail || !password || !address) {
     return res.status(400).json({ message: 'Všetky polia sú povinné.' });
+  }
+
+    // 3a. VALIDÁCIA WHITESPACE-ONLY POLÍ
+    if (isWhitespaceOnly(firstName) || isWhitespaceOnly(lastName) || isWhitespaceOnly(address)) {
+      return res.status(400).json({ message: 'Všetky polia sú povinné.' });
+    }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return res.status(400).json({ message: 'Neplatný formát emailu.' });
   }
 
   // 4. VALIDÁCIA HESLA - TOTO JE HLAVNÉ ČO TESTUJEME
@@ -78,7 +114,7 @@ app.post('/api/register', async (req, res) => {
   // 5. KONTROLA EXISTUJÚCEHO EMAILU
   const client = await pool.connect();
   try {
-    const userCheck = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+    const userCheck = await client.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [normalizedEmail]);
     if (userCheck.rows.length > 0) {
       return res.status(400).json({ message: 'Užívateľ s týmto emailom už existuje.' });
     }
@@ -88,7 +124,7 @@ app.post('/api/register', async (req, res) => {
       `INSERT INTO users (first_name, last_name, email, password, address, role, created_at, verified)
        VALUES ($1, $2, $3, $4, $5, 'user', NOW(), false)
        RETURNING id, email, first_name`,
-      [firstName, lastName, email, 'hashed_password', address]
+      [firstName, lastName, normalizedEmail, 'hashed_password', address]
     );
 
     res.status(201).json({
@@ -116,13 +152,39 @@ describe('E2E Testy - Registrácia používateľa', () => {
     turnstileToken: 'test_valid_token'
   };
 
+  const registerRequest = (payload, ip = '127.0.0.1') => {
+    return request(app)
+      .post('/api/register')
+      .set('x-forwarded-for', ip)
+      .send(payload);
+  };
+
+  const userByEmail = async (email) => {
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    return result.rows;
+  };
+
   beforeAll(async () => {
     await cleanupTestData();
   });
 
+  beforeEach(() => {
+    jest.clearAllMocks();
+    if (registerLimiter.store && typeof registerLimiter.store.resetAll === 'function') {
+      registerLimiter.store.resetAll();
+    }
+    registerLimiter.resetKey('127.0.0.1');
+    registerLimiter.resetKey('::1');
+    registerLimiter.resetKey('::ffff:127.0.0.1');
+  });
+
   afterEach(async () => {
     // Vyčistenie testovacích používateľov po každom teste
-    await pool.query(`DELETE FROM users WHERE email LIKE 'test_register%'`);
+    await pool.query(`
+      DELETE FROM users
+      WHERE email LIKE 'test_register%'
+         OR email IN ('user@@domain', 'example@email.com')
+    `);
   });
 
   afterAll(async () => {
@@ -206,6 +268,21 @@ describe('E2E Testy - Registrácia používateľa', () => {
         expect(response.status).toBe(201);
         expect(response.body.message).toContain('Registrácia úspešná');
       }
+    });
+
+    test('2c. Hraničné validné heslo s presne 8 znakmi - success', async () => {
+      const response = await registerRequest({
+        ...validUserData,
+        email: 'test_register_min8@example.com',
+        password: 'Aa123456'
+      });
+
+      expect(response.status).toBe(201);
+
+      const users = await userByEmail('test_register_min8@example.com');
+      expect(users.length).toBe(1);
+      expect(users[0].verified).toBe(false);
+      expect(users[0].role).toBe('user');
     });
   });
 
@@ -295,9 +372,7 @@ describe('E2E Testy - Registrácia používateľa', () => {
   describe('🔒 Bezpečnostné testy', () => {
     
     test('malo by zamietnúť registráciu bez Turnstile tokenu', async () => {
-      const response = await request(app)
-        .post('/api/register')
-        .send({
+      const response = await registerRequest({
           ...validUserData,
           email: 'test_register_security@example.com',
           password: 'Heslo123',
@@ -306,12 +381,11 @@ describe('E2E Testy - Registrácia používateľa', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.message).toContain('Captcha');
+      expect(axios.post).not.toHaveBeenCalled();
     });
 
     test('malo by detekovať bota cez honeypot pole', async () => {
-      const response = await request(app)
-        .post('/api/register')
-        .send({
+      const response = await registerRequest({
           ...validUserData,
           email: 'test_register_bot@example.com',
           password: 'Heslo123',
@@ -321,6 +395,7 @@ describe('E2E Testy - Registrácia používateľa', () => {
       // Bot dostane fake success, ale používateľ nebude vytvorený
       expect(response.status).toBe(200);
       expect(response.body.message).toContain('Registrácia úspešná');
+      expect(axios.post).not.toHaveBeenCalled();
 
       // Overenie že používateľ NEBOL vytvorený
       const userResult = await pool.query(
@@ -330,20 +405,66 @@ describe('E2E Testy - Registrácia používateľa', () => {
       expect(userResult.rows.length).toBe(0);
     });
 
+    test('malo by zamietnúť registráciu pri neúspešnom Turnstile overení', async () => {
+      axios.post.mockResolvedValueOnce({ data: { success: false } });
+
+      const response = await registerRequest({
+        ...validUserData,
+        email: 'test_register_turnstile_fail@example.com',
+        password: 'Heslo123',
+        turnstileToken: 'invalid_token'
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('Overenie Captcha zlyhalo');
+
+      const users = await userByEmail('test_register_turnstile_fail@example.com');
+      expect(users.length).toBe(0);
+    });
+
+    test('malo by vrátiť 500 keď Turnstile služba zlyhá', async () => {
+      axios.post.mockRejectedValueOnce(new Error('Turnstile down'));
+
+      const response = await registerRequest({
+        ...validUserData,
+        email: 'test_register_turnstile_error@example.com',
+        password: 'Heslo123',
+        turnstileToken: 'test_valid_token'
+      });
+
+      expect(response.status).toBe(500);
+      expect(response.body.message).toContain('Chyba pri overovaní Captcha');
+
+      const users = await userByEmail('test_register_turnstile_error@example.com');
+      expect(users.length).toBe(0);
+    });
+
+    test('malo by volať Turnstile endpoint s tokenom', async () => {
+      const response = await registerRequest({
+        ...validUserData,
+        email: 'test_register_turnstile_called@example.com',
+        password: 'Heslo123',
+        turnstileToken: 'verify_me_token'
+      });
+
+      expect(response.status).toBe(201);
+      expect(axios.post).toHaveBeenCalledTimes(1);
+      expect(axios.post).toHaveBeenCalledWith(
+        'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+        expect.any(URLSearchParams)
+      );
+    });
+
     test('malo by zamietnúť duplicitný email', async () => {
       // Najprv vytvoríme používateľa
-      await request(app)
-        .post('/api/register')
-        .send({
+      await registerRequest({
           ...validUserData,
           email: 'test_duplicate@example.com',
           password: 'Heslo123'
         });
 
       // Pokus o registráciu s rovnakým emailom
-      const response = await request(app)
-        .post('/api/register')
-        .send({
+      const response = await registerRequest({
           ...validUserData,
           email: 'test_duplicate@example.com',
           password: 'Heslo123'
@@ -351,15 +472,36 @@ describe('E2E Testy - Registrácia používateľa', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.message).toContain('Užívateľ s týmto emailom už existuje');
+
+      const users = await userByEmail('test_duplicate@example.com');
+      expect(users.length).toBe(1);
+    });
+
+    test('malo by brať email case-insensitive pri duplicitnej registrácii', async () => {
+      await registerRequest({
+        ...validUserData,
+        email: 'test_case_insensitive@example.com',
+        password: 'Heslo123'
+      });
+
+      const response = await registerRequest({
+        ...validUserData,
+        email: 'Test_Case_Insensitive@Example.com',
+        password: 'Heslo123'
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('Užívateľ s týmto emailom už existuje');
+
+      const users = await userByEmail('test_case_insensitive@example.com');
+      expect(users.length).toBe(1);
     });
   });
 
   describe('📝 Validácia ostatných polí', () => {
     
     test('malo by zamietnúť registráciu bez povinných polí', async () => {
-      const response = await request(app)
-        .post('/api/register')
-        .send({
+      const response = await registerRequest({
           firstName: '',
           lastName: '',
           email: '',
@@ -370,6 +512,106 @@ describe('E2E Testy - Registrácia používateľa', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.message).toContain('Všetky polia sú povinné');
+    });
+
+    test.each([
+      ['firstName', ''],
+      ['lastName', ''],
+      ['email', ''],
+      ['password', ''],
+      ['address', ''],
+      ['firstName', null],
+      ['lastName', null],
+      ['email', null],
+      ['password', null],
+      ['address', null],
+      ['firstName', undefined],
+      ['lastName', undefined],
+      ['email', undefined],
+      ['password', undefined],
+      ['address', undefined],
+    ])('malo by zamietnúť registráciu keď je pole %s neplatné (%s)', async (field, value) => {
+      const emailSuffix = String(value).replace(/[^a-z]/gi, '');
+      const payload = {
+        ...validUserData,
+        email: `test_register_required_${field}_${emailSuffix}@example.com`,
+        password: 'Heslo123'
+      };
+
+      payload[field] = value;
+
+      const response = await registerRequest(payload);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('Všetky polia sú povinné');
+
+      const users = await userByEmail(payload.email);
+      expect(users.length).toBe(0);
+    });
+
+    test('malo by zamietnúť whitespace-only hodnoty v firstName, lastName a address', async () => {
+      const response = await registerRequest({
+        ...validUserData,
+        email: 'test_register_whitespace_only@example.com',
+        password: 'Heslo123',
+        firstName: '   ',
+        lastName: '\t',
+        address: ' \n '
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('Všetky polia sú povinné');
+
+      const users = await userByEmail('test_register_whitespace_only@example.com');
+      expect(users.length).toBe(0);
+    });
+
+    test('malo by zamietnúť nevalidný email formát (napr. user@@domain)', async () => {
+      const response = await registerRequest({
+        ...validUserData,
+        email: 'test_register_invalid@@domain',
+        password: 'Heslo123'
+      });
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('Neplatný formát emailu');
+
+      const users = await userByEmail('test_register_invalid@@domain');
+      expect(users.length).toBe(0);
+    });
+
+    test('malo by normalizovať email pri registrácii na lowercase', async () => {
+      const response = await registerRequest({
+        ...validUserData,
+        email: 'Test_Register_Normalized@Example.com',
+        password: 'Heslo123'
+      });
+
+      expect(response.status).toBe(201);
+
+      const usersLower = await userByEmail('test_register_normalized@example.com');
+      expect(usersLower.length).toBe(1);
+
+      const usersOriginalCase = await userByEmail('Test_Register_Normalized@Example.com');
+      expect(usersOriginalCase.length).toBe(0);
+    });
+
+    test('malo by obmedziť počet pokusov z jednej IP adresy (anti-bruteforce/rate limit)', async () => {
+      const responses = [];
+
+      for (let i = 0; i < 7; i++) {
+        const response = await registerRequest({
+          ...validUserData,
+          email: `test_register_ratelimit_${i}@example.com`,
+          password: 'Heslo123'
+        });
+
+        responses.push(response.status);
+      }
+
+      expect(responses.some((status) => status === 429)).toBe(true);
+      const lastStatus = responses[responses.length - 1];
+      expect(lastStatus).toBe(429);
     });
   });
 });
