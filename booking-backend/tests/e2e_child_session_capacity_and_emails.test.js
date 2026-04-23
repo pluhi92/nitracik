@@ -2,6 +2,7 @@ const request = require('supertest');
 const bcrypt = require('bcryptjs');
 const {
   cleanupTestData,
+  createTestSeasonTicket,
   createTestTrainingType,
   pool,
 } = require('./setup');
@@ -55,6 +56,7 @@ jest.mock('../services/emailService', () => ({
   sendPaymentFailedEmail: jest.fn().mockResolvedValue(true),
   sendSeasonTicketConfirmation: jest.fn().mockResolvedValue(true),
   sendAdminSeasonTicketPurchase: jest.fn().mockResolvedValue(true),
+  sendAdminSeasonTicketUsage: jest.fn().mockResolvedValue(true),
   sendAdultBookingEmail: jest.fn().mockResolvedValue(true),
   sendUserBookingEmail: jest.fn().mockResolvedValue(true),
   sendAdminNewBookingNotification: jest.fn().mockResolvedValue(true),
@@ -162,6 +164,35 @@ async function completeCheckoutWebhook({ sessionId, metadata, paymentIntentId })
 async function getBookingById(bookingId) {
   const result = await pool.query('SELECT * FROM bookings WHERE id = $1', [bookingId]);
   return result.rows[0];
+}
+
+async function getLatestBookingByNote({ userId, trainingId, note }) {
+  const result = await pool.query(
+    `SELECT *
+     FROM bookings
+     WHERE user_id = $1 AND training_id = $2 AND note = $3
+     ORDER BY id DESC
+     LIMIT 1`,
+    [userId, trainingId, note]
+  );
+  return result.rows[0];
+}
+
+async function createSeasonTicketForTrainingType({
+  userId,
+  trainingTypeId,
+  entriesTotal = 5,
+  entriesRemaining = entriesTotal,
+}) {
+  const ticket = await createTestSeasonTicket(userId, entriesTotal, entriesRemaining);
+
+  await pool.query(
+    `INSERT INTO season_ticket_product_training_types (season_ticket_product_id, training_type_id)
+     VALUES ($1, $2)`,
+    [ticket.season_ticket_product_id, trainingTypeId]
+  );
+
+  return ticket;
 }
 
 async function getActivePaidChildBookingsBySession(sessionId) {
@@ -697,5 +728,198 @@ describe('E2E - Child session capacity and emails', () => {
       expectedChildren: 5,
       expectedUniqueUsers: 3,
     });
+  });
+
+  test('7. booking z Activities s predvyplnenym datumom a casom funguje aj cez permanentku a pocita sa do child kapacity', async () => {
+    const { trainingType, session, selectedDate, selectedTime, priceByCount } = await createChildSessionByAdmin({
+      maxParticipants: 5,
+      basePrice: 20,
+    });
+
+    const seasonTicketUser = await createUser({
+      email: 'test_child_activity_season_ticket@example.com',
+      firstName: 'Season',
+      lastName: 'Parent',
+    });
+    const paidUser = await createUser({
+      email: 'test_child_activity_paid@example.com',
+      firstName: 'Paid',
+      lastName: 'Parent',
+    });
+    const blockedUser = await createUser({
+      email: 'test_child_activity_blocked@example.com',
+      firstName: 'Blocked',
+      lastName: 'Parent',
+    });
+
+    const seasonTicket = await createSeasonTicketForTrainingType({
+      userId: seasonTicketUser.id,
+      trainingTypeId: trainingType.id,
+      entriesTotal: 5,
+    });
+
+    const seasonTicketAgent = await loginAsUser(seasonTicketUser.email);
+    const seasonTicketNote = 'redirected-from-activity-child-season-ticket';
+    const seasonTicketResponse = await seasonTicketAgent.post('/api/use-season-ticket').send({
+      userId: seasonTicketUser.id,
+      seasonTicketId: seasonTicket.id,
+      trainingTypeId: trainingType.id,
+      trainingId: session.id,
+      selectedDate,
+      selectedTime,
+      childrenCount: 2,
+      childrenAge: '6, 7',
+      photoConsent: true,
+      mobile: '+421900000701',
+      note: seasonTicketNote,
+      accompanyingPerson: false,
+      ageGroup: 'child',
+    });
+
+    expect(seasonTicketResponse.status).toBe(200);
+    expect(seasonTicketResponse.body.success).toBe(true);
+
+    const seasonTicketBooking = await getLatestBookingByNote({
+      userId: seasonTicketUser.id,
+      trainingId: session.id,
+      note: seasonTicketNote,
+    });
+    expect(seasonTicketBooking.active).toBe(true);
+    expect(seasonTicketBooking.booking_type).toBe('season_ticket');
+    expect(seasonTicketBooking.number_of_children).toBe(2);
+    expect((seasonTicketBooking.number_of_adults || 0)).toBe(0);
+    expect(seasonTicketBooking.age_group).toBe('child');
+    expect(parseFloat(seasonTicketBooking.amount_paid)).toBe(0);
+    expect(seasonTicketBooking.children_ages).toBe('6, 7');
+    expect(seasonTicketBooking.mobile).toBe('+421900000701');
+    expect(seasonTicketBooking.note).toBe(seasonTicketNote);
+
+    const ticketAfterUsage = await pool.query(
+      'SELECT entries_remaining FROM season_tickets WHERE id = $1',
+      [seasonTicket.id]
+    );
+    expect(ticketAfterUsage.rows[0].entries_remaining).toBe(3);
+
+    await createAndPayChildBooking({
+      agent: await loginAsUser(paidUser.email),
+      user: paidUser,
+      trainingType,
+      session,
+      selectedDate,
+      selectedTime,
+      childrenCount: 3,
+      totalPrice: priceByCount[3],
+      note: 'redirected-from-activity-child-paid',
+    });
+
+    const availabilityResponse = await request(app)
+      .get('/api/check-availability')
+      .query({
+        trainingId: session.id,
+        childrenCount: 1,
+      });
+
+    expect(availabilityResponse.status).toBe(200);
+    expect(availabilityResponse.body.bookedChildren).toBe(5);
+    expect(availabilityResponse.body.remainingSpots).toBe(0);
+    expect(availabilityResponse.body.available).toBe(false);
+
+    const blockedAgent = await loginAsUser(blockedUser.email);
+    const blocked = await blockedAgent.post('/api/create-payment-session').send({
+      userId: blockedUser.id,
+      trainingId: session.id,
+      trainingType: trainingType.name,
+      selectedDate,
+      selectedTime,
+      childrenCount: 1,
+      childrenAge: '5',
+      photoConsent: true,
+      mobile: '+421900000703',
+      note: 'redirected-from-activity-child-blocked',
+      accompanyingPerson: false,
+    });
+
+    expect(blocked.status).toBe(500);
+    expect(blocked.body.error).toContain('Kapacita tréningu bola práve naplnená.');
+
+    const activeBookings = await pool.query(
+      `SELECT booking_type, COUNT(*)::int AS count,
+              COALESCE(SUM(number_of_children), 0)::int AS children_count,
+              COALESCE(SUM(number_of_adults), 0)::int AS adult_count
+       FROM bookings
+       WHERE training_id = $1 AND active = true
+       GROUP BY booking_type
+       ORDER BY booking_type ASC`,
+      [session.id]
+    );
+
+    expect(activeBookings.rows).toEqual([
+      { booking_type: 'paid', count: 1, children_count: 3, adult_count: 0 },
+      { booking_type: 'season_ticket', count: 1, children_count: 2, adult_count: 0 },
+    ]);
+
+    expect(emailService.sendUserBookingEmail).toHaveBeenCalledTimes(2);
+    expect(emailService.sendAdminSeasonTicketUsage).toHaveBeenCalledTimes(1);
+    expect(emailService.sendAdminNewBookingNotification).toHaveBeenCalledTimes(1);
+
+    const userBookingEmails = new Set(emailService.sendUserBookingEmail.mock.calls.map((call) => call[0]));
+    expect(userBookingEmails).toEqual(new Set([seasonTicketUser.email, paidUser.email]));
+  });
+
+  test('8. permanentka s nedostatocnym poctom vstupov vrati chybu a nevytvori child booking', async () => {
+    const { trainingType, session, selectedDate, selectedTime } = await createChildSessionByAdmin({
+      maxParticipants: 5,
+      basePrice: 21,
+    });
+
+    const user = await createUser({
+      email: 'test_child_season_ticket_not_enough_entries@example.com',
+      firstName: 'Entries',
+      lastName: 'Low',
+    });
+
+    const seasonTicket = await createSeasonTicketForTrainingType({
+      userId: user.id,
+      trainingTypeId: trainingType.id,
+      entriesTotal: 5,
+      entriesRemaining: 1,
+    });
+
+    const agent = await loginAsUser(user.email);
+    const response = await agent.post('/api/use-season-ticket').send({
+      userId: user.id,
+      seasonTicketId: seasonTicket.id,
+      trainingTypeId: trainingType.id,
+      trainingId: session.id,
+      selectedDate,
+      selectedTime,
+      childrenCount: 2,
+      childrenAge: '6, 7',
+      photoConsent: true,
+      mobile: '+421900000801',
+      note: 'redirected-from-activity-child-season-ticket-not-enough',
+      accompanyingPerson: false,
+      ageGroup: 'child',
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain('Not enough entries remaining in your season ticket');
+
+    const activeSeasonTicketBookings = await pool.query(
+      `SELECT COUNT(*)::int AS count
+       FROM bookings
+       WHERE user_id = $1 AND training_id = $2 AND booking_type = 'season_ticket' AND active = true`,
+      [user.id, session.id]
+    );
+    expect(activeSeasonTicketBookings.rows[0].count).toBe(0);
+
+    const ticketAfterAttempt = await pool.query(
+      'SELECT entries_remaining FROM season_tickets WHERE id = $1',
+      [seasonTicket.id]
+    );
+    expect(ticketAfterAttempt.rows[0].entries_remaining).toBe(1);
+
+    expect(emailService.sendUserBookingEmail).not.toHaveBeenCalled();
+    expect(emailService.sendAdminSeasonTicketUsage).not.toHaveBeenCalled();
   });
 });

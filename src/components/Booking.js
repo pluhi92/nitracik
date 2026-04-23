@@ -10,6 +10,7 @@ import { Modal, Button, Form } from 'react-bootstrap';
 import CustomCalendar from './CustomCalendar';
 import api from '../api/api';
 import { HexColorPicker } from "react-colorful";
+import { getAvailableSeasonTickets } from '../tests/bookingSeasonTicketUtils';
 
 const Booking = () => {
   const toDateKey = (value) => {
@@ -1392,13 +1393,7 @@ const Booking = () => {
     );
   }
 
-  const availableSeasonTickets = selectedTypeObj
-    ? seasonTickets.filter((ticket) =>
-      Array.isArray(ticket.training_types)
-        ? ticket.training_types.some((type) => type.id === selectedTypeObj.id)
-        : false
-    )
-    : seasonTickets;
+  const availableSeasonTickets = getAvailableSeasonTickets(seasonTickets, selectedTypeObj);
 
   return (
     <div className="max-w-6xl mx-auto mt-8 px-4 sm:px-6 relative">
