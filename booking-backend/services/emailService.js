@@ -261,9 +261,9 @@ module.exports = {
       payment: 'platba prebehla úspešne'
     };
 
-    const pType = sessionDetails.paymentType || 'payment';
-    const subject = SUBJECTS[pType] || SUBJECTS['payment'];
-    const paymentInfo = PAYMENT_TEXT[pType] || PAYMENT_TEXT['payment'];
+    const pType = sessionDetails.paymentType || 'paid';
+    const subject = SUBJECTS[pType] || SUBJECTS['paid'];
+    const paymentInfo = PAYMENT_TEXT[pType] || PAYMENT_TEXT['paid'];
 
     // === NOVÉ: SEASON TICKET INFO ===
     let seasonTicketRows = '';
@@ -280,6 +280,17 @@ module.exports = {
       `;
     }
     // ================================
+
+    // === TÉMA ===
+    let themeRow = '';
+    if (sessionDetails.theme) {
+      themeRow = `
+        <div class="highlight-item">
+          🎨 <strong>Téma:</strong> ${sessionDetails.theme}
+        </div>
+      `;
+    }
+    // =============
 
     const mailOptions = {
       from: SENDER,
@@ -313,6 +324,7 @@ module.exports = {
                 <div class="highlight-box">
                   <div class="highlight-item">📅 <strong>Dátum:</strong> ${formattedDateString}</div>
                   <div class="highlight-item">⏰ <strong>Čas:</strong> ${sessionDetails.start_time || sessionDetails.time}</div>
+                  ${themeRow}
                   <div class="highlight-item">📍 <strong>Miesto:</strong> 
                       <a href="https://www.google.com/maps/search/?api=1&query=Štefánikova+trieda+148,+Nitra" 
                         style="color: #2563eb; text-decoration: underline;">
@@ -330,6 +342,249 @@ module.exports = {
                 <p>Vstup je cez vnútorné átrium, takže neklopkajte na prvé dvere, ale pokračujte cez bráničku, na ktorej vás bude vítať tabuľka <strong>“VITAJTE U NITRÁČIKA”</strong>.</p>
                 <p>Parkovanie je zadarmo pred budovou alebo zboku v areáli železníc.</p>
                 <p>Ďakujem za dôveru a podporu a teším sa na osobné stretnutie.</p>
+                
+                <div style="margin-top: 30px;">
+                  <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
+                  <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
+                  <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
+                  <p style="font-size: 13px; color: #666; margin: 0;">+421 949 584 576</p>
+                </div>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; line-height: 1.5;">
+                  <p style="margin: 0 0 8px 0;"><strong>Súhlas so začatím poskytovania služby:</strong></p>
+                  <p style="margin: 0;">Týmto potvrdzujem, že som pri objednávke udelil/a súhlas so začatím poskytovania služby pred uplynutím lehoty na odstúpenie od zmluvy v zmysle § 7 ods. 1 zákona č. 102/2014 Z.z. o ochrane spotrebiteľa pri predaji tovaru alebo poskytovaní služieb na základe zmluvy uzavretej na diaľku alebo zmluvy uzavretej mimo prevádzkových priestorov predávajúceho a o zmene a doplnení niektorých zákonov. Bol/a som poučený/á o tom, že v prípade uplatnenia tohto súhlasu stratím právo odstúpiť od zmluvy v zmysle § 7 ods. 6 písm. l) uvedeného zákona, ak bude služba v plnom rozsahu poskytnutá.</p>
+                </div>
+              </div>
+              <div class="footer">
+                <div style="margin-bottom: 15px;">
+                   <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
+                    <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                  </a>
+                  <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
+                    <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                  </a>
+                </div>
+                <p style="margin: 0;">© 2026 O.z. Nitráčik. Všetky práva vyhradené.</p>
+                <p style="margin: 5px 0 0 0;">info@nitracik.sk</p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `),
+      attachments: getCommonAttachments()
+    };
+    return transporter.sendMail(mailOptions);
+  },
+
+  // 2b. Booking email pre dospelých (prispôsobený obsah)
+  sendAdultBookingEmail: async (userEmail, sessionDetails) => {
+    const userName = sessionDetails.userName || 'Osôbka';
+    const bookingDate = dayjs(sessionDetails.date).tz('Europe/Bratislava').format('DD.MM.YYYY');
+    const bookingDay = dayjs(sessionDetails.date).tz('Europe/Bratislava').format('dddd');
+    const formattedDateString = `${bookingDate} (${bookingDay})`;
+
+    const SUBJECTS = {
+      credit: 'Rezervácia – uhradená kreditom | Nitráčik',
+      season_ticket: 'Rezervácia – uplatnený permanentný vstup | Nitráčik',
+      paid: 'Potvrdenie rezervácie | Nitráčik'
+    };
+    const PAYMENT_TEXT = {
+      credit: 'rezervácia bola uhradená z vášho kreditu',
+      season_ticket: 'rezervácia bola odpočítaná z permanentného vstupu',
+      paid: 'platba prebehla úspešne'
+    };
+
+    const pType = sessionDetails.paymentType || 'payment';
+    const subject = SUBJECTS[pType] || SUBJECTS['payment'];
+    const paymentInfo = PAYMENT_TEXT[pType] || PAYMENT_TEXT['payment'];
+
+    // === SEASON TICKET INFO ===
+    let seasonTicketRows = '';
+    if (pType === 'season_ticket' && sessionDetails.remainingEntries !== undefined) {
+      const expiryFormatted = dayjs(sessionDetails.expiryDate).tz('Europe/Bratislava').format('DD.MM.YYYY');
+      seasonTicketRows = `
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #eab308;">
+          <div style="color: #9333ea; font-weight: bold; margin-bottom: 5px;">🎫 Stav permanentky:</div>
+          <div class="highlight-item">Použité vstupy teraz: <strong>${sessionDetails.usedEntries}</strong></div>
+          <div class="highlight-item">Zostávajúce vstupy: <strong>${sessionDetails.remainingEntries} / ${sessionDetails.totalEntries}</strong></div>
+          <div class="highlight-item" style="font-size: 13px; color: #666;">Platnosť do: ${expiryFormatted}</div>
+        </div>
+      `;
+    }
+
+    // === TÉMA (len pre detské tréningy, pre dospelých nie) ===
+    let themeRow = '';
+    if (sessionDetails.theme) {
+      themeRow = `
+        <div class="highlight-item">
+          🎨 <strong>Téma:</strong> ${sessionDetails.theme}
+        </div>
+      `;
+    }
+    // =============
+
+    const mailOptions = {
+      from: SENDER,
+      to: userEmail,
+      subject,
+      html: injectImageUrls(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+            .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+            .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #eab308; }
+            .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
+            .highlight-box { background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 15px; margin: 20px 0; text-align: left; }
+            .highlight-item { margin-bottom: 5px; font-size: 15px; }
+            .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+            p { margin-bottom: 15px; }
+          </style>
+        </head>
+        <body>
+          <div style="background-color: #f4f4f4; padding: 40px 0;">
+            <div class="container">
+              <div class="header">
+                <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+              </div>
+              <div class="content">
+                <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName}.</p>
+                <p>Prinášam dobrú správu, že vaša ${paymentInfo} za <strong>${sessionDetails.trainingType || 'Tréning pre dospelých'} - NITRÁČIK</strong>.</p>
+                
+                <div class="highlight-box">
+                  <div class="highlight-item">📅 <strong>Dátum:</strong> ${formattedDateString}</div>
+                  <div class="highlight-item">⏰ <strong>Čas:</strong> ${sessionDetails.start_time || sessionDetails.time}</div>
+                  ${themeRow}
+                  <div class="highlight-item">📍 <strong>Miesto:</strong> 
+                      <a href="https://www.google.com/maps/search/?api=1&query=Štefánikova+trieda+148,+Nitra" 
+                        style="color: #2563eb; text-decoration: underline;">
+                        Štefánikova trieda 148, Nitra</a>
+                  </div>
+                  
+                  ${seasonTicketRows} 
+                  
+                </div>
+
+                <p>Teším sa na stretnutie s Vami a na príjemné chvíle strávené spolu.</p> 
+                <p>Odporúčam vziať si pohodlné oblečenie, v ktorom sa budete cítiť príjemne počas celého tréningu.</p>
+                <p>Prosím o dochvíľnosť, aby sme mohli začať presne v dohodnutom čase. Priestor sa sprístupní až v momente dohodnutého času, aby mali všetci účastníci rovnaký "štart".</p>
+                <p>Vstup je cez vnútorné átrium, takže neklopkajte na prvé dvere, ale pokračujte cez bráničku, na ktorej vás bude vítať tabuľka <strong>"VITAJTE U NITRÁČIKA"</strong>.</p>
+                <p>Parkovanie je zadarmo pred budovou alebo zboku v areáli železníc.</p>
+                <p>Ďakujem za dôveru a teším sa na osobné stretnutie.</p>
+                
+                <div style="margin-top: 30px;">
+                  <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
+                  <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
+                  <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
+                  <p style="font-size: 13px; color: #666; margin: 0;">+421 949 584 576</p>
+                </div>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; line-height: 1.5;">
+                  <p style="margin: 0 0 8px 0;"><strong>Súhlas so začatím poskytovania služby:</strong></p>
+                  <p style="margin: 0;">Týmto potvrdzujem, že som pri objednávke udelil/a súhlas so začatím poskytovania služby pred uplynutím lehoty na odstúpenie od zmluvy v zmysle § 7 ods. 1 zákona č. 102/2014 Z.z. o ochrane spotrebiteľa pri predaji tovaru alebo poskytovaní služieb na základe zmluvy uzavretej na diaľku alebo zmluvy uzavretej mimo prevádzkových priestorov predávajúceho a o zmene a doplnení niektorých zákonov. Bol/a som poučený/á o tom, že v prípade uplatnenia tohto súhlasu stratím právo odstúpiť od zmluvy v zmysle § 7 ods. 6 písm. l) uvedeného zákona, ak bude služba v plnom rozsahu poskytnutá.</p>
+                </div>
+              </div>
+              <div class="footer">
+                <div style="margin-bottom: 15px;">
+                   <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
+                    <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                  </a>
+                  <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
+                    <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                  </a>
+                </div>
+                <p style="margin: 0;">© 2026 O.z. Nitráčik. Všetky práva vyhradené.</p>
+                <p style="margin: 5px 0 0 0;">info@nitracik.sk</p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `),
+      attachments: getCommonAttachments()
+    };
+    return transporter.sendMail(mailOptions);
+  },
+
+  // 2c. Booking confirmation email pre dospelých (nový separátny email)
+  sendAdultBookingConfirmationEmail: async (userEmail, sessionDetails) => {
+    const userName = sessionDetails.userName || 'Osôbka';
+    const bookingDate = dayjs(sessionDetails.date).tz('Europe/Bratislava').format('DD.MM.YYYY');
+    const bookingDay = dayjs(sessionDetails.date).tz('Europe/Bratislava').format('dddd');
+    const formattedDateString = `${bookingDate} (${bookingDay})`;
+
+    const SUBJECTS = {
+      credit: 'Rezervácia – uhradená kreditom | Nitráčik',
+      season_ticket: 'Rezervácia – uplatnený permanentný vstup | Nitráčik',
+      paid: 'Potvrdenie rezervácie | Nitráčik'
+    };
+
+    const pType = sessionDetails.paymentType || 'paid';
+    const subject = SUBJECTS[pType] || SUBJECTS['paid'];
+
+    // === SEASON TICKET INFO ===
+    let seasonTicketRows = '';
+    if (pType === 'season_ticket' && sessionDetails.remainingEntries !== undefined) {
+      const expiryFormatted = dayjs(sessionDetails.expiryDate).tz('Europe/Bratislava').format('DD.MM.YYYY');
+      seasonTicketRows = `
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #eab308;">
+          <div style="color: #9333ea; font-weight: bold; margin-bottom: 5px;">🎫 Stav permanentky:</div>
+          <div class="highlight-item">Použité vstupy teraz: <strong>${sessionDetails.usedEntries}</strong></div>
+          <div class="highlight-item">Zostávajúce vstupy: <strong>${sessionDetails.remainingEntries} / ${sessionDetails.totalEntries}</strong></div>
+          <div class="highlight-item" style="font-size: 13px; color: #666;">Platnosť do: ${expiryFormatted}</div>
+        </div>
+      `;
+    }
+
+    const mailOptions = {
+      from: SENDER,
+      to: userEmail,
+      subject,
+      html: injectImageUrls(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+            .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+            .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #eab308; }
+            .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
+            .highlight-box { background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 15px; margin: 20px 0; text-align: left; }
+            .highlight-item { margin-bottom: 5px; font-size: 15px; }
+            .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+            p { margin-bottom: 15px; }
+          </style>
+        </head>
+        <body>
+          <div style="background-color: #f4f4f4; padding: 40px 0;">
+            <div class="container">
+              <div class="header">
+                <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+              </div>
+              <div class="content">
+                <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${userName}.</p>
+                
+                <p>Ďakujem, že si si dopriala zmysluplný čas pre seba. Zaslúžiš si ho!</p>
+                
+                <div class="highlight-box">
+                  <div class="highlight-item">📅 <strong>Dátum:</strong> ${formattedDateString}</div>
+                  <div class="highlight-item">⏰ <strong>Čas:</strong> ${sessionDetails.start_time || sessionDetails.time}</div>
+                  <div class="highlight-item">📍 <strong>Miesto:</strong> 
+                      <a href="https://www.google.com/maps/search/?api=1&query=Štefánikova+trieda+148,+Nitra" 
+                        style="color: #2563eb; text-decoration: underline;">
+                        Štefánikova trieda 148, Nitra</a>
+                  </div>
+                  
+                  ${seasonTicketRows} 
+                  
+                </div>
+
+                <p>Teším sa na teba v krásnych priestoroch Nitráčika na Štefánikovej triede 148. Prosím, po vstupe na pozemok pokračuj na vnútorné átrium. Tam nájdeš vchod dnu.</p>
+                <p>Parkovať môžeš zadarmo priamo na parkovisku pred budovou alebo zboku v areáli železníc.</p>
+                <p>Nič špeciálne si so sebou nemusíš brať. Papučky a drobné občerstvenie budú pripravené.</p>
+                <p>Do skorého videnia,</p>
                 
                 <div style="margin-top: 30px;">
                   <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
@@ -784,6 +1039,15 @@ module.exports = {
     // 1. Získame tabuľku účastníkov
     const attendeesData = await getAttendeesList(data.trainingId);
 
+    // === TÉMA ===
+    let themeRow = '';
+    if (data.theme) {
+      themeRow = `
+        <div class="info-row"><span class="info-label">🎨 Téma:</span> ${data.theme}</div>
+      `;
+    }
+    // =============
+
     const mailOptions = {
       from: SENDER,
       to: adminEmail,
@@ -826,6 +1090,7 @@ module.exports = {
                   <div class="info-row"><span class="info-label">👶 Počet detí:</span> ${data.childrenCount}</div>
                   <div class="info-row"><span class="info-label">🎂 Vek detí:</span> ${data.childrenAge}</div>
                   <div class="info-row"><span class="info-label">🎨 Typ tréningu:</span> ${data.trainingType}</div>
+                  ${themeRow}
                   <div class="info-row"><span class="info-label">📅 Dátum:</span> ${data.selectedDate}</div>
                   <div class="info-row"><span class="info-label">⏰ Čas:</span> ${data.selectedTime}</div>
                   
@@ -866,6 +1131,16 @@ module.exports = {
 
     // Formátovanie dátumu (lokalny cas)
     const dateStr = dayjs(data.training.training_date).tz('Europe/Bratislava').format('D. M. YYYY HH:mm');
+    
+    // === TÉMA ===
+    let themeRow = '';
+    if (data.theme) {
+      themeRow = `
+        <div class="info-row"><span class="info-label">🎨 Téma:</span> ${data.theme}</div>
+      `;
+    }
+    // =============
+    
     const mailOptions = {
       from: SENDER,
       to: adminEmail,
@@ -904,6 +1179,7 @@ module.exports = {
                   
                   <p style="font-size: 16px; font-weight: bold; margin-bottom: 15px; margin-top: 20px; color: #2563eb;">Detaily rezervácie</p>
                   <div class="info-row"><span class="info-label">🎨 Typ tréningu:</span> ${data.training.training_type}</div>
+                  ${themeRow}
                   <div class="info-row"><span class="info-label">📅 Dátum a čas:</span> ${dateStr}</div>
                   <div class="info-row"><span class="info-label">👶 Počet detí:</span> ${data.credit.child_count}</div>
                   <div class="info-row"><span class="info-label">🎂 Vek detí:</span> ${data.finalChildrenAges}</div>

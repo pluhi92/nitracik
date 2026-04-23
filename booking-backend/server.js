@@ -1,3 +1,7 @@
+function isWhitespaceOnly(str) {
+  if (!str) return true;
+  return str.trim().length === 0;
+}
 require('dotenv').config();
 
 // Time handling rules
@@ -59,7 +63,7 @@ const toUtcDateTimeFromLocalInput = (localDateTime) => {
   if (!localDateTime) return null;
   return dayjs.tz(localDateTime, APP_TIMEZONE).utc().toDate();
 };
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$/;
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 const multer = require('multer');
 const sharp = require('sharp');
 
@@ -450,7 +454,17 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           if (!displayTime) displayTime = trainingLocal.format('HH:mm');
         }
         const bookingsResult = await client.query(
-          `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1 AND active = true`,
+          `SELECT COALESCE(
+             SUM(
+               CASE
+                 WHEN COALESCE(age_group, '') = 'adult' OR COALESCE(number_of_adults, 0) > 0
+                   THEN COALESCE(NULLIF(number_of_adults, 0), 1)
+                 ELSE COALESCE(number_of_children, 0)
+               END
+             ),
+             0
+           ) AS booked_children
+           FROM bookings WHERE training_id = $1 AND active = true`,
           [training.id]
         );
         const bookedCount = parseInt(bookingsResult.rows[0].booked_children, 10);
@@ -505,10 +519,95 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           note,
           totalPrice,
           paymentIntentId,
-          trainingId: training.id
+          trainingId: training.id,
+          theme: training.theme
         };
 
         console.log('[DEBUG] Booking data stored, will send emails after transaction commits');
+      }
+
+      else if (session.metadata.type === 'adult_training_session') {
+        const {
+          userId,
+          trainingId,
+          trainingType,
+          selectedDate,
+          selectedTime,
+          totalPrice,
+          mobile,
+          note,
+           photoConsent,
+        } = session.metadata;
+
+        if (!userId || !trainingType || !totalPrice) {
+          throw new Error('Missing required metadata fields for adult booking');
+        }
+
+        const trainingResult = await client.query(
+          `SELECT * FROM training_availability WHERE id = $1`,
+          [parseInt(trainingId, 10)]
+        );
+        if (trainingResult.rows.length === 0) {
+          throw new Error('Training session no longer available');
+        }
+        const training = trainingResult.rows[0];
+
+        let displayDate = selectedDate;
+        let displayTime = selectedTime;
+        if ((!displayDate || !displayTime) && training?.training_date) {
+          const trainingLocal = dayjs(training.training_date).tz(APP_TIMEZONE);
+          if (!displayDate) displayDate = trainingLocal.format('YYYY-MM-DD');
+          if (!displayTime) displayTime = trainingLocal.format('HH:mm');
+        }
+
+        const paymentIntentId = session.payment_intent;
+        const updateResult = await client.query(
+          `UPDATE bookings
+           SET amount_paid = $1,
+               payment_time = $2,
+               payment_intent_id = $3,
+               session_id = NULL,
+               active = true,
+               age_group = 'adult',
+               number_of_adults = 1,
+                number_of_children = 0,
+                photo_consent = $5
+           WHERE session_id = $4
+           RETURNING *`,
+           [parseFloat(totalPrice), new Date(session.created * 1000), paymentIntentId, session.id, (photoConsent === 'true' ? true : null)]
+        );
+
+        if (updateResult.rowCount === 0) {
+          throw new Error('No adult booking found with the provided session ID');
+        }
+
+        const booking = updateResult.rows[0];
+        console.log('✅ [STRIPE SUCCESS] Adult booking confirmed:', booking.id);
+
+        const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
+        const user = userResult.rows[0];
+
+        bookingEmailData = {
+          targetEmail: user.email || session.customer_details?.email,
+          selectedDate: displayDate,
+          selectedTime: displayTime,
+          trainingType,
+          firstName: user.first_name || 'Účastník',
+          user,
+          mobile,
+          childrenCount: 1,
+          childrenAge: null,
+           photoConsent: photoConsent === 'true' ? true : null,
+          accompanyingPerson: false,
+          note,
+          totalPrice,
+          paymentIntentId,
+          trainingId: training.id,
+          isAdult: true,
+          paymentType: 'paid',
+        };
+
+        console.log('[DEBUG] Adult booking data stored, will send emails after transaction commits');
       }
 
       await client.query('COMMIT');
@@ -560,13 +659,27 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
   // Send booking confirmation emails if booking was processed
   if (bookingEmailData) {
     console.log('📧 [DEBUG] Sending booking confirmation email to:', bookingEmailData.targetEmail);
-    emailService.sendUserBookingEmail(bookingEmailData.targetEmail, {
-      date: bookingEmailData.selectedDate,
-      start_time: bookingEmailData.selectedTime,
-      trainingType: bookingEmailData.trainingType,
-      userName: bookingEmailData.firstName,
-      paymentType: 'payment'
-    }).catch(err => console.error('Failed to send user booking email:', err.message));
+    
+    // Použijeme iný email template pre dospelých
+    if (bookingEmailData.isAdult) {
+      emailService.sendAdultBookingEmail(bookingEmailData.targetEmail, {
+        date: bookingEmailData.selectedDate,
+        start_time: bookingEmailData.selectedTime,
+        trainingType: bookingEmailData.trainingType,
+        userName: bookingEmailData.firstName,
+        paymentType: 'paid',
+        theme: bookingEmailData.theme
+      }).catch(err => console.error('Failed to send adult booking email:', err.message));
+    } else {
+      emailService.sendUserBookingEmail(bookingEmailData.targetEmail, {
+        date: bookingEmailData.selectedDate,
+        start_time: bookingEmailData.selectedTime,
+        trainingType: bookingEmailData.trainingType,
+        userName: bookingEmailData.firstName,
+        paymentType: 'payment',
+        theme: bookingEmailData.theme
+      }).catch(err => console.error('Failed to send user booking email:', err.message));
+    }
 
     // Send admin booking notification
     emailService.sendAdminNewBookingNotification('info@nitracik.sk', {
@@ -674,11 +787,12 @@ app.use(session({
   proxy: isProduction,
   resave: false,
   saveUninitialized: false,
+  rolling: true,  // Session sa obnoví pri každom requeste
   cookie: {
     secure: isProduction,
     httpOnly: true,
     sameSite: isProduction ? 'none' : 'lax',
-    maxAge: 1000 * 60 * 60 * 24 * 7,
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 dní od poslednej aktivity
   },
 }));
 
@@ -737,33 +851,28 @@ const isAdmin = async (req, res, next) => {
 };
 
 function isAuthenticated(req, res, next) {
-  if (DEBUG_LOGS) {
-    console.log('[isAuthenticated] userId:', req.session.userId, 'role:', req.session.role);
+  if (!req.session.userId) {
+    // Logujeme len keď user NIE je autentifikovaný (pre debugging)
+    if (DEBUG_LOGS) {
+      console.log('[isAuthenticated] Unauthorized - no session');
+    }
+    return res.status(401).json({ message: 'Unauthorized' });
   }
-  if (req.session.userId) {
-    // Fetch user email to check admin status
-    pool.query('SELECT email FROM users WHERE id = $1', [req.session.userId], (err, result) => {
-      if (err || !result.rows.length) {
-        return res.status(401).json({ message: 'Unauthorized' });
-      }
-      req.session.email = result.rows[0].email;
-      next();
-    });
-  } else {
-    res.status(401).json({ message: 'Unauthorized' });
-  }
+  
+  // User je OK, pokračujeme bez logovania
+  next();
 }
 
 
 app.post('/api/set-training', isAdmin, async (req, res) => {
   try {
-    const { trainingType, trainingDate, maxParticipants } = req.body;
+    const { trainingType, trainingDate, maxParticipants, theme } = req.body;
 
     // 1. PRETYPOVANIE na číslo (istota pre SQL query)
     const typeId = parseInt(trainingType, 10);
 
     // 2. Kontrola typu
-    const typeRes = await pool.query('SELECT name FROM training_types WHERE id = $1', [typeId]);
+    const typeRes = await pool.query('SELECT name, audience_type FROM training_types WHERE id = $1', [typeId]);
 
     if (typeRes.rows.length === 0) {
       console.log(`[ERROR] Training type ID ${typeId} not found in DB`);
@@ -771,14 +880,18 @@ app.post('/api/set-training', isAdmin, async (req, res) => {
     }
 
     const typeName = typeRes.rows[0].name;
+    const audienceType = typeRes.rows[0].audience_type;
     const trainingDateUtc = toUtcDateTimeFromLocalInput(trainingDate);
 
-    // 3. Vloženie - skontroluj si, či máš v DB stĺpce training_type_id, training_type, training_date, max_participants
+    // 3. Téma sa ukladá len pre detské tréningy
+    const themeValue = (audienceType === 'children' && theme && theme.trim() !== '') ? theme.trim() : null;
+
+    // 4. Vloženie - skontroluj si, či máš v DB stĺpce training_type_id, training_type, training_date, max_participants, theme
     const result = await pool.query(
       `INSERT INTO training_availability 
-       (training_type_id, training_type, training_date, max_participants)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [typeId, typeName, trainingDateUtc, maxParticipants]
+       (training_type_id, training_type, training_date, max_participants, theme)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [typeId, typeName, trainingDateUtc, maxParticipants, themeValue]
     );
 
     res.status(201).json(result.rows[0]);
@@ -807,11 +920,33 @@ app.get('/api/admin/bookings', isAdmin, async (req, res) => {
         u.last_name,
         u.email,
         b.number_of_children,
+        b.number_of_adults,
+        b.age_group,
         b.active,
         b.booking_type,
         b.amount_paid,
-        COALESCE(SUM(b.number_of_children) FILTER (WHERE b.active = true) OVER (PARTITION BY ta.id), 0) AS total_children,
-        (ta.max_participants - COALESCE(SUM(b.number_of_children) FILTER (WHERE b.active = true) OVER (PARTITION BY ta.id), 0)) AS available_spots
+        COALESCE(
+          SUM(
+            CASE
+              WHEN b.active = true AND (COALESCE(b.age_group, '') = 'adult' OR COALESCE(b.number_of_adults, 0) > 0) THEN 0
+              WHEN b.active = true THEN COALESCE(b.number_of_children, 0)
+              ELSE 0
+            END
+          ) OVER (PARTITION BY ta.id),
+          0
+        ) AS total_children,
+        (
+          ta.max_participants - COALESCE(
+            SUM(
+              CASE
+                WHEN b.active = true AND (COALESCE(b.age_group, '') = 'adult' OR COALESCE(b.number_of_adults, 0) > 0) THEN COALESCE(NULLIF(b.number_of_adults, 0), 1)
+                WHEN b.active = true THEN COALESCE(b.number_of_children, 0)
+                ELSE 0
+              END
+            ) OVER (PARTITION BY ta.id),
+            0
+          )
+        ) AS available_spots
       FROM training_availability ta
       LEFT JOIN bookings b 
         ON ta.id = b.training_id
@@ -1227,17 +1362,25 @@ app.get('/api/admin/archived-sessions-report', isAdmin, async (req, res) => {
 
 app.get('/api/training-types', async (req, res) => {
   try {
-    const isAdminRequest = req.query.admin === 'true'; // Admin vidí aj neaktívne
+    const isAdminRequest = req.query.admin === 'true';
+    const audienceType = req.query.audience; // 'children' alebo 'adults'
 
     let query = `
-      SELECT t.*, 
+      SELECT t.*,
              COALESCE(json_agg(json_build_object('child_count', p.child_count, 'price', p.price)) FILTER (WHERE p.id IS NOT NULL), '[]') as prices
       FROM training_types t
       LEFT JOIN training_prices p ON t.id = p.training_type_id
     `;
 
+    const conditions = [];
     if (!isAdminRequest) {
-      query += ` WHERE t.active = TRUE`;
+      conditions.push(`t.active = TRUE`);
+    }
+    if (audienceType) {
+      conditions.push(`(t.audience_type = '${audienceType}' OR t.audience_type = 'both')`);
+    }
+    if (conditions.length > 0) {
+      query += ` WHERE ` + conditions.join(' AND ');
     }
 
     query += ` GROUP BY t.id ORDER BY t.name ASC`;
@@ -1252,28 +1395,26 @@ app.get('/api/training-types', async (req, res) => {
 
 // 2. POST nový typ tréningu (ADMIN)
 app.post('/api/admin/training-types', isAdmin, async (req, res) => {
-  // 1. Pridaj colorHex do deštrukturalizácie
-  const { name, description, durationMinutes, prices, accompanyingPrice, colorHex } = req.body;
+  const { name, description, durationMinutes, prices, accompanyingPrice, colorHex, audienceType } = req.body;
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    // 2. Uprav INSERT query - pridaj color_hex a $5
     const typeResult = await client.query(
-      `INSERT INTO training_types (name, description, duration_minutes, accompanying_person_price, color_hex) 
-       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      `INSERT INTO training_types (name, description, duration_minutes, accompanying_person_price, color_hex, audience_type)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
       [
         name,
         description,
         durationMinutes || 60,
         accompanyingPrice || 3.00,
-        colorHex || '#3b82f6' // Fallback farba ak by neprišla žiadna
+        colorHex || '#3b82f6',
+        audienceType || 'children',
       ]
     );
     const typeId = typeResult.rows[0].id;
 
-    // Vloženie cien
     if (prices && Array.isArray(prices)) {
       for (const p of prices) {
         await client.query(
@@ -1617,7 +1758,8 @@ app.get('/api/training-dates', async (req, res) => {
           tt.color_hex, 
           ta.training_date, 
           ta.max_participants, 
-          ta.cancelled
+          ta.cancelled,
+          ta.theme
           FROM training_availability ta
           JOIN training_types tt ON ta.training_type_id = tt.id
           WHERE ta.training_date >= NOW()
@@ -1738,6 +1880,7 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
     const {
       userId, seasonTicketId, trainingTypeId, trainingId,
       childrenCount, childrenAge, photoConsent, mobile, note, accompanyingPerson,
+      ageGroup,
     } = req.body;
 
     if (!userId || !seasonTicketId || !trainingTypeId || !trainingId || !childrenCount) {
@@ -1776,7 +1919,7 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
 
     // Find training by ID
     const trainingResult = await client.query(
-      `SELECT id, max_participants, training_type, training_date, training_type_id FROM training_availability WHERE id = $1`,
+      `SELECT id, max_participants, training_type, training_date, training_type_id, theme FROM training_availability WHERE id = $1`,
       [trainingId]
     );
     if (trainingResult.rows.length === 0) {
@@ -1786,7 +1929,17 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
 
     // Check availability (only active bookings count)
     const bookingsResult = await client.query(
-      `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children FROM bookings WHERE training_id = $1 AND active = true`,
+      `SELECT COALESCE(
+         SUM(
+           CASE
+             WHEN COALESCE(age_group, '') = 'adult' OR COALESCE(number_of_adults, 0) > 0
+               THEN COALESCE(NULLIF(number_of_adults, 0), 1)
+             ELSE COALESCE(number_of_children, 0)
+           END
+         ),
+         0
+       ) AS booked_children
+       FROM bookings WHERE training_id = $1 AND active = true`,
       [training.id]
     );
     const bookedChildren = parseInt(bookingsResult.rows[0].booked_children, 10);
@@ -1794,11 +1947,19 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
       throw new Error('Not enough available spots');
     }
 
+    // Determine if this is an adult booking
+    const isAdultBooking = ageGroup === 'adult';
+    const finalAgeGroup = isAdultBooking ? 'adult' : 'child';
+    const numberOfAdults = isAdultBooking ? 1 : null;
+    const numberOfChildren = isAdultBooking ? 0 : childrenCount;
+    const finalChildrenAges = isAdultBooking ? null : childrenAge;
+    const finalAccompanyingPerson = isAdultBooking ? false : accompanyingPerson;
+
     // Insert booking
     const bookingResult = await client.query(
-      `INSERT INTO bookings (user_id, training_id, number_of_children, amount_paid, payment_time, booked_at, active, booking_type, children_ages, photo_consent, mobile, note, accompanying_person)
-       VALUES ($1, $2, $3, 0, NULL, NOW(), true, 'season_ticket', $4, $5, $6, $7, $8) RETURNING id`,
-      [userId, training.id, childrenCount, childrenAge, (photoConsent === true ? true : null), mobile, note, accompanyingPerson]
+      `INSERT INTO bookings (user_id, training_id, number_of_children, number_of_adults, amount_paid, payment_time, booked_at, active, booking_type, children_ages, photo_consent, mobile, note, accompanying_person, age_group)
+       VALUES ($1, $2, $3, $4, 0, NULL, NOW(), true, 'season_ticket', $5, $6, $7, $8, $9, $10) RETURNING id`,
+      [userId, training.id, numberOfChildren, numberOfAdults, finalChildrenAges, (photoConsent === true ? true : null), mobile, note, finalAccompanyingPerson, finalAgeGroup]
     );
     const bookingId = bookingResult.rows[0].id;
 
@@ -1824,18 +1985,36 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
     // --- EMAILY ---
     try {
       // 1. User Email (s detailmi o zostatku)
-      await emailService.sendUserBookingEmail(user.email, {
-        date: training.training_date, // Používame dátum z DB pre istotu
-        start_time: dayjs(training.training_date).tz(APP_TIMEZONE).format('HH:mm'),
-        trainingType: training.training_type,
-        userName: user.first_name,
-        paymentType: 'season_ticket',
-        // Data pre permanentku:
-        usedEntries: childrenCount,
-        remainingEntries: newBalance,
-        totalEntries: ticket.entries_total, // <--- Pridané
-        expiryDate: ticket.expiry_date      // <--- Pridané
-      });
+      // Použijeme iný email template pre dospelých
+      if (isAdultBooking) {
+        await emailService.sendAdultBookingEmail(user.email, {
+          date: training.training_date,
+          start_time: dayjs(training.training_date).tz(APP_TIMEZONE).format('HH:mm'),
+          trainingType: training.training_type,
+          userName: user.first_name,
+          paymentType: 'season_ticket',
+          // Data pre permanentku:
+          usedEntries: childrenCount,
+          remainingEntries: newBalance,
+          totalEntries: ticket.entries_total,
+          expiryDate: ticket.expiry_date,
+          theme: training.theme
+        });
+      } else {
+        await emailService.sendUserBookingEmail(user.email, {
+          date: training.training_date, // Používame dátum z DB pre istotu
+          start_time: dayjs(training.training_date).tz(APP_TIMEZONE).format('HH:mm'),
+          trainingType: training.training_type,
+          userName: user.first_name,
+          paymentType: 'season_ticket',
+          // Data pre permanentku:
+          usedEntries: childrenCount,
+          remainingEntries: newBalance,
+          totalEntries: ticket.entries_total,
+          expiryDate: ticket.expiry_date,
+          theme: training.theme
+        });
+      }
 
       // 2. Admin Email (s trainingId pre tabuľku)
       await emailService.sendAdminSeasonTicketUsage('info@nitracik.sk', {
@@ -1849,7 +2028,8 @@ app.post('/api/use-season-ticket', isAuthenticated, async (req, res) => {
         photoConsent,
         note,
         seasonTicketId,
-        trainingId: training.id
+        trainingId: training.id,
+        theme: training.theme
       });
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
@@ -1895,7 +2075,10 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
       mobile,
       note,
       accompanyingPerson,
+      allowDuplicate,
     } = req.body;
+
+    const allowDuplicateBooking = allowDuplicate === true || allowDuplicate === 'true';
 
     // --- 1. VALIDÁCIA VSTUPOV (FIX) ---
     // Skôr než začneme transakciu, overíme, či máme to najhlavnejšie - ID tréningu
@@ -1928,6 +2111,59 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
       }
       const training = trainingResult.rows[0];
 
+      // Serializuje booking pokusy pre user+session, aby nevznikli race-condition duplikáty
+      await client.query(
+        'SELECT pg_advisory_xact_lock($1, $2)',
+        [parseInt(userId, 10), parseInt(training.id, 10)]
+      );
+
+      // Backend safeguard: bez explicitného allowDuplicate nikdy nevytvoríme duplicitný paid booking
+      const activeDuplicateCheckResult = await client.query(
+        `SELECT id
+         FROM bookings
+         WHERE user_id = $1
+           AND training_id = $2
+           AND booking_type = 'paid'
+           AND active = true
+         ORDER BY id DESC
+         LIMIT 1`,
+        [userId, training.id]
+      );
+
+      if (!allowDuplicateBooking && activeDuplicateCheckResult.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Duplicate active booking detected for this session. Confirm with allowDuplicate=true to continue.',
+          code: 'ACTIVE_DUPLICATE',
+          requiresConfirmation: true,
+          existingBookingId: activeDuplicateCheckResult.rows[0].id,
+        });
+      }
+
+      const pendingDuplicateCheckResult = await client.query(
+        `SELECT id, session_id
+         FROM bookings
+         WHERE user_id = $1
+           AND training_id = $2
+           AND booking_type = 'paid'
+           AND active = false
+           AND amount_paid IS NULL
+           AND session_id IS NOT NULL
+         ORDER BY id DESC
+         LIMIT 1`,
+        [userId, training.id]
+      );
+
+      if (!allowDuplicateBooking && pendingDuplicateCheckResult.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Pending booking already exists for this session. Complete existing payment.',
+          code: 'PENDING_BOOKING',
+          existingBookingId: pendingDuplicateCheckResult.rows[0].id,
+          existingSessionId: pendingDuplicateCheckResult.rows[0].session_id,
+        });
+      }
+
       // 2. Výpočet ceny na serveri (Bezpečnosť)
       let calculatedPrice = parseFloat(training.base_price);
       if (accompanyingPerson) {
@@ -1936,7 +2172,16 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
 
       // Validácia kapacity (ostáva rovnaká)
       const bookingsResult = await client.query(
-        `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children 
+        `SELECT COALESCE(
+           SUM(
+             CASE
+               WHEN COALESCE(age_group, '') = 'adult' OR COALESCE(number_of_adults, 0) > 0
+                 THEN COALESCE(NULLIF(number_of_adults, 0), 1)
+               ELSE COALESCE(number_of_children, 0)
+             END
+           ),
+           0
+         ) AS booked_children
          FROM bookings WHERE training_id = $1 AND active = true`,
         [training.id]
       );
@@ -2147,6 +2392,17 @@ function validateMobile(mobile) {
   return mobileRegex.test(mobile);
 }
 
+function normalizeEmail(email) {
+  if (!email) return '';
+  return email.trim().toLowerCase();
+}
+
+// DEBUG: Funkcia pre testovanie whitespace
+function testWhitespace(value, name) {
+  const isWhitespace = isWhitespaceOnly(value);
+  console.log(`[WHITESPACE DEBUG] ${name}: "${value}" | is Whitespace: ${isWhitespace}`);
+  return isWhitespace;
+}
 app.post('/api/register', registerLimiter, async (req, res) => {
   // Turnstile token z frontendu
   const { firstName, lastName, email, password, address, _honey, turnstileToken, noMarketingChecked } = req.body;
@@ -2190,6 +2446,17 @@ app.post('/api/register', registerLimiter, async (req, res) => {
   if (!firstName || !lastName || !email || !password || !address) {
     return res.status(400).json({ message: 'Všetky polia sú povinné.' });
   }
+
+    // Validácia whitespace-only hodnôt
+    if (isWhitespaceOnly(firstName) || isWhitespaceOnly(lastName) || isWhitespaceOnly(address)) {
+      return res.status(400).json({ message: 'Všetky polia sú povinné.' });
+    }
+
+      // DEBUG
+      if (testWhitespace(firstName, 'firstName') || testWhitespace(lastName, 'lastName') || testWhitespace(address, 'address')) {
+        console.log(`[WHITESPACE] Registrácia zamietnutá - zistené whitespace-only hodnoty`);
+        return res.status(400).json({ message: 'Všetky polia sú povinné.' });
+      }
   // Validácia hesla
   if (!PASSWORD_REGEX.test(password)) {
     return res.status(400).json({
@@ -2203,7 +2470,8 @@ app.post('/api/register', registerLimiter, async (req, res) => {
     await client.query('BEGIN');
 
     // Kontrola existencie emailu
-    const userCheck = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+    const normalizedEmail = normalizeEmail(email);
+    const userCheck = await client.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [normalizedEmail]);
     if (userCheck.rows.length > 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({ message: 'Užívateľ s týmto emailom už existuje.' });
@@ -2257,7 +2525,8 @@ app.post('/api/forgot-password', async (req, res) => {
   const { email } = req.body;
 
   try {
-    const user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const normalizedEmail = normalizeEmail(email);
+    const user = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [normalizedEmail]);
     if (user.rows.length === 0) {
       return res.status(404).json({ message: 'User not found.' });
     }
@@ -2341,7 +2610,8 @@ app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const normalizedEmail = normalizeEmail(email);
+    const result = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [normalizedEmail]);
     if (result.rows.length > 0) {
       const user = result.rows[0];
       const validPassword = await bcrypt.compare(password, user.password);
@@ -2497,7 +2767,16 @@ app.get('/api/check-availability', async (req, res) => {
 
     const training = trainingResult.rows[0];
     const bookingsResult = await pool.query(
-      `SELECT COALESCE(SUM(number_of_children), 0) AS booked_children
+      `SELECT COALESCE(
+         SUM(
+           CASE
+             WHEN COALESCE(age_group, '') = 'adult' OR COALESCE(number_of_adults, 0) > 0
+               THEN COALESCE(NULLIF(number_of_adults, 0), 1)
+             ELSE COALESCE(number_of_children, 0)
+           END
+         ),
+         0
+       ) AS booked_children
        FROM bookings WHERE training_id = $1 AND active = true`,
       [training.id]
     );
@@ -2516,6 +2795,67 @@ app.get('/api/check-availability', async (req, res) => {
   } catch (error) {
     console.error('Error checking availability:', error);
     res.status(500).json({ error: 'Failed to check availability' });
+  }
+});
+
+app.get('/api/bookings/duplicate-status', isAuthenticated, async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const trainingId = parseInt(req.query.trainingId, 10);
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!trainingId || Number.isNaN(trainingId)) {
+      return res.status(400).json({ error: 'trainingId is required' });
+    }
+
+    const activeDuplicateCheckResult = await pool.query(
+      `SELECT id
+       FROM bookings
+       WHERE user_id = $1
+         AND training_id = $2
+         AND booking_type = 'paid'
+         AND active = true
+       ORDER BY id DESC
+       LIMIT 1`,
+      [userId, trainingId]
+    );
+
+    if (activeDuplicateCheckResult.rows.length > 0) {
+      return res.json({
+        code: 'ACTIVE_DUPLICATE',
+        existingBookingId: activeDuplicateCheckResult.rows[0].id,
+      });
+    }
+
+    const pendingDuplicateCheckResult = await pool.query(
+      `SELECT id, session_id
+       FROM bookings
+       WHERE user_id = $1
+         AND training_id = $2
+         AND booking_type = 'paid'
+         AND active = false
+         AND amount_paid IS NULL
+         AND session_id IS NOT NULL
+       ORDER BY id DESC
+       LIMIT 1`,
+      [userId, trainingId]
+    );
+
+    if (pendingDuplicateCheckResult.rows.length > 0) {
+      return res.json({
+        code: 'PENDING_BOOKING',
+        existingBookingId: pendingDuplicateCheckResult.rows[0].id,
+        existingSessionId: pendingDuplicateCheckResult.rows[0].session_id,
+      });
+    }
+
+    return res.json({ code: null });
+  } catch (error) {
+    console.error('Error checking duplicate booking status:', error);
+    return res.status(500).json({ error: 'Failed to check duplicate status' });
   }
 });
 
@@ -2555,6 +2895,7 @@ app.get('/api/bookings/user/:userId', isAuthenticated, async (req, res) => {
         t.training_type, 
         t.training_date,
         t.cancelled,
+        t.theme,
         b.active
       FROM bookings b
       JOIN training_availability t ON b.training_id = t.id
@@ -2663,7 +3004,17 @@ app.post('/api/replace-booking/:bookingId', isAuthenticated, async (req, res) =>
 
     // 2. Check capacity in new session
     const availabilityResult = await client.query(
-      `SELECT ta.id, ta.max_participants, COALESCE(SUM(b.number_of_children),0) AS booked
+      `SELECT ta.id, ta.max_participants,
+              COALESCE(
+                SUM(
+                  CASE
+                    WHEN COALESCE(b.age_group, '') = 'adult' OR COALESCE(b.number_of_adults, 0) > 0
+                      THEN COALESCE(NULLIF(b.number_of_adults, 0), 1)
+                    ELSE COALESCE(b.number_of_children, 0)
+                  END
+                ),
+                0
+              ) AS booked
        FROM training_availability ta
        LEFT JOIN bookings b ON ta.id = b.training_id AND b.active = true
        WHERE ta.id = $1
@@ -2674,7 +3025,12 @@ app.post('/api/replace-booking/:bookingId', isAuthenticated, async (req, res) =>
       throw new Error('New training session not found');
     }
     const availability = availabilityResult.rows[0];
-    if (availability.booked + booking.number_of_children > availability.max_participants) {
+    const bookedParticipants = parseInt(availability.booked, 10);
+    const bookingParticipants = (booking.age_group === 'adult' || Number(booking.number_of_adults) > 0)
+      ? (Number(booking.number_of_adults) || 1)
+      : (Number(booking.number_of_children) || 0);
+
+    if (bookedParticipants + bookingParticipants > availability.max_participants) {
       throw new Error('Not enough spots in the new session');
     }
 
@@ -2725,9 +3081,24 @@ app.get('/api/replacement-sessions/:bookingId', isAuthenticated, async (req, res
     );
     const trainingTypeId = typeIdResult.rows.length > 0 ? typeIdResult.rows[0].id : null;
 
+    const bookingParticipants = (booking.age_group === 'adult' || Number(booking.number_of_adults) > 0)
+      ? (Number(booking.number_of_adults) || 1)
+      : (Number(booking.number_of_children) || 0);
+
     const replacementSessions = await pool.query(
       `SELECT ta.id, ta.training_type, ta.training_date, ta.max_participants,
-              (ta.max_participants - COALESCE(SUM(b.number_of_children), 0)) as available_spots
+              (
+                ta.max_participants - COALESCE(
+                  SUM(
+                    CASE
+                      WHEN COALESCE(b.age_group, '') = 'adult' OR COALESCE(b.number_of_adults, 0) > 0
+                        THEN COALESCE(NULLIF(b.number_of_adults, 0), 1)
+                      ELSE COALESCE(b.number_of_children, 0)
+                    END
+                  ),
+                  0
+                )
+              ) as available_spots
        FROM training_availability ta
        LEFT JOIN bookings b ON ta.id = b.training_id AND b.active = true
        WHERE ta.training_type_id = $1 
@@ -2735,9 +3106,20 @@ app.get('/api/replacement-sessions/:bookingId', isAuthenticated, async (req, res
          AND ta.id != $3
          AND ta.training_date > NOW()
        GROUP BY ta.id
-       HAVING (ta.max_participants - COALESCE(SUM(b.number_of_children), 0)) >= $4
+       HAVING (
+         ta.max_participants - COALESCE(
+           SUM(
+             CASE
+               WHEN COALESCE(b.age_group, '') = 'adult' OR COALESCE(b.number_of_adults, 0) > 0
+                 THEN COALESCE(NULLIF(b.number_of_adults, 0), 1)
+               ELSE COALESCE(b.number_of_children, 0)
+             END
+           ),
+           0
+         )
+       ) >= $4
        ORDER BY ta.training_date ASC`,
-      [trainingTypeId, currentDate, booking.training_id, booking.number_of_children]
+      [trainingTypeId, currentDate, booking.training_id, bookingParticipants]
     );
 
     res.json(replacementSessions.rows);
@@ -2798,9 +3180,14 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
       const seasonTicketId = usageResult.rows[0].season_ticket_id;
       console.log('[DEBUG] Reversing season ticket usage:', seasonTicketId);
 
+      // For adult bookings, use number_of_adults (which is 1), for children use number_of_children
+      const entriesToReturn = booking.age_group === 'adult' 
+        ? (booking.number_of_adults || 1) 
+        : (booking.number_of_children || 1);
+
       await client.query(
         'UPDATE season_tickets SET entries_remaining = entries_remaining + $1 WHERE id = $2',
-        [booking.number_of_children, seasonTicketId]
+        [entriesToReturn, seasonTicketId]
       );
       await client.query('DELETE FROM season_ticket_usage WHERE booking_id = $1', [bookingId]);
 
@@ -3476,19 +3863,46 @@ app.post('/api/bookings/use-credit', async (req, res) => {
     }
     const training = trainingResult.rows[0];
 
-    // 3. Check participant count
+    // 3. Check training_type match (credit can only be used for same training type)
+    if (credit.training_type !== training.training_type) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ 
+        error: 'Credit can only be used for the same training type: ' + credit.training_type 
+      });
+    }
+
+    // 4. Determine age_group from training_type and requested participant count
+    const trainingTypeResult = await client.query(
+      `SELECT audience_type FROM training_types WHERE name = $1`,
+      [credit.training_type]
+    );
+    const audienceType = trainingTypeResult.rows[0]?.audience_type || 'children';
+    const isAdultTraining = audienceType === 'adults' || audienceType === 'both';
+    const requestedParticipants = isAdultTraining ? 1 : credit.child_count;
+
+    // 5. Check participant count
     const currentBookings = await client.query(
-      `SELECT COALESCE(SUM(number_of_children), 0) as total 
-       FROM bookings WHERE training_id = $1`,
+      `SELECT COALESCE(
+         SUM(
+           CASE
+             WHEN COALESCE(age_group, '') = 'adult' OR COALESCE(number_of_adults, 0) > 0
+               THEN COALESCE(NULLIF(number_of_adults, 0), 1)
+             ELSE COALESCE(number_of_children, 0)
+           END
+         ),
+         0
+       ) as total
+       FROM bookings
+       WHERE training_id = $1 AND active = true`,
       [trainingId]
     );
-    const totalParticipants = parseInt(currentBookings.rows[0].total) + credit.child_count;
+    const totalParticipants = parseInt(currentBookings.rows[0].total, 10) + requestedParticipants;
     if (totalParticipants > training.max_participants) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Training session is full' });
     }
 
-    // 4. Deactivate original paid booking if exists (keep type as 'paid')
+    // 6. Deactivate original paid booking if exists (keep type as 'paid')
     if (originalSessionId) {
       await client.query(
         'UPDATE bookings SET active = false WHERE user_id = $1 AND training_id = $2 AND booking_type = $3',
@@ -3496,33 +3910,39 @@ app.post('/api/bookings/use-credit', async (req, res) => {
       );
     }
 
-    // 5. Prepare data
-    const finalChildrenAges = childrenAges || credit.children_ages || '';
+    // 7. Prepare booking payload
+    const ageGroup = isAdultTraining ? 'adult' : 'child';
+    const numberOfAdults = isAdultTraining ? 1 : null;
+    const numberOfChildren = isAdultTraining ? 0 : credit.child_count;
+
+    const finalChildrenAges = isAdultTraining ? null : (childrenAges || credit.children_ages || '');
     const rawConsent = photoConsent !== undefined ? photoConsent : credit.photo_consent;
     const finalPhotoConsent = (rawConsent === true || rawConsent === 'true') ? true : null;
     const finalMobile = mobile || credit.mobile || '';
     const finalNote = note || credit.note || '';
-    const finalAccompanyingPerson = accompanyingPerson !== undefined ? accompanyingPerson : (credit.accompanying_person || false);
+    const finalAccompanyingPerson = isAdultTraining ? false : (accompanyingPerson !== undefined ? accompanyingPerson : (credit.accompanying_person || false));
 
-    // 6. Insert new booking
+    // 8. Insert new booking
     const bookingResult = await client.query(
       `INSERT INTO bookings (
-        user_id, training_id, number_of_children, children_ages, 
+        user_id, training_id, number_of_children, number_of_adults, children_ages, 
         photo_consent, mobile, note, accompanying_person, 
         amount_paid, payment_intent_id, payment_time, credit_id, 
-        session_id, booked_at, booking_type, active
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, null, null, $9, null, NOW(), 'credit', true)
+        session_id, booked_at, booking_type, active, age_group
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0, null, null, $10, null, NOW(), 'credit', true, $11)
       RETURNING id`,
       [
         credit.user_id,
         trainingId,
-        credit.child_count,
+        numberOfChildren,
+        numberOfAdults,
         finalChildrenAges,
         finalPhotoConsent,
         finalMobile,
         finalNote,
         finalAccompanyingPerson,
-        creditId
+        creditId,
+        ageGroup
       ]
     );
 
@@ -3545,13 +3965,26 @@ app.post('/api/bookings/use-credit', async (req, res) => {
     // --- ODOSLANIE EMAILOV (Až po commite) ---
     try {
       // 1. User Email
-      await emailService.sendUserBookingEmail(user.email, {
-        date: training.training_date,
-        start_time: dayjs(training.training_date).tz(APP_TIMEZONE).format('HH:mm'), // Alebo ak máš selectedTime v body
-        trainingType: training.training_type,
-        userName: user.first_name,
-        paymentType: 'credit'
-      });
+      // Použijeme iný email template pre dospelých
+      if (isAdultTraining) {
+        await emailService.sendAdultBookingEmail(user.email, {
+          date: training.training_date,
+          start_time: dayjs(training.training_date).tz(APP_TIMEZONE).format('HH:mm'),
+          trainingType: training.training_type,
+          userName: user.first_name,
+          paymentType: 'credit',
+          theme: training.theme
+        });
+      } else {
+        await emailService.sendUserBookingEmail(user.email, {
+          date: training.training_date,
+          start_time: dayjs(training.training_date).tz(APP_TIMEZONE).format('HH:mm'),
+          trainingType: training.training_type,
+          userName: user.first_name,
+          paymentType: 'credit',
+          theme: training.theme
+        });
+      }
 
       // 2. Admin Email
       await emailService.sendAdminCreditUsage('info@nitracik.sk', {
@@ -3560,12 +3993,13 @@ app.post('/api/bookings/use-credit', async (req, res) => {
         credit,
         finalChildrenAges,
         finalMobile,
-        finalPhotoConsent: finalPhotoConsent, // Pozor na názov premennej v emailService
+        finalPhotoConsent: finalPhotoConsent,
         finalNote,
         bookingId,
         creditId,
         originalSessionId,
-        trainingId: training.id // <--- TOTO JE KĽÚČOVÉ PRE TABUĽKU
+        trainingId: training.id,
+        theme: training.theme
       });
 
       console.log('[DEBUG] Credit confirmation emails sent.');
@@ -4414,14 +4848,201 @@ setInterval(async () => {
     if (result.rows.length > 0) {
       console.log(`[CLEANUP] Removed ${result.rows.length} old pending bookings`);
     }
-    
     client.release();
   } catch (err) {
     console.error('[CLEANUP] Error removing old pending bookings:', err.message);
   }
 }, 6 * 60 * 60 * 1000); // Run every 6 hours
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) => {
+  try {
+    const {
+      userId,
+      trainingId,
+      trainingType,
+      selectedDate,
+      selectedTime,
+      mobile,
+      note,
+      allowDuplicate,
+       photoConsent,
+    } = req.body;
 
+    const allowDuplicateBooking = allowDuplicate === true || allowDuplicate === 'true';
+
+    if (!trainingId) {
+      return res.status(400).json({ error: 'Nebol vybratý konkrétny termín. Prosím, kliknite na požadovaný čas tréningu.' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Cena pre dospelého = cena pri child_count = 1
+      const trainingResult = await client.query(
+        `SELECT ta.id, ta.max_participants, ta.training_date,
+                tt.name as type_name,
+                tp.price as base_price
+         FROM training_availability ta
+         JOIN training_types tt ON ta.training_type_id = tt.id
+         JOIN training_prices tp ON tp.training_type_id = tt.id AND tp.child_count = 1
+         WHERE ta.id = $1`,
+        [trainingId]
+      );
+
+      if (trainingResult.rows.length === 0) {
+        throw new Error('Pre tento termín sa nenašiel záznam alebo platná cena.');
+      }
+      const training = trainingResult.rows[0];
+      const calculatedPrice = parseFloat(training.base_price);
+
+      // Serializuje booking pokusy pre user+session, aby nevznikli race-condition duplikáty
+      await client.query(
+        'SELECT pg_advisory_xact_lock($1, $2)',
+        [parseInt(userId, 10), parseInt(training.id, 10)]
+      );
+
+      // Backend safeguard: bez explicitného allowDuplicate nikdy nevytvoríme duplicitný paid booking
+      const activeDuplicateCheckResult = await client.query(
+        `SELECT id
+         FROM bookings
+         WHERE user_id = $1
+           AND training_id = $2
+           AND booking_type = 'paid'
+           AND active = true
+         ORDER BY id DESC
+         LIMIT 1`,
+        [userId, training.id]
+      );
+
+      if (!allowDuplicateBooking && activeDuplicateCheckResult.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Duplicate active booking detected for this session. Confirm with allowDuplicate=true to continue.',
+          code: 'ACTIVE_DUPLICATE',
+          requiresConfirmation: true,
+          existingBookingId: activeDuplicateCheckResult.rows[0].id,
+        });
+      }
+
+      const pendingDuplicateCheckResult = await client.query(
+        `SELECT id, session_id
+         FROM bookings
+         WHERE user_id = $1
+           AND training_id = $2
+           AND booking_type = 'paid'
+           AND active = false
+           AND amount_paid IS NULL
+           AND session_id IS NOT NULL
+         ORDER BY id DESC
+         LIMIT 1`,
+        [userId, training.id]
+      );
+
+      if (!allowDuplicateBooking && pendingDuplicateCheckResult.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Pending booking already exists for this session. Complete existing payment.',
+          code: 'PENDING_BOOKING',
+          existingBookingId: pendingDuplicateCheckResult.rows[0].id,
+          existingSessionId: pendingDuplicateCheckResult.rows[0].session_id,
+        });
+      }
+
+      // Kapacita: sčítame deti aj dospelých
+      const bookingsResult = await client.query(
+        `SELECT COALESCE(
+           SUM(
+             CASE
+               WHEN COALESCE(age_group, '') = 'adult' OR COALESCE(number_of_adults, 0) > 0
+                 THEN COALESCE(NULLIF(number_of_adults, 0), 1)
+               ELSE COALESCE(number_of_children, 0)
+             END
+           ),
+           0
+         ) AS booked_count
+         FROM bookings WHERE training_id = $1 AND active = true`,
+        [training.id]
+      );
+      const bookedCount = parseInt(bookingsResult.rows[0].booked_count, 10);
+      if (bookedCount + 1 > training.max_participants) {
+        throw new Error('Kapacita tréningu bola práve naplnená.');
+      }
+
+      const sessionDate = new Date(training.training_date).toLocaleDateString('sk-SK');
+
+      // Dočasný booking záznam (active = false, kým platba neprejde)
+      const bookingResult = await client.query(
+        `INSERT INTO bookings (
+          user_id, training_id, number_of_children, number_of_adults, amount_paid,
+           payment_time, session_id, booked_at, mobile, note, photo_consent, active, booking_type, age_group
+         ) VALUES ($1, $2, 0, 1, NULL, NULL, NULL, NOW(), $3, $4, $5, false, 'paid', 'adult')
+        RETURNING id`,
+         [userId, training.id, mobile || '', note || '', (photoConsent === true ? true : null)]
+      );
+      const bookingId = bookingResult.rows[0].id;
+
+      // Stripe checkout session
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'eur',
+            product_data: {
+              name: `${training.type_name} Tréning (dospelí)`,
+              description: `Termín: ${sessionDate}`,
+            },
+            unit_amount: Math.round(calculatedPrice * 100),
+          },
+          quantity: 1,
+        }],
+        mode: 'payment',
+        success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}&booking_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.FRONTEND_URL}/payment-cancelled`,
+        payment_intent_data: {
+          metadata: { bookingId: bookingId.toString() }
+        },
+        metadata: {
+          userId: userId.toString(),
+          trainingId: training.id.toString(),
+          trainingType: training.type_name,
+          selectedDate: selectedDate || '',
+          selectedTime: selectedTime || '',
+          totalPrice: calculatedPrice.toString(),
+          mobile: mobile || '',
+          note: note || '',
+          type: 'adult_training_session',
+           photoConsent: photoConsent === true ? 'true' : 'null',
+        },
+      });
+
+      await client.query(
+        `UPDATE bookings SET session_id = $1 WHERE id = $2`,
+        [session.id, bookingId]
+      );
+
+      await client.query('COMMIT');
+      res.json({ sessionId: session.id, bookingId });
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('[DEBUG] Adult payment session error:', error.message);
+      res.status(500).json({ error: error.message });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('[DEBUG] Adult payment session outer error:', error.message);
+    res.status(500).json({ error: `Chyba pri vytváraní platby: ${error.message}` });
+  }
 });
+
+// Spustiť server len pri priamom spustení (nie pri importe cez require)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+// Export pre testy
+module.exports = { app, pool };

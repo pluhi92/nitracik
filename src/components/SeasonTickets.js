@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { useTranslation } from '../contexts/LanguageContext';
 import api from '../api/api';
@@ -10,6 +10,7 @@ const ENTRY_OPTIONS = [3, 5, 10];
 const SeasonTickets = () => {
   const { t, language } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [isLoggedIn, setIsLoggedIn] = useState(localStorage.getItem('isLoggedIn') === 'true');
   const [userId, setUserId] = useState(localStorage.getItem('userId'));
   const [loading, setLoading] = useState(false);
@@ -43,6 +44,15 @@ const SeasonTickets = () => {
     trainingTypeIds: [],
     offers: ENTRY_OPTIONS.map((entries) => ({ entries, price: '', active: true }))
   });
+
+  // Age group filter - z URL parametra alebo default 'child'
+  const [ageGroup, setAgeGroup] = useState(() => {
+    const urlAudience = searchParams.get('audience');
+    return urlAudience === 'adult' ? 'adult' : 'child';
+  });
+  
+  // Training types pre zistenie audience_type
+  const [trainingTypes, setTrainingTypes] = useState([]);
 
   useEffect(() => {
     const handleAuthChange = () => {
@@ -85,6 +95,51 @@ const SeasonTickets = () => {
 
     fetchProducts();
   }, []);
+
+  // Načítanie training types pre zistenie audience_type
+  useEffect(() => {
+    const fetchTrainingTypes = async () => {
+      try {
+        const response = await api.get('/api/training-types');
+        setTrainingTypes(response.data || []);
+      } catch (err) {
+        console.error('Failed to fetch training types:', err);
+      }
+    };
+    fetchTrainingTypes();
+  }, []);
+
+  // Filtrovanie produktov podľa age group
+  const filteredProducts = useMemo(() => {
+    if (!trainingTypes.length) return seasonTicketProducts;
+    
+    return seasonTicketProducts.filter(product => {
+      // Použijeme trainingTypeIds z transformovaných dát z API
+      const productTrainingTypeIds = product.trainingTypeIds || [];
+      
+      // Ak produkt nemá priradené žiadne training types, zobrazíme ho vždy
+      if (productTrainingTypeIds.length === 0) return true;
+      
+      // Zistíme, či všetky priradené training types sú pre deti alebo dospelých
+      const productAudienceTypes = productTrainingTypeIds
+        .map(id => trainingTypes.find(t => t.id === id)?.audience_type)
+        .filter(Boolean);
+      
+      if (productAudienceTypes.length === 0) return true;
+      
+      // Ak máme len detské typy -> child, len dospelé -> adult, mix -> zobrazíme vždy
+      const hasChildren = productAudienceTypes.some(at => at === 'children');
+      const hasAdults = productAudienceTypes.some(at => at === 'adults');
+      
+      if (ageGroup === 'child') {
+        // Pre deti zobrazíme produkty, ktoré majú aspoň jeden detský typ
+        return hasChildren || (!hasChildren && !hasAdults);
+      } else {
+        // Pre dospelých zobrazíme produkty, ktoré majú aspoň jeden dospelý typ
+        return hasAdults || (!hasChildren && !hasAdults);
+      }
+    });
+  }, [seasonTicketProducts, trainingTypes, ageGroup]);
 
   useEffect(() => {
     const fetchOffers = async () => {
@@ -387,6 +442,38 @@ const SeasonTickets = () => {
           </p>
         </div>
 
+        {/* Age Group Toggle */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-gray-100 rounded-lg p-1 flex">
+            <button
+              className={`px-6 py-2 rounded-md font-medium transition-colors ${
+                ageGroup === 'child'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+              onClick={() => {
+                setAgeGroup('child');
+                setSelectedProductId('');
+              }}
+            >
+              Pre deti
+            </button>
+            <button
+              className={`px-6 py-2 rounded-md font-medium transition-colors ${
+                ageGroup === 'adult'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+              onClick={() => {
+                setAgeGroup('adult');
+                setSelectedProductId('');
+              }}
+            >
+              Pre dospelých
+            </button>
+          </div>
+        </div>
+
         {/* Filter podľa produktu */}
         <div className="max-w-3xl mx-auto mb-10 flex flex-col sm:flex-row gap-4 items-center justify-center">
           <label className="font-semibold text-gray-700">
@@ -399,7 +486,7 @@ const SeasonTickets = () => {
             disabled={productsLoading}
           >
             <option value="">{t?.seasonTicketsPage?.productPlaceholder || 'Vyberte produkt...'}</option>
-            {seasonTicketProducts.map((product) => (
+            {filteredProducts.map((product) => (
               <option key={product.id} value={product.id}>
                 {product.name}
               </option>
@@ -455,18 +542,94 @@ const SeasonTickets = () => {
 
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Typy tréningov</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {adminTrainingTypes.map((type) => (
-                          <label key={type.id} className="flex items-center gap-2 text-sm text-gray-700">
-                            <input
-                              type="checkbox"
-                              checked={adminCreateForm.trainingTypeIds.includes(type.id)}
-                              onChange={() => handleAdminTrainingTypeToggle(type.id)}
-                            />
-                            {type.name}
-                          </label>
-                        ))}
-                      </div>
+                      
+                      {/* Rozdelenie tréningov podľa audience_type */}
+                      {(() => {
+                        const childTypes = adminTrainingTypes.filter(t => t.audience_type === 'children');
+                        const adultTypes = adminTrainingTypes.filter(t => t.audience_type === 'adults');
+                        const bothTypes = adminTrainingTypes.filter(t => t.audience_type === 'both' || !t.audience_type);
+                        
+                        // Zistíme či je už vybratý nejaký tréning pre deti alebo dospelých
+                        const hasChildSelected = adminCreateForm.trainingTypeIds.some(id => 
+                          childTypes.some(t => t.id === id)
+                        );
+                        const hasAdultSelected = adminCreateForm.trainingTypeIds.some(id => 
+                          adultTypes.some(t => t.id === id)
+                        );
+                        
+                        return (
+                          <div className="space-y-4">
+                            {/* Tréningy pre deti */}
+                            {childTypes.length > 0 && (
+                              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                                <h4 className="text-sm font-bold text-blue-800 mb-2">🧒 Pre deti</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  {childTypes.map((type) => (
+                                    <label key={type.id} className={`flex items-center gap-2 text-sm ${hasAdultSelected ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700'}`}>
+                                      <input
+                                        type="checkbox"
+                                        checked={adminCreateForm.trainingTypeIds.includes(type.id)}
+                                        onChange={() => handleAdminTrainingTypeToggle(type.id)}
+                                        disabled={hasAdultSelected}
+                                      />
+                                      {type.name}
+                                    </label>
+                                  ))}
+                                </div>
+                                {hasAdultSelected && (
+                                  <p className="text-xs text-red-600 mt-2">
+                                    ⚠️ Nemôžete kombinovať tréningy pre deti a dospelých
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* Tréningy pre dospelých */}
+                            {adultTypes.length > 0 && (
+                              <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                                <h4 className="text-sm font-bold text-green-800 mb-2">🧑 Pre dospelých</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  {adultTypes.map((type) => (
+                                    <label key={type.id} className={`flex items-center gap-2 text-sm ${hasChildSelected ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700'}`}>
+                                      <input
+                                        type="checkbox"
+                                        checked={adminCreateForm.trainingTypeIds.includes(type.id)}
+                                        onChange={() => handleAdminTrainingTypeToggle(type.id)}
+                                        disabled={hasChildSelected}
+                                      />
+                                      {type.name}
+                                    </label>
+                                  ))}
+                                </div>
+                                {hasChildSelected && (
+                                  <p className="text-xs text-red-600 mt-2">
+                                    ⚠️ Nemôžete kombinovať tréningy pre deti a dospelých
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* Tréningy pre oboje (ak existujú) */}
+                            {bothTypes.length > 0 && (
+                              <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                                <h4 className="text-sm font-bold text-purple-800 mb-2">👨‍👩‍👧‍👦 Pre oboje</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  {bothTypes.map((type) => (
+                                    <label key={type.id} className="flex items-center gap-2 text-sm text-gray-700">
+                                      <input
+                                        type="checkbox"
+                                        checked={adminCreateForm.trainingTypeIds.includes(type.id)}
+                                        onChange={() => handleAdminTrainingTypeToggle(type.id)}
+                                      />
+                                      {type.name}
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div>

@@ -773,7 +773,7 @@ useEffect(() => {
             {isLoggedIn && (
               <div className="mt-4">
                 <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
-                  Chcete si pozrieť svoj profil alebo náš rozvrh?
+                  Chcete si pozrieť svoj profil alebo nase aktivity?
                 </p>
                 <div className="flex gap-3">
                   <Link
@@ -783,10 +783,10 @@ useEffect(() => {
                     Môj profil
                   </Link>
                   <Link
-                    to="/schedule"
+                    to="/aktivity"
                     className="inline-block border border-secondary-500 text-secondary-500 py-2 px-6 rounded-full text-sm font-semibold hover:bg-secondary-500 hover:text-white transition-all"
                   >
-                    Rozvrh
+                    Aktivity
                   </Link>
                 </div>
               </div>

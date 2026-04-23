@@ -88,7 +88,13 @@
     "selectDateTimeRequired": "Please select date and time for your credit booking.",
     "secureBooking": "Your booking is secure and protected",
     "processing": "Processing...",
-    "alreadyBooked": "You are already booked for this session. Please check your profile."
+    "alreadyBooked": "You are already booked for this session. Please check your profile.",
+    "duplicateBookingTitle": "Duplicate booking confirmation",
+    "duplicateBookingDateMessage": "You already have a booking on this date. Do you really want to continue and create another one?",
+    "duplicateBookingSessionMessage": "You already have a booking for this session. Do you really want to create another one?",
+    "duplicateBookingConfirm": "Yes, continue",
+    "duplicateBookingCancel": "No",
+    "duplicateBookingBackToActivities": "Back to activities"
   },
   "admin": {
     "title": "Admin Controls",
@@ -101,11 +107,34 @@
   "navbar": {
     "about": "About Nitráčik",
     "photos": "Gallery",
+    "activities": "Activities",
     "booking": "Book your session",
     "contact": "Contact",
     "profile": "My Profile",
     "logout": "Logout",
     "login": "Login"
+  },
+  "activities": {
+    "title": "Activities",
+    "subtitle": "Find activities that suit you and reserve your time slot.",
+    "refresh": "Refresh",
+    "children": "For children",
+    "adults": "For adults",
+    "duration": "Duration",
+    "price": "Price",
+    "from": "From",
+    "priceOnRequest": "Price on request",
+    "availableDates": "Available dates",
+    "noActivities": "No activities are available for this group right now.",
+    "noDates": "No date is currently available.",
+    "reserve": "Reserve",
+    "detail": "Detail",
+    "theme": "Theme",
+    "loading": "Loading activities...",
+    "retry": "Retry",
+    "fetchError": "Failed to load activities.",
+    "notFound": "Activity was not found.",
+    "backToActivities": "Back to activities"
   },
   "footer": {
     "copyright": "© 2025 Nitráčik. All rights reserved."

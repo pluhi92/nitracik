@@ -86,7 +86,13 @@
     "selectDateTimeRequired": "Prosím, vyberte dátum a čas pre rezerváciu s kreditom.",
     "secureBooking": "Vaša rezervácia je zabezpečená a chránená",
     "processing": "Spracovávam...",
-    "alreadyBooked": "Na tento termín ste už prihlásený. Skontrolujte si svoj profil."
+    "alreadyBooked": "Na tento termín ste už prihlásený. Skontrolujte si svoj profil.",
+    "duplicateBookingTitle": "Potvrdenie duplicitnej rezervácie",
+    "duplicateBookingDateMessage": "Na tento dátum už máte vytvorenú rezerváciu. Naozaj chcete pokračovať a vytvoriť ďalšiu?",
+    "duplicateBookingSessionMessage": "Na tento termín už máte vytvorenú rezerváciu. Naozaj chcete vytvoriť ďalšiu?",
+    "duplicateBookingConfirm": "Áno, pokračovať",
+    "duplicateBookingCancel": "Nie",
+    "duplicateBookingBackToActivities": "Späť na aktivity"
   },
   "admin": {
     "title": "Admin Panel",
@@ -98,12 +104,34 @@
   },
   "navbar": {
     "about": "O Nitračikovi",
-    "schedule": "Rozvrh",
+    "activities": "Aktivity",
     "booking": "Rezervuj si termín",
     "contact": "Kontakt",
     "profile": "Profil",
     "logout": "Odhlásiť sa",
     "login": "Prihlásiť sa"
+  },
+  "activities": {
+    "title": "Aktivity",
+    "subtitle": "Nájdite pre vás vyhovujúce aktivity a zarezervujte si termín.",
+    "refresh": "Obnoviť",
+    "children": "Pre deti",
+    "adults": "Pre dospelých",
+    "duration": "Trvanie",
+    "price": "Cena",
+    "from": "Od",
+    "priceOnRequest": "Cena na vyžiadanie",
+    "availableDates": "Dostupné termíny",
+    "noActivities": "Pre túto skupinu momentálne nie sú dostupné žiadne aktivity.",
+    "noDates": "Momentálne nie je dostupný žiadny termín.",
+    "reserve": "Rezervovať",
+    "detail": "Detail",
+    "theme": "Téma",
+    "loading": "Načítavam aktivity...",
+    "retry": "Skúsiť znova",
+    "fetchError": "Nepodarilo sa načítať aktivity.",
+    "notFound": "Aktivita nebola nájdená.",
+    "backToActivities": "Späť na aktivity"
   },
   "footer": {
     "copyright": "© 2025 Nitráčik. Všetky práva vyhradené."

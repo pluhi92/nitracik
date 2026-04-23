@@ -301,17 +301,18 @@ const UserProfile = () => {
           training_type: session.training_type,
           max_participants: session.max_participants,
           total_children: session.total_children || 0,
-          available_spots: session.available_spots || session.max_participants,
+          available_spots: session.available_spots ?? session.max_participants,
           cancelled: session.cancelled,
           participants: [],
         };
       }
       if (session.user_id) {
+        const isAdultParticipant = session.age_group === 'adult' || Number(session.number_of_adults || 0) > 0;
         grouped[key].participants.push({
           first_name: session.first_name,
           last_name: session.last_name,
           email: session.email,
-          children: session.number_of_children || 1,
+          children: isAdultParticipant ? 0 : (session.number_of_children ?? 0),
           booking_type: session.booking_type || null,
           active: session.active,
           amount_paid: session.amount_paid || 0,
@@ -1268,6 +1269,13 @@ const UserProfile = () => {
                             </span>
                           </div>
                         </div>
+                        {session.theme && (
+                          <div className="mt-2 text-center">
+                            <span className="text-black font-bold text-sm">
+                              Téma: {session.theme}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <div
                         data-tooltip-id="cancel-tooltip"

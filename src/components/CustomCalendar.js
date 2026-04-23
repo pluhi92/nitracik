@@ -9,6 +9,7 @@ const CustomCalendar = ({
   selectedDate,
   onDateSelect,
   minDate = new Date(),
+  disabled = false,
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState([]);
@@ -28,6 +29,28 @@ const CustomCalendar = ({
     return t?.calendar?.[day.toLowerCase()] || day.slice(0, 2).toUpperCase();
   };
 
+  const toDateKey = useCallback((date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  const parseDateKey = useCallback((dateKey) => {
+    if (!dateKey || typeof dateKey !== 'string') {
+      return null;
+    }
+
+    const [year, month, day] = dateKey.split('-').map(Number);
+
+    if (!year || !month || !day) {
+      return null;
+    }
+
+    return new Date(year, month - 1, day);
+  }, []);
+
   // --- ZAČIATOK PRESUNUTÝCH A UPRAVENÝCH FUNKCIÍ ---
 
   // 1. isSameDay musí byť prvá (nemá závislosti)
@@ -38,10 +61,12 @@ const CustomCalendar = ({
 
   // 2. createDayObject používa isSameDay, preto musí byť pod ňou
   const createDayObject = useCallback((date, isCurrentMonth) => {
-    const formattedDate = date.toLocaleDateString('en-CA');
+    const formattedDate = toDateKey(date);
     const isAvailable = trainingType && trainingDates[trainingType]?.[formattedDate];
     const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+    const parsedSelectedDate = parseDateKey(selectedDate);
 
     const isPastDate = date < minDate && !isSameDay(date, minDate);
     const disabled = isPastDate || !isAvailable;
@@ -51,12 +76,12 @@ const CustomCalendar = ({
       isCurrentMonth,
       isToday: isSameDay(date, new Date()),
       isAvailable,
-      isSelected: selectedDate && isSameDay(date, new Date(selectedDate)),
+      isSelected: parsedSelectedDate ? isSameDay(date, parsedSelectedDate) : false,
       isDisabled: disabled,
       isWeekend,
       dayOfWeek,
     };
-  }, [trainingType, trainingDates, minDate, selectedDate, isSameDay]);
+  }, [trainingType, trainingDates, minDate, selectedDate, isSameDay, toDateKey, parseDateKey]);
 
   // 3. generateCalendar používa createDayObject, preto je tu
   const generateCalendar = useCallback(() => {
@@ -102,13 +127,17 @@ const CustomCalendar = ({
   }, [generateCalendar]);
 
   const handleDateClick = (day) => {
+    if (disabled) {
+      return;
+    }
+
     if (!day.isDisabled && day.isAvailable) {
-      onDateSelect(day.date.toLocaleDateString('en-CA'));
+      onDateSelect(toDateKey(day.date));
     }
   };
 
   const switchMonth = (direction) => {
-    if (isAnimating) return;
+    if (isAnimating || disabled) return;
     setIsAnimating(true);
     setPrevCalendarDays(calendarDays);
     setAnimationDirection(direction);
@@ -153,7 +182,7 @@ const CustomCalendar = ({
   };
 
   return (
-    <div className="bg-card rounded-xl shadow-lg border-2 border-border overflow-hidden">
+    <div className={`bg-card rounded-xl shadow-lg border-2 border-border overflow-hidden ${disabled ? 'opacity-80' : ''}`}>
       {/* Header */}
       <div className="bg-card p-4 text-center border-b border-border">
         <img src={logo} alt="Nitrācīk" className="mx-auto mb-3 max-w-[120px]" />
@@ -184,7 +213,7 @@ const CustomCalendar = ({
             <button
               key={idx}
               onClick={() => handleDateClick(day)}
-              disabled={day.isDisabled && !day.isAvailable}
+              disabled={disabled || (day.isDisabled && !day.isAvailable)}
               className={`${getDayClasses(day, idx)} p-0`}
             >
               {day.date.getDate()}
@@ -202,7 +231,7 @@ const CustomCalendar = ({
           <button
             className="p-2 w-10 h-10 border border-border rounded hover:bg-muted"
             onClick={() => switchMonth('up')}
-            disabled={isAnimating}
+            disabled={disabled || isAnimating}
           >
             <svg className="w-5 h-5 rotate-90" viewBox="0 0 24 24">
               <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" fill="none" />
@@ -211,7 +240,7 @@ const CustomCalendar = ({
           <button
             className="p-2 w-10 h-10 border border-border rounded hover:bg-muted"
             onClick={() => switchMonth('down')}
-            disabled={isAnimating}
+            disabled={disabled || isAnimating}
           >
             <svg className="w-5 h-5 rotate-90" viewBox="0 0 24 24">
               <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" fill="none" />
