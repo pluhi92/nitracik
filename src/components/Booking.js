@@ -712,7 +712,7 @@ const Booking = () => {
     setShowDuplicateBookingModal(true);
   };
 
-  const openPendingDuplicateBookingModal = (existingSessionId, existingBookingId, context = {}) => {
+  const openPendingDuplicateBookingModal = useCallback((existingSessionId, existingBookingId, context = {}) => {
     const {
       typeName = trainingType,
       date = selectedDate,
@@ -730,7 +730,7 @@ const Booking = () => {
       time
     });
     setShowDuplicateBookingModal(true);
-  };
+  }, [trainingType, selectedDate, selectedTime]);
 
   const checkDuplicateStatusForTraining = useCallback(async ({
     selectedTrainingId,
@@ -776,7 +776,7 @@ const Booking = () => {
     }
 
     return false;
-  }, []);
+  }, [openPendingDuplicateBookingModal]);
 
   useEffect(() => {
     if (!lockedReservation || !isLockedSelectionApplied || showDuplicateBookingModal) {
