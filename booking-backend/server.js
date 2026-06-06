@@ -3826,6 +3826,9 @@ app.get('/api/booking/credit', async (req, res) => {
 app.post('/api/bookings/use-credit', async (req, res) => {
   const { creditId, trainingId, childrenAges, photoConsent, mobile, note, accompanyingPerson } = req.body;
   const userId = req.session.userId;
+  const COMPATIBLE_CHILD_CREDIT_TYPES = new Set(['MINI', 'MIDI', 'MAXI']);
+
+  const normalizeTrainingTypeName = (value) => (value || '').toString().trim().toUpperCase();
 
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -3863,21 +3866,49 @@ app.post('/api/bookings/use-credit', async (req, res) => {
     }
     const training = trainingResult.rows[0];
 
-    // 3. Check training_type match (credit can only be used for same training type)
-    if (credit.training_type !== training.training_type) {
+    // 3. Validate credit compatibility.
+    // MINI/MIDI/MAXI credits are mutually compatible, all other types remain strict (same type only).
+    const normalizedCreditType = normalizeTrainingTypeName(credit.training_type);
+    const normalizedTargetType = normalizeTrainingTypeName(training.training_type);
+    const sameType = normalizedCreditType === normalizedTargetType;
+    const miniMidiMaxiCompatible =
+      COMPATIBLE_CHILD_CREDIT_TYPES.has(normalizedCreditType)
+      && COMPATIBLE_CHILD_CREDIT_TYPES.has(normalizedTargetType);
+
+    if (!sameType && !miniMidiMaxiCompatible) {
       await client.query('ROLLBACK');
       return res.status(400).json({ 
-        error: 'Credit can only be used for the same training type: ' + credit.training_type 
+        error: `Credit type ${credit.training_type} is not compatible with ${training.training_type}`
       });
     }
 
-    // 4. Determine age_group from training_type and requested participant count
-    const trainingTypeResult = await client.query(
-      `SELECT audience_type FROM training_types WHERE name = $1`,
-      [credit.training_type]
+    // 4. Validate audience compatibility and determine participant mode by the TARGET training type.
+    const audienceResult = await client.query(
+      `SELECT name, audience_type
+       FROM training_types
+       WHERE name = ANY($1::text[])`,
+      [[credit.training_type, training.training_type]]
     );
-    const audienceType = trainingTypeResult.rows[0]?.audience_type || 'children';
-    const isAdultTraining = audienceType === 'adults' || audienceType === 'both';
+
+    const audienceByTypeName = new Map(
+      audienceResult.rows.map((row) => [row.name, row.audience_type])
+    );
+
+    const creditAudience = audienceByTypeName.get(credit.training_type) || 'children';
+    const targetAudience = audienceByTypeName.get(training.training_type) || 'children';
+    const audienceMismatch =
+      creditAudience !== targetAudience
+      && creditAudience !== 'both'
+      && targetAudience !== 'both';
+
+    if (audienceMismatch) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: `Credit audience ${creditAudience} is not compatible with target audience ${targetAudience}`
+      });
+    }
+
+    const isAdultTraining = targetAudience === 'adults' || targetAudience === 'both';
     const requestedParticipants = isAdultTraining ? 1 : credit.child_count;
 
     // 5. Check participant count

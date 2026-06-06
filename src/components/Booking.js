@@ -1263,6 +1263,9 @@ const Booking = () => {
     setShowServiceConsentModal(false);
   };
 
+  const COMPATIBLE_CHILD_CREDIT_TYPES = new Set(['MINI', 'MIDI', 'MAXI']);
+  const normalizeTrainingTypeName = (value) => (value || '').toString().trim().toUpperCase();
+
   const currentType = trainingTypes.find(t => t.name === trainingType);
 
   // Filter credits based on training type audience
@@ -1279,13 +1282,43 @@ const Booking = () => {
   const childCredits = getCreditsForAudience('children');
   const adultCredits = getCreditsForAudience('adults');
 
+  const getAllowedCreditTypeNames = (credit) => {
+    if (!credit?.training_type) {
+      return [];
+    }
+
+    const normalizedCreditType = normalizeTrainingTypeName(credit.training_type);
+    if (COMPATIBLE_CHILD_CREDIT_TYPES.has(normalizedCreditType)) {
+      return Array.from(COMPATIBLE_CHILD_CREDIT_TYPES);
+    }
+
+    return [normalizedCreditType];
+  };
+
+  const isMiniMidiMaxiCredit = (credit) => {
+    const normalizedCreditType = normalizeTrainingTypeName(credit?.training_type);
+    return COMPATIBLE_CHILD_CREDIT_TYPES.has(normalizedCreditType);
+  };
+
+  const activeTrainingTypes = trainingTypes.filter(t => isAdmin ? true : t.active);
+  const allowedCreditTypeNames = isCreditMode && selectedCredit
+    ? new Set(getAllowedCreditTypeNames(selectedCredit))
+    : null;
+  const selectableTrainingTypes = activeTrainingTypes.filter((type) => {
+    if (!allowedCreditTypeNames) {
+      return true;
+    }
+
+    return allowedCreditTypeNames.has(normalizeTrainingTypeName(type.name));
+  });
+
   const selectCredit = (credit, fillForm = false) => {
     setSelectedCredit(credit);
 
     // Nájdi ID typu na základe mena
     const creditType = trainingTypes.find(t => t.name === credit.training_type);
     if (creditType) {
-      setTrainingTypeId(creditType.id);
+      setTrainingTypeId(String(creditType.id));
       setTrainingType(credit.training_type);
     }
 
@@ -1910,6 +1943,12 @@ const Booking = () => {
 
       {/* 2. USER BOOKING FORM */}
       <Form onSubmit={handleSubmit} className="space-y-6">
+        {isCreditMode && selectedCredit && isMiniMidiMaxiCredit(selectedCredit) && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-900">
+            <strong>Tento kredit mozete vyuzivat na hodiny MINI, MIDI alebo MAXI.</strong>
+          </div>
+        )}
+
         <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200">
           <div className="bg-gray-100 bg-opacity-50 border-b border-gray-300 px-6 py-4">
             <h5 className="text-lg font-bold text-gray-800">
@@ -1925,12 +1964,11 @@ const Booking = () => {
               <Form.Select
                 value={trainingTypeId} // Zmena: viazané na ID
                 onChange={handleTypeChange}
-                disabled={isCreditMode || Boolean(lockedReservation)}
+                disabled={Boolean(lockedReservation)}
                 className="w-full text-lg py-3"
               >
                 <option value="">{t?.booking?.trainingType?.placeholder || 'Choose training type...'}</option>
-                {trainingTypes
-                  .filter(t => isAdmin ? true : t.active)
+                {selectableTrainingTypes
                   .map(type => (
                     <option key={type.id} value={type.id}> {/* Zmena: value={type.id} */}
                       {type.name} {type.duration_minutes ? `(${type.duration_minutes} min)` : ''} {!type.active ? '(Inactive)' : ''}
@@ -2527,6 +2565,9 @@ const Booking = () => {
                   <p><strong>{t?.booking?.originalDate || 'Original Date'}:</strong> {new Date(credit.original_date).toLocaleString()}</p>
                   <p><strong>{t?.booking?.children || 'Children'}:</strong> {credit.child_count} | <strong>{t?.booking?.accompanyingPerson || 'Accompanying Person'}:</strong> {credit.accompanying_person ? 'Yes' : 'No'}</p>
                   <p><strong>{t?.booking?.trainingType?.label || 'Training Type'}:</strong> {credit.training_type}</p>
+                  {isMiniMidiMaxiCredit(credit) && (
+                    <p className="text-amber-700 font-semibold">Tento kredit mozete vyuzivat na hodiny MINI, MIDI alebo MAXI.</p>
+                  )}
                   <p><strong>{t?.booking?.photoConsent || 'Photo Consent'}:</strong> {credit.photo_consent ? 'Agreed' : 'Disagreed'}</p>
                   {credit.mobile && <p><strong>{t?.booking?.mobile || 'Mobile'}:</strong> {credit.mobile}</p>}
                   {credit.note && <p><strong>{t?.booking?.notes || 'Notes'}:</strong> {credit.note}</p>}

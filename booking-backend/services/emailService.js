@@ -48,6 +48,22 @@ const IMAGE_URLS = {
   facebook: `${IMAGE_BASE_URL}/email/facebook.png`
 };
 
+const COMPATIBLE_CHILD_CREDIT_TYPES = new Set(['MINI', 'MIDI', 'MAXI']);
+const normalizeTrainingTypeName = (value) => (value || '').toString().trim().toUpperCase();
+const isMiniMidiMaxiType = (trainingType) => COMPATIBLE_CHILD_CREDIT_TYPES.has(normalizeTrainingTypeName(trainingType));
+
+const getMiniMidiMaxiCreditNoticeHtml = (trainingType) => {
+  if (!isMiniMidiMaxiType(trainingType)) {
+    return '';
+  }
+
+  return `
+    <div style="margin-top: 12px; padding: 10px; background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; color: #92400e; font-size: 13px;">
+      <strong>Informácia ku kreditu:</strong> Tento kredit môžete využiť na hodiny MINI, MIDI alebo MAXI.
+    </div>
+  `;
+};
+
 const injectImageUrls = (html) =>
   html
     .replaceAll('cid:nitracikLogo', IMAGE_URLS.logo)
@@ -264,6 +280,9 @@ module.exports = {
     const pType = sessionDetails.paymentType || 'paid';
     const subject = SUBJECTS[pType] || SUBJECTS['paid'];
     const paymentInfo = PAYMENT_TEXT[pType] || PAYMENT_TEXT['paid'];
+    const creditCompatibilityNotice = pType === 'credit'
+      ? getMiniMidiMaxiCreditNoticeHtml(sessionDetails.trainingType)
+      : '';
 
     // === NOVÉ: SEASON TICKET INFO ===
     let seasonTicketRows = '';
@@ -332,6 +351,7 @@ module.exports = {
                   </div>
                   
                   ${seasonTicketRows} 
+                  ${creditCompatibilityNotice}
                   
                 </div>
 
@@ -398,6 +418,9 @@ module.exports = {
     const pType = sessionDetails.paymentType || 'payment';
     const subject = SUBJECTS[pType] || SUBJECTS['payment'];
     const paymentInfo = PAYMENT_TEXT[pType] || PAYMENT_TEXT['payment'];
+    const creditCompatibilityNotice = pType === 'credit'
+      ? getMiniMidiMaxiCreditNoticeHtml(sessionDetails.trainingType)
+      : '';
 
     // === SEASON TICKET INFO ===
     let seasonTicketRows = '';
@@ -464,6 +487,7 @@ module.exports = {
                   </div>
                   
                   ${seasonTicketRows} 
+                  ${creditCompatibilityNotice}
                   
                 </div>
 
@@ -1345,9 +1369,11 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
                 Váš vstup na permanentku bol úspešne vrátený. Môžete ho použiť na ďalšiu rezerváciu.
              `;
         } else {
+             const creditCompatibilityNotice = getMiniMidiMaxiCreditNoticeHtml(booking.training_type);
              userRefundText = `
                 <strong>Vrátenie kreditu:</strong><br>
                 Kredit v hodnote tréningu bol vrátený na váš účet v Nitráčiku.
+               ${creditCompatibilityNotice}
              `;
         }
     }
@@ -1482,7 +1508,10 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
                 <div class="option-box" style="border-left: 4px solid #10b981; background-color: #ecfdf5;">
                   <span class="option-title" style="color: #059669;">🎫 Pripísanie kreditu (Odporúčané)</span>
                   <p style="font-size: 14px; margin: 0 0 10px 0;">
-                    Pohodlnejšie riešenie bez čakania. Hodnota tréningu Vám bude okamžite pripísaná ako <strong>kredit</strong> do Vášho profilu (Typ: ${trainingType}, Deti: ${childrenCount}). Môžete ho použiť na akýkoľvek iný termín bez nutnosti novej platby.
+                    Pohodlnejšie riešenie bez čakania. Hodnota tréningu Vám bude okamžite pripísaná ako <strong>kredit</strong> do Vášho profilu (Typ: ${trainingType}, Deti: ${childrenCount}).
+                    ${isMiniMidiMaxiType(trainingType)
+                      ? 'Tento kredit môžete využiť na hodiny MINI, MIDI alebo MAXI.'
+                      : 'Kredit následne použijete na ďalší termín rovnakého typu tréningu.'}
                   </p>
                   <div style="text-align: right;">
                     <a href="${creditUrl}" class="btn" style="background-color: #10b981; color: white;">Pripísať ako kredit</a>
@@ -1693,6 +1722,7 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
                 <div style="color: #b45309; font-weight: bold; margin-bottom: 5px;">🎫 Automatické vrátenie kreditu</div>
                 <p style="margin: 0; font-size: 14px; color: #92400e;">
                    Použitý kredit bol automaticky vrátený na Váš účet. Nemusíte robiť nič ďalšie, kredit môžete ihneď použiť na novú rezerváciu.
+                   ${isMiniMidiMaxiType(trainingType) ? 'Tento kredit môžete využiť na hodiny MINI, MIDI alebo MAXI.' : ''}
                 </p>
               </div>
 
