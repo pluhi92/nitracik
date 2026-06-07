@@ -31,14 +31,22 @@ const transporter = nodemailer.createTransport({
   logger: false
 });
 
-// Pridajte aj tento diagnostický log hneď pod to:
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('❌ CRITICAL: Email server connection failed:', error.message);
-  } else {
-    console.log('✅ Email server is ready to send messages');
-  }
-});
+// SMTP overenie pri štarte nespúšťame počas testov, aby sa neobjavovali
+// oneskorené logy po ukončení testov (Jest "Cannot log after tests are done").
+const shouldVerifyTransportOnStartup =
+  process.env.NODE_ENV !== 'test'
+  && !process.env.JEST_WORKER_ID
+  && process.env.EMAIL_VERIFY_ON_STARTUP !== 'false';
+
+if (shouldVerifyTransportOnStartup) {
+  transporter.verify((error) => {
+    if (error) {
+      console.error('❌ CRITICAL: Email server connection failed:', error.message);
+    } else {
+      console.log('✅ Email server is ready to send messages');
+    }
+  });
+}
 
 // Verejné URL obrázkov (backend static files)
 const IMAGE_BASE_URL = process.env.IMAGE_BASE_URL || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/images`;

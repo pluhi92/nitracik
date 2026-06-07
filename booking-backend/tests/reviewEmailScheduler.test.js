@@ -214,4 +214,103 @@ describe('Review email scheduler integration', () => {
     expect(statusResult.rows[0].review_email_sent_at).not.toBeNull();
     expect(statusResult.rows[1].review_email_sent_at).not.toBeNull();
   });
+
+  test('should send review email exactly 1 hour after training end (boundary case)', async () => {
+    const user = await createTestUser('test_review_6@example.com');
+    const trainingType = await createTestTrainingType('TEST_MINI');
+
+    const { bookingId } = await createTestBookingWithPastTraining(user.id, trainingType.id, 2);
+
+    emailService.sendReviewRequestEmail.mockResolvedValue(undefined);
+
+    await runSchedulerOnce();
+
+    expect(emailService.sendReviewRequestEmail).toHaveBeenCalledTimes(1);
+
+    const statusResult = await pool.query(
+      'SELECT review_email_sent_at FROM bookings WHERE id = $1',
+      [bookingId]
+    );
+
+    expect(statusResult.rows[0].review_email_sent_at).not.toBeNull();
+  });
+
+  test('should keep review_email_sent_at NULL when email sending fails', async () => {
+    const user = await createTestUser('test_review_7@example.com');
+    const trainingType = await createTestTrainingType('TEST_MINI');
+
+    const { bookingId } = await createTestBookingWithPastTraining(user.id, trainingType.id, 3);
+
+    emailService.sendReviewRequestEmail.mockRejectedValue(new Error('SMTP fail'));
+
+    await runSchedulerOnce();
+
+    expect(emailService.sendReviewRequestEmail).toHaveBeenCalledTimes(1);
+
+    const statusResult = await pool.query(
+      'SELECT review_email_sent_at FROM bookings WHERE id = $1',
+      [bookingId]
+    );
+
+    expect(statusResult.rows[0].review_email_sent_at).toBeNull();
+  });
+
+  test('should continue processing other bookings when one send fails', async () => {
+    const user1 = await createTestUser('test_review_8a@example.com');
+    const user2 = await createTestUser('test_review_8b@example.com');
+    const trainingType = await createTestTrainingType('TEST_MINI');
+
+    const booking1 = await createTestBookingWithPastTraining(user1.id, trainingType.id, 3);
+    const booking2 = await createTestBookingWithPastTraining(user2.id, trainingType.id, 3);
+
+    emailService.sendReviewRequestEmail.mockImplementation(async (email) => {
+      if (email === user1.email) {
+        throw new Error('SMTP fail');
+      }
+    });
+
+    await runSchedulerOnce();
+
+    expect(emailService.sendReviewRequestEmail).toHaveBeenCalledTimes(2);
+
+    const statusResult = await pool.query(
+      'SELECT id, review_email_sent_at FROM bookings WHERE id = ANY($1::int[]) ORDER BY id ASC',
+      [[booking1.bookingId, booking2.bookingId]]
+    );
+
+    const first = statusResult.rows.find((row) => row.id === booking1.bookingId);
+    const second = statusResult.rows.find((row) => row.id === booking2.bookingId);
+
+    expect(first.review_email_sent_at).toBeNull();
+    expect(second.review_email_sent_at).not.toBeNull();
+  });
+
+  test('should send review email only to users who actually had a booking', async () => {
+    const participatingUser = await createTestUser('test_review_9_participating@example.com');
+    const nonParticipatingUser = await createTestUser('test_review_9_non_participating@example.com');
+    const trainingType = await createTestTrainingType('TEST_MINI');
+
+    const { bookingId } = await createTestBookingWithPastTraining(participatingUser.id, trainingType.id, 3);
+
+    emailService.sendReviewRequestEmail.mockResolvedValue(undefined);
+
+    await runSchedulerOnce();
+
+    expect(emailService.sendReviewRequestEmail).toHaveBeenCalledTimes(1);
+    expect(emailService.sendReviewRequestEmail).toHaveBeenCalledWith(
+      participatingUser.email,
+      participatingUser.first_name,
+      expect.objectContaining({ trainingType: 'TEST_MINI' })
+    );
+
+    const calledEmails = emailService.sendReviewRequestEmail.mock.calls.map((call) => call[0]);
+    expect(calledEmails).not.toContain(nonParticipatingUser.email);
+
+    const statusResult = await pool.query(
+      'SELECT review_email_sent_at FROM bookings WHERE id = $1',
+      [bookingId]
+    );
+
+    expect(statusResult.rows[0].review_email_sent_at).not.toBeNull();
+  });
 });

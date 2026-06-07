@@ -253,8 +253,9 @@ describe('E2E Testy - Životný cyklus kreditu pre dospelých', () => {
       // ✅ PO OPRAVE: Toto by malo vrátiť 400
       // Kredit je pre trainingTypeA, ale pokus o použitie na trainingTypeB
       expect(useCreditResponse.status).toBe(400);
-      expect(useCreditResponse.body.error).toContain('same training type');
+      expect(useCreditResponse.body.error).toContain('not compatible');
       expect(useCreditResponse.body.error).toContain(credit.training_type);
+      expect(useCreditResponse.body.error).toContain(trainingB1.training_type);
     });
   });
 
@@ -330,39 +331,5 @@ describe('E2E Testy - Životný cyklus kreditu pre dospelých', () => {
   });
 });
 
-// Informácia o bugu pre developera
-describe('🐛 BUG REPORT', () => {
-  test('informácia o nájdenom bugu', () => {
-    console.log(`
-    ============================================================
-    BUG REPORT: Endpoint /api/bookings/use-credit
-    ============================================================
-    
-    PROBLÉM:
-    Endpoint nekontroluje, či sa training_type kreditu zhoduje
-    s training_type nového tréningu.
-    
-    OČAKÁVANÉ SPRÁVANIE:
-    - Kredit vytvorený pre "Joga" by mal ísť použiť LEN na "Joga"
-    - Pokus o použitie na "Pilates" by mal vrátiť chybu 400
-    
-    AKTUÁLNE SPRÁVANIE:
-    - Kredit je možné použiť na ľubovoľný tréning bez ohľadu na typ
-    
-    NÁVRH NA OPRAVU:
-    V súbore booking-backend/server.js, v endpointe /api/bookings/use-credit
-    pridať kontrolu po získaní credit a training záznamov:
-    
-    // Pridať po riadku 3584 (const training = trainingResult.rows[0];)
-    if (credit.training_type !== training.training_type) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ 
-        error: 'Credit can only be used for the same training type: ' + credit.training_type 
-      });
-    }
-    
-    ============================================================
-    `);
-    expect(true).toBe(true);
-  });
-});
+// Krátka regresná poznámka: ochrana proti nekompatibilnému training_type
+// je pokrytá testom v sekcii "Edge-case: Pokus o použitie kreditu na INÝ training_type".
