@@ -48,6 +48,8 @@ const IMAGE_URLS = {
   facebook: `${IMAGE_BASE_URL}/email/facebook.png`
 };
 
+const GOOGLE_REVIEW_URL = 'https://g.page/r/CbI1YWF7cCHfEBM/review';
+
 const COMPATIBLE_CHILD_CREDIT_TYPES = new Set(['MINI', 'MIDI', 'MAXI']);
 const normalizeTrainingTypeName = (value) => (value || '').toString().trim().toUpperCase();
 const isMiniMidiMaxiType = (trainingType) => COMPATIBLE_CHILD_CREDIT_TYPES.has(normalizeTrainingTypeName(trainingType));
@@ -2195,6 +2197,76 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
         </body>
         </html>
       `
+    };
+
+    return transporter.sendMail(mailOptions);
+  },
+
+  sendReviewRequestEmail: async (userEmail, firstName, trainingData) => {
+    const formattedTrainingDate = dayjs(trainingData.trainingDate).utc().tz('Europe/Bratislava').format('DD.MM.YYYY (dddd) HH:mm');
+
+    const mailOptions = {
+      from: SENDER,
+      to: userEmail,
+      subject: 'Ako sa vám páčila hodina? 🌟 | Nitráčik',
+      html: injectImageUrls(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+            .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+            .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #eab308; }
+            .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
+            .highlight-box { background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 20px; margin: 25px 0; text-align: center; }
+            .btn-verify { display: block; width: 200px; margin: 20px auto; padding: 12px 20px; background-color: #2563eb; color: #ffffff !important; text-decoration: none; border-radius: 6px; text-align: center; font-weight: bold; }
+            .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+            p { margin-bottom: 15px; }
+          </style>
+        </head>
+        <body>
+          <div style="background-color: #f4f4f4; padding: 40px 0;">
+            <div class="container">
+              <div class="header">
+                <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+              </div>
+              <div class="content">
+                <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${firstName}.</p>
+                <p>Dúfame, že si hodina ${trainingData.trainingType} bola plná zábavy a krásnych chvíľ! Vaša spätná väzba je pre nás veľmi dôležitá.</p>
+                <p style="margin-bottom: 0;"><strong>Termín hodiny:</strong> ${formattedTrainingDate}</p>
+
+                <div class="highlight-box">
+                  <p style="margin: 0 0 12px 0;">Budeme veľmi radi, ak nám zanecháte krátku recenziu na Google.</p>
+                  <a href="${GOOGLE_REVIEW_URL}" class="btn-verify">Napísať recenziu na Google ⭐</a>
+                  <img src="https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=https://g.page/r/CbI1YWF7cCHfEBM/review" alt="QR kód pre Google recenziu" style="display: block; margin: 12px auto 6px auto; width: 150px; height: 150px;"/>
+                  <p style="margin: 0; font-size: 12px; color: #6b7280; text-align: center;">Alebo naskenujte QR kód</p>
+                </div>
+
+                <p>Ďakujeme, že ste súčasťou Nitráčik komunity. Tešíme sa na vás na ďalšej hodine!</p>
+
+                <div style="margin-top: 30px;">
+                  <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
+                  <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
+                  <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
+                </div>
+              </div>
+              <div class="footer">
+                <div style="margin-bottom: 15px;">
+                  <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
+                    <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                  </a>
+                  <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
+                    <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                  </a>
+                </div>
+                <p style="margin: 0;">© 2026 O.z. Nitráčik.</p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `),
+      attachments: getCommonAttachments()
     };
 
     return transporter.sendMail(mailOptions);

@@ -37,6 +37,7 @@ model bookings {
   checked_in             Boolean                @default(false)
   age_group              String?                @default("child") @db.VarChar(10)
   number_of_adults       Int?
+  review_email_sent_at   DateTime?              @db.Timestamptz(6)
 
   @@index([credit_id], map: "idx_bookings_credit_id")
 }

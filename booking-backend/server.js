@@ -4885,6 +4885,62 @@ setInterval(async () => {
   }
 }, 6 * 60 * 60 * 1000); // Run every 6 hours
 
+// === REVIEW EMAIL SCHEDULER ===
+// Runs every 15 minutes. Sends a review request email 1 hour after a training session ends.
+// duration_minutes comes from training_types (joined via training_type_id).
+// Uses review_email_sent_at column on bookings to prevent duplicate sends.
+setInterval(async () => {
+  let client;
+  try {
+    if (DEBUG_LOGS === true) {
+      console.log('[REVIEW EMAIL SCHEDULER] Running check...');
+    }
+
+    client = await pool.connect();
+
+    const result = await client.query(`
+SELECT
+  b.id AS booking_id,
+  u.email,
+  u.first_name,
+  ta.training_date,
+  ta.training_type,
+  tt.duration_minutes
+FROM bookings b
+JOIN users u ON b.user_id = u.id
+JOIN training_availability ta ON b.training_id = ta.id
+JOIN training_types tt ON ta.training_type_id = tt.id
+WHERE b.active = true
+  AND b.review_email_sent_at IS NULL
+  AND (ta.training_date + (tt.duration_minutes * INTERVAL '1 minute') + INTERVAL '1 hour') <= NOW()
+    `);
+
+    for (const row of result.rows) {
+      try {
+        await emailService.sendReviewRequestEmail(row.email, row.first_name, {
+          trainingType: row.training_type,
+          trainingDate: row.training_date,
+        });
+
+        await client.query(
+          'UPDATE bookings SET review_email_sent_at = NOW() WHERE id = $1',
+          [row.booking_id]
+        );
+
+        console.log(`✅ [REVIEW EMAIL] Sent to: ${row.email}, booking: ${row.booking_id}`);
+      } catch (err) {
+        console.error(`❌ [REVIEW EMAIL] Failed for booking ${row.booking_id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[REVIEW EMAIL SCHEDULER] Error:', err.message);
+  } finally {
+    if (client) {
+      client.release();
+    }
+  }
+}, 15 * 60 * 1000);
+
 app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) => {
   try {
     const {
