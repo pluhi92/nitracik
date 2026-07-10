@@ -1891,34 +1891,37 @@ const Booking = () => {
                       </Form.Text>
                     </Form.Group>
                   ) : (
-                    <div className="grid grid-cols-3 gap-3">
-                      <Form.Group>
+                    <div className="grid grid-cols-1 gap-4 items-start sm:grid-cols-3">
+                      <Form.Group className="mb-0 min-w-0">
                         <Form.Label>1 dieťa (€)</Form.Label>
                         <Form.Control
+                          className="w-full"
                           type="number"
                           value={newTypePrice1}
                           onChange={e => setNewTypePrice1(e.target.value)}
                         />
                       </Form.Group>
 
-                      <Form.Group>
+                      <Form.Group className="mb-0 min-w-0">
                         <Form.Label>2 deti (€)</Form.Label>
                         <Form.Control
+                          className="w-full"
                           type="number"
                           value={newTypePrice2}
                           onChange={e => setNewTypePrice2(e.target.value)}
                         />
                       </Form.Group>
 
-                      <Form.Group>
+                      <Form.Group className="mb-0 min-w-0">
                         <Form.Label>3 deti (€)</Form.Label>
                         <Form.Control
+                          className="w-full"
                           type="number"
                           value={newTypePrice3}
                           onChange={e => setNewTypePrice3(e.target.value)}
                         />
                       </Form.Group>
-                      <div className="col-span-3">
+                      <div className="col-span-1 sm:col-span-3">
                         <Form.Text className="text-muted">Nastavte konkrétne ceny pre zľavu súrodencov.</Form.Text>
                       </div>
                     </div>
