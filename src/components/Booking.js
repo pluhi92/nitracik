@@ -76,7 +76,7 @@ const Booking = () => {
   const [newAccompanyingPrice, setNewAccompanyingPrice] = useState(3);
   const [maxParticipants, setMaxParticipants] = useState(10);
   const [warningMessage, setWarningMessage] = useState('');
-  const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
+  const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
   const [availability, setAvailability] = useState({
     isAvailable: true,
     remainingSpots: 0,

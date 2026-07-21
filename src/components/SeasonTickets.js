@@ -4,7 +4,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { useTranslation } from '../contexts/LanguageContext';
 import api from '../api/api';
 
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 const ENTRY_OPTIONS = [3, 5, 10];
 
 const SeasonTickets = () => {

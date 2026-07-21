@@ -82,11 +82,6 @@ const Register = () => {
   const streetInputRef = useRef(null);
   const numberInputRef = useRef(null);
 
-//   console.log(
-//   'HCAPTCHA KEY (CRA):',
-//   process.env.REACT_APP_HCAPTCHA_SITEKEY
-// );
-
   // --- LOGIC ---
 
   useEffect(() => {
@@ -537,7 +532,7 @@ const Register = () => {
           {/* --- CLOUDFLARE TURNSTILE IMPLEMENTÁCIA --- */}
           <div className="flex justify-center py-2">
             <Turnstile
-              siteKey={process.env.REACT_APP_CLOUDFLARE_SITEKEY}
+              siteKey={import.meta.env.VITE_CLOUDFLARE_SITEKEY}
               onSuccess={(token) => setCaptchaToken(token)}
               ref={turnstileRef}
             />
