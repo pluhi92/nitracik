@@ -1,4 +1,4 @@
-// src/components/CustomCalendar.js
+// src/components/CustomCalendar.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from '../contexts/LanguageContext';
 import logo from '../assets/logo_bez.PNG';

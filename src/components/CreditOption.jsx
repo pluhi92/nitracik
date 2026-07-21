@@ -84,7 +84,7 @@ export default function CreditOption() {
     <section className="min-h-screen bg-background py-12 flex items-center justify-center">
       <div className="max-w-container mx-auto px-4 sm:px-6 w-full flex justify-center">
         
-        {/* Main Card Container - Dizajn zhodný s Contact.js */}
+        {/* Main Card Container - Dizajn zhodný s Contact.jsx */}
         <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200 p-8 sm:p-10 max-w-lg w-full text-center">
           
           {/* Ikona s animáciou */}

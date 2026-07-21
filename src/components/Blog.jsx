@@ -1,4 +1,4 @@
-// Blog.js - WITH IMAGE DELETE & THUMBNAIL SUPPORT & SHARE BUTTON
+// Blog.jsx - WITH IMAGE DELETE & THUMBNAIL SUPPORT & SHARE BUTTON
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../contexts/LanguageContext';

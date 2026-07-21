@@ -1,4 +1,4 @@
-// BlogPage.js - Samostatná stránka so všetkými článkami + LABELS + FILTER
+// BlogPage.jsx - Samostatná stránka so všetkými článkami + LABELS + FILTER
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Modal, Button, Form, Spinner, Alert, Pagination } from 'react-bootstrap';

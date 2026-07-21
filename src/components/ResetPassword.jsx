@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api/api';
 
-// --- IKONY PRE VALIDÁCIU (Prevzaté z Register.js) ---
+// --- IKONY PRE VALIDÁCIU (Prevzaté z Register.jsx) ---
 const CheckIcon = ({ className }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -34,7 +34,7 @@ const ResetPassword = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // --- LOGIKA VALIDÁCIE (Prevzatá z Register.js) ---
+  // --- LOGIKA VALIDÁCIE (Prevzatá z Register.jsx) ---
   const validatePassword = (value) => {
     const constraints = {
       length: value.length >= 8,

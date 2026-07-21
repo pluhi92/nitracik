@@ -1,4 +1,4 @@
-// Booking.js
+// Booking.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Login from './Login';
 import { useNavigate, useLocation } from 'react-router-dom';

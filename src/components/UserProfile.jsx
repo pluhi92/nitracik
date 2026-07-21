@@ -720,7 +720,7 @@ const UserProfile = () => {
     setShowCancelModal(true);
   };
 
-  // Updated confirmCancellation function in UserProfile.js
+  // Updated confirmCancellation function in UserProfile.jsx
 
   const confirmCancellation = async () => {
     if (!selectedBooking) return;

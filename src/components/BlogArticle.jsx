@@ -1,4 +1,4 @@
-// BlogArticle.js - Samostatná stránka pre jeden článok + LABEL
+// BlogArticle.jsx - Samostatná stránka pre jeden článok + LABEL
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Button, Spinner, Alert } from 'react-bootstrap';

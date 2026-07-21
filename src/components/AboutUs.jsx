@@ -1,4 +1,4 @@
-// Updated AboutUs.js - FIXED ADMIN LOGIC
+// Updated AboutUs.jsx - FIXED ADMIN LOGIC
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from '../contexts/LanguageContext';
 import { useUser } from '../contexts/UserContext';
@@ -79,7 +79,7 @@ const AboutUs = () => {
   const { user } = useUser();
   const isLoggedIn = user.isLoggedIn;
 
-  // ✅ OPRAVENÁ ADMIN LOGIKA - podľa vzoru z FAQ.js
+  // ✅ OPRAVENÁ ADMIN LOGIKA - podľa vzoru z FAQ.jsx
   const [isAdmin, setIsAdmin] = useState(false);
   const userId = localStorage.getItem('userId');
 
@@ -111,7 +111,7 @@ const AboutUs = () => {
   const [editAboutForm, setEditAboutForm] = useState({ ...aboutContent });
   const [alertMessage, setAlertMessage] = useState({ type: '', text: '' });
 
-  // ✅ ADMIN CHECK FUNKCIA - podľa vzoru z FAQ.js
+  // ✅ ADMIN CHECK FUNKCIA - podľa vzoru z FAQ.jsx
   const checkAdminStatus = useCallback(async () => {
     if (!userId || !user.isLoggedIn) {
       return;
@@ -131,7 +131,7 @@ const AboutUs = () => {
     }
   }, [userId, user.isLoggedIn]);
 
- // V AboutUs.js nahraďte tieto dva useEffect hooks:
+ // V AboutUs.jsx nahraďte tieto dva useEffect hooks:
 
 // ✅ SPOJENÝ EFFECT PRE VŠETKY DATA - s user v závislostiach
 useEffect(() => {
