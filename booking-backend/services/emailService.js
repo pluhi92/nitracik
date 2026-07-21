@@ -31,14 +31,22 @@ const transporter = nodemailer.createTransport({
   logger: false
 });
 
-// Pridajte aj tento diagnostický log hneď pod to:
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('❌ CRITICAL: Email server connection failed:', error.message);
-  } else {
-    console.log('✅ Email server is ready to send messages');
-  }
-});
+// SMTP overenie pri štarte nespúšťame počas testov, aby sa neobjavovali
+// oneskorené logy po ukončení testov (Jest "Cannot log after tests are done").
+const shouldVerifyTransportOnStartup =
+  process.env.NODE_ENV !== 'test'
+  && !process.env.JEST_WORKER_ID
+  && process.env.EMAIL_VERIFY_ON_STARTUP !== 'false';
+
+if (shouldVerifyTransportOnStartup) {
+  transporter.verify((error) => {
+    if (error) {
+      console.error('❌ CRITICAL: Email server connection failed:', error.message);
+    } else {
+      console.log('✅ Email server is ready to send messages');
+    }
+  });
+}
 
 // Verejné URL obrázkov (backend static files)
 const IMAGE_BASE_URL = process.env.IMAGE_BASE_URL || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/images`;
@@ -46,6 +54,24 @@ const IMAGE_URLS = {
   logo: `${IMAGE_BASE_URL}/email/logo_bez.PNG`,
   instagram: `${IMAGE_BASE_URL}/email/instagram.png`,
   facebook: `${IMAGE_BASE_URL}/email/facebook.png`
+};
+
+const GOOGLE_REVIEW_URL = 'https://g.page/r/CbI1YWF7cCHfEBM/review';
+
+const COMPATIBLE_CHILD_CREDIT_TYPES = new Set(['MINI', 'MIDI', 'MAXI']);
+const normalizeTrainingTypeName = (value) => (value || '').toString().trim().toUpperCase();
+const isMiniMidiMaxiType = (trainingType) => COMPATIBLE_CHILD_CREDIT_TYPES.has(normalizeTrainingTypeName(trainingType));
+
+const getMiniMidiMaxiCreditNoticeHtml = (trainingType) => {
+  if (!isMiniMidiMaxiType(trainingType)) {
+    return '';
+  }
+
+  return `
+    <div style="margin-top: 12px; padding: 10px; background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; color: #92400e; font-size: 13px;">
+      <strong>Informácia ku kreditu:</strong> Tento kredit môžete využiť na hodiny MINI, MIDI alebo MAXI.
+    </div>
+  `;
 };
 
 const injectImageUrls = (html) =>
@@ -264,6 +290,9 @@ module.exports = {
     const pType = sessionDetails.paymentType || 'paid';
     const subject = SUBJECTS[pType] || SUBJECTS['paid'];
     const paymentInfo = PAYMENT_TEXT[pType] || PAYMENT_TEXT['paid'];
+    const creditCompatibilityNotice = pType === 'credit'
+      ? getMiniMidiMaxiCreditNoticeHtml(sessionDetails.trainingType)
+      : '';
 
     // === NOVÉ: SEASON TICKET INFO ===
     let seasonTicketRows = '';
@@ -332,6 +361,7 @@ module.exports = {
                   </div>
                   
                   ${seasonTicketRows} 
+                  ${creditCompatibilityNotice}
                   
                 </div>
 
@@ -398,6 +428,9 @@ module.exports = {
     const pType = sessionDetails.paymentType || 'payment';
     const subject = SUBJECTS[pType] || SUBJECTS['payment'];
     const paymentInfo = PAYMENT_TEXT[pType] || PAYMENT_TEXT['payment'];
+    const creditCompatibilityNotice = pType === 'credit'
+      ? getMiniMidiMaxiCreditNoticeHtml(sessionDetails.trainingType)
+      : '';
 
     // === SEASON TICKET INFO ===
     let seasonTicketRows = '';
@@ -464,6 +497,7 @@ module.exports = {
                   </div>
                   
                   ${seasonTicketRows} 
+                  ${creditCompatibilityNotice}
                   
                 </div>
 
@@ -1345,9 +1379,11 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
                 Váš vstup na permanentku bol úspešne vrátený. Môžete ho použiť na ďalšiu rezerváciu.
              `;
         } else {
+             const creditCompatibilityNotice = getMiniMidiMaxiCreditNoticeHtml(booking.training_type);
              userRefundText = `
                 <strong>Vrátenie kreditu:</strong><br>
                 Kredit v hodnote tréningu bol vrátený na váš účet v Nitráčiku.
+               ${creditCompatibilityNotice}
              `;
         }
     }
@@ -1482,7 +1518,10 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
                 <div class="option-box" style="border-left: 4px solid #10b981; background-color: #ecfdf5;">
                   <span class="option-title" style="color: #059669;">🎫 Pripísanie kreditu (Odporúčané)</span>
                   <p style="font-size: 14px; margin: 0 0 10px 0;">
-                    Pohodlnejšie riešenie bez čakania. Hodnota tréningu Vám bude okamžite pripísaná ako <strong>kredit</strong> do Vášho profilu (Typ: ${trainingType}, Deti: ${childrenCount}). Môžete ho použiť na akýkoľvek iný termín bez nutnosti novej platby.
+                    Pohodlnejšie riešenie bez čakania. Hodnota tréningu Vám bude okamžite pripísaná ako <strong>kredit</strong> do Vášho profilu (Typ: ${trainingType}, Deti: ${childrenCount}).
+                    ${isMiniMidiMaxiType(trainingType)
+                      ? 'Tento kredit môžete využiť na hodiny MINI, MIDI alebo MAXI.'
+                      : 'Kredit následne použijete na ďalší termín rovnakého typu tréningu.'}
                   </p>
                   <div style="text-align: right;">
                     <a href="${creditUrl}" class="btn" style="background-color: #10b981; color: white;">Pripísať ako kredit</a>
@@ -1693,6 +1732,7 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
                 <div style="color: #b45309; font-weight: bold; margin-bottom: 5px;">🎫 Automatické vrátenie kreditu</div>
                 <p style="margin: 0; font-size: 14px; color: #92400e;">
                    Použitý kredit bol automaticky vrátený na Váš účet. Nemusíte robiť nič ďalšie, kredit môžete ihneď použiť na novú rezerváciu.
+                   ${isMiniMidiMaxiType(trainingType) ? 'Tento kredit môžete využiť na hodiny MINI, MIDI alebo MAXI.' : ''}
                 </p>
               </div>
 
@@ -2165,6 +2205,76 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
         </body>
         </html>
       `
+    };
+
+    return transporter.sendMail(mailOptions);
+  },
+
+  sendReviewRequestEmail: async (userEmail, firstName, trainingData) => {
+    const formattedTrainingDate = dayjs(trainingData.trainingDate).utc().tz('Europe/Bratislava').format('DD.MM.YYYY (dddd) HH:mm');
+
+    const mailOptions = {
+      from: SENDER,
+      to: userEmail,
+      subject: 'Ako sa vám páčila hodina? 🌟 | Nitráčik',
+      html: injectImageUrls(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+            .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+            .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #eab308; }
+            .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
+            .highlight-box { background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 20px; margin: 25px 0; text-align: center; }
+            .btn-verify { display: block; width: 200px; margin: 20px auto; padding: 12px 20px; background-color: #2563eb; color: #ffffff !important; text-decoration: none; border-radius: 6px; text-align: center; font-weight: bold; }
+            .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+            p { margin-bottom: 15px; }
+          </style>
+        </head>
+        <body>
+          <div style="background-color: #f4f4f4; padding: 40px 0;">
+            <div class="container">
+              <div class="header">
+                <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+              </div>
+              <div class="content">
+                <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${firstName}.</p>
+                <p>Dúfame, že si hodina ${trainingData.trainingType} bola plná zábavy a krásnych chvíľ! Vaša spätná väzba je pre nás veľmi dôležitá.</p>
+                <p style="margin-bottom: 0;"><strong>Termín hodiny:</strong> ${formattedTrainingDate}</p>
+
+                <div class="highlight-box">
+                  <p style="margin: 0 0 12px 0;">Budeme veľmi radi, ak nám zanecháte krátku recenziu na Google.</p>
+                  <a href="${GOOGLE_REVIEW_URL}" class="btn-verify">Napísať recenziu na Google ⭐</a>
+                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(GOOGLE_REVIEW_URL)}" alt="QR kód pre Google recenziu" style="display: block; margin: 12px auto 6px auto; width: 150px; height: 150px;"/>
+                  <p style="margin: 0; font-size: 12px; color: #6b7280; text-align: center;">Alebo naskenujte QR kód</p>
+                </div>
+
+                <p>Ďakujeme, že ste súčasťou Nitráčik komunity. Tešíme sa na vás na ďalšej hodine!</p>
+
+                <div style="margin-top: 30px;">
+                  <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
+                  <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
+                  <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
+                </div>
+              </div>
+              <div class="footer">
+                <div style="margin-bottom: 15px;">
+                  <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
+                    <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                  </a>
+                  <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
+                    <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                  </a>
+                </div>
+                <p style="margin: 0;">© 2026 O.z. Nitráčik.</p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `),
+      attachments: getCommonAttachments()
     };
 
     return transporter.sendMail(mailOptions);

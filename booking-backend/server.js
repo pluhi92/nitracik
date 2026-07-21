@@ -3826,6 +3826,9 @@ app.get('/api/booking/credit', async (req, res) => {
 app.post('/api/bookings/use-credit', async (req, res) => {
   const { creditId, trainingId, childrenAges, photoConsent, mobile, note, accompanyingPerson } = req.body;
   const userId = req.session.userId;
+  const COMPATIBLE_CHILD_CREDIT_TYPES = new Set(['MINI', 'MIDI', 'MAXI']);
+
+  const normalizeTrainingTypeName = (value) => (value || '').toString().trim().toUpperCase();
 
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -3863,21 +3866,49 @@ app.post('/api/bookings/use-credit', async (req, res) => {
     }
     const training = trainingResult.rows[0];
 
-    // 3. Check training_type match (credit can only be used for same training type)
-    if (credit.training_type !== training.training_type) {
+    // 3. Validate credit compatibility.
+    // MINI/MIDI/MAXI credits are mutually compatible, all other types remain strict (same type only).
+    const normalizedCreditType = normalizeTrainingTypeName(credit.training_type);
+    const normalizedTargetType = normalizeTrainingTypeName(training.training_type);
+    const sameType = normalizedCreditType === normalizedTargetType;
+    const miniMidiMaxiCompatible =
+      COMPATIBLE_CHILD_CREDIT_TYPES.has(normalizedCreditType)
+      && COMPATIBLE_CHILD_CREDIT_TYPES.has(normalizedTargetType);
+
+    if (!sameType && !miniMidiMaxiCompatible) {
       await client.query('ROLLBACK');
       return res.status(400).json({ 
-        error: 'Credit can only be used for the same training type: ' + credit.training_type 
+        error: `Credit type ${credit.training_type} is not compatible with ${training.training_type}`
       });
     }
 
-    // 4. Determine age_group from training_type and requested participant count
-    const trainingTypeResult = await client.query(
-      `SELECT audience_type FROM training_types WHERE name = $1`,
-      [credit.training_type]
+    // 4. Validate audience compatibility and determine participant mode by the TARGET training type.
+    const audienceResult = await client.query(
+      `SELECT name, audience_type
+       FROM training_types
+       WHERE name = ANY($1::text[])`,
+      [[credit.training_type, training.training_type]]
     );
-    const audienceType = trainingTypeResult.rows[0]?.audience_type || 'children';
-    const isAdultTraining = audienceType === 'adults' || audienceType === 'both';
+
+    const audienceByTypeName = new Map(
+      audienceResult.rows.map((row) => [row.name, row.audience_type])
+    );
+
+    const creditAudience = audienceByTypeName.get(credit.training_type) || 'children';
+    const targetAudience = audienceByTypeName.get(training.training_type) || 'children';
+    const audienceMismatch =
+      creditAudience !== targetAudience
+      && creditAudience !== 'both'
+      && targetAudience !== 'both';
+
+    if (audienceMismatch) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: `Credit audience ${creditAudience} is not compatible with target audience ${targetAudience}`
+      });
+    }
+
+    const isAdultTraining = targetAudience === 'adults' || targetAudience === 'both';
     const requestedParticipants = isAdultTraining ? 1 : credit.child_count;
 
     // 5. Check participant count
@@ -4853,6 +4884,62 @@ setInterval(async () => {
     console.error('[CLEANUP] Error removing old pending bookings:', err.message);
   }
 }, 6 * 60 * 60 * 1000); // Run every 6 hours
+
+// === REVIEW EMAIL SCHEDULER ===
+// Runs every 15 minutes. Sends a review request email 1 hour after a training session ends.
+// duration_minutes comes from training_types (joined via training_type_id).
+// Uses review_email_sent_at column on bookings to prevent duplicate sends.
+setInterval(async () => {
+  let client;
+  try {
+    if (DEBUG_LOGS === true) {
+      console.log('[REVIEW EMAIL SCHEDULER] Running check...');
+    }
+
+    client = await pool.connect();
+
+    const result = await client.query(`
+SELECT
+  b.id AS booking_id,
+  u.email,
+  u.first_name,
+  ta.training_date,
+  ta.training_type,
+  tt.duration_minutes
+FROM bookings b
+JOIN users u ON b.user_id = u.id
+JOIN training_availability ta ON b.training_id = ta.id
+JOIN training_types tt ON ta.training_type_id = tt.id
+WHERE b.active = true
+  AND b.review_email_sent_at IS NULL
+  AND (ta.training_date + (tt.duration_minutes * INTERVAL '1 minute') + INTERVAL '1 hour') <= NOW()
+    `);
+
+    for (const row of result.rows) {
+      try {
+        await emailService.sendReviewRequestEmail(row.email, row.first_name, {
+          trainingType: row.training_type,
+          trainingDate: row.training_date,
+        });
+
+        await client.query(
+          'UPDATE bookings SET review_email_sent_at = NOW() WHERE id = $1',
+          [row.booking_id]
+        );
+
+        console.log(`✅ [REVIEW EMAIL] Sent to: ${row.email}, booking: ${row.booking_id}`);
+      } catch (err) {
+        console.error(`❌ [REVIEW EMAIL] Failed for booking ${row.booking_id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[REVIEW EMAIL SCHEDULER] Error:', err.message);
+  } finally {
+    if (client) {
+      client.release();
+    }
+  }
+}, 15 * 60 * 1000);
 
 app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) => {
   try {

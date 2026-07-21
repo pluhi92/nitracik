@@ -256,12 +256,16 @@ const ActivityList = () => {
                 style={{ borderColor: type.color_hex || '#f1f5f9' }}
               >
                 <div className="flex items-start justify-between gap-4 p-4 sm:p-5 hover:bg-gray-50 transition">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
+                  <div className="flex flex-1 min-w-0 items-start justify-between gap-4">
+                    <div className="w-full">
                       <Link
                         to={`/aktivity/${slugify(type.name)}`}
                         className="inline-flex items-center gap-2 text-xl sm:text-2xl font-bold tracking-tight hover:opacity-80 transition"
-                        style={{ color: type.color_hex || '#111827' }}
+                        style={{
+                          color: type.color_hex || '#111827',
+                          WebkitTextStroke: '0.35px #111827',
+                          textShadow: '-0.5px 0 #111827, 0 0.5px #111827, 0.5px 0 #111827, 0 -0.5px #111827'
+                        }}
                       >
                         {type.name}
                       </Link>
@@ -271,7 +275,7 @@ const ActivityList = () => {
                         {t?.activities?.price || 'Price'}: {getPriceLabel(type)}
                       </p>
                       {type.description && (
-                        <p className="mt-2 text-sm sm:text-base text-gray-700">{type.description}</p>
+                        <p className="mt-2 text-sm sm:text-base text-gray-700 leading-relaxed text-left sm:text-justify break-words [overflow-wrap:anywhere]">{type.description}</p>
                       )}
                     </div>
                   </div>

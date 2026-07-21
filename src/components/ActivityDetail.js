@@ -143,7 +143,14 @@ const ActivityDetail = () => {
 
         <article className="rounded-2xl border bg-white shadow-sm overflow-hidden" style={{ borderColor: currentType.color_hex || '#f1f5f9' }}>
           <header className="p-4 sm:p-5 border-b border-gray-100">
-            <h1 className="text-3xl font-bold tracking-tight" style={{ color: currentType.color_hex || '#111827' }}>
+            <h1
+              className="text-3xl font-bold tracking-tight"
+              style={{
+                color: currentType.color_hex || '#111827',
+                WebkitTextStroke: '0.35px #111827',
+                textShadow: '-0.5px 0 #111827, 0 0.5px #111827, 0.5px 0 #111827, 0 -0.5px #111827'
+              }}
+            >
               {currentType.name}
             </h1>
             <p className="mt-2 text-gray-600">
@@ -151,7 +158,11 @@ const ActivityDetail = () => {
               <span className="mx-2">|</span>
               {t?.activities?.price || 'Price'}: {priceLabel}
             </p>
-            {currentType.description && <p className="mt-3 text-gray-700">{currentType.description}</p>}
+            {currentType.description && (
+              <p className="mt-3 text-gray-700 leading-relaxed text-left sm:text-justify break-words [overflow-wrap:anywhere]">
+                {currentType.description}
+              </p>
+            )}
           </header>
 
           <div className="p-4 sm:p-5 bg-gray-50/60">
