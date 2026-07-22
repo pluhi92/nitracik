@@ -13,6 +13,7 @@ import { getAvailableSeasonTickets } from '../tests/bookingSeasonTicketUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChevronUp, 
+  ChevronDown,
   Calendar as CalIcon, 
   Clock, 
   User, 
@@ -41,6 +42,83 @@ const cardVariants = {
   })
 };
 
+const NativeSelect = ({ value, onChange, disabled, required, className, children, style, ...props }) => {
+  const [isFocused, setIsFocused] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const isPlaceholderValue = value === '' || value === null || typeof value === 'undefined';
+  const styledChildren = React.Children.map(children, (child) => {
+    if (!React.isValidElement(child)) {
+      return child;
+    }
+
+    const isPlaceholderOption = child.props.value === '';
+
+    return React.cloneElement(child, {
+      style: {
+        color: isPlaceholderOption ? '#a3a3a3' : '#171717',
+        ...(child.props.style || {}),
+      },
+    });
+  });
+
+  return (
+    <motion.div
+      className="relative"
+      animate={{ opacity: disabled ? 0.7 : 1 }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
+    >
+      <select
+        value={value}
+        onChange={(event) => {
+          setIsOpen(false);
+          onChange?.(event);
+        }}
+        disabled={disabled}
+        required={required}
+        style={{
+          color: isPlaceholderValue ? '#a3a3a3' : '#404040',
+          ...style,
+        }}
+        onMouseDown={(event) => {
+          if (!disabled) {
+            setIsOpen(true);
+          }
+          props.onMouseDown?.(event);
+        }}
+        onKeyDown={(event) => {
+          if (!disabled && ['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(event.key)) {
+            setIsOpen(true);
+          }
+          if (event.key === 'Escape' || event.key === 'Tab') {
+            setIsOpen(false);
+          }
+          props.onKeyDown?.(event);
+        }}
+        onFocus={(event) => {
+          setIsFocused(true);
+          props.onFocus?.(event);
+        }}
+        onBlur={(event) => {
+          setIsFocused(false);
+          setIsOpen(false);
+          props.onBlur?.(event);
+        }}
+        className={`appearance-none pl-4 pr-10 transition-colors duration-200 ${className}`}
+        {...props}
+      >
+        {styledChildren}
+      </select>
+      <motion.div
+        animate={{ rotate: isOpen ? 180 : 0, scale: isFocused ? 1.08 : 1 }}
+        transition={{ duration: 0.18, ease: 'easeOut' }}
+        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+      >
+        <ChevronDown className="w-4 h-4 text-neutral-400" />
+      </motion.div>
+    </motion.div>
+  );
+};
+
 const Booking = () => {
   const toDateKey = (value) => {
     const date = value instanceof Date ? value : new Date(value);
@@ -54,6 +132,19 @@ const Booking = () => {
     const day = String(date.getDate()).padStart(2, '0');
 
     return `${year}-${month}-${day}`;
+  };
+
+  const formatSessionOptionLabel = (dateKey, timeValue) => {
+    const [year, month, day] = (dateKey || '').split('-').map(Number);
+
+    if (!year || !month || !day) {
+      return `${dateKey} | ${timeValue}`;
+    }
+
+    const weekdays = ['Nedeľa', 'Pondelok', 'Utorok', 'Streda', 'Štvrtok', 'Piatok', 'Sobota'];
+    const weekday = weekdays[new Date(year, month - 1, day).getDay()];
+
+    return `${day}. ${month}. ${year} - ${weekday} | ${timeValue}`;
   };
 
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -1590,7 +1681,7 @@ const Booking = () => {
                 <label className="font-bold text-xs text-neutral-700 mb-1.5">
                   {t?.admin?.trainingType || 'Training Type'}
                 </label>
-                <select
+                <NativeSelect
                   value={newTrainingType}
                   onChange={(e) => {
                     setNewTrainingType(e.target.value);
@@ -1607,7 +1698,7 @@ const Booking = () => {
                         {type.name}
                       </option>
                     ))}
-                </select>
+                </NativeSelect>
               </div>
 
               <div>
@@ -1768,7 +1859,7 @@ const Booking = () => {
                   )}
                 </AnimatePresence>
               </label>
-              <select
+              <NativeSelect
                 value={trainingTypeId}
                 onChange={handleTypeChange}
                 disabled={Boolean(lockedReservation)}
@@ -1781,7 +1872,7 @@ const Booking = () => {
                       {type.name} {type.duration_minutes ? `(${type.duration_minutes} min)` : ''} {!type.active ? '(Inactive)' : ''}
                     </option>
                   ))}
-              </select>
+              </NativeSelect>
             </div>
 
             <AnimatePresence>
@@ -1792,7 +1883,7 @@ const Booking = () => {
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.3, ease: 'easeOut' }}
-                  className="overflow-hidden mb-8 -mx-1 px-1"
+                  className="mb-8 px-1"
                 >
                   <div>
                     <label className="font-bold text-sm text-neutral-700 mb-2">
@@ -1811,7 +1902,7 @@ const Booking = () => {
                         )}
                       </AnimatePresence>
                     </label>
-                    <select
+                    <NativeSelect
                       value={trainingId || ''}
                       onChange={handleSessionSelect}
                       disabled={!trainingType || Boolean(lockedReservation)}
@@ -1824,12 +1915,12 @@ const Booking = () => {
                             .flatMap(([dateKey, sessions]) =>
                               sessions.map((session) => (
                                 <option key={session.id} value={session.id}>
-                                  {dateKey} — {session.time}
+                                  {formatSessionOptionLabel(dateKey, session.time)}
                                 </option>
                               ))
                             )
                         : null}
-                    </select>
+                    </NativeSelect>
                   </div>
                 </motion.div>
               )}
@@ -1953,7 +2044,7 @@ const Booking = () => {
                     <label className="font-bold text-sm text-neutral-700 mb-2">
                       {t?.booking?.childrenCount || 'Number of Children'} <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <NativeSelect
                       value={childrenCount}
                       onChange={(e) => setChildrenCount(parseInt(e.target.value))}
                       required
@@ -1973,7 +2064,7 @@ const Booking = () => {
                           </option>
                         );
                       })}
-                    </select>
+                    </NativeSelect>
                   </div>
 
                   <div className="mb-2">
@@ -1986,7 +2077,7 @@ const Booking = () => {
                           <label className="font-extrabold text-sm text-foreground mb-3 block">
                             {t?.booking?.childAge?.replace('{number}', index + 1) || `${index + 1}${getOrdinalSuffix(index + 1)} Child`}
                           </label>
-                          <select
+                          <NativeSelect
                             value={age}
                             onChange={(e) => handleAgeChange(index, e.target.value)}
                             required
@@ -2000,7 +2091,7 @@ const Booking = () => {
                                 {ageOption} {getYearLabel(ageOption)}
                               </option>
                             ))}
-                          </select>
+                          </NativeSelect>
                         </div>
                       ))}
                     </div>
@@ -2117,7 +2208,7 @@ const Booking = () => {
                       <label className="font-bold text-xs text-primary-800 mb-2 block">
                         {t?.booking?.selectSeasonTicket || 'Select Season Ticket'} <span className="text-red-500">*</span>
                       </label>
-                      <select
+                      <NativeSelect
                         value={selectedSeasonTicket}
                         onChange={(e) => setSelectedSeasonTicket(e.target.value)}
                         required={useSeasonTicket}
@@ -2135,7 +2226,7 @@ const Booking = () => {
                             )}
                           </option>
                         ))}
-                      </select>
+                      </NativeSelect>
                     </div>
                   )}
                 </div>
