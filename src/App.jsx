@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { UserProvider } from './contexts/UserContext';
 import dayjs from 'dayjs';
@@ -16,9 +16,7 @@ const Booking = lazy(() => import('./components/Booking'));
 const Contact = lazy(() => import('./components/Contact'));
 const Login = lazy(() => import('./components/Login'));
 const Register = lazy(() => import('./components/Register'));
-const RegistrationSuccess = lazy(() => import('./components/RegistrationSuccess'));
 const VerifyEmail = lazy(() => import('./components/VerifyEmail'));
-const ThankYou = lazy(() => import('./components/ThankYou'));
 const ForgotPassword = lazy(() => import('./components/ForgotPassword'));
 const ResetPassword = lazy(() => import('./components/ResetPassword'));
 const UserProfile = lazy(() => import('./components/UserProfile'));
@@ -50,6 +48,16 @@ const initializeDayJS = () => {
   dayjs.locale('sk');
 };
 
+const ScrollToTop = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
+  return null;
+};
+
 // ------------------ Main App Content ------------------
 const AppContent = () => {
   // Inicializácia pri načítaní komponentu
@@ -59,6 +67,7 @@ const AppContent = () => {
 
   return (
     <div className="min-h-screen flex flex-col overflow-x-clip bg-white bg-custom-flakes bg-cover">
+      <ScrollToTop />
       <Navbar />
       <GreetingBar />
 
@@ -76,9 +85,7 @@ const AppContent = () => {
             <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/registration-success" element={<RegistrationSuccess />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
-            <Route path="/thank-you" element={<ThankYou />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/account-deleted" element={<AccountDeleted />} />

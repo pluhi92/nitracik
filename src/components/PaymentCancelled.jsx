@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle2, XCircle, Loader2, AlertTriangle } from 'lucide-react';
 import api from '../api/api';
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } }
+};
 
 const PaymentCancelled = () => {
   const navigate = useNavigate();
@@ -46,12 +53,42 @@ const PaymentCancelled = () => {
     };
   }, [navigate]);
 
+  const isSuccess = message.includes('✅');
+  const isError = message.includes('❌');
+
   return (
-    <div className="container mt-5 text-center">
-      <h2 className="text-danger">⚠️ Payment Status</h2>
-      <p style={{ fontSize: '18px', margin: '20px 0' }}>{message}</p>
-      <p className="text-muted">You will be redirected in 5 seconds...</p>
-    </div>
+    <motion.section 
+      initial="hidden"
+      animate="visible"
+      variants={fadeInUp}
+      className="py-12 md:py-20 container-custom max-w-xl mx-auto px-4 sm:px-6 relative text-center"
+    >
+      <div className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 p-8 sm:p-12">
+        
+        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 ${
+          isSuccess ? 'bg-emerald-50 text-emerald-600' :
+          isError ? 'bg-red-50 text-red-600' :
+          'bg-primary/10 text-primary'
+        }`}>
+          {isSuccess ? <CheckCircle2 className="w-8 h-8" /> :
+           isError ? <XCircle className="w-8 h-8" /> :
+           <Loader2 className="w-8 h-8 animate-spin" />}
+        </div>
+
+        <h2 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight mb-4 flex items-center justify-center gap-2">
+          <AlertTriangle className="w-7 h-7 text-amber-500" />
+          <span>Payment Status</span>
+        </h2>
+
+        <div className="text-neutral-600 font-medium text-base sm:text-lg my-6 leading-relaxed">
+          {message}
+        </div>
+
+        <p className="text-neutral-400 font-bold text-xs sm:text-sm uppercase tracking-wider">
+          You will be redirected in 5 seconds...
+        </p>
+      </div>
+    </motion.section>
   );
 };
 

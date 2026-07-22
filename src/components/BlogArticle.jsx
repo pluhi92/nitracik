@@ -1,9 +1,15 @@
-// BlogArticle.jsx - Samostatná stránka pre jeden článok + LABEL
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Container, Button, Spinner, Alert } from 'react-bootstrap';
+import { Spinner, Alert } from 'react-bootstrap';
 import api from '../api/api';
 import ShareModal from './ShareModal';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Calendar, Share2, ExternalLink } from 'lucide-react';
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+};
 
 const BlogArticle = () => {
   const { slug } = useParams();
@@ -18,20 +24,15 @@ const BlogArticle = () => {
     const fetchPost = async () => {
       try {
         setLoading(true);
-        
-        console.log("Fetching slug:", slug); 
-
         const response = await api.get(`/api/blog-posts/${slug}`);
         setPost(response.data);
 
-        // Fetch label if post has one
         if (response.data.label_id) {
           try {
             const labelResponse = await api.get(`/api/blog-labels/${response.data.label_id}`);
             setLabel(labelResponse.data);
           } catch (labelError) {
             console.error('Error fetching label:', labelError);
-            // Continue without label if fetch fails
           }
         }
       } catch (error) {
@@ -59,53 +60,55 @@ const BlogArticle = () => {
 
   if (loading) {
     return (
-      <Container className="text-center py-5">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Načítavam...</span>
-        </Spinner>
-      </Container>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Spinner animation="border" className="text-primary" />
+      </div>
     );
   }
 
   if (error || !post) {
     return (
-      <Container className="py-5">
-        <Alert variant="danger">
+      <div className="py-16 container-custom max-w-3xl mx-auto px-4">
+        <Alert variant="danger" className="rounded-2xl border-red-200 bg-red-50 text-red-800 font-medium mb-6">
           {error || 'Článok nebol nájdený'}
         </Alert>
-        <Button variant="primary" onClick={() => navigate('/blog')}>
-          ← Späť na blog
-        </Button>
-      </Container>
+        <button
+          type="button"
+          onClick={() => navigate('/blog')}
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-white font-bold text-sm shadow-sm hover:bg-primary-600 transition-all"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Späť na blog</span>
+        </button>
+      </div>
     );
   }
 
   return (
-    <Container className="py-5">
-      <div className="mb-4">
-        <Button 
-          variant="outline-secondary" 
+    <motion.section 
+      initial="hidden"
+      animate="visible"
+      variants={fadeInUp}
+      className="py-12 md:py-16 container-custom max-w-4xl mx-auto px-4 sm:px-6"
+    >
+      <div className="mb-8">
+        <button
+          type="button"
           onClick={() => navigate('/blog')}
-          className="mb-3"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-neutral-200 bg-white text-foreground font-bold hover:bg-neutral-50 transition-all text-sm shadow-sm"
         >
-          ← Späť na blog
-        </Button>
+          <ArrowLeft className="w-4 h-4" />
+          <span>Späť na blog</span>
+        </button>
       </div>
 
-      <article className="bg-white rounded shadow-sm p-4">
+      <article className="bg-white rounded-[2rem] border border-neutral-200 shadow-sm p-6 sm:p-12 overflow-hidden">
         {/* Label Badge */}
         {label && (
           <span
+            className="inline-block px-3.5 py-1.5 rounded-full text-xs font-bold text-white mb-4 shadow-2xs"
             style={{
-              display: 'inline-block',
               backgroundColor: label.color || '#3b82f6',
-              color: '#fff',
-              fontSize: '0.9rem',
-              padding: '0.5rem 1rem',
-              borderRadius: '4px',
-              fontWeight: '500',
-              marginBottom: '1rem',
-              textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
             }}
           >
             {label.name}
@@ -113,80 +116,86 @@ const BlogArticle = () => {
         )}
 
         {/* Titulok */}
-        <h1 className="mb-3">{post.title}</h1>
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight mb-6 leading-tight">
+          {post.title}
+        </h1>
 
         {/* Meta informácie */}
-        <div className="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
-          <div className="text-muted">
-            <small>📅 {formatDate(post.created_at)}</small>
+        <div className="flex justify-between items-center mb-8 pb-6 border-b border-neutral-100 text-neutral-400 text-xs font-bold">
+          <div className="flex items-center gap-1.5">
+            <Calendar className="w-4 h-4" />
+            <span>{formatDate(post.created_at)}</span>
           </div>
-          <Button
-            variant="outline-primary"
-            size="sm"
+          <button
+            type="button"
             onClick={() => setShowShareModal(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-neutral-200 bg-neutral-50 text-neutral-700 hover:border-primary hover:text-primary transition-all font-bold"
           >
-            🔗 Zdieľať
-          </Button>
+            <Share2 className="w-3.5 h-3.5" />
+            <span>Zdieľať</span>
+          </button>
         </div>
 
         {/* Obrázok */}
         {post.image_url && (
-          <img
-            src={api.makeImageUrl(post.image_url)}
-            alt={post.title}
-            className="img-fluid mb-4 rounded"
-            style={{ width: '100%', maxHeight: '500px', objectFit: 'cover' }}
-            onError={(e) => {
-              e.target.src = 'https://picsum.photos/800/400?random=' + post.id;
-            }}
-          />
+          <div className="mb-8 rounded-2xl overflow-hidden border border-neutral-200 bg-neutral-100 max-h-[500px]">
+            <img
+              src={api.makeImageUrl(post.image_url)}
+              alt={post.title}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.src = 'https://picsum.photos/800/400?random=' + post.id;
+              }}
+            />
+          </div>
         )}
 
         {/* Perex */}
         {post.perex && (
-          <div className="lead mb-4 text-muted">
+          <p className="text-lg text-neutral-700 font-semibold mb-8 leading-relaxed">
             {post.perex}
-          </div>
+          </p>
         )}
 
         {/* Obsah */}
         <div 
-          className="blog-content"
+          className="blog-content text-neutral-600 font-medium space-y-4 text-base sm:text-lg leading-relaxed"
           style={{
             whiteSpace: 'pre-wrap',
             wordWrap: 'break-word',
             overflowWrap: 'break-word',
-            lineHeight: '1.8',
-            fontSize: '1.1rem'
           }}
         >
           {post.content}
         </div>
+
         {/* Zdroj */}
         {post.source_url && (
-          <div className="mt-5 pt-4 border-top">
-            <p className="text-muted">
+          <div className="mt-10 pt-6 border-t border-neutral-100">
+            <p className="text-neutral-500 text-sm font-medium flex items-center gap-2">
               <strong>Zdroj:</strong>{' '}
               <a 
                 href={post.source_url} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-primary"
+                className="text-primary font-bold hover:underline inline-flex items-center gap-1"
               >
-                {post.source_url}
+                {post.source_url} <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </p>
           </div>
         )}
 
         {/* Footer s tlačidlom na zdieľanie */}
-        <div className="mt-5 pt-4 border-top text-center">
-          <Button
-            variant="primary"
+        <div className="mt-10 pt-8 border-t border-neutral-100 text-center">
+          <button
+            type="button"
             onClick={() => setShowShareModal(true)}
+            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-primary text-white font-bold hover:bg-primary-600 transition-all shadow-sm text-sm sm:text-base"
           >
-            🔗 Zdieľať tento článok
-          </Button>
+            <Share2 className="w-4 h-4" />
+            <span>Zdieľať tento článok</span>
+          </button>
         </div>
       </article>
 
@@ -197,7 +206,7 @@ const BlogArticle = () => {
         postId={post?.slug}
         postTitle={post.title}
       />
-    </Container>
+    </motion.section>
   );
 };
 

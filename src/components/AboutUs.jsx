@@ -1,13 +1,25 @@
-// Updated AboutUs.jsx - FIXED ADMIN LOGIC
+// Updated AboutUs.jsx - REFINED LAYOUT & SOFTER CARDS
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from '../contexts/LanguageContext';
 import { useUser } from '../contexts/UserContext';
 import { Link } from 'react-router-dom';
 import { Button, Modal, Form, Alert } from 'react-bootstrap';
 import api from '../api/api';
-import Blog from './Blog'; // Import the Blog component
+import Blog from './Blog';
 import ownerImage from '../assets/owner.jpg';
 import googleIcon from '../assets/google_icon.png';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Edit2, 
+  Settings, 
+  ChevronLeft, 
+  ChevronRight, 
+  Star, 
+  Info, 
+  ArrowRight,
+  MessageCircle,
+  ExternalLink
+} from 'lucide-react';
 
 const getInitials = (name = '') => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -34,6 +46,17 @@ const getAvatarDataUri = (name = '') => {
       <text x="50%" y="52%" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="32" fill="#fff" font-weight="700">${initials}</text>
     </svg>`;
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
+
+// --- FRAMER MOTION VARIANTS ---
+const fadeInUp = {
+  hidden: { opacity: 0, y: 40 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+};
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.15 } }
 };
 
 const AboutUs = () => {
@@ -79,7 +102,7 @@ const AboutUs = () => {
   const { user } = useUser();
   const isLoggedIn = user.isLoggedIn;
 
-  // ✅ OPRAVENÁ ADMIN LOGIKA - podľa vzoru z FAQ.jsx
+  // Admin Logic
   const [isAdmin, setIsAdmin] = useState(false);
   const userId = localStorage.getItem('userId');
 
@@ -98,28 +121,22 @@ const AboutUs = () => {
   const [googleTotalRatings, setGoogleTotalRatings] = useState(null);
   const [expandedReviewIndex, setExpandedReviewIndex] = useState(null);
 
-
-  // --- STAVY PRE EDITOVANIE SEKCII ---
+  // Stavy pre editovanie sekcii
   const [aboutContent, setAboutContent] = useState({
-    title: 'O nás',
-    description: 'Vitajte v Nitráčiku! Sme lokalný projekt zameraný na kreatívny rozvoj detí. Naša misia je vytvárať priestor, kde sa deti môžu slobodne vyjadrovať, objavovať a učiť sa prostredníctvom hry a kreativity.',
-    description2: 'Ponúkame rôzne programy a workshopy navrhnuté tak, aby podporovali motorické zručnosti, sociálnu interakciu a tvorivé myslenie u detí všetkých vekových kategórií.',
+    title: 'Vitajte u nás! :)',
+    description: 'Nitráčik je jedinečný priestor v srdci Nitry, ktorý vznikol zo spontánnej túžby dopriať deťom miesto pre slobodné objavovanie sveta všetkými zmyslami. Našou filozofiou je „hry bez zákazov“, kde sa deti môžu u nás bez obáv ufúľať, experimentovať s textúrami a určovať si vlastné tempo pri senzorických aktivitách. Prostredníctvom práce s materiálmi ako farebná ryža, sliz či jedlé blato hravou formou rozvíjame detskú jemnú motoriku, sústredenie a kreativitu. V našich priestoroch s rozlohou vyše 180 m² vytvárame pokojnú a bezpečnú atmosféru podporenú relaxačnou hudbou, ktorá je ideálna pre hlboký rozvoj detského vnímania.',
+    description2: 'Nitráčik nie je len obyčajná hernička, ale komunita založená na radosti z objavovania, kde každé dieťa prekonáva svoje hranice a buduje si zdravé sebavedomie. Veríme, že tie najkrajšie detské zážitky sú tie, ktoré si môžu doslova „ohmatať“ a zažiť na vlastnej koži.',
   });
-
 
   const [showAboutEditModal, setShowAboutEditModal] = useState(false);
   const [editAboutForm, setEditAboutForm] = useState({ ...aboutContent });
   const [alertMessage, setAlertMessage] = useState({ type: '', text: '' });
 
-  // ✅ ADMIN CHECK FUNKCIA - podľa vzoru z FAQ.jsx
+  // Admin Check
   const checkAdminStatus = useCallback(async () => {
-    if (!userId || !user.isLoggedIn) {
-      return;
-    }
-
+    if (!userId || !user.isLoggedIn) return;
     try {
       const response = await api.get(`/api/users/${userId}`);
-      // Kontrola podľa role (fallback na localStorage pre staršie sesie)
       if (response.data.role === 'admin' || localStorage.getItem('userRole') === 'admin') {
         setIsAdmin(true);
       } else {
@@ -131,112 +148,91 @@ const AboutUs = () => {
     }
   }, [userId, user.isLoggedIn]);
 
- // V AboutUs.jsx nahraďte tieto dva useEffect hooks:
-
-// ✅ SPOJENÝ EFFECT PRE VŠETKY DATA - s user v závislostiach
-useEffect(() => {
-  const loadData = async () => {
-    try {
-      // 1. Skontrolujeme admin status LEN ak je užívateľ prihlásený
-      if (userId && user.isLoggedIn) {
-        await checkAdminStatus();
-      } else {
-        setIsAdmin(false); // DÔLEŽITÉ: Resetovať admin status pri odhlásení
-      }
-
-      // 2. Načítame verejné recenzie (vždy)
+  // Load Data Effect
+  useEffect(() => {
+    const loadData = async () => {
       try {
-        const reviewsRes = await api.get('/api/reviews');
-        setReviews(reviewsRes.data.reviews || []);
-        setGoogleRating(
-          typeof reviewsRes.data.rating === 'number' ? reviewsRes.data.rating : null
-        );
-        setGoogleTotalRatings(
-          typeof reviewsRes.data.totalRatings === 'number' ? reviewsRes.data.totalRatings : null
-        );
-        setGoogleRatingsConfig((prev) => ({
-          ...prev,
-          enabled: !!reviewsRes.data.enabled,
-          businessId: reviewsRes.data.businessId || prev.businessId
-        }));
-      } catch (err) {
-        console.error("Nepodarilo sa načítať recenzie:", err);
-      }
-
-      // 3. Načítame obsah sekcií z databázy (vždy)
-      try {
-        const aboutRes = await api.get('/api/about-content');
-        if (aboutRes.data) {
-          setAboutContent(aboutRes.data);
+        if (userId && user.isLoggedIn) {
+          await checkAdminStatus();
+        } else {
+          setIsAdmin(false);
         }
-      } catch (err) {
-        console.error("Nepodarilo sa načítať obsah O nás:", err);
+
+        try {
+          const reviewsRes = await api.get('/api/reviews');
+          setReviews(reviewsRes.data.reviews || []);
+          setGoogleRating(typeof reviewsRes.data.rating === 'number' ? reviewsRes.data.rating : null);
+          setGoogleTotalRatings(typeof reviewsRes.data.totalRatings === 'number' ? reviewsRes.data.totalRatings : null);
+          setGoogleRatingsConfig((prev) => ({
+            ...prev,
+            enabled: !!reviewsRes.data.enabled,
+            businessId: reviewsRes.data.businessId || prev.businessId
+          }));
+        } catch (err) {
+          console.error("Nepodarilo sa načítať recenzie:", err);
+        }
+
+        try {
+          const aboutRes = await api.get('/api/about-content');
+          if (aboutRes.data) {
+            setAboutContent(aboutRes.data);
+          }
+        } catch (err) {
+          console.error("Nepodarilo sa načítať obsah O nás:", err);
+        }
+      } catch (error) {
+        console.error('General fetch error:', error);
       }
-      
-    } catch (error) {
-      console.error('General fetch error:', error);
-    }
-  };
+    };
+    loadData();
+  }, [userId, user.isLoggedIn, checkAdminStatus]);
 
-  loadData();
-}, [userId, user.isLoggedIn, checkAdminStatus]); // ← Pridané user.isLoggedIn
-
+  // Responsive Carousel
   useEffect(() => {
     const updateCardsPerView = () => {
       const width = window.innerWidth;
-      if (width < 640) {
-        setReviewCardsPerView(1);
-      } else if (width < 1024) {
-        setReviewCardsPerView(2);
-      } else {
-        setReviewCardsPerView(3);
-      }
+      if (width < 640) setReviewCardsPerView(1);
+      else if (width < 1024) setReviewCardsPerView(2);
+      else setReviewCardsPerView(3);
     };
-
     updateCardsPerView();
     window.addEventListener('resize', updateCardsPerView);
     return () => window.removeEventListener('resize', updateCardsPerView);
   }, []);
 
-  // Scroll to top button
+  // Scroll to top
   useEffect(() => {
     const handleScroll = () => {
       setShowScrollButton(window.scrollY > 300);
     };
-
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-// ✅ SAMOSTATNÝ EFFECT PRE NAČÍTANIE ADMIN DÁT - updatovaný
-useEffect(() => {
-  const loadAdminConfig = async () => {
-    if (isAdmin && user.isLoggedIn) { // ← Pridaná kontrola prihlásenia
-      try {
-        const configRes = await api.get('/api/admin/google-ratings');
-        setGoogleRatingsConfig(configRes.data);
-      } catch (err) {
-        console.error("Nepodarilo sa načítať admin config:", err);
+  // Load Admin Config
+  useEffect(() => {
+    const loadAdminConfig = async () => {
+      if (isAdmin && user.isLoggedIn) {
+        try {
+          const configRes = await api.get('/api/admin/google-ratings');
+          setGoogleRatingsConfig(configRes.data);
+        } catch (err) {
+          console.error("Nepodarilo sa načítať admin config:", err);
+        }
+      } else {
+        setGoogleRatingsConfig({ businessId: '', enabled: false });
       }
-    } else {
-      // Resetovať admin config ak nie sme admin alebo sme odhlásený
-      setGoogleRatingsConfig({
-        businessId: '',
-        enabled: false
-      });
-    }
-  };
+    };
+    loadAdminConfig();
+  }, [isAdmin, user.isLoggedIn]);
 
-  loadAdminConfig();
-}, [isAdmin, user.isLoggedIn]); // ← Pridané user.isLoggedIn
-
-  // --- FUNKCIE PRE EDITOVANIE ---
+  // Functions
   const handleSaveAboutContent = async () => {
     try {
       await api.post('/api/admin/about-content', editAboutForm);
       setAboutContent(editAboutForm);
       setShowAboutEditModal(false);
-      setAlertMessage({ type: 'success', text: 'Obsah sekcie "O nás" bol úspešne uložený.' });
+      setAlertMessage({ type: 'success', text: 'Obsah sekcie bol úspešne uložený.' });
       setTimeout(() => setAlertMessage({ type: '', text: '' }), 3000);
     } catch (error) {
       console.error('Error saving about content:', error);
@@ -248,11 +244,11 @@ useEffect(() => {
     try {
       await api.post('/api/admin/google-ratings', googleRatingsConfig);
       setShowGoogleRatingsModal(false);
-      setAlertMessage({ type: 'success', text: 'Google ratings configuration saved' });
+      setAlertMessage({ type: 'success', text: 'Konfigurácia Google recenzií bola uložená.' });
       setTimeout(() => setAlertMessage({ type: '', text: '' }), 3000);
     } catch (error) {
       console.error('Error saving Google ratings config:', error);
-      setAlertMessage({ type: 'error', text: 'Failed to save configuration' });
+      setAlertMessage({ type: 'error', text: 'Nepodarilo sa uložiť konfiguráciu.' });
     }
   };
 
@@ -261,9 +257,7 @@ useEffect(() => {
   }, [carouselItems.length]);
 
   const prevSlide = () =>
-    setCurrentSlide(
-      (prev) => (prev === 0 ? carouselItems.length - 1 : prev - 1)
-    );
+    setCurrentSlide((prev) => (prev === 0 ? carouselItems.length - 1 : prev - 1));
 
   const goToSlide = (index) => setCurrentSlide(index);
 
@@ -277,11 +271,10 @@ useEffect(() => {
   };
 
   useEffect(() => {
-    const timer = setInterval(nextSlide, 5000);
+    const timer = setInterval(nextSlide, 6000); 
     return () => clearInterval(timer);
   }, [currentSlide, nextSlide]);
 
-  // Efekt pre reset formulárov pri otvorení modalu
   useEffect(() => {
     if (showAboutEditModal) {
       setEditAboutForm({ ...aboutContent });
@@ -295,517 +288,583 @@ useEffect(() => {
   const reviewGapRem = reviewCardsPerView === 1 ? 0 : reviewCardsPerView === 2 ? 1.5 : 2;
 
   return (
-    <section className="relative px-6 py-12 text-center bg-inherit rounded-xl shadow-xl transition-colors duration-300 text-secondary">
-      {showScrollButton && (
-        <button
-          onClick={scrollToTop}
-          className="fixed bottom-8 right-8 border-2 border-gray-700 text-gray-700 hover:text-gray-900 hover:border-gray-900 hover:shadow-2xl rounded-full shadow-lg transition-all duration-300 z-50 bg-white/80 w-16 h-16 flex items-center justify-center"
-          aria-label="Scroll to top"
-        >
-          <span className="text-3xl font-black leading-none translate-y-1">^</span>
-        </button>
-      )}
-      {/* Alert message */}
-      {alertMessage.text && (
-        <div className="max-w-6xl mx-auto mb-6">
-          <Alert variant={alertMessage.type === 'success' ? 'success' : 'danger'}>
-            {alertMessage.text}
-          </Alert>
-        </div>
-      )}
+    <motion.div 
+      initial="hidden"
+      animate="visible"
+      className="relative w-full overflow-hidden"
+    >
+      {/* Scroll to Top Button */}
+      <AnimatePresence>
+        {showScrollButton && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            onClick={scrollToTop}
+            className="fixed bottom-8 right-8 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-elevated border border-neutral-200 text-foreground transition-all hover:bg-neutral-50 hover:-translate-y-1"
+            aria-label="Scroll to top"
+          >
+            <ChevronLeft className="h-6 w-6 rotate-90" />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
-      {/* Carousel */}
-      <div className="relative w-full max-w-6xl mx-auto mb-16 overflow-hidden rounded-xl shadow-2xl">
-        <div
-          className="flex transition-transform duration-500"
-          style={{ transform: `translateX(-${currentSlide * 100}%)`, height: '400px' }}
-        >
-          {carouselItems.map((item) => (
-            <div key={item.id} className="relative w-full h-full flex-shrink-0">
-              <img
-                src={item.image}
-                alt={item.title}
-                className="object-cover w-full h-full"
-                onError={(e) => {
-                  e.target.src = `https://picsum.photos/1200/400?random=${item.id}`;
-                }}
-              />
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-6 text-left text-white">
-                <h3 className="text-xl font-semibold">{item.title}</h3>
-                <p className="opacity-90">{item.description}</p>
+      {/* Alerts */}
+      <AnimatePresence>
+        {alertMessage.text && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="container-custom mt-6 mb-6"
+          >
+            <Alert variant={alertMessage.type === 'success' ? 'success' : 'danger'} className="rounded-xl shadow-sm border-0">
+              {alertMessage.text}
+            </Alert>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Hero Carousel */}
+      <motion.section 
+        variants={fadeInUp}
+        className="container-custom py-8"
+      >
+        <div className="relative w-full max-w-6xl mx-auto h-[450px] overflow-hidden rounded-[2rem] shadow-sm group border border-neutral-200">
+          <div
+            className="flex transition-transform duration-700 ease-out h-full"
+            style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+          >
+            {carouselItems.map((item, idx) => (
+              <div key={item.id} className="relative w-full h-full flex-shrink-0 bg-white">
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  className="object-cover w-full h-full transform transition-transform hover:scale-105"
+                  style={{ transitionDuration: '10s' }}
+                  onError={(e) => {
+                    e.target.src = `https://picsum.photos/1200/500?random=${item.id}`;
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-8 sm:p-12">
+                  <AnimatePresence mode="wait">
+                    {currentSlide === idx && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        transition={{ delay: 0.2, duration: 0.5 }}
+                      >
+                        <h3 className="text-2xl sm:text-4xl font-extrabold text-white mb-3 tracking-tight">{item.title}</h3>
+                        <p className="text-white/90 text-lg sm:text-xl max-w-2xl">{item.description}</p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        {/* Navigation */}
-        <button
-          onClick={prevSlide}
-          className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-3 shadow-lg transition-transform hover:scale-110"
-        >
-          ‹
-        </button>
-        <button
-          onClick={nextSlide}
-          className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-3 shadow-lg transition-transform hover:scale-110"
-        >
-          ›
-        </button>
+          {/* Navigation Controls */}
+          <button
+            onClick={prevSlide}
+            className="absolute left-6 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center text-white opacity-0 transition-all duration-300 hover:bg-white hover:text-foreground group-hover:opacity-100"
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </button>
+          <button
+            onClick={nextSlide}
+            className="absolute right-6 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center text-white opacity-0 transition-all duration-300 hover:bg-white hover:text-foreground group-hover:opacity-100"
+          >
+            <ChevronRight className="h-6 w-6" />
+          </button>
 
-        {/* Indicators */}
-        <div className="absolute bottom-5 left-0 right-0 flex justify-center gap-3">
-          {carouselItems.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => goToSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all ${index === currentSlide
-                ? 'bg-white scale-125'
-                : 'bg-white/50 hover:bg-white/70'
+          {/* Indicators */}
+          <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-3">
+            {carouselItems.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => goToSlide(index)}
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  index === currentSlide ? 'w-8 bg-white' : 'w-2 bg-white/50 hover:bg-white'
                 }`}
-            ></button>
-          ))}
+                aria-label={`Go to slide ${index + 1}`}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      </motion.section>
 
-      {/* About Us Text Section */}
-      <section className="max-w-6xl mx-auto px-6 py-12 mb-16 bg-white rounded-xl shadow-lg relative">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <h2 className="text-3xl font-bold mb-6 text-secondary">
+      {/* About Us Text Section - SOFTER CARD & NEW LAYOUT */}
+      <motion.section 
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-100px" }}
+        variants={staggerContainer}
+        className="section-wrapper container-custom"
+      >
+        <div className="bg-white border border-neutral-200 rounded-[2rem] shadow-sm p-8 sm:p-12 relative overflow-hidden">
+          
+          {/* Centered Heading at the top */}
+          <motion.div variants={fadeInUp}>
+            <h2 className="text-4xl sm:text-5xl font-extrabold text-center mb-10 text-foreground">
               {aboutContent.title}
             </h2>
-            <div className="prose prose-lg text-gray-700 dark:text-gray-300 text-justify">
-              <p>
-                {aboutContent.description}
-              </p>
-              <p>
-                {aboutContent.description2}
-              </p>
-            </div>
-          </div>
-          <div className="rounded-lg shadow-xl overflow-hidden">
-            <img
-              src="/images/nitracik_about_us.jpg"
-              alt="Children enjoying activities at Nitracik"
-              className="w-full h-[400px] object-cover"
-              onError={(e) => {
-                e.target.src = 'https://picsum.photos/600/400?random=about';
-              }}
-            />
+          </motion.div>
+
+          {/* Text and Image side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-stretch">
+            {/* Image Block */}
+            <motion.div variants={fadeInUp} className="order-2 lg:order-1 relative rounded-[1.5rem] overflow-hidden min-h-[300px] lg:min-h-full shadow-sm border border-neutral-100">
+              <img
+                src="/images/nitracik_about_us.jpg"
+                alt="Children enjoying activities at Nitracik"
+                className="absolute inset-0 w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.src = 'https://picsum.photos/600/400?random=about';
+                }}
+              />
+            </motion.div>
+
+            {/* Text Block */}
+            <motion.div variants={fadeInUp} className="order-1 lg:order-2 flex flex-col justify-center">
+              <div className="text-base sm:text-lg leading-relaxed text-neutral-600 space-y-5 text-justify">
+                <p>{aboutContent.description}</p>
+                <p>{aboutContent.description2}</p>
+              </div>
+              
+              {isAdmin && (
+                <div className="mt-8 text-right">
+                  <button
+                    onClick={() => setShowAboutEditModal(true)}
+                    className="inline-flex items-center justify-center rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-all hover:bg-neutral-50"
+                  >
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Editovať text
+                  </button>
+                </div>
+              )}
+            </motion.div>
           </div>
         </div>
-
-        {/* ✅ Admin Edit Button - FIXED */}
-        {isAdmin && (
-          <div className="mt-6 text-right">
-            <Button
-              variant="outline-primary"
-              size="sm"
-              onClick={() => setShowAboutEditModal(true)}
-            >
-              ✏️ Editovať text
-            </Button>
-          </div>
-        )}
-      </section>
+      </motion.section>
 
       {/* Blog Section */}
-      <section className="max-w-6xl mx-auto px-6 py-12 mb-16 bg-white rounded-xl shadow-lg">
-        <Blog limit={3} showViewAll={true} />
-      </section>
+      <motion.section 
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-100px" }}
+        variants={fadeInUp}
+        className="section-wrapper container-custom"
+      >
+        <div className="bg-white border border-neutral-200 rounded-[2rem] shadow-sm p-8 sm:p-12">
+          <Blog limit={3} showViewAll={true} />
+        </div>
+      </motion.section>
 
-      {/* Google Ratings Section */}
-      <section className="max-w-6xl mx-auto px-6 py-12 mb-16 bg-white rounded-xl shadow-lg relative">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-secondary mb-4">
-            Napísali ste o nás
-          </h2>
-          <div className="flex justify-center items-center gap-2 mb-2">
-            <span className="text-gray-800 text-sm font-semibold">
-              {typeof googleRating === 'number' ? googleRating.toFixed(1).replace('.', ',') : '5,0'}
-            </span>
-            <span className="text-yellow-400 text-xl">
-              {typeof googleRating === 'number'
-                ? '★'.repeat(Math.round(googleRating)) + '☆'.repeat(5 - Math.round(googleRating))
-                : '★★★★★'}
-            </span>
-            <span className="text-gray-600 text-sm">
-              {typeof googleTotalRatings === 'number' ? googleTotalRatings : ''}{' '}
+      {/* Google Ratings Section - REFINED SPACING & STARS */}
+      <motion.section 
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-100px" }}
+        variants={staggerContainer}
+        className="section-wrapper container-custom"
+      >
+        <div className="bg-white border border-neutral-200 rounded-[2rem] shadow-sm p-8 sm:p-12">
+          <motion.div variants={fadeInUp} className="text-center mb-6">
+            <h2 className="text-3xl sm:text-4xl font-extrabold mb-6">
+              Napísali ste o nás
+            </h2>
+            
+            {/* Pill shaped Google Rating summary */}
+            <div className="flex justify-center items-center gap-3 mb-4 bg-white shadow-sm border border-neutral-200 inline-flex px-6 py-2.5 rounded-full">
+              <span className="text-foreground font-extrabold text-xl">
+                {typeof googleRating === 'number' ? googleRating.toFixed(1).replace('.', ',') : '5,0'}
+              </span>
+              <div className="flex gap-1">
+                {typeof googleRating === 'number'
+                  ? [...Array(5)].map((_, i) => (
+                      <Star key={i} className={`w-5 h-5 stroke-[1.5px] ${i < Math.round(googleRating) ? 'fill-yellow-400 text-neutral-700' : 'fill-transparent text-neutral-300'}`} />
+                    ))
+                  : [...Array(5)].map((_, i) => <Star key={i} className="w-5 h-5 fill-yellow-400 text-neutral-700 stroke-[1.5px]" />)
+                }
+              </div>
+              <div className="w-px h-6 bg-neutral-200 mx-1"></div>
               <a
-                href="https://www.google.com/search?client=firefox-b-d&hs=m3Gp&sca_esv=16c10c6f9a01096f&sxsrf=ANbL-n5U7G3pcziy0OKDhVF3ZpucVG3tVg:1769983804289&q=oz+nitracik&si=AL3DRZEsmMGCryMMFSHJ3StBhOdZ2-6yYkXd_doETEE1OR-qORyeFUD8RLlkp1uDMb4_qrz-O-sgmYi0srdiwkjPIwpx0NHh2SWSMQLd9J5Etu_dGxNKLiQ%3D&uds=ALYpb_nDBGPPBSbt_mWAKMakwCMVR6SjXdjOTiVZzrlNPmTabxiI0LnjYcL_Scxb8z1ahXM6oMwKt6POPbGWk76FJyPXXIpE018irVhPA2vdz3VI2ZsWtVA&sa=X&ved=2ahUKEwjUtaa_p7mSAxXRA9sEHWwqJcYQ3PALegQIGxAE&biw=2509&bih=1307&dpr=1&aic=0"
+                href="https://www.google.com/search?q=oz+nitracik"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary-600 hover:text-primary-700 underline font-medium"
+                className="text-sm font-semibold text-neutral-600 hover:text-foreground transition-colors flex items-center gap-1"
               >
-                recenzií
+                {typeof googleTotalRatings === 'number' ? googleTotalRatings : ''} recenzií
+                <ExternalLink className="w-3 h-3 ml-0.5" />
               </a>
-            </span>
-          </div>
-          <p className="text-gray-600 mb-0">
-            Overené recenzie z Google
-          </p>
-        </div>
-
-        {/* Dynamický výpis recenzií – carousel */}
-        <div className="p-4">
-          {reviews.length > 0 ? (
-            <div className="relative">
-              {/* Left arrow – visible only when not at the start */}
-              {reviewCarouselIndex > 0 && (
-                <button
-                  onClick={() => setReviewCarouselIndex((prev) => Math.max(0, prev - 1))}
-                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10 bg-white/90 hover:bg-white border border-gray-200 rounded-full w-9 h-9 flex items-center justify-center shadow-md transition-all hover:scale-110"
-                  style={{ fontSize: '1.4rem', lineHeight: 1 }}
-                >
-                  ‹
-                </button>
-              )}
-
-              {/* Clipping viewport */}
-              <div className="overflow-hidden px-0 sm:px-4">
-                {/* Sliding row – each card is exactly 1/3 of the row (same as Blog col-lg-4) */}
-                <div
-                  className="flex items-start transition-transform duration-300 ease-in-out"
-                  style={{
-                    gap: `${reviewGapRem}rem`,
-                    transform: `translateX(calc(-${reviewCarouselIndex} * ((100% - ${(reviewCardsPerView - 1) * reviewGapRem}rem) / ${reviewCardsPerView} + ${reviewGapRem}rem)))`,
-                  }}
-                >
-                  {reviews.slice(0, 5).map((review, index) => {
-                    const isExpanded = expandedReviewIndex === index;
-
-                    return (
-                      <div
-                        key={index}
-                        className="border border-neutral-100 rounded-lg p-4 bg-neutral-50 shadow-sm flex-shrink-0 cursor-pointer flex flex-col"
-                        style={{ width: `calc((100% - ${(reviewCardsPerView - 1) * reviewGapRem}rem) / ${reviewCardsPerView})` }}
-                        onClick={() => setExpandedReviewIndex(isExpanded ? null : index)}
-                      >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center">
-                          <img
-                            src={review.profile_photo_url || getAvatarDataUri(review.author_name)}
-                            alt=""
-                            className="w-10 h-10 rounded-full mr-3"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              e.currentTarget.onerror = null;
-                              e.currentTarget.src = getAvatarDataUri(review.author_name);
-                            }}
-                          />
-                          <div>
-                            <h4 className="font-semibold text-sm">{review.author_name}</h4>
-                            {review.relative_time_description && (
-                              <div className="text-gray-400 text-xs mt-1">
-                                {review.relative_time_description}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <p className="text-gray-600 text-sm italic mb-4">
-                        "{isExpanded ? review.text : (review.text.length > 200 ? review.text.substring(0, 200) + '...' : review.text)}"
-                        {review.text.length > 200 && (
-                          <span className="text-primary-600 font-semibold not-italic ml-1">
-                            {isExpanded ? 'menej' : 'viac'}
-                          </span>
-                        )}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <div className="text-yellow-400 text-base">
-                          {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
-                        </div>
-                        <img
-                          src={googleIcon}
-                          alt="Google"
-                          className="w-5 h-5"
-                        />
-                      </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Right arrow – visible only when more cards remain */}
-              {reviewCarouselIndex < reviews.slice(0, 5).length - reviewCardsPerView && (
-                <button
-                  onClick={() => setReviewCarouselIndex((prev) => Math.min(reviews.slice(0, 5).length - reviewCardsPerView, prev + 1))}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10 bg-white/90 hover:bg-white border border-gray-200 rounded-full w-9 h-9 flex items-center justify-center shadow-md transition-all hover:scale-110"
-                  style={{ fontSize: '1.4rem', lineHeight: 1 }}
-                >
-                  ›
-                </button>
-              )}
             </div>
-          ) : (
-            <div className="col-span-full text-center">
-              {googleRatingsConfig.enabled ? (
-                <div className="bg-white p-6 rounded-lg shadow inline-block">
-                  <p className="text-gray-600 mb-4">Zatiaľ sa nepodarilo načítať recenzie, ale nájdete nás na Google.</p>
-                  <a
-                    href={`https://search.google.com/local/reviews?placeid=${googleRatingsConfig.businessId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+
+            <p className="flex items-center justify-center gap-2 text-sm text-neutral-500 font-medium">
+              <img src={googleIcon} alt="Google" className="w-4 h-4" />
+              Overené recenzie z Google
+            </p>
+          </motion.div>
+
+          <motion.div variants={fadeInUp} className="relative px-4 sm:px-8 mt-2">
+            {reviews.length > 0 ? (
+              <div className="relative">
+                {reviewCarouselIndex > 0 && (
+                  <button
+                    onClick={() => setReviewCarouselIndex((prev) => Math.max(0, prev - 1))}
+                    className="absolute -left-3 sm:-left-8 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white shadow-md border border-neutral-100 flex items-center justify-center text-foreground transition-all hover:scale-110"
                   >
-                    Zobraziť na Google Maps
-                  </a>
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                )}
+
+                <div className="overflow-hidden py-2">
+                  <div
+                    className="flex items-start transition-transform duration-500 ease-in-out"
+                    style={{
+                      gap: `${reviewGapRem}rem`,
+                      transform: `translateX(calc(-${reviewCarouselIndex} * ((100% - ${(reviewCardsPerView - 1) * reviewGapRem}rem) / ${reviewCardsPerView} + ${reviewGapRem}rem)))`,
+                    }}
+                  >
+                    {reviews.slice(0, 5).map((review, index) => {
+                      const isExpanded = expandedReviewIndex === index;
+
+                      return (
+                        <div
+                          key={index}
+                          className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm flex-shrink-0 cursor-pointer flex flex-col transition-all duration-300 hover:shadow-md"
+                          style={{ width: `calc((100% - ${(reviewCardsPerView - 1) * reviewGapRem}rem) / ${reviewCardsPerView})` }}
+                          onClick={() => setExpandedReviewIndex(isExpanded ? null : index)}
+                        >
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={review.profile_photo_url || getAvatarDataUri(review.author_name)}
+                                alt=""
+                                className="w-10 h-10 rounded-full border border-neutral-100"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  e.currentTarget.onerror = null;
+                                  e.currentTarget.src = getAvatarDataUri(review.author_name);
+                                }}
+                              />
+                              <div>
+                                <h4 className="font-bold text-foreground text-sm">{review.author_name}</h4>
+                                {review.relative_time_description && (
+                                  <span className="text-neutral-500 text-xs block mt-0.5 font-medium">
+                                    {review.relative_time_description}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-1 mb-3">
+                            {[...Array(5)].map((_, i) => (
+                              <Star key={i} className={`w-4 h-4 stroke-[1.5px] ${i < review.rating ? 'fill-yellow-400 text-neutral-700' : 'fill-transparent text-neutral-300'}`} />
+                            ))}
+                          </div>
+                          <p className="text-neutral-600 text-sm leading-relaxed relative text-justify">
+                            "{isExpanded ? review.text : (review.text.length > 150 ? review.text.substring(0, 150) + '...' : review.text)}"
+                            {review.text.length > 150 && (
+                              <span className="text-primary font-bold ml-1 inline-block">
+                                {isExpanded ? 'menej' : 'viac'}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              ) : (
-                <p className="text-gray-400">Recenzie momentálne nie sú k dispozícii.</p>
-              )}
-            </div>
+
+                {reviewCarouselIndex < reviews.slice(0, 5).length - reviewCardsPerView && (
+                  <button
+                    onClick={() => setReviewCarouselIndex((prev) => Math.min(reviews.slice(0, 5).length - reviewCardsPerView, prev + 1))}
+                    className="absolute -right-3 sm:-right-8 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white shadow-md border border-neutral-100 flex items-center justify-center text-foreground transition-all hover:scale-110"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                {googleRatingsConfig.enabled ? (
+                  <div className="bg-neutral-50 p-8 rounded-2xl border border-neutral-200 inline-block max-w-md mx-auto">
+                    <MessageCircle className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
+                    <p className="text-neutral-600 font-medium mb-6">Zatiaľ sa nepodarilo načítať recenzie, ale nájdete nás na Google.</p>
+                    <a
+                      href={`https://search.google.com/local/reviews?placeid=${googleRatingsConfig.businessId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-primary-600"
+                    >
+                      Zobraziť na Google Maps
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-neutral-500 font-medium">Recenzie momentálne nie sú k dispozícii.</p>
+                )}
+              </div>
+            )}
+          </motion.div>
+
+          {isAdmin && (
+            <motion.div variants={fadeInUp} className="mt-8 pt-6 border-t border-neutral-100 flex justify-center">
+              <button
+                onClick={() => setShowGoogleRatingsModal(true)}
+                className="inline-flex items-center justify-center rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-all hover:bg-neutral-50"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                {t?.about?.configureGoogleReviews || 'Konfigurovať Google recenzie'}
+              </button>
+            </motion.div>
           )}
         </div>
+      </motion.section>
 
-        {/* ✅ Admin Configuration Button - FIXED */}
-        {isAdmin && (
-          <div className="mt-8 text-center border-t pt-6">
-            <Button
-              variant="outline-secondary"
-              onClick={() => setShowGoogleRatingsModal(true)}
-            >
-              ⚙️ {t?.about?.configureGoogleReviews || 'Konfigurovať Google recenzie'}
-            </Button>
-          </div>
-        )}
-      </section>
+      {/* Owner Section */}
+      <motion.section 
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-100px" }}
+        variants={staggerContainer}
+        className="section-wrapper container-custom"
+      >
+        <div className="bg-white border border-neutral-200 rounded-[2rem] shadow-sm p-0 overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-2 items-stretch">
+            <motion.div variants={fadeInUp} className="h-[400px] lg:h-auto relative">
+              <img
+                src={ownerImage}
+                alt="Saška - Majiteľka Nitráčika"
+                className="absolute inset-0 w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.src = 'https://picsum.photos/500/600?random=owner';
+                }}
+              />
+            </motion.div>
 
-      {/* Owner Section - Šírka nastavená presne podľa Google sekcie */}
-      <section className="max-w-6xl mx-auto px-6 py-12 mb-16 bg-white rounded-xl shadow-lg">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-secondary">
-            {t?.about?.meetTheOwner || 'Zoznámte sa so zakladateľkou'}
-          </h2>
-        </div>
+            <motion.div variants={fadeInUp} className="p-8 sm:p-12 lg:p-16 flex flex-col justify-center">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-extrabold tracking-widest uppercase mb-6 w-fit">
+                Zakladateľka
+              </div>
+              <h2 className="text-4xl font-extrabold mb-6">
+                Ahoj! Volám sa Saška.
+              </h2>
+              <div className="text-base sm:text-lg leading-relaxed text-neutral-600 space-y-4">
+                <p>
+                  Stojím za lokálnym projektom Nitráčik, ktorý od počiatku zahŕňam láskou,
+                  nápadmi a tvorivou energiou. Úprimne verím a dúfam, že túto láskavú energiu
+                  pocítiš nielen na webe, ale aj pri osobnom stretnutí na hodinách, v krásnych
+                  priestoroch Nitráčika v srdci Nitry.
+                </p>
+                <blockquote className="border-l-4 border-primary pl-5 py-2 italic text-foreground font-bold my-8">
+                  „Chcem aspoň trochou prispieť k tomu, aby bol tento svet lepším miestom pre život.. nielen pre môjho syna."
+                </blockquote>
+                <p>PREČO práve skrz Nitráčik o.z.? ..lebo je to:</p>
+                <ul className="grid grid-cols-2 gap-3 mt-4 font-bold text-foreground">
+                  <li className="flex items-center gap-3"><div className="w-2 h-2 rounded-full bg-primary"></div> ZMYSLUPLNÉ</li>
+                  <li className="flex items-center gap-3"><div className="w-2 h-2 rounded-full bg-primary"></div> KREATÍVNE</li>
+                  <li className="flex items-center gap-3"><div className="w-2 h-2 rounded-full bg-primary"></div> BAVÍ MA TO</li>
+                  <li className="flex items-center gap-3"><div className="w-2 h-2 rounded-full bg-primary"></div> NAPĽŇA</li>
+                </ul>
+                <p className="mt-8">
+                  Nitráčik je “niečo” čo som dlho hľadala a našla. Ďakujem, že si jeho súčasťou a podporuješ ho v jeho raste. 🤍
+                </p>
+              </div>
 
-        {/* Tu sme odstránili bg-white shadow-lg p-8, aby sa to "nezdvojovalo" */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center p-0 lg:p-8">
-          {/* Fotka */}
-          <div className="rounded-lg overflow-hidden shadow-xl mx-0">
-            <img
-              src={ownerImage}
-              alt="Saška - Majiteľka Nitráčika"
-              className="w-full h-[580px] object-cover"
-              onError={(e) => {
-                e.target.src = 'https://picsum.photos/500/400?random=owner';
-              }}
-            />
-          </div>
-
-          {/* Text */}
-          <div className="text-left">
-            <h3 className="text-2xl font-bold mb-4 text-center">
-              Ahoj! Volám sa Saška.
-            </h3>
-            <div className="prose prose-lg text-gray-700 mb-6 text-justify">
-              <p>
-                Stojím za lokálnym projektom Nitráčik, ktorý od počiatku zahŕňam láskou,
-                nápadmi a tvorivou energiou. Úprimne verím a dúfam, že túto láskavú energiu
-                pocítiš nielen na webe, ale aj pri osobnom stretnutí na hodinách, v krásnych
-                priestoroch Nitráčika v srdci Nitry.
-              </p>
-              <p className="mt-4">
-                „Chcem aspoň trochou prispieť k tomu, aby bol tento svet lepším miestom pre život.. nielen pre môjho syna."
-              </p>
-              <p className="mt-4">
-                PREČO práve skrz Nitráčik o.z.? ..lebo je to
-              </p>
-              <ul className="list-disc pl-6 mt-2">
-                <li>ZMYSLUPLNÉ</li>
-                <li>KREATÍVNE</li>
-                <li>BAVÍ MA TO a</li>
-                <li>NAPĽŇA.</li>
-              </ul>
-              <p className="mt-4">
-                Nitráčik je “niečo” čo som dlho hľadala a našla.
-              </p>
-              <p className="mt-4">
-                Ďakujem, že si jeho súčasťou a podporuješ ho v jeho raste. 🤍
-              </p>
-            </div>
-
-            <div className="mt-6 text-center">
-              <Link
-                to="/contact"
-                className="inline-flex items-center text-primary-600 hover:text-primary-700 font-semibold"
-              >
-                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
-                </svg>
-                Kontaktovať Sašku
-              </Link>
-            </div>
+              <div className="mt-10">
+                <Link
+                  to="/contact"
+                  onClick={() => setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 80)}
+                  className="inline-flex items-center justify-center rounded-full border-2 border-neutral-200 bg-white px-6 py-3 text-sm font-bold text-foreground transition-all hover:bg-neutral-50 hover:border-neutral-300 w-full sm:w-auto"
+                >
+                  <MessageCircle className="w-5 h-5 mr-2" />
+                  Kontaktovať Sašku
+                </Link>
+              </div>
+            </motion.div>
           </div>
         </div>
-      </section>
+      </motion.section>
 
-      {/* Modals */}
+      {/* Join Us Section */}
+      <motion.section 
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-100px" }}
+        variants={fadeInUp}
+        className="section-wrapper container-custom pb-24"
+      >
+        <div className="relative overflow-hidden rounded-[2rem] bg-white border border-neutral-200 shadow-sm p-8 sm:p-12">
+          {/* Subtle background decoration instead of strong gradients to match the softer cards */}
+          <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-primary/10 blur-3xl pointer-events-none"></div>
 
-      {/* ✅ About Us Edit Modal */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
+            <div>
+              <h2 className="text-4xl sm:text-5xl font-extrabold mb-6 text-balance">
+                Objavte svet Messy & Sensory Play!
+              </h2>
+              <p className="text-lg text-neutral-600 mb-8 leading-relaxed">
+                Doprajte deťom radosť z tvorenia, farieb a zmyslového objavovania.
+                Čakajú ich hravé aktivity, ktoré podporujú kreativitu, jemnú motoriku
+                aj prirodzenú zvedavosť.
+              </p>
+
+              <div className="relative inline-flex items-center flex-wrap gap-4">
+                {isLoggedIn ? (
+                  <>
+                    <button
+                      onClick={handleJoinClick}
+                      className="inline-flex items-center justify-center rounded-full bg-neutral-100 px-6 py-3 text-sm font-bold text-neutral-600"
+                    >
+                      <Info className="w-5 h-5 mr-2" /> Ste už prihlásený
+                    </button>
+                    {showTooltip && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="absolute bottom-full left-0 mb-3 px-4 py-2 bg-foreground text-white text-sm font-medium rounded-lg whitespace-nowrap shadow-xl"
+                      >
+                        Už ste súčasťou našej komunity!
+                        <div className="absolute top-full left-8 transform -translate-x-1/2 border-4 border-transparent border-t-foreground"></div>
+                      </motion.div>
+                    )}
+                  </>
+                ) : (
+                  <Link to="/register" className="inline-flex items-center justify-center rounded-full bg-primary px-8 py-3 text-sm font-bold text-white shadow-sm transition-all hover:bg-primary-600 hover:-translate-y-0.5">
+                    Registrujem sa <ArrowRight className="w-5 h-5 ml-2" />
+                  </Link>
+                )}
+              </div>
+
+              {isLoggedIn && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className="mt-10 pt-6 border-t border-neutral-100"
+                >
+                  <p className="text-xs text-neutral-400 mb-4 font-extrabold uppercase tracking-wider">Rýchla navigácia</p>
+                  <div className="flex flex-wrap gap-3">
+                    <Link to="/profile" className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary-600">
+                      Môj profil
+                    </Link>
+                    <Link to="/aktivity" className="inline-flex items-center justify-center rounded-full border border-neutral-200 bg-white px-6 py-2.5 text-sm font-bold text-neutral-700 hover:bg-neutral-50">
+                      Aktivity
+                    </Link>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+
+            <div className="relative">
+              <div className="rounded-[1.5rem] shadow-sm border border-neutral-100 overflow-hidden aspect-[4/3] lg:aspect-auto lg:h-[400px]">
+                <img
+                  src="/images/nitracik_join_us.jpg"
+                  alt="Children enjoying messy sensory play at Nitracik"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.src = 'https://picsum.photos/600/500?random=join';
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.section>
+
+      {/* --- MODALS --- */}
+      
+      {/* Edit About Us Modal */}
       <Modal show={showAboutEditModal} onHide={() => setShowAboutEditModal(false)} size="lg" centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Editovať sekciu "O nás"</Modal.Title>
+        <Modal.Header closeButton className="border-neutral-100">
+          <Modal.Title className="font-extrabold text-xl">Editovať sekciu</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="p-6">
           <Form>
             <Form.Group className="mb-4">
-              <Form.Label className="font-semibold">Nadpis</Form.Label>
+              <Form.Label className="font-bold text-sm text-neutral-700">Nadpis</Form.Label>
               <Form.Control
                 type="text"
+                className="rounded-xl border-neutral-200 focus:ring-primary focus:border-primary p-3 bg-neutral-50"
                 value={editAboutForm.title}
                 onChange={(e) => setEditAboutForm({ ...editAboutForm, title: e.target.value })}
               />
             </Form.Group>
             <Form.Group className="mb-4">
-              <Form.Label className="font-semibold">Prvý odsek</Form.Label>
+              <Form.Label className="font-bold text-sm text-neutral-700">Prvý odsek</Form.Label>
               <Form.Control
                 as="textarea"
-                rows={4}
+                rows={5}
+                className="rounded-xl border-neutral-200 focus:ring-primary focus:border-primary p-3 bg-neutral-50"
                 value={editAboutForm.description}
                 onChange={(e) => setEditAboutForm({ ...editAboutForm, description: e.target.value })}
               />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label className="font-semibold">Druhý odsek</Form.Label>
+              <Form.Label className="font-bold text-sm text-neutral-700">Druhý odsek</Form.Label>
               <Form.Control
                 as="textarea"
-                rows={4}
+                rows={5}
+                className="rounded-xl border-neutral-200 focus:ring-primary focus:border-primary p-3 bg-neutral-50"
                 value={editAboutForm.description2}
                 onChange={(e) => setEditAboutForm({ ...editAboutForm, description2: e.target.value })}
               />
             </Form.Group>
           </Form>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowAboutEditModal(false)}>
+        <Modal.Footer className="border-neutral-100">
+          <Button variant="light" className="rounded-full px-5 font-bold border border-neutral-200" onClick={() => setShowAboutEditModal(false)}>
             Zrušiť
           </Button>
-          <Button variant="primary" onClick={handleSaveAboutContent}>
-            Uložiť
+          <Button variant="primary" className="rounded-full px-5 font-bold bg-primary border-primary hover:bg-primary-600 text-white" onClick={handleSaveAboutContent}>
+            Uložiť zmeny
           </Button>
         </Modal.Footer>
       </Modal>
 
-      {/* Google Ratings Configuration Modal */}
-      <Modal show={showGoogleRatingsModal} onHide={() => setShowGoogleRatingsModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>{t?.about?.configureGoogleReviews || 'Konfigurovať Google Recenzie'}</Modal.Title>
+      {/* Google Ratings Config Modal */}
+      <Modal show={showGoogleRatingsModal} onHide={() => setShowGoogleRatingsModal(false)} centered>
+        <Modal.Header closeButton className="border-neutral-100">
+          <Modal.Title className="font-extrabold text-xl">{t?.about?.configureGoogleReviews || 'Konfigurovať Google Recenzie'}</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="p-6">
           <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Google Business ID</Form.Label>
+            <Form.Group className="mb-4">
+              <Form.Label className="font-bold text-sm text-neutral-700">Google Business ID</Form.Label>
               <Form.Control
                 type="text"
+                className="rounded-xl border-neutral-200 focus:ring-primary focus:border-primary p-3 bg-neutral-50"
                 value={googleRatingsConfig.businessId}
                 onChange={(e) => setGoogleRatingsConfig({ ...googleRatingsConfig, businessId: e.target.value })}
-                placeholder="ChIJN1t_tDeuEmsRUsoyG83frY4"
+                placeholder="Napr. ChIJN1t_tDeuEmsRUsoyG83frY4"
               />
-              <Form.Text className="text-muted">
-                Nájdete v Google Business profile
+              <Form.Text className="text-neutral-500 mt-2 block text-sm font-medium">
+                Tento identifikátor nájdete v nastaveniach vášho Google Business profilu.
               </Form.Text>
             </Form.Group>
-            <Form.Group className="mb-3">
+            <div className="bg-neutral-50 p-4 rounded-xl border border-neutral-100 mt-4">
               <Form.Check
-                type="checkbox"
-                label="Zobraziť Google recenzie"
+                type="switch"
+                id="google-reviews-switch"
+                label={<span className="font-bold ml-2 text-foreground">Zobraziť Google recenzie na stránke</span>}
                 checked={googleRatingsConfig.enabled}
                 onChange={(e) => setGoogleRatingsConfig({ ...googleRatingsConfig, enabled: e.target.checked })}
               />
-            </Form.Group>
+            </div>
           </Form>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowGoogleRatingsModal(false)}>
+        <Modal.Footer className="border-neutral-100">
+          <Button variant="light" className="rounded-full px-5 font-bold border border-neutral-200" onClick={() => setShowGoogleRatingsModal(false)}>
             {t?.common?.cancel || 'Zrušiť'}
           </Button>
-          <Button variant="primary" onClick={handleGoogleRatingsSave}>
+          <Button variant="primary" className="rounded-full px-5 font-bold bg-primary border-primary hover:bg-primary-600 text-white" onClick={handleGoogleRatingsSave}>
             {t?.common?.save || 'Uložiť'}
           </Button>
         </Modal.Footer>
       </Modal>
-
-      {/* Join Us Section */}
-      <div className="max-w-6xl mx-auto px-6 py-8 rounded-xl shadow-xl bg-overlay-90 backdrop-blur-sm">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div className="text-left">
-            <h2 className="text-3xl font-bold mb-6 text-secondary">
-              Nechajte svoje deti objaviť svet Messy & Sensory Play!
-            </h2>
-            <p className="mb-8 text-neutral-700 dark:text-neutral-300 text-lg leading-relaxed">
-              Doprajte im radosť z tvorenia, farieb a zmyslového objavovania.
-              Čakajú ich hravé aktivity, ktoré podporujú kreativitu, jemnú motoriku
-              aj prirodzenú zvedavosť.
-            </p>
-
-            <div className="relative inline-block">
-              {isLoggedIn ? (
-                <>
-                  <button
-                    onClick={handleJoinClick}
-                    className="inline-block bg-gray-500 text-white py-3 px-8 rounded-full text-lg font-semibold hover:bg-gray-600 transition-all"
-                  >
-                    Ste už prihlásený
-                  </button>
-                  {showTooltip && (
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg whitespace-nowrap z-50">
-                      <div className="flex items-center">
-                        <span className="mr-1">ℹ️</span>
-                        Ste už prihlásený!
-                      </div>
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <Link
-                  to="/register"
-                  className="inline-block bg-secondary-500 text-white py-3 px-8 rounded-full text-lg font-semibold shadow-md hover:bg-secondary-700 transition-all hover:-translate-y-1 hover:shadow-lg"
-                >
-                  Registrujem sa
-                </Link>
-              )}
-            </div>
-
-            {/* Extra options pre prihlásených */}
-            {isLoggedIn && (
-              <div className="mt-4">
-                <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
-                  Chcete si pozrieť svoj profil alebo nase aktivity?
-                </p>
-                <div className="flex gap-3">
-                  <Link
-                    to="/profile"
-                    className="inline-block bg-primary-500 text-white py-2 px-6 rounded-full text-sm font-semibold shadow-md hover:bg-primary-700 transition-all"
-                  >
-                    Môj profil
-                  </Link>
-                  <Link
-                    to="/aktivity"
-                    className="inline-block border border-secondary-500 text-secondary-500 py-2 px-6 rounded-full text-sm font-semibold hover:bg-secondary-500 hover:text-white transition-all"
-                  >
-                    Aktivity
-                  </Link>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-lg shadow-lg overflow-hidden h-[350px] lg:h-auto">
-            <img
-              src="/images/nitracik_join_us.jpg"
-              alt="Children enjoying messy sensory play at Nitracik"
-              className="w-full h-full object-contain"
-              onError={(e) => {
-                e.target.src = 'https://picsum.photos/500/350?random=6';
-              }}
-            />
-          </div>
-        </div>
-      </div>
-    </section>
+    </motion.div>
   );
 };
 

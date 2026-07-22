@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FileText, ChevronDown, ArrowRight, HelpCircle } from 'lucide-react';
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } }
+};
 
 const Terms = () => {
   const [isAttachmentOneOpen, setIsAttachmentOneOpen] = useState(false);
@@ -44,40 +51,51 @@ const Terms = () => {
     setIsAttachmentOneOpen(!isAttachmentOneOpen);
   };
 
-  // Prejdenie na vrch stránky pri načítaní
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
   return (
-    <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-8 sm:p-12">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center border-b pb-4">
-          VŠEOBECNÉ OBCHODNÉ PODMIENKY (VOP)
-        </h1>
+    <motion.section 
+      initial="hidden"
+      animate="visible"
+      variants={fadeInUp}
+      className="py-12 md:py-16 container-custom max-w-4xl mx-auto px-4 sm:px-6 relative"
+    >
+      <div className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 p-8 sm:p-12 md:p-16">
+        
+        {/* Hlavný nadpis - identický s GDPR */}
+        <div className="text-center pb-4 mb-6 border-b border-neutral-100">
+          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mx-auto mb-3">
+            <FileText className="w-6 h-6" />
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-foreground uppercase tracking-tight">
+            Všeobecné obchodné podmienky (VOP)
+          </h1>
+        </div>
 
-        <div className="space-y-8 text-gray-700 leading-relaxed">
+        <div className="space-y-8 text-neutral-600 leading-relaxed font-medium text-justify">
           
           {/* Článok 1 */}
           <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Čl. 1 Úvodné ustanovenia</h2>
-            <p className="mb-2">
-              1.1 Tieto Všeobecné obchodné podmienky (ďalej len „VOP“) upravujú práva a povinnosti medzi <strong>Nitráčik o.z.</strong> ako poskytovateľom služieb ďalej uvedených v týchto VOP (ďalej len „prevádzkovateľ“) a fyzickou osobou – spotrebiteľom (ďalej len „zákazník“ alebo „účastník“), ktorá prostredníctvom webovej stránky nitracik.sk (ďalej len „web“) využíva rezervačný systém na objednanie tréningov, workshopov alebo senzorických hier („Messy & sensory play“ alebo „služby“).
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 1 Úvodné ustanovenia</h2>
+            <p className="mb-3">
+              1.1 Tieto Všeobecné obchodné podmienky (ďalej len „VOP“) upravujú práva a povinnosti medzi <strong className="text-foreground">Nitráčik o.z.</strong> ako poskytovateľom služieb ďalej uvedených v týchto VOP (ďalej len „prevádzkovateľ“) a fyzickou osobou – spotrebiteľom (ďalej len „zákazník“ alebo „účastník“), ktorá prostredníctvom webovej stránky nitracik.sk (ďalej len „web“) využíva rezervačný systém na objednanie tréningov, workshopov alebo senzorických hier („Messy & sensory play“ alebo „služby“).
             </p>
-            <div className="mb-2">
+            <div className="mb-3">
               1.2 Prevádzkovateľ:
-              <ul className="list-disc pl-6 mt-1 space-y-1">
-                <li>Obchodné meno: Nitráčik o.z.</li>
-                <li>Sídlo: Hydinárska 13A Nitra 94901</li>
-                <li>IČO: 56374453</li>
-                <li>DIČ: 2122328791 – registrované Okresným úradom Nitra pod č. VVS/1-900/90-70205</li>
-                <li>Kontaktný e-mail: <a href="mailto:info@nitracik.sk" className="text-blue-600 hover:underline">info@nitracik.sk</a></li>
-                <li>Telefónne číslo: +421 949 584 576</li>
-                <li>Orgán dozoru: Slovenská obchodná inšpekcia, Inšpektorát SOI pre Nitriansky kraj, odbor výkonu dohľadu, Staničná 9, P.O.BOX 49A, 950 50 Nitra.</li>
+              <ul className="space-y-1.5 list-disc pl-5 mt-2 marker:text-primary">
+                <li><strong className="text-foreground">Obchodné meno:</strong> Nitráčik o.z.</li>
+                <li><strong className="text-foreground">Sídlo:</strong> Hydinárska 13A Nitra 94901</li>
+                <li><strong className="text-foreground">IČO:</strong> 56374453</li>
+                <li><strong className="text-foreground">DIČ:</strong> 2122328791 – registrované Okresným úradom Nitra pod č. VVS/1-900/90-70205</li>
+                <li><strong className="text-foreground">Kontaktný e-mail:</strong> <a href="mailto:info@nitracik.sk" className="text-primary font-bold hover:underline">info@nitracik.sk</a></li>
+                <li><strong className="text-foreground">Telefónne číslo:</strong> +421 949 584 576</li>
+                <li><strong className="text-foreground">Orgán dozoru:</strong> Slovenská obchodná inšpekcia, Inšpektorát SOI pre Nitriansky kraj, odbor výkonu dohľadu, Staničná 9, P.O.BOX 49A, 950 50 Nitra.</li>
               </ul>
-              Miestom poskytovania služieb je sídlo prevádzkovateľa.
+              <span className="block mt-2">Miestom poskytovania služieb je sídlo prevádzkovateľa.</span>
             </div>
-            <p className="mb-2">
+            <p className="mb-3">
               1.3 Tieto VOP sú neoddeliteľnou súčasťou zmluvy o poskytnutí služby uzatvorenej na diaľku podľa § 52 a nasl. Občianskeho zákonníka a zákona č. 108/2024 Z.z. o ochrane spotrebiteľa.
             </p>
             <p>
@@ -85,9 +103,11 @@ const Terms = () => {
             </p>
           </section>
 
+          <hr className="border-neutral-100" />
+
           {/* Článok 2 */}
           <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Čl. 2 Užívateľský účet a registrácia</h2>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 2 Užívateľský účet a registrácia</h2>
             <p className="mb-2">2.1 Rezervácia služieb je možná výhradne prostredníctvom registrovaného užívateľského účtu, ktorý je dostupný na webe. Užívateľský účet slúži na evidenciu rezervácií, komunikáciu so zákazníkom a zabezpečenie riadneho a bezpečného poskytovania služieb pre deti.</p>
             <p className="mb-2">2.2 Registrácia a vedenie účtu je bezplatné. Zákazník je povinný uvádzať pravdivé, aktuálne a úplné údaje.</p>
             <p className="mb-2">2.3 Užívateľský účet je zabezpečený prihlasovacími údajmi (e-mail a heslo). Zákazník je povinný tieto údaje chrániť a nezdieľať ich s tretími osobami.</p>
@@ -97,9 +117,11 @@ const Terms = () => {
             <p>2.7 O úspešnom zrušení užívateľského účtu a vymazaní osobných údajov bude zákazník informovaný prostredníctvom e-mailu.</p>
           </section>
 
+          <hr className="border-neutral-100" />
+
           {/* Článok 3 */}
           <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Čl. 3 Objednávka služieb a uzatvorenie zmluvy</h2>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 3 Objednávka služieb a uzatvorenie zmluvy</h2>
             <p className="mb-2">3.1 Spôsobom objednávania služieb je rezervácia služby prostredníctvom registrovaného užívateľského účtu dostupného na webe v rezervačnom systéme. Zákazník si vyberá službu z ponuky služieb zverejnenej v rezervačnom systéme dostupnom po prihlásení sa do svojho užívateľského účtu.</p>
             <p className="mb-2">3.2 Rezerváciou konkrétneho termínu služby, úspešným spracovaním platby prostredníctvom platobnej brány Stripe, resp. odpísaním vstupu zo zakúpenej permanentky, vzniká zmluva o poskytnutí služby súvisiacej s činnosťami v rámci voľného času, ktorá je viazaná na konkrétny termín. Po vykonaní úspešnej rezervácie bude zákazníkovi doručený potvrdzujúci e-mail.</p>
             <p className="mb-2">3.3 Rezervácia je viazaná na konkrétny termín, typ tréningu a počet detí, pričom prevádzkovateľ si vyhradzuje právo službu zrušiť v prípade, že nebude prihlásený minimálny počet zákazníkov na daný termín. V prípade neuskutočnenia služby z dôvodu nenaplnenia kapacity bude zákazníkovi vrátená platba alebo poskytnutý náhradný termín.</p>
@@ -107,22 +129,26 @@ const Terms = () => {
             <p>3.5 V súlade s § 19 ods. 1 písm. l) zákona č. 108/2024 Z.z. o ochrane spotrebiteľa nemá zákazník právo na odstúpenie od zmluvy o poskytnutí služby súvisiacej s činnosťami v rámci voľného času uzatvorenej podľa bodu 3.2 tohto článku VOP, nakoľko ide o poskytnutie služby v presne dohodnutom čase.</p>
           </section>
 
+          <hr className="border-neutral-100" />
+
           {/* Článok 4 */}
           <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Čl. 4 Platobné podmienky</h2>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 4 Platobné podmienky</h2>
             <p className="mb-2">4.1 Ceny za jednotlivé aktivity sú konečné a uvedené priamo v rezervačnom systéme.</p>
             <p className="mb-2">4.2 Platba je možná výhradne online platobnou kartou prostredníctvom Stripe.</p>
             <p className="mb-2">4.3 Platba na mieste nie je možná.</p>
             <p>4.4 Prevádzkovateľ neuchováva platobné údaje zákazníkov; spracovanie platieb zabezpečuje Stripe ako samostatný prevádzkovateľ platobnej služby.</p>
           </section>
 
+          <hr className="border-neutral-100" />
+
           {/* Článok 5 */}
           <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Čl. 5 Permanentky</h2>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 5 Permanentky</h2>
             <p className="mb-2">5.1 Na aktivitu „Ufúľané senzorické hry“ si Zákazník môže na webe po registrácii zakúpiť permanentku (3, 5 alebo 10 vstupov). Na iné služby prevádzkovateľa zakúpenie permanentky nie je možné.</p>
             <p className="mb-2">5.2 Permanentka nie je viazaná na konkrétny termín v čase jej zakúpenia; jednotlivé termíny si zákazník rezervuje v rezervačnom systéme.</p>
             <p className="mb-2">5.3 Permanentka je platná 6 mesiacov od dátumu zakúpenia a vstupy z nej je možné čerpať počas doby jej platnosti. Zakúpením permanentky zákazník uzatvára rámcovú zmluvu o poskytnutí služby.</p>
-            <p className="mb-2">5.4 Od rámcovej zmluvy je zákazník oprávnený odstúpiť do 14 dní odo dňa jej uzatvorenia aj bez udania dôvodu, zaslaním odstúpenia od zmluvy (možné použiť formulár v <a href="#priloha-1" className="text-blue-700 hover:underline font-semibold">Prílohe č. 1</a> VOP).</p>
+            <p className="mb-2">5.4 Od rámcovej zmluvy je zákazník oprávnený odstúpiť do 14 dní odo dňa jej uzatvorenia aj bez udania dôvodu, zaslaním odstúpenia od zmluvy (možné použiť formulár v <a href="#priloha-1" className="text-primary font-bold hover:underline">Prílohe č. 1</a> VOP).</p>
             <p className="mb-2">5.5 Zákazník nemôže odstúpiť od rámcovej zmluvy, ak sa poskytovanie služby začalo pred uplynutím lehoty na odstúpenie s jeho výslovným súhlasom a po poučení o strate práva na odstúpenie po úplnom poskytnutí služby.</p>
             <p className="mb-2">5.6 Ak zákazník odstúpi od zmluvy po udelení súhlasu podľa bodu 5.5, je povinný uhradiť cenu za skutočne poskytnuté plnenie.</p>
             <p className="mb-2">5.7 Permanentka je neprenosná a viazaná výlučne na užívateľský účet, z ktorého bola zakúpená.</p>
@@ -131,26 +157,30 @@ const Terms = () => {
             <p>5.10 V prípade zrušenia užívateľského účtu zo strany zákazníka nedochádza automaticky k zániku práv a povinností z uzavretých zmlúv. Zrušenie účtu nie je odstúpením od zmluvy. Prevádzkovateľ umožní zákazníkovi počas doby platnosti nevyčerpaných plnení vytváranie rezervácií prostredníctvom kontaktných údajov.</p>
           </section>
 
+          <hr className="border-neutral-100" />
+
           {/* Článok 6 */}
           <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Čl. 6 Storno podmienky, refundácie a kredity</h2>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 6 Storno podmienky, refundácie a kredity</h2>
             <p className="mb-2">6.1 Zákazník môže zrušiť potvrdenú rezerváciu výhradne prostredníctvom užívateľského účtu (v prípade nedostupnosti alebo zrušeného účtu aj e-mailom/telefonicky).</p>
-            <p className="mb-2">6.2 V prípade zrušenia rezervácie <strong>viac ako 10 hodín pred začiatkom tréningu</strong> má zákazník možnosť voľby: presunutie rezervácie, refundácia platby, pripísanie kreditu alebo vrátenie vstupu na permanentku.</p>
-            <p className="mb-2">6.3 <strong>Menej ako 10 hodín pred začiatkom tréningu</strong> storno rezervácie nie je možné.</p>
+            <p className="mb-2">6.2 V prípade zrušenia rezervácie <strong className="text-foreground">viac ako 10 hodín pred začiatkom tréningu</strong> má zákazník možnosť voľby: presunutie rezervácie, refundácia platby, pripísanie kreditu alebo vrátenie vstupu na permanentku.</p>
+            <p className="mb-2">6.3 <strong className="text-foreground">Menej ako 10 hodín pred začiatkom tréningu</strong> storno rezervácie nie je možné.</p>
             <p className="mb-2">6.4 V prípade zrušenia tréningu zo strany prevádzkovateľa má zákazník nárok na plnú refundáciu, kredit alebo vrátenie vstupu.</p>
             <p>6.5 Technické zlyhania nemajú vplyv na platnosť rezervácie, ak bola platba úspešne spracovaná.</p>
           </section>
 
+          <hr className="border-neutral-100" />
+
           {/* Článok 7 */}
           <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Čl. 7 Pravidlá účasti a bezpečnosť (Messy Play)</h2>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 7 Pravidlá účasti a bezpečnosť (Messy Play)</h2>
             <p className="mb-2">7.1 Aktivity sú senzorické a môžu viesť k znečisteniu odevu alebo pokožky.</p>
             <p className="mb-2">7.2 Za bezpečnosť, zdravie a správanie dieťaťa zodpovedá výlučne zákonný zástupca alebo sprevádzajúca dospelá osoba, ktorý nemôže ponechať dieťa bez jeho dozoru počas celého trvania aktivity.</p>
             <p className="mb-2">7.3 Prevádzkovateľ nezodpovedá za úrazy vzniknuté nedodržaním pokynov alebo v dôsledku povahy aktivít, pokiaľ neboli spôsobené porušením povinností prevádzkovateľa.</p>
             <p className="mb-2">7.4 Prevádzkovateľ nezodpovedá za poškodenie alebo znehodnotenie odevu, obuvi ani osobných vecí účastníkov.</p>
             <div className="mb-2">
               7.5 Účastníci sú povinní:
-              <ul className="list-disc pl-6 mt-1">
+              <ul className="space-y-1 list-disc pl-5 mt-1 marker:text-primary">
                 <li>dodržiavať pokyny inštruktora,</li>
                 <li>neničiť vybavenie (“objavujeme, nie ničíme”),</li>
                 <li>minimalizovať hluk a správať sa ohľaduplne,</li>
@@ -160,9 +190,11 @@ const Terms = () => {
             <p>7.6 Zákazník vyhlasuje, že zdravotný stav dieťaťa umožňuje jeho účasť na kolektívnej aktivite.</p>
           </section>
 
+          <hr className="border-neutral-100" />
+
           {/* Článok 8 */}
           <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Čl. 8 Alergie, intolerancie a zdravotné obmedzenia</h2>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 8 Alergie, intolerancie a zdravotné obmedzenia</h2>
             <p className="mb-2">8.1 Aktivity môžu zahŕňať použitie potravín, farieb, prírodných materiálov a látok, ktoré môžu predstavovať riziko pre osoby s alergiami.</p>
             <p className="mb-2">8.2 Zákazník je povinný pred rezerváciou zvážiť zdravotný stav dieťaťa.</p>
             <p className="mb-2">8.3 Prevádzkovateľ nezodpovedá za zdravotné komplikácie vzniknuté v dôsledku alergickej reakcie alebo intolerancie.</p>
@@ -170,9 +202,11 @@ const Terms = () => {
             <p>8.5 Prevádzkovateľ môže na základe informácie od zákazníka primerane upraviť aktivitu, avšak negarantuje úplné vylúčenie alergénov.</p>
           </section>
 
+          <hr className="border-neutral-100" />
+
           {/* Článok 9 */}
           <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Čl. 9 Fotografie, videozáznamy a súhlasy</h2>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 9 Fotografie, videozáznamy a súhlasy</h2>
             <p className="mb-2">9.1 Počas tréningov môžu byť vyhotovované fotografie alebo videozáznamy.</p>
             <p className="mb-2">9.2 Záznamy môžu byť použité na marketingové účely výlučne na základe výslovného a dobrovoľného súhlasu zákonného zástupcu.</p>
             <p className="mb-2">9.3 Súhlas sa udeľuje v rezervačnom formulári.</p>
@@ -180,121 +214,162 @@ const Terms = () => {
             <p>9.5 Ak zákazník súhlas neudelí alebo ho odvolá, prevádzkovateľ zabezpečí, aby dieťa nebolo na záznamoch identifikovateľné.</p>
           </section>
 
+          <hr className="border-neutral-100" />
+
           {/* Článok 10 */}
           <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Čl. 10 Technické a prevádzkové podmienky</h2>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 10 Technické a prevádzkové podmienky</h2>
             <p className="mb-2">10.1 Prevádzkovateľ si vyhradzuje právo vykonávať údržbu systému, počas ktorej môže byť web nedostupný.</p>
             <p className="mb-2">10.2 Dočasná nedostupnosť webu nezakladá nárok na náhradu škody.</p>
             <p>10.3 Prevádzkovateľ používa primerané technické a organizačné opatrenia na ochranu systému.</p>
           </section>
 
+          <hr className="border-neutral-100" />
+
           {/* Článok 11 */}
           <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Čl. 11 Vyššia moc</h2>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 11 Vyššia moc</h2>
             <p className="mb-2">11.1 Prevádzkovateľ nenesie zodpovednosť za neplnenie povinností spôsobené vyššou mocou.</p>
             <p className="mb-2">11.2 Za vyššiu moc sa považujú najmä: živelná pohroma, epidémia, rozhodnutia orgánov, vojnový stav, výpadok energií a iné.</p>
             <p>11.3 V prípade vyššej moci má prevádzkovateľ právo tréning zrušiť alebo presunúť. Zákazníkovi bude ponúknutý náhradný termín alebo refundácia.</p>
           </section>
 
+          <hr className="border-neutral-100" />
+
           {/* Článok 12 */}
           <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Čl. 12 Alternatívne riešenie sporov (ARS)</h2>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 12 Alternatívne riešenie sporov (ARS)</h2>
             <p className="mb-2">12.1 Zákazník je oprávnený vytknúť vadu služby bez zbytočného odkladu, najneskôr do 3 dní od poskytnutia služby. Reklamácie budú vybavené do 30 dní.</p>
             <p className="mb-2">12.2 Zákazník má právo podať žiadosť o nápravu, ak nie je spokojný s vybavením reklamácie.</p>
             <p className="mb-2">12.3 Ak prevádzkovateľ na žiadosť o nápravu odpovie zamietavo alebo neodpovie do 30 dní, zákazník sa môže obrátiť na subjekt alternatívneho riešenia sporov (Slovenská obchodná inšpekcia).</p>
-            <p className="mb-2">12.4 Bližšie informácie na <a href="https://www.soi.sk/alternativne-riesenie-spotrebitelskych-sporov" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">www.soi.sk</a>.</p>
-            <p className="mb-2">12.5 Návrh na ARS možno podať aj cez platformu: <a href="https://consumer-redress.ec.europa.eu/dispute-resolution-bodies_en?prefLang=sk&etrans=sk" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Platforma RSO</a>.</p>
+            <div className="flex flex-col items-start gap-2.5 my-3">
+              <a href="https://www.soi.sk/alternativne-riesenie-spotrebitelskych-sporov" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-primary font-bold hover:underline">
+                <ArrowRight className="w-4 h-4 flex-shrink-0" />
+                <span>Bližšie informácie na www.soi.sk</span>
+              </a>
+              <a href="https://consumer-redress.ec.europa.eu/dispute-resolution-bodies_en?prefLang=sk&etrans=sk" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-primary font-bold hover:underline">
+                <ArrowRight className="w-4 h-4 flex-shrink-0" />
+                <span>Návrh na ARS cez Platformu RSO</span>
+              </a>
+            </div>
             <p>12.6 Alternatívne riešenie sporov je bezodplatné (okrem zákonom stanovených prípadov).</p>
           </section>
 
+          <hr className="border-neutral-100" />
+
           {/* Článok 13 */}
           <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Čl. 13 Záverečné ustanovenia</h2>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 13 Záverečné ustanovenia</h2>
             <p className="mb-2">13.1 Právne vzťahy neupravené týmito VOP sa spravujú Občianskym zákonníkom a zákonom o ochrane spotrebiteľa.</p>
             <p className="mb-2">13.2 Prevádzkovateľ si vyhradzuje právo meniť VOP; zmeny nadobúdajú účinnosť ich zverejnením.</p>
-            <p className="mb-4">13.3 Tieto VOP nadobúdajú platnosť a účinnosť dňom 1. 2. 2026.</p>
+            <p>13.3 Tieto VOP nadobúdajú platnosť a účinnosť dňom 1. 2. 2026.</p>
           </section>
 
+          <hr className="border-neutral-100" />
+
           {/* Príloha č. 1 */}
-          <section className="mt-8" id="priloha-1">
-            <div className="bg-white rounded-xl shadow-lg border-2 border-gray-200 overflow-hidden">
+          <section id="priloha-1" className="pt-2">
+            <div className="border border-neutral-200 rounded-2xl overflow-hidden bg-white">
               <button
                 type="button"
-                className="w-full px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors duration-200"
+                className="w-full px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-neutral-50 transition-colors"
                 onClick={toggleAttachmentOne}
               >
-                <span className="text-xl font-bold text-gray-900 pr-4 flex-1 text-left">
+                <span className="text-lg font-extrabold text-foreground pr-4 flex-1 text-left flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary flex-shrink-0" />
                   Príloha č. 1 – Formulár na odstúpenie od zmluvy
                 </span>
-                <span className="text-gray-500 flex-shrink-0">
-                  {isAttachmentOneOpen ? '▴' : '▾'}
-                </span>
+                <motion.div
+                  animate={{ rotate: isAttachmentOneOpen ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-neutral-400"
+                >
+                  <ChevronDown className="w-5 h-5" />
+                </motion.div>
               </button>
 
-              {isAttachmentOneOpen && (
-                <div className="px-6 pb-6">
-                  <div className="border-t border-gray-200 pt-4">
-                    <p className="text-gray-700 leading-relaxed">
-                      Formulár na odstúpenie od zmluvy si môžete stiahnuť tu:
-                    </p>
-                    <a
-                      href="/Odstupenie_od_zmluvy_nitracik.pdf"
-                      download
-                      className="inline-flex items-center mt-3 text-blue-700 hover:underline font-semibold"
-                    >
-                      Stiahnuť formulár (PDF)
-                    </a>
-                  </div>
-                </div>
-              )}
+              <AnimatePresence>
+                {isAttachmentOneOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-6 pb-6 pt-2 border-t border-neutral-100">
+                      <p className="mb-3">Formulár na odstúpenie od zmluvy si môžete stiahnuť tu:</p>
+                      <a
+                        href="/Odstupenie_od_zmluvy_nitracik.pdf"
+                        download
+                        className="inline-flex items-center gap-2 text-primary font-bold hover:underline"
+                      >
+                        <FileText className="w-4 h-4 flex-shrink-0" />
+                        <span>Stiahnuť formulár (PDF)</span>
+                      </a>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </section>
 
           {/* Príloha č. 2 */}
-          <section className="mt-8">
-            <div className="bg-white rounded-xl shadow-lg border-2 border-gray-200 overflow-hidden">
+          <section className="pt-2">
+            <div className="border border-neutral-200 rounded-2xl overflow-hidden bg-white">
               <button
                 type="button"
-                className="w-full px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors duration-200"
+                className="w-full px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-neutral-50 transition-colors"
                 onClick={toggleAttachment}
               >
-                <span className="text-xl font-bold text-gray-900 pr-4 flex-1 text-left">
+                <span className="text-lg font-extrabold text-foreground pr-4 flex-1 text-left flex items-center gap-2">
+                  <HelpCircle className="w-5 h-5 text-primary flex-shrink-0" />
                   Príloha č. 2 – Stručné pravidlá pre rodičov (FAQ)
                 </span>
-                <span className="text-gray-500 flex-shrink-0">
-                  {isAttachmentOpen ? '▴' : '▾'}
-                </span>
+                <motion.div
+                  animate={{ rotate: isAttachmentOpen ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-neutral-400"
+                >
+                  <ChevronDown className="w-5 h-5" />
+                </motion.div>
               </button>
 
-              {isAttachmentOpen && (
-                <div className="px-6 pb-6">
-                  <div className="border-t border-gray-200 pt-4">
-                    <div className="space-y-4">
+              <AnimatePresence>
+                {isAttachmentOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-6 pb-6 pt-4 border-t border-neutral-100 space-y-4">
                       {faqItems.map((item, index) => (
                         <div key={`${item.question}-${index}`}>
-                          <strong className="block text-gray-900">{item.question}</strong>
-                          <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                          <strong className="block text-foreground mb-1">{item.question}</strong>
+                          <p className="text-neutral-600 leading-relaxed">
                             {item.answer}
                           </p>
                         </div>
                       ))}
-                    </div>
 
-                    <div className="mt-4 text-gray-900">
-                      Viac odpovede nájdete{' '}
-                      <Link to="/faq" className="text-blue-700 hover:underline font-semibold">
-                        TU
-                      </Link>
+                      <div className="pt-2 border-t border-neutral-100">
+                        Viac odpovedí nájdete{' '}
+                        <Link to="/faq" className="text-primary font-bold hover:underline">
+                          TU
+                        </Link>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </section>
 
         </div>
       </div>
-    </div>
+    </motion.section>
   );
 };
 

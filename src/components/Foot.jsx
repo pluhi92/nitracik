@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { Modal } from "react-bootstrap";
 import logo from "../assets/logo.png";
 import stripeLogo from "../assets/stripe-logo_black.png";
+import { motion } from "framer-motion";
+import { ExternalLink } from "lucide-react";
 import { FaInstagram, FaFacebookF } from "react-icons/fa";
 
 // Import vlastných ikon platobných metód
@@ -11,8 +13,16 @@ import mastercardLogo from "../assets/mastercard.png";
 import applepayLogo from "../assets/applePay.png";
 import googlepayLogo from "../assets/googlePay.png";
 
+const fadeInUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+};
+
 const Foot = () => {
   const [showPartnersModal, setShowPartnersModal] = useState(false);
+
+  const currentYear = new Date().getFullYear();
+  const foundedYear = 2025;
 
   const partners = [
     {
@@ -24,7 +34,7 @@ const Foot = () => {
     },
     {
       name: "Melian",
-      description: "Montessiri pomôcky s láskou",
+      description: "Montessori pomôcky s láskou",
       url: "https://www.melian.sk",
       discount: "Nitracik10",
       image: "melian.png"
@@ -47,66 +57,91 @@ const Foot = () => {
 
   const handleCookiePreferences = (e) => {
     e.preventDefault();
-    // Odosielame udalosť 'openCookieSettings', ktorú CookieConsent počúva
     window.dispatchEvent(new Event('openCookieSettings'));
   };
 
+  // Zdieľaný blok pre sociálne siete, Stripe a platobné karty, aby sa neopakoval duplicitne
+  const SocialAndPaymentsContent = () => (
+    <div className="w-full flex flex-col items-center mt-6 pt-4 border-t border-neutral-100">
+      {/* Social Icons */}
+      <div className="flex gap-3 justify-center mb-5">
+        <a
+          href="https://www.facebook.com/people/Nitr%C3%A1%C4%8Dik/61558994166250/"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Facebook"
+          className="w-10 h-10 rounded-full border border-neutral-200 flex items-center justify-center text-neutral-600 hover:border-primary hover:text-primary hover:bg-neutral-50 transition-all"
+        >
+          <FaFacebookF className="w-4 h-4" />
+        </a>
+        <a
+          href="https://www.instagram.com/nitracik"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Instagram"
+          className="w-10 h-10 rounded-full border border-neutral-200 flex items-center justify-center text-neutral-600 hover:border-primary hover:text-primary hover:bg-neutral-50 transition-all"
+        >
+          <FaInstagram className="w-4 h-4" />
+        </a>
+      </div>
+
+      {/* Stripe & Cards */}
+      <img src={stripeLogo} alt="Stripe" className="h-5 object-contain opacity-80 mb-3" />
+      <div className="flex gap-2.5 flex-wrap justify-center items-center">
+        <img src={visaLogo} alt="Visa" className="h-6 object-contain opacity-70 hover:opacity-100 transition-opacity" title="Visa" />
+        <img src={mastercardLogo} alt="MasterCard" className="h-6 object-contain opacity-70 hover:opacity-100 transition-opacity" title="MasterCard" />
+        <img src={applepayLogo} alt="Apple Pay" className="h-6 object-contain opacity-70 hover:opacity-100 transition-opacity" title="Apple Pay" />
+        <img src={googlepayLogo} alt="Google Pay" className="h-6 object-contain opacity-70 hover:opacity-100 transition-opacity" title="Google Pay" />
+      </div>
+    </div>
+  );
+
   return (
-    <footer className="bg-white text-secondary-500 py-7 px-8 pb-3 font-sans text-sm leading-relatives shadow-md">
+    <motion.footer 
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "-50px" }}
+      variants={fadeInUp}
+      className="bg-white text-foreground pt-16 pb-6 px-6 font-sans text-sm border-t border-neutral-200 mt-auto"
+    >
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 justify-items-center items-start gap-16">
+      <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 items-start gap-12 mb-8">
 
         {/* Left Column - Brand */}
-        <div className="flex flex-col items-center md:items-start text-center md:text-left">
-          <img
-            src={logo}
-            alt="Nitracik Logo"
-            className="w-44 lg:w-50 mb-4 object-contain hover:scale-105 transition-transform duration-300"
-          />
-          <p className="mb-2 text-secondary-500 font-medium text-sm">Tešíme sa na Vás!</p>
-          <span className="text-secondary-500 mb-3 block font-medium text-sm">+421 949 584 576</span>
+        <div className="flex flex-col items-center text-center">
+          <Link to="/" className="mb-4 inline-block" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <img
+              src={logo}
+              alt="Nitracik Logo"
+              className="w-40 object-contain transition-transform duration-300 hover:scale-105"
+            />
+          </Link>
+          <p className="mb-2 text-neutral-600 font-medium text-sm">Tešíme sa na Vás! 🤍</p>
+          <span className="text-foreground font-bold mb-1 text-sm">+421 949 584 576</span>
           <a
             href="mailto:info@nitracik.sk"
-            className="text-secondary-500 mb-4 block font-medium text-sm hover:text-secondary-600 hover:underline transition-all duration-300"
+            className="text-neutral-600 mb-2 font-semibold text-sm hover:text-primary transition-colors"
           >
             info@nitracik.sk
           </a>
-          <div className="flex gap-3 mt-auto">
-            <a
-              href="https://www.facebook.com/people/Nitr%C3%A1%C4%8Dik/61558994166250/"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Facebook"
-            >
-              <FaFacebookF className="text-2xl text-secondary-500 hover:text-secondary-600 hover:scale-110 transition-all duration-300" />
-            </a>
-            <a
-              href="https://www.instagram.com/nitracik"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Instagram"
-            >
-              <FaInstagram className="text-2xl text-secondary-500 hover:text-secondary-600 hover:scale-110 transition-all duration-300" />
-            </a>
-          </div>
         </div>
 
         {/* Middle Column - Navigation */}
-        <div className="flex flex-col items-center text-center pt-2">
-          <h3 className="text-gray-900 mb-4 text-sm font-semibold">Obchod</h3>
-          <ul className="flex flex-col gap-2">
+        <div className="flex flex-col items-center md:items-start text-center md:text-left">
+          <h3 className="text-foreground mb-4 text-base font-extrabold uppercase tracking-wider">Obchod</h3>
+          <ul className="flex flex-col gap-3 font-semibold">
             <li>
-              <Link to="/about" className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm">
+              <Link to="/about" className="text-neutral-600 hover:text-primary transition-colors text-sm">
                 O nás
               </Link>
             </li>
             <li>
-              <Link to="/contact" className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm">
+              <Link to="/contact" className="text-neutral-600 hover:text-primary transition-colors text-sm">
                 Kontakt
               </Link>
             </li>
             <li>
-              <Link to="/terms" className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm">
+              <Link to="/terms" className="text-neutral-600 hover:text-primary transition-colors text-sm">
                 Všeobecné obchodné podmienky
               </Link>
             </li>
@@ -114,92 +149,65 @@ const Foot = () => {
               <button
                 type="button"
                 onClick={() => setShowPartnersModal(true)}
-                className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm bg-transparent border-0 p-0 cursor-pointer"
+                className="text-neutral-600 hover:text-primary transition-colors text-sm bg-transparent border-0 p-0 cursor-pointer font-semibold"
               >
                 Partneri
               </button>
             </li>
           </ul>
+
+          {/* Zobrazené iba na desktope v strednom stĺpci */}
+          <div className="hidden md:block w-full">
+            <SocialAndPaymentsContent />
+          </div>
         </div>
 
-        {/* Right Column - Important Info & Payments */}
-        <div className="flex flex-col items-center text-center pt-2">
-          <h3 className="text-gray-900 mb-4 text-sm font-semibold">Dôležité informácie</h3>
-          <ul className="flex flex-col gap-2 mb-6">
+        {/* Right Column - Important Info */}
+        <div className="flex flex-col items-center md:items-start text-center md:text-left">
+          <h3 className="text-foreground mb-4 text-base font-extrabold uppercase tracking-wider">Dôležité informácie</h3>
+          <ul className="flex flex-col gap-3 font-semibold mb-2">
             <li>
-              <Link to="/gdpr" className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm">
+              <Link to="/gdpr" className="text-neutral-600 hover:text-primary transition-colors text-sm">
                 Ochrana osobných údajov
               </Link>
             </li>
             <li>
-              <Link to="/faq" className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm">
+              <Link to="/faq" className="text-neutral-600 hover:text-primary transition-colors text-sm">
                 Často kladené otázky (FAQ)
               </Link>
             </li>
             <li>
-              <Link to="/payments" className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm">
+              <Link to="/payments" className="text-neutral-600 hover:text-primary transition-colors text-sm">
                 Platby
               </Link>
             </li>
             <li>
-              {/* ZMENA: <a> na <button> */}
               <button
                 type="button"
                 onClick={handleCookiePreferences}
-                className="text-secondary-500 hover:text-secondary-600 transition-colors duration-300 text-sm bg-transparent border-0 p-0 cursor-pointer"
+                className="text-neutral-600 hover:text-primary transition-colors text-sm bg-transparent border-0 p-0 cursor-pointer font-semibold"
               >
                 Nastavenia cookies
               </button>
             </li>
           </ul>
-
-          {/* Payment Methods */}
-          <div className="mt-6 pt-4 border-t border-gray-300 w-full">
-            <div className="mb-3">
-              <img
-                src={stripeLogo}
-                alt="Stripe"
-                className="h-6 mx-auto mb-3 opacity-90"
-              />
-            </div>
-            <div className="flex gap-3 flex-wrap justify-center items-center">
-              <img
-                src={visaLogo}
-                alt="Visa"
-                className="h-7 opacity-80 hover:opacity-100 hover:scale-105 hover:brightness-75 transition-all duration-300"
-                title="Visa"
-              />
-              <img
-                src={mastercardLogo}
-                alt="MasterCard"
-                className="h-7 opacity-80 hover:opacity-100 hover:scale-105 hover:brightness-75 transition-all duration-300"
-                title="MasterCard"
-              />
-              <img
-                src={applepayLogo}
-                alt="Apple Pay"
-                className="h-7 opacity-80 hover:opacity-100 hover:scale-105 hover:brightness-75 transition-all duration-300"
-                title="Apple Pay"
-              />
-              <img
-                src={googlepayLogo}
-                alt="Google Pay"
-                className="h-7 opacity-80 hover:opacity-100 hover:scale-105 hover:brightness-75 transition-all duration-300"
-                title="Google Pay"
-              />
-            </div>
-          </div>
         </div>
+
+        {/* Zobrazené iba na mobile pod všetkými stĺpcami */}
+        <div className="md:hidden w-full col-span-1">
+          <SocialAndPaymentsContent />
+        </div>
+        
       </div>
 
       {/* Bottom Section */}
-      <div className="mt-6 pt-2 border-t border-gray-300 text-center text-secondary-500 text-xs flex flex-col items-center gap-1">
-        <div className="flex gap-3 items-center justify-center flex-wrap">
-          <span>©2025 Nitracik.sk</span>
-          <span>|</span>
-          <span>All rights reserved</span>
+      <div className="max-w-5xl mx-auto mt-2 pt-2 border-t border-neutral-100 text-center text-neutral-500 text-xs font-semibold flex flex-col sm:flex-row items-center justify-center gap-2">
+        <div className="flex gap-2 items-center justify-center flex-wrap">
+          <span>
+            © {foundedYear}{foundedYear === currentYear ? "" : `-${currentYear}`} Nitracik.sk. Všetky práva vyhradené.
+          </span>
         </div>
-        <p className="text-secondary-500 text-xs">Designed by Pluhi</p>
+        <p className="text-neutral-400 font-medium">Designed by Pluhi</p>
       </div>
 
       {/* Partners Modal */}
@@ -209,52 +217,56 @@ const Foot = () => {
         centered
         size="lg"
       >
-        <Modal.Header closeButton className="border-b border-gray-200">
-          <Modal.Title className="text-2xl font-bold text-gray-900">Naši Partneri</Modal.Title>
+        <Modal.Header closeButton className="border-neutral-100">
+          <Modal.Title className="font-extrabold text-xl text-foreground">Naši Partneri</Modal.Title>
         </Modal.Header>
         <Modal.Body className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {partners.map((partner, index) => (
               <div
                 key={index}
-                className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow duration-300"
+                className="border border-neutral-200 rounded-2xl p-5 bg-white shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
               >
-              <div className="mb-4 h-48 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center p-3">
-                  <img
-                    src={`/images/partners/${partner.image}`}
-                    alt={partner.name}
-                    className="max-w-full max-h-full object-contain"
-                    onError={(e) => {
-                      e.target.style.display = "none";
-                    }}
-                  />
+                <div>
+                  <div className="mb-4 h-40 bg-neutral-50 rounded-xl overflow-hidden flex items-center justify-center p-3 border border-neutral-100">
+                    <img
+                      src={`/images/partners/${partner.image}`}
+                      alt={partner.name}
+                      className="max-w-full max-h-full object-contain"
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                      }}
+                    />
+                  </div>
+
+                  <h3 className="text-base font-extrabold text-foreground mb-1">{partner.name}</h3>
+                  <p className="text-xs text-neutral-500 font-semibold mb-3">{partner.description}</p>
+
+                  <a
+                    href={partner.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary text-xs font-bold mb-4 inline-flex items-center gap-1 hover:underline"
+                  >
+                    {partner.url} <ExternalLink className="w-3 h-3" />
+                  </a>
                 </div>
 
-                {/* Partner Info */}
-                <h3 className="text-lg font-bold text-gray-900 mb-2">{partner.name}</h3>
-                <p className="text-sm text-secondary-500 font-semibold mb-3">{partner.description}</p>
-
-                {/* Website Link */}
-                <a
-                  href={partner.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium mb-3 block hover:underline"
-                >
-                  {partner.url}
-                </a>
-
-                {/* Discount Code */}
-                <div className="bg-gray-100 border border-gray-300 rounded p-3">
-                  <p className="text-xs text-gray-600 mb-1">Zľavový kód:</p>
-                  <p className="text-sm font-bold text-secondary-900">{partner.discount}</p>
+                <div className="bg-neutral-50 border border-neutral-200/60 rounded-xl p-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">Zľavový kód</p>
+                    <p className="text-sm font-extrabold text-primary">{partner.discount}</p>
+                  </div>
+                  <span className="text-xs bg-primary/10 text-primary font-bold px-2.5 py-1 rounded-full">
+                    -10%
+                  </span>
                 </div>
               </div>
             ))}
           </div>
         </Modal.Body>
       </Modal>
-    </footer>
+    </motion.footer>
   );
 };
 

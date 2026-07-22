@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ShieldCheck, ChevronDown, ChevronUp, Check, X, Sliders, Cookie } from 'lucide-react';
 
 const CookieConsent = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -50,7 +52,6 @@ const CookieConsent = () => {
       setShowSettings(false);
       return;
     }
-
     setShowSettings(false);
   };
 
@@ -81,25 +82,23 @@ const CookieConsent = () => {
   ];
 
   const TableRow = ({ data }) => (
-    <tr className="border-b border-gray-100 text-[10px] sm:text-[11px]">
-      <td className="py-1.5 px-2 font-medium text-gray-700">{data.name}</td>
-      <td className="py-1.5 px-2 text-gray-600">{data.domain}</td>
-      <td className="py-1.5 px-2 text-gray-600">{data.purpose}</td>
-      <td className="py-1.5 px-2 text-gray-600">{data.validity}</td>
+    <tr className="border-b border-neutral-100 text-xs font-medium">
+      <td className="py-2 px-3 font-bold text-foreground">{data.name}</td>
+      <td className="py-2 px-3 text-neutral-600">{data.domain}</td>
+      <td className="py-2 px-3 text-neutral-600">{data.purpose}</td>
+      <td className="py-2 px-3 text-neutral-600">{data.validity}</td>
     </tr>
   );
 
   const CustomSwitch = ({ checked, onChange, disabled }) => (
     <div
-      className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors duration-200 ${checked ? 'bg-green-500' : 'bg-red-500'
-        } ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+      className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors duration-200 ${
+        checked ? 'bg-emerald-500' : 'bg-red-400'
+      } ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
       onClick={(e) => { e.stopPropagation(); if (!disabled) onChange(!checked); }}
     >
-      {/* Ikony v pozadí */}
       <span className={`absolute left-1.5 text-[10px] font-bold text-white transition-opacity ${checked ? 'opacity-100' : 'opacity-0'}`}>✓</span>
       <span className={`absolute right-1.5 text-[10px] font-bold text-white transition-opacity ${checked ? 'opacity-0' : 'opacity-100'}`}>✕</span>
-
-      {/* Gulička */}
       <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${checked ? 'translate-x-7' : 'translate-x-1'}`} />
     </div>
   );
@@ -107,54 +106,65 @@ const CookieConsent = () => {
   if (!isVisible) return null;
 
   return (
-    <div className={`fixed inset-0 z-[9999] flex ${isOnGdprPage ? 'items-end' : 'items-end sm:items-center'} justify-center ${isOnGdprPage ? 'bg-transparent' : 'bg-black/40 backdrop-blur-sm'} p-4 animate-fadeIn`}>
-      <div className={`w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-dropdownIn ${isOnGdprPage ? 'mb-0' : ''}`}>
-
+    <div className={`fixed inset-0 z-[9999] flex ${isOnGdprPage ? 'items-end' : 'items-end sm:items-center'} justify-center ${isOnGdprPage ? 'bg-transparent' : 'bg-black/40 backdrop-blur-xs'} p-4`}>
+      <motion.div 
+        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        className={`w-full max-w-2xl bg-white rounded-[2rem] shadow-xl border border-neutral-200 overflow-hidden flex flex-col ${isOnGdprPage ? 'mb-0' : ''}`}
+      >
         {!showSettings ? (
-          <div className="p-5 sm:p-8 text-center">
-            <h2 className="text-lg font-bold text-gray-800 mb-3">Vážime si vaše súkromie!</h2>
-            <p className="text-gray-600 text-[13px] leading-relaxed mb-6">
+          <div className="p-6 sm:p-10 text-center">
+            <div className="w-14 h-14 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-5">
+              <Cookie className="w-7 h-7" />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-extrabold text-foreground mb-3">Vážime si vaše súkromie!</h2>
+            <p className="text-neutral-600 text-sm leading-relaxed mb-8 font-medium">
               Súbory cookies používame najmä na analýzu návštevnosti a vylepšovanie našej webovej stránky.
-              Žiadame vás preto o povolenie na ich využívanie. V prípade ak kliknete na <strong>„PRIJAŤ VŠETKY"</strong> budeme o vás spracúvať všetky druhy cookies,
-              ak kliknete na <strong>„ODMIETNUŤ VŠETKY"</strong> budeme spracúvať iba nevyhnutné cookies,
-              ak si chcete svoje preferencie nastaviť sami kliknite na <strong>„NASTAVIŤ COOKIES"</strong>.
-              Podmienky spracovania osobných údajov nájdete <Link to="/gdpr/cookies" className="text-secondary-600 underline font-semibold hover:text-secondary-500">TU</Link>.
+              Žiadame vás preto o povolenie na ich využívanie. V prípade ak kliknete na <strong className="text-foreground">„PRIJAŤ VŠETKY"</strong> budeme o vás spracúvať všetky druhy cookies,
+              ak kliknete na <strong className="text-foreground">„ODMIETNUŤ VŠETKY"</strong> budeme spracúvať iba nevyhnutné cookies,
+              ak si chcete svoje preferencie nastaviť sami kliknite na <strong className="text-foreground">„NASTAVIŤ COOKIES"</strong>.
+              Podmienky spracovania osobných údajov nájdete <Link to="/gdpr/cookies" className="text-primary underline font-bold hover:text-primary-600">TU</Link>.
             </p>
 
-            <div className="flex flex-row gap-2 justify-center">
-              <button onClick={handleAcceptAll} className="flex-1 px-3 py-2 bg-secondary-600 hover:bg-secondary-800 text-white font-bold rounded-lg transition-colors text-[11px] uppercase tracking-wider">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button onClick={handleAcceptAll} className="flex-1 px-5 py-3.5 bg-primary hover:bg-primary-600 text-white font-bold rounded-full transition-all text-xs uppercase tracking-wider shadow-sm">
                 Prijať všetky
               </button>
-              <button onClick={handleRejectAll} className="flex-1 px-3 py-2 bg-secondary-600 hover:bg-secondary-800 text-white font-bold rounded-lg transition-colors text-[11px] uppercase tracking-wider">
+              <button onClick={handleRejectAll} className="flex-1 px-5 py-3.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold rounded-full transition-all text-xs uppercase tracking-wider">
                 Odmietnuť všetky
               </button>
-              <button onClick={() => setShowSettings(true)} className="flex-1 px-3 py-2 bg-secondary-600 hover:bg-secondary-800 text-white font-bold rounded-lg transition-colors text-[11px] uppercase tracking-wider">
+              <button onClick={() => setShowSettings(true)} className="flex-1 px-5 py-3.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold rounded-full transition-all text-xs uppercase tracking-wider">
                 Nastaviť cookies
               </button>
             </div>
           </div>
         ) : (
           <div className="flex flex-col max-h-[85vh]">
-            <div className="p-3 px-5 border-b flex justify-between items-center bg-white sticky top-0 z-20">
-              <h2 className="font-bold text-gray-700 text-sm tracking-tight">Nastavenie cookies</h2>
-              <button onClick={handleCloseSettings} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            <div className="p-5 px-6 border-b border-neutral-100 flex justify-between items-center bg-white sticky top-0 z-20">
+              <h2 className="font-extrabold text-foreground text-base tracking-tight flex items-center gap-2">
+                <Sliders className="w-5 h-5 text-primary" />
+                <span>Nastavenie cookies</span>
+              </h2>
+              <button onClick={handleCloseSettings} className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-500 hover:bg-neutral-200 transition-colors font-bold">&times;</button>
             </div>
 
-            <div className="p-4 overflow-y-auto space-y-3 bg-gray-50/30">
+            <div className="p-6 overflow-y-auto space-y-4 bg-neutral-50/50">
               {/* Sekcia Technické */}
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                <div className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setIsTechOpen(!isTechOpen)}>
-                  <div className="flex items-center gap-2 text-[13px] font-bold text-gray-700">
-                    <span className="text-secondary-600 w-4">{isTechOpen ? '↑' : '↓'}</span>
+              <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-2xs">
+                <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-neutral-50 transition-colors" onClick={() => setIsTechOpen(!isTechOpen)}>
+                  <div className="flex items-center gap-3 text-sm font-bold text-foreground">
+                    <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">
+                      {isTechOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </span>
                     <span>Technické cookies (Nevyhnutné)</span>
                   </div>
                   <CustomSwitch checked={true} disabled={true} />
                 </div>
                 {isTechOpen && (
-                  <div className="p-3 overflow-x-auto border-t border-gray-50 bg-white">
+                  <div className="p-4 overflow-x-auto border-t border-neutral-100 bg-white">
                     <table className="w-full text-left min-w-[450px]">
                       <thead>
-                        <tr className="text-[9px] text-gray-400 uppercase border-b border-gray-50"><th className="pb-1 px-2">Názov</th><th className="pb-1 px-2">Doména</th><th className="pb-1 px-2">Účel</th><th className="pb-1 px-2">Platnosť</th></tr>
+                        <tr className="text-[10px] text-neutral-400 uppercase tracking-wider border-b border-neutral-100"><th className="pb-2 px-3">Názov</th><th className="pb-2 px-3">Doména</th><th className="pb-2 px-3">Účel</th><th className="pb-2 px-3">Platnosť</th></tr>
                       </thead>
                       <tbody>{technicalCookiesData.map((c, i) => <TableRow key={i} data={c} />)}</tbody>
                     </table>
@@ -163,19 +173,21 @@ const CookieConsent = () => {
               </div>
 
               {/* Sekcia Analytické */}
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                <div className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setIsAnalyticOpen(!isAnalyticOpen)}>
-                  <div className="flex items-center gap-2 text-[13px] font-bold text-gray-700">
-                    <span className="text-secondary-600 w-4">{isAnalyticOpen ? '↑' : '↓'}</span>
+              <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-2xs">
+                <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-neutral-50 transition-colors" onClick={() => setIsAnalyticOpen(!isAnalyticOpen)}>
+                  <div className="flex items-center gap-3 text-sm font-bold text-foreground">
+                    <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">
+                      {isAnalyticOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </span>
                     <span>Analytické cookies</span>
                   </div>
                   <CustomSwitch checked={preferences.analytics} onChange={(v) => setPreferences({ ...preferences, analytics: v })} />
                 </div>
                 {isAnalyticOpen && (
-                  <div className="p-3 overflow-x-auto border-t border-gray-50 bg-white">
+                  <div className="p-4 overflow-x-auto border-t border-neutral-100 bg-white">
                     <table className="w-full text-left min-w-[450px]">
                       <thead>
-                        <tr className="text-[9px] text-gray-400 uppercase border-b border-gray-50"><th className="pb-1 px-2">Názov</th><th className="pb-1 px-2">Doména</th><th className="pb-1 px-2">Účel</th><th className="pb-1 px-2">Platnosť</th></tr>
+                        <tr className="text-[10px] text-neutral-400 uppercase tracking-wider border-b border-neutral-100"><th className="pb-2 px-3">Názov</th><th className="pb-2 px-3">Doména</th><th className="pb-2 px-3">Účel</th><th className="pb-2 px-3">Platnosť</th></tr>
                       </thead>
                       <tbody>{analyticalCookiesData.map((c, i) => <TableRow key={i} data={c} />)}</tbody>
                     </table>
@@ -184,20 +196,20 @@ const CookieConsent = () => {
               </div>
             </div>
 
-            <div className="p-4 border-t bg-white sticky bottom-0 z-20 flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3">
-              <button onClick={handleAcceptAll} className="w-full sm:w-auto px-4 py-2 bg-secondary-600 hover:bg-secondary-800 text-white font-bold rounded-lg text-[11px] transition-colors shadow-sm uppercase tracking-wider">
+            <div className="p-5 border-t border-neutral-100 bg-white sticky bottom-0 z-20 flex flex-col sm:flex-row sm:justify-end gap-3">
+              <button onClick={handleAcceptAll} className="w-full sm:w-auto px-5 py-3 bg-primary hover:bg-primary-600 text-white font-bold rounded-full text-xs transition-all shadow-sm uppercase tracking-wider">
                 Prijať všetky
               </button>
-              <button onClick={handleRejectAll} className="w-full sm:w-auto px-4 py-2 bg-secondary-600 hover:bg-secondary-800 text-white font-bold rounded-lg text-[11px] transition-colors shadow-sm uppercase tracking-wider">
+              <button onClick={handleRejectAll} className="w-full sm:w-auto px-5 py-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold rounded-full text-xs transition-all uppercase tracking-wider">
                 Odmietnuť všetky
               </button>
-              <button onClick={handleSaveSelection} className="w-full sm:w-auto px-6 py-2 bg-secondary-600 hover:bg-secondary-500 text-white font-bold rounded-lg text-[11px] transition-colors shadow-sm uppercase tracking-wider">
+              <button onClick={handleSaveSelection} className="w-full sm:w-auto px-6 py-3 bg-foreground hover:bg-neutral-800 text-white font-bold rounded-full text-xs transition-all shadow-sm uppercase tracking-wider">
                 Uložiť výber
               </button>
             </div>
           </div>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 };

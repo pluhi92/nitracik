@@ -6,11 +6,40 @@ import { IMaskInput } from 'react-imask';
 import { Tooltip } from 'react-tooltip';
 import { loadStripe } from '@stripe/stripe-js';
 import { useTranslation } from '../contexts/LanguageContext';
-import { Modal, Button, Form } from 'react-bootstrap';
-import CustomCalendar from './CustomCalendar';
+import { Modal, Form, Spinner } from 'react-bootstrap';
 import api from '../api/api';
 import { HexColorPicker } from "react-colorful";
 import { getAvailableSeasonTickets } from '../tests/bookingSeasonTicketUtils';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ChevronUp, 
+  Calendar as CalIcon, 
+  Clock, 
+  User, 
+  Users, 
+  Info, 
+  CheckCircle2, 
+  Ticket, 
+  CreditCard, 
+  AlertCircle,
+  Plus,
+  Settings,
+  X,
+  FileText
+} from 'lucide-react';
+const fadeInUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: (i) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: 'easeOut', delay: i * 0.08 }
+  })
+};
 
 const Booking = () => {
   const toDateKey = (value) => {
@@ -99,11 +128,11 @@ const Booking = () => {
   const [fillFormPreference, setFillFormPreference] = useState({});
   const [userBookings, setUserBookings] = useState([]);
   const [trainingId, setTrainingId] = useState(null);
-  const [newTypeDuration, setNewTypeDuration] = useState(60); // Default 60 min
-  const [pricingMode, setPricingMode] = useState('tiered'); // 'fixed' alebo 'tiered'
-  const [fixedPricePerChild, setFixedPricePerChild] = useState(15); // Pre fixný režim
-  const [ageGroup, setAgeGroup] = useState('child'); // 'child' | 'adult'
-  const [newAudienceType, setNewAudienceType] = useState('children'); // pre admin modal
+  const [newTypeDuration, setNewTypeDuration] = useState(60); 
+  const [pricingMode, setPricingMode] = useState('tiered'); 
+  const [fixedPricePerChild, setFixedPricePerChild] = useState(15); 
+  const [ageGroup, setAgeGroup] = useState('child'); 
+  const [newAudienceType, setNewAudienceType] = useState('children'); 
   
   // Admin - téma pre detské tréningy
   const [sessionTheme, setSessionTheme] = useState('');
@@ -114,12 +143,10 @@ const Booking = () => {
   const calculateTotalPrice = () => {
     if (!selectedTypeObj) return 0;
 
-    // Pre dospelých použijeme cenu pre child_count = 1, pre deti podľa počtu detí
     const childCount = ageGroup === 'adult' ? 1 : childrenCount;
     const priceObj = selectedTypeObj.prices.find(p => p.child_count === childCount);
     let basePrice = priceObj ? parseFloat(priceObj.price) : 0;
 
-    // Sprievádzajúca osoba len pre deti
     if (accompanyingPerson && ageGroup === 'child') {
       const accPrice = selectedTypeObj.accompanying_person_price ? parseFloat(selectedTypeObj.accompanying_person_price) : 3;
       basePrice += accPrice;
@@ -182,20 +209,8 @@ const Booking = () => {
 
   const applyDateSelection = (formattedDate) => {
     setSelectedDate(formattedDate);
-    setSelectedTime('');
-    setTrainingId(null);
-
-    setTimeout(() => {
-      if (timeSelectRef.current) {
-        timeSelectRef.current.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        });
-      }
-    }, 300);
   };
 
-  const timeSelectRef = useRef(null);
 
   useEffect(() => {
     if (useSeasonTicket && selectedSeasonTicket) {
@@ -221,7 +236,7 @@ const Booking = () => {
 
   useEffect(() => {
     if (childrenAges.length === childrenCount) {
-      return; // Zastavíme vykonávanie efektu, ak nie je potrebné nič meniť
+      return; 
     }
     const newAges = [];
     for (let i = 0; i < childrenCount; i++) {
@@ -230,20 +245,17 @@ const Booking = () => {
     setChildrenAges(newAges);
   }, [childrenCount, childrenAges]);
 
-  // Reset formulára pri zmene ageGroup
   useEffect(() => {
     setWarningMessage('');
     setDuplicateBookingConfirmedKey('');
     closeDuplicateBookingModal();
 
-    // Reset child-only flows when switching audiences
     setIsCreditMode(false);
     setSelectedCredit(null);
     setUseSeasonTicket(false);
     setSelectedSeasonTicket('');
     setServiceConsent(false);
 
-    // Reset výberov
     setSelectedDate('');
     setSelectedTime('');
     setTrainingId(null);
@@ -376,16 +388,11 @@ const Booking = () => {
   }, [isLoggedIn, isAdmin, ageGroup, lockedReservation]);
 
   useEffect(() => {
-    // Ak nemáme ID alebo dáta, končíme
     if (!trainingTypeId || trainingTypes.length === 0) return;
 
-    // 1. Nájdi objekt podľa ID
     const typeObj = trainingTypes.find(t => t.id === Number(trainingTypeId));
-
-    // 2. Nastav ho do state-u (tým sa spustí výpočet ceny)
     setSelectedTypeObj(typeObj || null);
 
-    // 3. Synchronizuj aj názov (pretože CustomCalendar filtruje podľa názvu stringu)
     if (typeObj) {
       setTrainingType(typeObj.name);
     }
@@ -426,7 +433,6 @@ const Booking = () => {
   const handleAddTrainingDate = async (e) => {
     e.preventDefault();
     try {
-      // Zistíme či je vybraný detský tréning
       const selectedType = trainingTypes.find(t => t.id === parseInt(newTrainingType));
       const isChildrenType = selectedType?.audience_type === 'children';
       
@@ -456,10 +462,10 @@ const Booking = () => {
   const processTrainingDates = (data) => {
     return data.reduce((acc, training) => {
       const date = toDateKey(training.training_date);
-      const time = new Date(training.training_date).toLocaleTimeString('sk-SK', { // ← Zmena na sk-SK
+      const time = new Date(training.training_date).toLocaleTimeString('sk-SK', { 
         hour: '2-digit',
         minute: '2-digit',
-        hour12: false // ← Pridané pre 24-hodinový formát
+        hour12: false 
       });
       if (!acc[training.training_type]) {
         acc[training.training_type] = {};
@@ -467,7 +473,6 @@ const Booking = () => {
       if (!acc[training.training_type][date]) {
         acc[training.training_type][date] = [];
       }
-      // TU JE KĽÚČOVÁ ZMENA (rovnako ako vyššie):
       acc[training.training_type][date].push({ time, id: training.id, theme: training.theme });
       return acc;
     }, {});
@@ -476,24 +481,20 @@ const Booking = () => {
   const handleCreateType = async (e) => {
     e.preventDefault();
 
-    // Príprava cien podľa cieľovej skupiny
     let calculatedPrices = [];
     const price = parseFloat(fixedPricePerChild);
 
     if (newAudienceType === 'adults') {
-      // Pre dospelých - len jedna cena (za osobu)
       calculatedPrices = [
         { child_count: 1, price: price }
       ];
     } else if (newAudienceType === 'both') {
-      // Pre "Oboje" - zatiaľ len fixná cena
       calculatedPrices = [
         { child_count: 1, price: price },
         { child_count: 2, price: price * 2 },
         { child_count: 3, price: price * 3 }
       ];
     } else {
-      // Pre deti - podľa zvoleného režimu
       if (pricingMode === 'fixed') {
         calculatedPrices = [
           { child_count: 1, price: price },
@@ -523,13 +524,12 @@ const Booking = () => {
       alert("Nový typ tréningu bol vytvorený!");
       setShowCreateTypeModal(false);
 
-      // Reset formulára na defaulty
       setNewTypeName('');
       setNewTypeDesc('');
       setNewTypeDuration(60);
       setNewTypeColor('#3b82f6');
       setPricingMode('tiered');
-      setNewAudienceType('children'); // Reset na default
+      setNewAudienceType('children');
       setFixedPricePerChild(15);
 
       const response = await api.get(`/api/training-types?admin=true`);
@@ -544,7 +544,6 @@ const Booking = () => {
     try {
       await api.put(`/api/admin/training-types/${typeId}/toggle`, { active: !currentStatus });
       const response = await api.get(`/api/training-types?admin=true`);
-
       setTrainingTypes(response.data);
     } catch (error) {
       console.error(error);
@@ -552,18 +551,16 @@ const Booking = () => {
   };
 
   const handleTypeChange = (e) => {
-    const newId = e.target.value; // Teraz to bude ID (číslo/string) alebo prázdny string
-    setTrainingTypeId(newId);     // Nastavíme ID -> useEffect hore sa postará o zvyšok
+    const newId = e.target.value; 
+    setTrainingTypeId(newId);     
     setDuplicateBookingConfirmedKey('');
     closeDuplicateBookingModal();
 
-    // Ak je prázdny value (placeholder), resetujeme všetko
     if (!newId) {
       setTrainingType('');
       setSelectedTypeObj(null);
     }
 
-    // Reset výberov
     setSelectedDate('');
     setSelectedTime('');
     setTrainingId(null);
@@ -571,7 +568,6 @@ const Booking = () => {
 
   useEffect(() => {
     const checkAvailability = async () => {
-      // Ak nemáme ID alebo počet detí, kontrolu nerobíme
       if (!trainingId || !childrenCount) {
         setAvailability({ isAvailable: true, remainingSpots: 0, requestedChildren: 0 });
         return;
@@ -580,7 +576,7 @@ const Booking = () => {
       try {
         const response = await api.get('/api/check-availability', {
           params: {
-            trainingId, // Posielame len to podstatné
+            trainingId,
             childrenCount
           },
         });
@@ -596,7 +592,6 @@ const Booking = () => {
     };
 
     checkAvailability();
-    // Sledujeme primárne trainingId a childrenCount
   }, [trainingId, childrenCount]);
 
   useEffect(() => {
@@ -833,7 +828,6 @@ const Booking = () => {
 
       const stripe = await stripePromise;
 
-      // Store booking ID and session ID for recovery if payment fails
       localStorage.setItem('pendingBookingId', paymentSession.data.bookingId);
       localStorage.setItem('pendingSessionId', paymentSession.data.sessionId);
 
@@ -863,7 +857,6 @@ const Booking = () => {
 
     const stripe = await stripePromise;
 
-    // Store booking ID and session ID for recovery if payment fails
     localStorage.setItem('pendingBookingId', paymentSession.data.bookingId);
     localStorage.setItem('pendingSessionId', paymentSession.data.sessionId);
 
@@ -879,15 +872,13 @@ const Booking = () => {
     setLoading(true);
     setWarningMessage('');
 
-    // Validate date and time are selected for all booking types
     if (!trainingId || !selectedDate || !selectedTime) {
-      setWarningMessage(t?.booking?.selectDateTimeRequired || 'Please select date and time for your booking.');
+      setWarningMessage(t?.booking?.selectDateTimeRequired || 'Prosím, vyberte termín tréningu.');
       setLoading(false);
       return;
     }
 
     if (isCreditMode) {
-      // For child credits, validate that all ages are selected
       if (ageGroup === 'child' && childrenAges.some(age => age === '')) {
         setWarningMessage(t?.booking?.selectAllAges || 'Please select an age for all children.');
         setLoading(false);
@@ -927,7 +918,6 @@ const Booking = () => {
       return;
     }
 
-    // Validate service consent for card payments (not for season ticket usage and not for credits)
     if (!useSeasonTicket && !isCreditMode && !serviceConsent) {
       setWarningMessage('Musíte prijať súhlas so začatím poskytovania služby.');
       setLoading(false);
@@ -946,7 +936,6 @@ const Booking = () => {
           return;
         }
 
-        // For adults, we need 1 entry; for children, we need childrenCount entries
         const entriesNeeded = ageGroup === 'adult' ? 1 : childrenCount;
 
         if (selectedTicket.entries_remaining < entriesNeeded) {
@@ -1070,7 +1059,6 @@ const Booking = () => {
       ? trainingDates[trainingType][formattedDate]
       : [];
 
-    // Ak je na dátume len jeden slot, vieme overiť duplicitu okamžite už po kliknutí na dátum.
     if (daySessions.length === 1) {
       const onlySession = daySessions[0];
       const sessionKey = createDuplicateSessionKey(trainingType, formattedDate, onlySession.time);
@@ -1115,6 +1103,64 @@ const Booking = () => {
     });
   };
 
+  const handleSessionSelect = async (e) => {
+    const id = e.target.value;
+    if (!id) {
+      setTrainingId(null);
+      setSelectedDate('');
+      setSelectedTime('');
+      return;
+    }
+
+    // Find which date this session belongs to
+    const typeSessions = trainingDates[trainingType] || {};
+    let foundDate = '';
+    let foundSession = null;
+
+    for (const [dateKey, sessions] of Object.entries(typeSessions)) {
+      const match = sessions.find((s) => String(s.id) === String(id));
+      if (match) {
+        foundDate = dateKey;
+        foundSession = match;
+        break;
+      }
+    }
+
+    if (!foundDate || !foundSession) return;
+
+    // Ensure UI state is set before any duplicate-check logic runs
+    setSelectedDate(foundDate);
+    setSelectedTime(foundSession.time);
+    setTrainingId(String(id));
+
+    // Duplicate check (reuse existing logic)
+    const duplicateDateKey = createDuplicateDateKey(trainingType, foundDate);
+    if (
+      hasDuplicateBookingForDate(trainingType, foundDate) &&
+      duplicateBookingConfirmedKey !== duplicateDateKey &&
+      duplicateBookingConfirmedKey !== createDuplicateSessionKey(trainingType, foundDate, foundSession.time)
+    ) {
+      setDuplicateBookingModalContext({
+        source: 'calendar',
+        typeName: trainingType,
+        date: foundDate,
+      });
+      setShowDuplicateBookingModal(true);
+      return;
+    }
+
+    const sessionKey = createDuplicateSessionKey(trainingType, foundDate, foundSession.time);
+    if (duplicateBookingConfirmedKey !== sessionKey) {
+      await checkDuplicateStatusForTraining({
+        selectedTrainingId: id,
+        typeName: trainingType,
+        date: foundDate,
+        time: foundSession.time,
+        source: 'selection',
+      });
+    }
+  };
+
   const handleDuplicateBookingConfirm = async () => {
     if (!duplicateBookingModalContext) {
       return;
@@ -1144,7 +1190,6 @@ const Booking = () => {
       } catch (error) {
         console.error('Pending booking redirect error:', error);
 
-        // Fallback: ak je pôvodná Stripe session expirovaná, vytvoríme novú s explicitným allowDuplicate.
         try {
           await startPaidBookingCheckout({ forceAllowDuplicate: true });
           return;
@@ -1268,13 +1313,10 @@ const Booking = () => {
 
   const currentType = trainingTypes.find(t => t.name === trainingType);
 
-  // Filter credits based on training type audience
   const getCreditsForAudience = (audience) => {
     return credits.filter(credit => {
       const creditType = trainingTypes.find(t => t.name === credit.training_type);
       if (!creditType) return false;
-      // For 'children' audience, show credits from children or both types
-      // For 'adults' audience, show credits from adults or both types
       return creditType.audience_type === audience || creditType.audience_type === 'both';
     });
   };
@@ -1315,19 +1357,16 @@ const Booking = () => {
   const selectCredit = (credit, fillForm = false) => {
     setSelectedCredit(credit);
 
-    // Nájdi ID typu na základe mena
     const creditType = trainingTypes.find(t => t.name === credit.training_type);
     if (creditType) {
       setTrainingTypeId(String(creditType.id));
       setTrainingType(credit.training_type);
     }
 
-    // Determine if this is an adult credit based on training type
     const isAdultCredit = creditType?.audience_type === 'adults';
     
     let parsedAges = [];
     
-    // For adult credits, don't set children-related fields
     if (isAdultCredit) {
       setChildrenCount(1);
       setChildrenAges([]);
@@ -1337,8 +1376,6 @@ const Booking = () => {
       setAccompanyingPerson(credit.accompanying_person === true);
 
       if (credit.children_ages) {
-        console.log('[DEBUG] Original children_ages:', credit.children_ages);
-
         if (typeof credit.children_ages === 'string') {
           parsedAges = credit.children_ages
             .split(',')
@@ -1352,8 +1389,6 @@ const Booking = () => {
         }
       }
 
-      console.log('[DEBUG] Parsed ages:', parsedAges);
-
       if (parsedAges.length !== credit.child_count) {
         parsedAges = Array(credit.child_count).fill('');
       }
@@ -1362,18 +1397,10 @@ const Booking = () => {
     }
 
     if (fillForm) {
-      console.log('[DEBUG] Filling form with original data:', {
-        photoConsent: credit.photo_consent,
-        mobile: credit.mobile,
-        note: credit.note,
-        childrenAges: parsedAges
-      });
-
       setPhotoConsent(credit.photo_consent);
       setMobile(credit.mobile || '');
       setNote(credit.note || '');
     } else {
-      console.log('[DEBUG] Leaving form empty for user input');
       setPhotoConsent(null);
       setMobile('');
       setNote('');
@@ -1389,68 +1416,76 @@ const Booking = () => {
     setSelectedTime('');
     setShowCreditModal(false);
     setIsCreditMode(true);
-
-    console.log('[DEBUG] Credit selected - Final state:', {
-      creditId: credit.id,
-      accompanyingPerson: credit.accompanying_person,
-      child_count: credit.child_count,
-      fillForm: fillForm,
-      childrenAges: parsedAges,
-      photoConsent: fillForm ? credit.photo_consent : 'empty',
-      mobile: fillForm ? credit.mobile : 'empty',
-      note: fillForm ? credit.note : 'empty'
-    });
   };
 
   if (!isLoggedIn) {
     return (
-      <div className="max-w-2xl mx-auto mt-8 px-4">
-        <div className="flex justify-center">
-          <div className="w-full md:w-96">
-            <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200">
-              <div className="p-6">
-                <h2 className="text-2xl font-bold text-center text-gray-800 mb-4">
-                  {t?.booking?.title || 'Book Your Training'}
-                </h2>
-                <Login
-                  onLoginSuccess={() => {
-                    localStorage.setItem('isLoggedIn', 'true');
-                    setIsLoggedIn(true);
-                  }}
-                />
-              </div>
-            </div>
-          </div>
+      <motion.section 
+        initial="hidden"
+        animate="visible"
+        variants={fadeInUp}
+        className="py-12 md:py-16 container-custom max-w-lg mx-auto px-4"
+      >
+        <div className="bg-white rounded-[2rem] border border-neutral-200 shadow-sm p-6 sm:p-10">
+          <h2 className="text-2xl font-extrabold text-center text-foreground mb-8">
+            {t?.booking?.title || 'Book Your Training'}
+          </h2>
+          <Login
+            onLoginSuccess={() => {
+              localStorage.setItem('isLoggedIn', 'true');
+              setIsLoggedIn(true);
+            }}
+          />
         </div>
-      </div>
+      </motion.section>
     );
   }
 
   const availableSeasonTickets = getAvailableSeasonTickets(seasonTickets, selectedTypeObj);
 
   return (
-    <div className="max-w-6xl mx-auto mt-8 px-4 sm:px-6 relative">
-      {showScrollButton && (
-        <button
-          onClick={scrollToTop}
-          className="fixed bottom-8 right-8 border-2 border-gray-700 text-gray-700 hover:text-gray-900 hover:border-gray-900 hover:shadow-2xl rounded-full shadow-lg transition-all duration-300 z-50 bg-white/80 w-16 h-16 flex items-center justify-center"
-          aria-label="Scroll to top"
-        >
-          <span className="text-3xl font-black leading-none translate-y-1">^</span>
-        </button>
-      )}
-      <h2 className="text-3xl font-bold text-center text-primary-600 mb-8">
+    <motion.section 
+      initial="hidden"
+      animate="visible"
+      variants={fadeInUp}
+      className="py-12 md:py-16 container-custom max-w-5xl mx-auto px-4 sm:px-6 relative"
+    >
+      <AnimatePresence>
+        {showScrollButton && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            onClick={scrollToTop}
+            className="fixed bottom-8 right-8 bg-primary hover:bg-primary-600 text-white rounded-full shadow-lg transition-all duration-300 z-50 w-14 h-14 flex items-center justify-center cursor-pointer border-2 border-white"
+            aria-label="Scroll to top"
+          >
+            <ChevronUp className="w-6 h-6" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      <h2 className="text-3xl sm:text-5xl font-extrabold text-center text-foreground tracking-tight mb-8">
         {t?.booking?.title || 'Book Your Training'}
       </h2>
 
       {/* Age Group Toggle */}
-      <div className="flex justify-center mb-8">
-        <div className="bg-gray-100 rounded-lg p-1 flex">
+      <div className="flex justify-center mb-6">
+        <div className="bg-neutral-100 rounded-full p-1.5 flex shadow-2xs relative">
+          <motion.div
+            className="absolute top-1.5 bottom-1.5 bg-white rounded-full shadow-sm"
+            animate={{
+              left: ageGroup === 'child' ? '6px' : '50%',
+              right: ageGroup === 'child' ? '50%' : '6px',
+            }}
+            transition={{ type: 'tween', duration: 0.18, ease: 'easeOut' }}
+          />
           <button
-            className={`px-6 py-2 rounded-md font-medium transition-colors ${
+            type="button"
+            className={`relative z-10 px-6 py-2.5 rounded-full font-bold text-sm transition-colors duration-200 ${
               ageGroup === 'child'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'text-primary'
+                : 'text-neutral-500 hover:text-neutral-700'
             }`}
             disabled={Boolean(lockedReservation)}
             onClick={() => setAgeGroup('child')}
@@ -1458,10 +1493,11 @@ const Booking = () => {
             Tréning pre deti
           </button>
           <button
-            className={`px-6 py-2 rounded-md font-medium transition-colors ${
+            type="button"
+            className={`relative z-10 px-6 py-2.5 rounded-full font-bold text-sm transition-colors duration-200 ${
               ageGroup === 'adult'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'text-primary'
+                : 'text-neutral-500 hover:text-neutral-700'
             }`}
             disabled={Boolean(lockedReservation)}
             onClick={() => setAgeGroup('adult')}
@@ -1472,107 +1508,110 @@ const Booking = () => {
       </div>
 
       {lockedReservation && (
-        <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900">
-          Vybraný termín je predvyplnený z aktivít a v tomto formulári je uzamknutý.
+        <div className="mb-8 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-bold text-emerald-800 flex items-center gap-3">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+          <span>Vybraný termín je predvyplnený z aktivít a v tomto formulári je uzamknutý.</span>
         </div>
       )}
 
-      <div className="flex justify-between gap-4 mb-6">
+      
+      <div className="flex justify-center mb-4">
         <button
-          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-          onClick={() => {
-            localStorage.removeItem('isLoggedIn');
-            localStorage.removeItem('userId');
-            window.location.reload();
-          }}
-        >
-          {t?.booking?.logout || 'Logout'}
-        </button>
-        <button
-          className="bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+          type="button"
+          className="bg-primary hover:bg-primary-600 text-white px-6 py-3 rounded-full font-bold transition-all text-sm shadow-sm flex items-center justify-center gap-2"
           onClick={() => navigate(`/season-tickets?audience=${ageGroup}`)}
         >
-          {t?.booking?.seasonTickets || 'Purchase Season Ticket'}
+          <Ticket className="w-4 h-4" />
+          <span>{t?.booking?.seasonTickets || 'Zakúpiť permanentku'}</span>
         </button>
       </div>
 
-      {/* Credit notification for Children */}
-      {ageGroup === 'child' && childCredits.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center mb-6">
-          <strong className="text-blue-800 text-lg">
+      {/* Credit notifications */}
+      {(ageGroup === 'child' && childCredits.length > 0) && (
+        <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6 text-center mb-8 flex flex-col items-center justify-center gap-3">
+          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+            <Ticket className="w-6 h-6" />
+          </div>
+          <strong className="text-primary-700 text-lg">
             {t?.booking?.youHaveCredit || 'You have'} {childCredits.length}{' '}
             {childCredits.length === 1 ? 'credit' : 'credits'}!
           </strong>
-          <br />
           <button
-            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium mt-2 transition-colors"
+            type="button"
+            className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2.5 rounded-full font-bold transition-all shadow-sm text-sm"
             onClick={() => setShowCreditModal(true)}
           >
-            🎫 {t?.booking?.useCredit || 'Use Credit'}
+            {t?.booking?.useCredit || 'Use Credit'}
           </button>
         </div>
       )}
 
-      {/* Credit notification for Adults */}
-      {ageGroup === 'adult' && adultCredits.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center mb-6">
-          <strong className="text-blue-800 text-lg">
+      {(ageGroup === 'adult' && adultCredits.length > 0) && (
+        <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6 text-center mb-8 flex flex-col items-center justify-center gap-3">
+          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+            <Ticket className="w-6 h-6" />
+          </div>
+          <strong className="text-primary-700 text-lg">
             {t?.booking?.youHaveCredit || 'You have'} {adultCredits.length}{' '}
             {adultCredits.length === 1 ? 'credit' : 'credits'}!
           </strong>
-          <br />
           <button
-            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium mt-2 transition-colors"
+            type="button"
+            className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2.5 rounded-full font-bold transition-all shadow-sm text-sm"
             onClick={() => setShowCreditModal(true)}
           >
-            🎫 {t?.booking?.useCredit || 'Use Credit'}
+            {t?.booking?.useCredit || 'Use Credit'}
           </button>
         </div>
       )}
 
-      {/* 1. ADMIN PANEL - PRIDÁVANIE TERMÍNOV (SESSION) */}
+      {/* ADMIN PANEL */}
       {isAdmin && (
-        <div className="bg-primary-50 border-2 border-primary-100 rounded-xl p-6 mb-8">
-          <div className="flex justify-between items-center border-b-2 border-primary-500 pb-2 mb-4">
-            <h3 className="text-xl font-semibold text-primary-600 mb-0">
-              {t?.admin?.title || 'Admin Controls'}
+        <div className="bg-white border-2 border-emerald-500/20 rounded-[2rem] p-6 sm:p-8 mb-10 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-2 h-full bg-emerald-500"></div>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-neutral-100 pb-5 mb-6 gap-4">
+            <h3 className="text-xl font-extrabold text-foreground flex items-center gap-2">
+              <Settings className="w-5 h-5 text-emerald-600" />
+              <span>{t?.admin?.title || 'Admin Controls'}</span>
             </h3>
-            {/* Tlačidlo na otvorenie modalu pre ÚPLNE NOVÝ TYP (napr. Maľovanie) */}
-            <Button variant="outline-primary" size="sm" onClick={() => setShowCreateTypeModal(true)}>
-              + Vytvoriť nový typ tréningu
-            </Button>
+            <button 
+              type="button"
+              className="inline-flex items-center gap-2 bg-emerald-500 text-white px-5 py-2.5 rounded-full font-bold text-xs hover:bg-emerald-600 transition-all shadow-sm"
+              onClick={() => setShowCreateTypeModal(true)}
+            >
+              <Plus className="w-4 h-4" />
+              <span>Vytvoriť nový typ tréningu</span>
+            </button>
           </div>
 
-          <Form onSubmit={handleAddTrainingDate}>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <div className="md:col-span-1">
-                <Form.Label className="font-medium text-gray-700">
+          <form onSubmit={handleAddTrainingDate}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="lg:col-span-1">
+                <label className="font-bold text-xs text-neutral-700 mb-1.5">
                   {t?.admin?.trainingType || 'Training Type'}
-                </Form.Label>
-                <Form.Select
+                </label>
+                <select
                   value={newTrainingType}
                   onChange={(e) => {
                     setNewTrainingType(e.target.value);
-                    // Reset témy pri zmene typu tréningu
                     setUseSessionTheme(false);
                     setSessionTheme('');
                   }}
-                  className="w-full"
+                  className="rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm font-medium py-2.5 w-full font-sans"
                 >
                   <option value="">-- Select Type --</option>
                   {trainingTypes
-                    .filter(type => type.active) // PRIDAŤ TENTO FILTER
+                    .filter(type => type.active)
                     .map(type => (
-                      <option key={type.id} value={type.id}> {/* ZMENA: value je teraz type.id */}
+                      <option key={type.id} value={type.id}>
                         {type.name}
                       </option>
                     ))}
-                </Form.Select>
+                </select>
               </div>
 
-              {/* Date Input */}
               <div>
-                <Form.Label className="font-medium text-gray-700">{t?.admin?.date || "Date"}</Form.Label>
+                <label className="font-bold text-xs text-neutral-700 mb-1.5">{t?.admin?.date || "Date"}</label>
                 <Form.Control
                   type="date"
                   value={newTrainingDate.split("T")[0] || ""}
@@ -1581,12 +1620,12 @@ const Booking = () => {
                     const time = newTrainingDate.split("T")[1]?.substring(0, 5) || "00:00";
                     setNewTrainingDate(`${date}T${time}`);
                   }}
+                  className="rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm font-medium py-2.5 w-full"
                 />
               </div>
 
-              {/* Time Input */}
               <div>
-                <Form.Label className="font-medium text-gray-700">{t?.admin?.time || "Time"}</Form.Label>
+                <label className="font-bold text-xs text-neutral-700 mb-1.5">{t?.admin?.time || "Time"}</label>
                 <Form.Control
                   type="time"
                   value={newTrainingDate.split("T")[1]?.substring(0, 5) || ""}
@@ -1595,20 +1634,21 @@ const Booking = () => {
                     const date = newTrainingDate.split("T")[0] || "";
                     setNewTrainingDate(`${date}T${time}`);
                   }}
+                  className="rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm font-medium py-2.5 w-full"
                 />
               </div>
 
               <div>
-                <Form.Label className="font-medium text-gray-700 text-xs">Max Part.</Form.Label>
+                <label className="font-bold text-xs text-neutral-700 mb-1.5">Max Part.</label>
                 <Form.Control
                   type="number"
                   min="1"
                   value={maxParticipants}
                   onChange={(e) => setMaxParticipants(e.target.value)}
+                  className="rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm font-medium py-2.5 w-full"
                 />
               </div>
 
-              {/* Téma - len pre detské tréningy */}
               {(() => {
                 const selectedType = trainingTypes.find(t => t.id === parseInt(newTrainingType));
                 const isChildrenType = selectedType?.audience_type === 'children';
@@ -1616,7 +1656,7 @@ const Booking = () => {
                 if (!isChildrenType) return null;
                 
                 return (
-                  <div className="md:col-span-1">
+                  <div className="lg:col-span-1 h-full flex flex-col justify-end">
                     <Form.Check
                       type="checkbox"
                       id="useTheme"
@@ -1625,602 +1665,387 @@ const Booking = () => {
                         setUseSessionTheme(e.target.checked);
                         if (!e.target.checked) setSessionTheme('');
                       }}
-                      label={<span className="font-medium text-gray-700 text-sm">Pridať tému</span>}
-                      className="mb-1"
+                      label={<span className="font-bold text-neutral-700 text-xs">Pridať tému</span>}
+                      className="mb-1.5"
                     />
                     <Form.Control
                       type="text"
-                      placeholder="napr. VIANOCE, HASIČI"
+                      placeholder="napr. VIANOCE"
                       value={sessionTheme}
                       onChange={(e) => setSessionTheme(e.target.value)}
                       disabled={!useSessionTheme}
-                      className={!useSessionTheme ? 'bg-gray-100' : ''}
+                      className={`rounded-xl border border-neutral-200 text-sm font-medium py-2.5 w-full ${!useSessionTheme ? 'bg-neutral-100' : 'bg-neutral-50/50'}`}
                     />
                   </div>
                 );
               })()}
 
-              <div className="flex items-end">
-                <Button type="submit" className="bg-primary-500 border-primary-500">
-                  {t?.admin?.addSession || 'Add'}
-                </Button>
+              <div className="flex items-end lg:col-span-5 sm:justify-end mt-2">
+                <button 
+                  type="submit" 
+                  className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-full font-bold text-sm transition-all shadow-sm"
+                >
+                  {t?.admin?.addSession || 'Pridať tréning'}
+                </button>
               </div>
             </div>
-          </Form>
-        </div>
-      )}
+          </form>
 
-      {/* ZOZNAM TYPOV NA ZAPNUTIE/VYPNUTIE - teraz obalené v isAdmin podmienke */}
-      {isAdmin && (
-        <div className="mt-8 border-t pt-6">
-          <h4 className="text-lg font-semibold mb-4 text-gray-700">Manage Training Types (Active/Inactive)</h4>
-          <div className="space-y-2">
-            {trainingTypes.map(type => (
-              <div key={type.id} className="flex items-center justify-between bg-white p-3 rounded-lg border">
-                <div className="flex items-center gap-3">
-                  <span>{type.name}</span>
-                  {type.audience_type && (
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                      type.audience_type === 'children' ? 'bg-blue-100 text-blue-800' :
-                      type.audience_type === 'adults' ? 'bg-green-100 text-green-800' :
-                      'bg-purple-100 text-purple-800'
-                    }`}>
-                      {type.audience_type === 'children' ? 'Deti' :
-                       type.audience_type === 'adults' ? 'Dospelí' : 'Oboje'}
-                    </span>
-                  )}
+          <div className="mt-8 border-t border-neutral-100 pt-6">
+            <h4 className="text-base font-extrabold mb-4 text-foreground">Správa kategórií (Aktívne/Neaktívne)</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {trainingTypes.map(type => (
+                <div key={type.id} className="flex items-center justify-between bg-neutral-50 p-3 rounded-2xl border border-neutral-200">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-foreground">{type.name}</span>
+                    {type.audience_type && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        type.audience_type === 'children' ? 'bg-blue-100 text-blue-700' :
+                        type.audience_type === 'adults' ? 'bg-emerald-100 text-emerald-700' :
+                        'bg-purple-100 text-purple-700'
+                      }`}>
+                        {type.audience_type === 'children' ? 'Deti' :
+                         type.audience_type === 'adults' ? 'Dospelí' : 'Oboje'}
+                      </span>
+                    )}
+                  </div>
+                  <Form.Check
+                    type="switch"
+                    id={`active-switch-${type.id}`}
+                    checked={type.active}
+                    onChange={() => toggleTypeStatus(type.id, type.active)}
+                    className="m-0"
+                  />
                 </div>
-                <Form.Check
-                  type="switch"
-                  id={`active-switch-${type.id}`}
-                  checked={type.active}
-                  onChange={() => toggleTypeStatus(type.id, type.active)}
-                  label={type.active ? "Active" : "Inactive"}
-                />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      {isAdmin && (
-        <div className="bg-green-100 border border-green-400 text-green-800 px-4 py-3 rounded mb-6 font-bold text-center">
-          {t?.admin?.adminModeActive || 'ADMIN MODE ACTIVE'}
-        </div>
-      )}
-
-      <Modal show={showCreateTypeModal} onHide={() => setShowCreateTypeModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Vytvoriť nový typ tréningu</Modal.Title>
-        </Modal.Header>
-
-        <Form onSubmit={handleCreateType}>
-          <Modal.Body>
-            {/* 1. Cieľová skupina - PRVÁ vec ktorú nastavíme */}
-            <Form.Group className="mb-4">
-              <Form.Label className="block font-bold mb-2 text-gray-700">Cieľová skupina *</Form.Label>
-              <div className="flex gap-3">
-                <Form.Check
-                  type="radio"
-                  label="Deti"
-                  name="audienceType"
-                  value="children"
-                  checked={newAudienceType === 'children'}
-                  onChange={(e) => setNewAudienceType(e.target.value)}
-                  className="me-3"
-                />
-                <Form.Check
-                  type="radio"
-                  label="Dospelí"
-                  name="audienceType"
-                  value="adults"
-                  checked={newAudienceType === 'adults'}
-                  onChange={(e) => setNewAudienceType(e.target.value)}
-                  className="me-3"
-                />
-                <Form.Check
-                  type="radio"
-                  label="Oboje"
-                  name="audienceType"
-                  value="both"
-                  checked={newAudienceType === 'both'}
-                  onChange={(e) => setNewAudienceType(e.target.value)}
-                />
-              </div>
-            </Form.Group>
-
-            <hr className="my-4" />
-
-            {/* 2. Základné info */}
-            <div className="grid grid-cols-2 gap-4 mb-3">
-              <Form.Group className="col-span-2">
-                <Form.Label>Názov</Form.Label>
-                <Form.Control
-                  required
-                  value={newTypeName}
-                  onChange={e => setNewTypeName(e.target.value)}
-                  placeholder="napr. Maľovanie, MIDI, Yoga"
-                />
-              </Form.Group>
-
-              <Form.Group>
-                <Form.Label>Trvanie (min)</Form.Label>
-                <Form.Control
-                  type="number"
-                  required
-                  value={newTypeDuration}
-                  onChange={e => setNewTypeDuration(e.target.value)}
-                />
-              </Form.Group>
-
-              {/* Sprevádzajúca osoba - LEN pre Deti */}
-              {newAudienceType === 'children' && (
-                <Form.Group>
-                  <Form.Label>Sprevádzajúca osoba (€)</Form.Label>
-                  <Form.Control
-                    type="number"
-                    step="0.01"
-                    value={newAccompanyingPrice}
-                    onChange={e => setNewAccompanyingPrice(e.target.value)}
-                  />
-                </Form.Group>
-              )}
-            </div>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Popis</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                value={newTypeDesc}
-                onChange={e => setNewTypeDesc(e.target.value)}
-              />
-            </Form.Group>
-
-            {/* --- NOVO PRIDANÁ ČASŤ: COLOR PICKER --- */}
-            <Form.Group className="mb-4 relative">
-              <Form.Label className="block font-bold mb-2 text-gray-700">Farba v kalendári</Form.Label>
-              <div className="flex items-center gap-4">
-                <div
-                  onClick={() => setShowColorPicker(!showColorPicker)}
-                  className="w-12 h-12 rounded-lg border-2 border-gray-200 cursor-pointer shadow-sm hover:scale-105 transition-transform"
-                  style={{ backgroundColor: newTypeColor }}
-                />
-                <div className="flex flex-col">
-                  <span className="font-mono text-sm font-bold uppercase">{newTypeColor}</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowColorPicker(!showColorPicker)}
-                    className="text-xs text-blue-600 font-semibold hover:underline text-left"
-                  >
-                    {showColorPicker ? 'Zavrieť výber' : 'Vybrať farbu'}
-                  </button>
-                </div>
-
-                {/* Maly nahlad ako to bude vyzerat v Aktivity */}
-                <div className="ml-auto hidden sm:block">
-                  <div className="text-[10px] text-gray-400 uppercase font-bold mb-1">Náhľad v rozvrhu</div>
-                  <div
-                    className="px-3 py-1 rounded text-[11px] font-black uppercase border-l-4"
-                    style={{
-                      backgroundColor: `${newTypeColor}25`,
-                      borderColor: newTypeColor,
-                      color: '#1f2937'
-                    }}
-                  >
-                    {newTypeName || 'Tréning'}
-                  </div>
-                </div>
-              </div>
-
-              {showColorPicker && (
-                <div className="absolute z-50 mt-2 bg-white p-3 rounded-xl shadow-2xl border border-gray-100">
-                  <HexColorPicker color={newTypeColor} onChange={setNewTypeColor} />
-                  <button
-                    type="button"
-                    className="w-full mt-3 bg-gray-900 text-white text-xs py-2 rounded-lg font-bold"
-                    onClick={() => setShowColorPicker(false)}
-                  >
-                    Potvrdiť
-                  </button>
-                </div>
-              )}
-            </Form.Group>
-
-            <hr className="my-4" />
-
-            {/* 3. Stratégia cien - podľa cieľovej skupiny */}
-            <h6 className="font-bold mb-3">Cenová stratégia</h6>
-            
-            {/* Pre Dospelých alebo Oboje - LEN fixná cena */}
-            {(newAudienceType === 'adults' || newAudienceType === 'both') ? (
-              <div className="bg-gray-50 p-3 rounded border">
-                <Form.Group>
-                  <Form.Label className="font-bold text-primary-600">
-                    {newAudienceType === 'adults' ? 'Cena za osobu (€)' : 'Fixná cena (€)'}
-                  </Form.Label>
-                  <Form.Control
-                    type="number"
-                    step="0.01"
-                    value={fixedPricePerChild}
-                    onChange={e => setFixedPricePerChild(e.target.value)}
-                  />
-                  <Form.Text className="text-muted">
-                    {newAudienceType === 'adults' 
-                      ? 'Jednotná cena pre dospelých.' 
-                      : 'Jednotná fixná cena pre všetkých účastníkov.'}
-                  </Form.Text>
-                </Form.Group>
-              </div>
-            ) : (
-              /* Pre Deti - výber medzi fixnou a stupňovanou cenou */
-              <>
-                <div className="flex gap-4 mb-4">
-                  <Form.Check
-                    type="radio"
-                    label="Fixná cena za dieťa"
-                    name="pricingMode"
-                    id="modeFixed"
-                    checked={pricingMode === 'fixed'}
-                    onChange={() => setPricingMode('fixed')}
-                  />
-                  <Form.Check
-                    type="radio"
-                    label="Vlastné / stupňované zľavy"
-                    name="pricingMode"
-                    id="modeTiered"
-                    checked={pricingMode === 'tiered'}
-                    onChange={() => setPricingMode('tiered')}
-                  />
-                </div>
-
-                <div className="bg-gray-50 p-3 rounded border">
-                  {pricingMode === 'fixed' ? (
-                    <Form.Group>
-                      <Form.Label className="font-bold text-primary-600">Cena za 1 dieťa (€)</Form.Label>
-                      <Form.Control
-                        type="number"
-                        step="0.01"
-                        value={fixedPricePerChild}
-                        onChange={e => setFixedPricePerChild(e.target.value)}
-                      />
-                      <Form.Text className="text-muted">
-                        Systém automaticky vypočíta:
-                        2 deti = €{(fixedPricePerChild * 2).toFixed(2)},
-                        3 deti = €{(fixedPricePerChild * 3).toFixed(2)}
-                      </Form.Text>
-                    </Form.Group>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-4 items-start sm:grid-cols-3">
-                      <Form.Group className="mb-0 min-w-0">
-                        <Form.Label>1 dieťa (€)</Form.Label>
-                        <Form.Control
-                          className="w-full"
-                          type="number"
-                          value={newTypePrice1}
-                          onChange={e => setNewTypePrice1(e.target.value)}
-                        />
-                      </Form.Group>
-
-                      <Form.Group className="mb-0 min-w-0">
-                        <Form.Label>2 deti (€)</Form.Label>
-                        <Form.Control
-                          className="w-full"
-                          type="number"
-                          value={newTypePrice2}
-                          onChange={e => setNewTypePrice2(e.target.value)}
-                        />
-                      </Form.Group>
-
-                      <Form.Group className="mb-0 min-w-0">
-                        <Form.Label>3 deti (€)</Form.Label>
-                        <Form.Control
-                          className="w-full"
-                          type="number"
-                          value={newTypePrice3}
-                          onChange={e => setNewTypePrice3(e.target.value)}
-                        />
-                      </Form.Group>
-                      <div className="col-span-1 sm:col-span-3">
-                        <Form.Text className="text-muted">Nastavte konkrétne ceny pre zľavu súrodencov.</Form.Text>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-
-          </Modal.Body>
-
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowCreateTypeModal(false)}>
-              Zavrieť
-            </Button>
-            <Button type="submit" variant="primary">
-              Vytvoriť typ
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
-
-
-      {/* 2. USER BOOKING FORM */}
-      <Form onSubmit={handleSubmit} className="space-y-6">
+      {/* USER BOOKING FORM */}
+      <form onSubmit={handleSubmit} className="space-y-6">
         {isCreditMode && selectedCredit && isMiniMidiMaxiCredit(selectedCredit) && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-900">
-            <strong>Tento kredit mozete vyuzivat na hodiny MINI, MIDI alebo MAXI.</strong>
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-amber-900 flex items-start gap-3">
+            <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <strong className="text-sm">Tento kredit môžete využívať na hodiny MINI, MIDI alebo MAXI.</strong>
           </div>
         )}
 
-        <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200">
-          <div className="bg-gray-100 bg-opacity-50 border-b border-gray-300 px-6 py-4">
-            <h5 className="text-lg font-bold text-gray-800">
+        {/* 1. Training Details */}
+        <motion.div
+          custom={0}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-40px' }}
+          variants={cardVariants}
+          className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-primary overflow-hidden relative"
+        >
+          <div className="bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+              <CalIcon className="w-4 h-4" />
+            </div>
+            <h5 className="text-lg font-extrabold text-foreground m-0">
               {t?.booking?.trainingDetails || 'Training Details'}
             </h5>
           </div>
 
-          <div className="p-6">
-            <Form.Group className="mb-6">
-              <Form.Label className="font-bold text-gray-800">
+          <div className="p-6 sm:p-8">
+            <div className="mb-8">
+              <label className="font-bold text-sm text-neutral-700 mb-2">
                 {t?.booking?.trainingType?.label || 'Select Training Type'} <span className="text-red-500">*</span>
-              </Form.Label>
-              <Form.Select
-                value={trainingTypeId} // Zmena: viazané na ID
+                <AnimatePresence>
+                  {trainingTypeId && (
+                    <motion.span
+                      key="check-type"
+                      initial={{ opacity: 0, scale: 0.5 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.5 }}
+                      className="ml-2 inline-flex items-center"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </label>
+              <select
+                value={trainingTypeId}
                 onChange={handleTypeChange}
                 disabled={Boolean(lockedReservation)}
-                className="w-full text-lg py-3"
+                className="w-full text-base sm:text-lg py-3 rounded-xl border border-neutral-200 bg-neutral-50/50 font-medium font-sans focus:ring-2 focus:ring-primary focus:border-primary"
               >
                 <option value="">{t?.booking?.trainingType?.placeholder || 'Choose training type...'}</option>
                 {selectableTrainingTypes
                   .map(type => (
-                    <option key={type.id} value={type.id}> {/* Zmena: value={type.id} */}
+                    <option key={type.id} value={type.id}>
                       {type.name} {type.duration_minutes ? `(${type.duration_minutes} min)` : ''} {!type.active ? '(Inactive)' : ''}
                     </option>
                   ))}
-              </Form.Select>
-            </Form.Group>
+              </select>
+            </div>
 
-            <Form.Group className="mb-6">
-              <Form.Label className="font-bold text-gray-800">
-                {t?.booking?.selectDate || 'Select Available Date'} <span className="text-red-500">*</span>
-              </Form.Label>
-              <div className="flex justify-center">
-                <div className="max-w-md w-full">
-                  <CustomCalendar
-                    trainingDates={trainingDates}
-                    trainingType={trainingType}
-                    selectedDate={selectedDate}
-                    onDateSelect={handleDateSelect}
-                    minDate={new Date()}
-                    disabled={Boolean(lockedReservation)}
-                    weekendClassName="bg-gray-100"
-                  />
-                </div>
-              </div>
-            </Form.Group>
-
-            {selectedDate && trainingType && trainingDates[trainingType]?.[selectedDate] && (
-              <Form.Group className="mb-4" ref={timeSelectRef}>
-                <Form.Label className="font-bold text-gray-800">
-                  {t?.booking?.selectTime || 'Select Time Slot'} <span className="text-red-500">*</span>
-                </Form.Label>
-                <Form.Select
-                  value={trainingId || ""} // Value je teraz ID
-                  onChange={handleTimeSlotSelect}
-                  disabled={Boolean(lockedReservation)}
-                  className="w-full text-lg py-3"
+            <AnimatePresence>
+              {trainingType && (
+                <motion.div
+                  key="session-select"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                  className="overflow-hidden mb-8 -mx-1 px-1"
                 >
-                  <option value="">-- {t?.booking?.selectTime || 'Choose a Time Slot'} --</option>
-                  {trainingDates[trainingType][selectedDate].map((session) => (
-                    <option key={session.id} value={session.id}> {/* Value je ID */}
-                      {session.time} {/* User vidí ČAS */}
-                    </option>
-                  ))}
-                </Form.Select>
-                
-                {/* Zobrazenie témy ak je vybraný čas a existuje téma */}
-                {(() => {
-                  const selectedSession = trainingId && trainingDates[trainingType][selectedDate]
-                    ? trainingDates[trainingType][selectedDate].find(s => String(s.id) === String(trainingId))
-                    : null;
-                  
-                  if (selectedSession?.theme) {
-                    return (
-                      <div className="mt-2 p-3 bg-primary-50 border border-primary-200 rounded-lg">
-                        <p className="text-black font-bold">
-                          Téma: {selectedSession.theme}
-                        </p>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
-              </Form.Group>
-            )}
+                  <div>
+                    <label className="font-bold text-sm text-neutral-700 mb-2">
+                      {t?.booking?.selectDate || 'Select Available Date & Time'} <span className="text-red-500">*</span>
+                      <AnimatePresence>
+                        {trainingId && (
+                          <motion.span
+                            key="check-session"
+                            initial={{ opacity: 0, scale: 0.5 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.5 }}
+                            className="ml-2 inline-flex items-center"
+                          >
+                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </label>
+                    <select
+                      value={trainingId || ''}
+                      onChange={handleSessionSelect}
+                      disabled={!trainingType || Boolean(lockedReservation)}
+                      className="w-full text-base sm:text-lg py-3 rounded-xl border border-neutral-200 bg-neutral-50/50 font-medium font-sans focus:ring-2 focus:ring-primary focus:border-primary"
+                    >
+                      <option value="">-- {t?.booking?.selectDate || 'Choose a date and time'} --</option>
+                      {trainingType && trainingDates[trainingType]
+                        ? Object.entries(trainingDates[trainingType])
+                            .sort(([a], [b]) => a.localeCompare(b))
+                            .flatMap(([dateKey, sessions]) =>
+                              sessions.map((session) => (
+                                <option key={session.id} value={session.id}>
+                                  {dateKey} — {session.time}
+                                </option>
+                              ))
+                            )
+                        : null}
+                    </select>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {!availability.isAvailable && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4 flex items-center">
-                <div className="text-yellow-800">
-                  <div className="font-bold">
+              <div className="bg-red-50 border border-red-100 rounded-xl p-4 mt-6 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="text-red-800 text-sm">
+                  <div className="font-bold mb-1">
                     {t?.booking?.availability?.warning || 'Availability Warning'}:
                   </div>
-                  <div className="mt-1">{formatAvailabilityMessage()}</div>
+                  <div>{formatAvailabilityMessage()}</div>
                 </div>
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
 
-        {/* Personal Information Card */}
-        <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200">
-          <div className="bg-gray-100 bg-opacity-50 border-b border-gray-300 px-6 py-4">
-            <h5 className="text-lg font-bold text-gray-800">
+        {/* 2. Personal Information */}
+        <motion.div
+          custom={1}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-40px' }}
+          variants={cardVariants}
+          className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-sky-400 overflow-hidden relative"
+        >
+          <div className="bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+              <User className="w-4 h-4" />
+            </div>
+            <h5 className="text-lg font-extrabold text-foreground m-0">
               {t?.booking?.personalInfo || 'Personal Information'}
             </h5>
           </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="p-6 sm:p-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
-                <Form.Group className="mb-4">
-                  <Form.Label className="font-bold text-gray-800">
-                    {t?.booking?.name || 'Your Name'}
-                  </Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={userData ? `${userData.first_name} ${userData.last_name}` : ''}
-                    readOnly
-                    className="bg-gray-100"
-                  />
-                </Form.Group>
+                <label className="font-bold text-sm text-neutral-700 mb-2">
+                  {t?.booking?.name || 'Your Name'}
+                </label>
+                <Form.Control
+                  type="text"
+                  value={userData ? `${userData.first_name} ${userData.last_name}` : ''}
+                  readOnly
+                  className="bg-neutral-100 border-transparent rounded-xl py-3 text-sm font-medium text-neutral-600"
+                />
               </div>
               <div>
-                <Form.Group className="mb-4">
-                  <Form.Label className="font-bold text-gray-800">
-                    {t?.booking?.email || 'Your Email'}
-                  </Form.Label>
-                  <Form.Control
-                    type="email"
-                    value={userData ? userData.email : ''}
-                    readOnly
-                    className="bg-gray-100"
-                  />
-                </Form.Group>
+                <label className="font-bold text-sm text-neutral-700 mb-2">
+                  {t?.booking?.email || 'Your Email'}
+                </label>
+                <Form.Control
+                  type="email"
+                  value={userData ? userData.email : ''}
+                  readOnly
+                  className="bg-neutral-100 border-transparent rounded-xl py-3 text-sm font-medium text-neutral-600"
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <Form.Group className="mb-4">
-                  <Form.Label className="font-bold text-gray-800">
-                    {t?.booking?.mobile || 'Mobile Number'}
-                  </Form.Label>
-                  <IMaskInput
-                    mask="+421 000 000 000"
-                    definitions={{ '0': /[0-9]/ }}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    value={mobile}
-                    onAccept={(value) => setMobile(value)}
-                    placeholder={t?.booking?.mobilePlaceholder || '+421 xxx xxx xxx'}
-                  />
-                </Form.Group>
+                <label className="font-bold text-sm text-neutral-700 mb-2">
+                  {t?.booking?.mobile || 'Mobile Number'}
+                </label>
+                <IMaskInput
+                  mask="+421 000 000 000"
+                  definitions={{ '0': /[0-9]/ }}
+                  className="w-full px-4 py-3 border border-neutral-200 rounded-xl bg-neutral-50/50 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                  value={mobile}
+                  onAccept={(value) => setMobile(value)}
+                  placeholder={t?.booking?.mobilePlaceholder || '+421 xxx xxx xxx'}
+                />
               </div>
               <div>
-                <Form.Group className="mb-4">
-                  <Form.Label className="font-bold text-gray-800">
-                    {t?.booking?.address || 'Address'}
-                  </Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={userData ? userData.address : ''}
-                    readOnly
-                    className="bg-gray-100"
-                  />
-                </Form.Group>
+                <label className="font-bold text-sm text-neutral-700 mb-2">
+                  {t?.booking?.address || 'Address'}
+                </label>
+                <Form.Control
+                  type="text"
+                  value={userData ? userData.address : ''}
+                  readOnly
+                  className="bg-neutral-100 border-transparent rounded-xl py-3 text-sm font-medium text-neutral-600"
+                />
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Children Information Card */}
-        {ageGroup === 'child' && (
-          <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200">
-            <div className="bg-gray-100 bg-opacity-50 border-b border-gray-300 px-6 py-4">
-              <h5 className="text-lg font-bold text-gray-800">
-                {t?.booking?.childrenInfo || 'Children Information'}
-              </h5>
-            </div>
-            <div className="p-6">
-              <Form.Group className="mb-6">
-                <Form.Label className="font-bold text-gray-800">
-                  {t?.booking?.childrenCount || 'Number of Children'} <span className="text-red-500">*</span>
-                </Form.Label>
-                <Form.Select
-                  value={childrenCount}
-                  onChange={(e) => setChildrenCount(parseInt(e.target.value))}
-                  required
-                  disabled={isCreditMode}
-                  className="w-full text-lg py-3"
-                >
-                  {/* Dynamické generovanie možností 1, 2, 3 */}
-                  {[1, 2, 3].map(num => {
-                    // 1. Zistíme cenu pre daný počet detí z aktuálneho typu tréningu
-                    const priceObj = currentType?.prices?.find(p => p.child_count === num);
-                    // 2. Ak ešte nie je vybraný typ, alebo cena chýba, dáme '?' alebo 0
-                    const displayPrice = priceObj ? priceObj.price : 0;
-
-                    // 3. Text pre dieťa/deti
-                    const childLabel = num === 1
-                      ? (t?.booking?.child || 'Child')
-                      : (t?.booking?.children || 'Children');
-
-                    return (
-                      <option key={num} value={num}>
-                        {num} {childLabel}{!useSeasonTicket && ` - €${displayPrice}`}
-                      </option>
-                    );
-                  })}
-                </Form.Select>
-              </Form.Group>
-
-              <Form.Group className="mb-4">
-                <Form.Label className="font-bold text-gray-800">
-                  {t?.booking?.childrenAge || 'Age of Children'} <span className="text-red-500">*</span>
-                </Form.Label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {childrenAges.map((age, index) => (
-                    <div key={index} className="border border-gray-300 rounded-lg p-4">
-                      <Form.Label className="font-medium text-primary-600 mb-2 block">
-                        {t?.booking?.childAge?.replace('{number}', index + 1) || `${index + 1}${getOrdinalSuffix(index + 1)} Child`}
-                      </Form.Label>
-                      <Form.Select
-                        value={age}
-                        onChange={(e) => handleAgeChange(index, e.target.value)}
-                        required
-                        className="w-full"
-                      >
-                        <option value="" disabled>
-                          {t?.booking?.chooseAge || 'Select age'}
-                        </option>
-                        {Array.from({ length: 10 }, (_, i) => i + 1).map((ageOption) => (
-                          <option key={ageOption} value={ageOption}>
-                            {ageOption} {getYearLabel(ageOption)}
-                          </option>
-                        ))}
-                      </Form.Select>
-                    </div>
-                  ))}
+        {/* 3. Children Information */}
+        <AnimatePresence>
+          {ageGroup === 'child' && (
+            <motion.div
+              key="children-section"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+              className="overflow-hidden"
+            >
+              <motion.div
+                custom={2}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: '-40px' }}
+                variants={cardVariants}
+                className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-violet-400 overflow-hidden relative"
+              >
+                <div className="bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <h5 className="text-lg font-extrabold text-foreground m-0">
+                    {t?.booking?.childrenInfo || 'Children Information'}
+                  </h5>
                 </div>
-              </Form.Group>
-            </div>
-          </div>
-        )}
+                <div className="p-6 sm:p-8">
+                  <div className="mb-8">
+                    <label className="font-bold text-sm text-neutral-700 mb-2">
+                      {t?.booking?.childrenCount || 'Number of Children'} <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={childrenCount}
+                      onChange={(e) => setChildrenCount(parseInt(e.target.value))}
+                      required
+                      disabled={isCreditMode}
+                      className="w-full text-base sm:text-lg py-3 rounded-xl border border-neutral-200 bg-neutral-50/50 font-medium font-sans focus:ring-2 focus:ring-primary focus:border-primary"
+                    >
+                      {[1, 2, 3].map(num => {
+                        const priceObj = currentType?.prices?.find(p => p.child_count === num);
+                        const displayPrice = priceObj ? priceObj.price : 0;
+                        const childLabel = num === 1
+                          ? (t?.booking?.child || 'Child')
+                          : (t?.booking?.children || 'Children');
 
-        {/* Additional Options Card */}
-        <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200">
-          <div className="bg-gray-100 bg-opacity-50 border-b border-gray-300 px-6 py-4">
-            <h5 className="text-lg font-bold text-gray-800">
+                        return (
+                          <option key={num} value={num}>
+                            {num} {childLabel}{!useSeasonTicket && ` - €${displayPrice}`}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  <div className="mb-2">
+                    <label className="font-bold text-sm text-neutral-700 mb-4 block">
+                      {t?.booking?.childrenAge || 'Age of Children'} <span className="text-red-500">*</span>
+                    </label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {childrenAges.map((age, index) => (
+                        <div key={index} className="border border-neutral-200 rounded-2xl p-5 bg-neutral-50/30">
+                          <label className="font-extrabold text-sm text-foreground mb-3 block">
+                            {t?.booking?.childAge?.replace('{number}', index + 1) || `${index + 1}${getOrdinalSuffix(index + 1)} Child`}
+                          </label>
+                          <select
+                            value={age}
+                            onChange={(e) => handleAgeChange(index, e.target.value)}
+                            required
+                            className="w-full rounded-xl border border-neutral-200 py-3 text-sm font-medium font-sans bg-neutral-50/50 focus:ring-2 focus:ring-primary focus:border-primary"
+                          >
+                            <option value="" disabled>
+                              {t?.booking?.chooseAge || 'Vyberte vek'}
+                            </option>
+                            {Array.from({ length: 10 }, (_, i) => i + 1).map((ageOption) => (
+                              <option key={ageOption} value={ageOption}>
+                                {ageOption} {getYearLabel(ageOption)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 4. Additional Options */}
+        <motion.div
+          custom={3}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-40px' }}
+          variants={cardVariants}
+          className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-amber-400 overflow-hidden relative"
+        >
+          <div className="bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+              <Settings className="w-4 h-4" />
+            </div>
+            <h5 className="text-lg font-extrabold text-foreground m-0">
               {t?.booking?.additionalOptions || 'Additional Options'}
             </h5>
           </div>
-          <div className="p-6">
-            <Form.Group className="mb-4">
-              <Form.Label className="font-bold text-gray-800">
+          <div className="p-6 sm:p-8">
+            <div className="mb-6">
+              <label className="font-bold text-sm text-neutral-700 mb-2">
                 {t?.booking?.notes || 'Additional Notes'}
-              </Form.Label>
+              </label>
               <Form.Control
                 as="textarea"
                 rows={3}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder={t?.booking?.notesPlaceholder || 'Any special requirements, allergies, or additional information...'}
-                className="w-full py-3"
+                className="w-full py-3 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
               />
-            </Form.Group>
+            </div>
 
-            <Form.Group className="mb-4">
-              {/* Accompanying Person - Only for child age group */}
-              {ageGroup === 'child' && (
-                <div className="bg-gray-100 border border-gray-300 rounded-lg p-4">
+            {ageGroup === 'child' && (
+              <div className="mb-6">
+                <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-5">
                   <Form.Check
                     type="checkbox"
                     id="accompanyingPerson"
@@ -2231,37 +2056,40 @@ const Booking = () => {
                         : () => setAccompanyingPerson(!accompanyingPerson)
                     }
                     disabled={isCreditMode || (useSeasonTicket && selectedSeasonTicket)}
+                    className="m-0"
                     label={
-                      <div>
-                        <span className="font-bold text-gray-800">
+                      <div className="ml-2">
+                        <span className="font-extrabold text-sm text-foreground block">
                           {t?.booking?.accompanyingPerson || 'Participation of Accompanying Person'} (3€)
                         </span>
                         {accompanyingPerson && (
-                          <div className="text-gray-600 text-sm mt-1">
-                            <i className="bi bi-info-circle"></i> {t?.booking?.accompanyingPersonHelp || 'An accompanying person is someone other than the parent who accompanies the child.'}
+                          <div className="text-neutral-500 text-xs mt-1.5 flex items-start gap-1">
+                            <Info className="w-3.5 h-3.5 flex-shrink-0" /> 
+                            <span>{t?.booking?.accompanyingPersonHelp || 'An accompanying person is someone other than the parent who accompanies the child.'}</span>
                           </div>
                         )}
                         {isCreditMode && (
-                          <div className="text-blue-600 text-sm mt-1">
-                            <i className="bi bi-info-circle"></i> {t?.booking?.creditModeReadOnly || 'Set from original booking - read only'}
+                          <div className="text-primary text-xs mt-1.5 flex items-start gap-1">
+                            <Info className="w-3.5 h-3.5 flex-shrink-0" /> 
+                            <span>{t?.booking?.creditModeReadOnly || 'Set from original booking - read only'}</span>
                           </div>
                         )}
                         {useSeasonTicket && selectedSeasonTicket && !isCreditMode && (
-                          <div className="text-yellow-600 text-sm mt-1">
-                            <i className="bi bi-exclamation-triangle"></i> {t?.booking?.notCoveredBySeasonTicket || 'Not covered by season ticket'}
+                          <div className="text-amber-600 text-xs mt-1.5 flex items-start gap-1">
+                            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> 
+                            <span>{t?.booking?.notCoveredBySeasonTicket || 'Not covered by season ticket'}</span>
                           </div>
                         )}
                       </div>
                     }
                   />
                 </div>
-              )}
-            </Form.Group>
+              </div>
+            )}
 
-            {/* Season Ticket Section - For both child and adult age groups */}
             {!isCreditMode && seasonTickets.length > 0 && (
-              <Form.Group className="mb-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="mb-2">
+                <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5">
                   <Form.Check
                     type="checkbox"
                     id="useSeasonTicket"
@@ -2271,28 +2099,29 @@ const Booking = () => {
                       setSelectedSeasonTicket('');
                     }}
                     disabled={availableSeasonTickets.length === 0}
+                    className="m-0"
                     label={
-                      <span className="font-bold text-gray-800">
-                        <i className="bi bi-ticket-perforated me-2"></i>
+                      <span className="font-extrabold text-sm text-primary-700 ml-2 flex items-center gap-2">
+                        <Ticket className="w-4 h-4" />
                         {t?.booking?.useSeasonTicket || 'Use Season Ticket'}
                       </span>
                     }
                   />
                   {availableSeasonTickets.length === 0 && (
-                    <div className="text-sm text-gray-600 mt-2">
+                    <div className="text-xs text-primary-600 mt-2 ml-7 font-medium">
                       {t?.booking?.noSeasonTicketForType || 'Pre tento tréning nemáte žiadnu permanentku.'}
                     </div>
                   )}
                   {useSeasonTicket && (
-                    <div className="mt-4">
-                      <Form.Label className="font-medium text-gray-700">
+                    <div className="mt-5 ml-7">
+                      <label className="font-bold text-xs text-primary-800 mb-2 block">
                         {t?.booking?.selectSeasonTicket || 'Select Season Ticket'} <span className="text-red-500">*</span>
-                      </Form.Label>
-                      <Form.Select
+                      </label>
+                      <select
                         value={selectedSeasonTicket}
                         onChange={(e) => setSelectedSeasonTicket(e.target.value)}
                         required={useSeasonTicket}
-                        className="w-full text-xs sm:text-sm md:text-base py-3"
+                        className="w-full text-xs sm:text-sm py-2.5 rounded-xl border border-primary/20 bg-white font-medium font-sans focus:ring-2 focus:ring-primary focus:border-primary"
                         style={{ whiteSpace: 'normal' }}
                       >
                         <option value="">{t?.booking?.selectSeasonTicket || 'Choose a Season Ticket'}</option>
@@ -2306,136 +2135,131 @@ const Booking = () => {
                             )}
                           </option>
                         ))}
-                      </Form.Select>
+                      </select>
                     </div>
                   )}
                 </div>
-              </Form.Group>
+              </div>
             )}
           </div>
-        </div>
+        </motion.div>
 
-        {/* Consents and Agreements Card */}
-        <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200">
-          <div className="bg-gray-100 bg-opacity-50 border-b border-gray-300 px-6 py-4">
-            <h5 className="text-lg font-bold text-gray-800">
+        {/* 5. Consents and Agreements */}
+        <motion.div
+          custom={4}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-40px' }}
+          variants={cardVariants}
+          className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-emerald-400 overflow-hidden relative"
+        >
+          <div className="bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+              <FileText className="w-4 h-4" />
+            </div>
+            <h5 className="text-lg font-extrabold text-foreground m-0">
               {t?.booking?.consents || 'Consents and Agreements'}
             </h5>
           </div>
-          <div className="p-6">
-            <Form.Group className="mb-3">
-              <Form.Check
-                type="checkbox"
-                id="photoConsent"
-                checked={photoConsent === true}
-                onChange={e => setPhotoConsent(e.target.checked ? true : null)}
-                label={
-                  <span className="text-sm text-gray-700 leading-relaxed">
-                    {ageGroup === 'child' ? (
-                      <>
-                        Ako zákonní zástupcovia dieťaťa udeľujeme občianske združenie Nitráčik o.z. súhlas na spracúvanie fotografií, videí nášho dieťaťa. Informáciu o podmienkach spracúvania osobných údajov nájdete{' '}
-                        <a
-                          href="/photo-consent-info"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 font-bold underline hover:no-underline transition-colors"
-                        >
-                          TU
-                        </a>
-                      </>
-                    ) : (
-                      <>
-                        Udeľujem súhlas so spracúvaním fotografií a videí môjej osoby počas tréningu. Informáciu o podmienkach spracúvania osobných údajov nájdete{' '}
-                        <a
-                          href="/photo-consent-info"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 font-bold underline hover:no-underline transition-colors"
-                        >
-                          TU
-                        </a>
-                      </>
-                    )}
-                  </span>
-                }
-              />
-            </Form.Group>
-
-
-            {/* Checkbox - Service Consent (only for card payments) */}
-            {!useSeasonTicket && !isCreditMode && (
-              <Form.Group className="mb-4">
+          <div className="p-6 sm:p-8 space-y-4">
+            <div>
+              <div className="flex items-start">
                 <Form.Check
                   type="checkbox"
-                  id="serviceConsent"
-                  checked={serviceConsent}
-                  onChange={() => setServiceConsent(!serviceConsent)}
-                  required
-                  label={
-                    <span className="text-sm text-gray-700 leading-relaxed font-semibold">
-                      Súhlasím so{' '}
-                      <button
-                        type="button"
-                        onClick={() => setShowServiceConsentModal(true)}
-                        className="text-primary-600 hover:text-primary-700 underline font-medium px-0 inline"
-                        style={{ background: 'none', border: 'none', padding: 0, margin: 0, cursor: 'pointer' }}
-                      >
-                        začatím poskytovania služby
-                      </button>
-                      {' '}pred uplynutím lehoty na odstúpenie od zmluvy. (povinné)
-                    </span>
-                  }
+                  id="photoConsent"
+                  checked={photoConsent === true}
+                  onChange={e => setPhotoConsent(e.target.checked ? true : null)}
+                  className="mt-1"
                 />
-              </Form.Group>
+                <label htmlFor="photoConsent" className="ml-3 text-sm text-neutral-600 leading-relaxed font-medium cursor-pointer">
+                  {ageGroup === 'child' ? (
+                    <>
+                      Ako zákonní zástupcovia dieťaťa udeľujeme občianske združenie Nitráčik o.z. súhlas na spracúvanie fotografií, videí nášho dieťaťa. Informáciu o podmienkach spracúvania osobných údajov nájdete{' '}
+                      <a href="/photo-consent-info" target="_blank" rel="noopener noreferrer" className="text-primary font-bold hover:underline">TU</a>
+                    </>
+                  ) : (
+                    <>
+                      Udeľujem súhlas so spracúvaním fotografií a videí môjej osoby počas tréningu. Informáciu o podmienkach spracúvania osobných údajov nájdete{' '}
+                      <a href="/photo-consent-info" target="_blank" rel="noopener noreferrer" className="text-primary font-bold hover:underline">TU</a>
+                    </>
+                  )}
+                </label>
+              </div>
+            </div>
+
+            {!useSeasonTicket && !isCreditMode && (
+              <div>
+                <div className="flex items-start">
+                  <Form.Check
+                    type="checkbox"
+                    id="serviceConsent"
+                    checked={serviceConsent}
+                    onChange={() => setServiceConsent(!serviceConsent)}
+                    required
+                    className="mt-1"
+                  />
+                  <label htmlFor="serviceConsent" className="ml-3 text-sm text-neutral-700 leading-relaxed font-bold cursor-pointer">
+                    Súhlasím so{' '}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); setShowServiceConsentModal(true); }}
+                      className="text-primary hover:text-primary-600 underline font-extrabold px-0 inline bg-transparent border-none p-0 m-0 cursor-pointer"
+                    >
+                      začatím poskytovania služby
+                    </button>
+                    {' '}pred uplynutím lehoty na odstúpenie od zmluvy. <span className="text-red-500">(povinné)</span>
+                  </label>
+                </div>
+              </div>
             )}
 
-            <Form.Group className="mb-4">
-              <Form.Check
-                type="checkbox"
-                id="consent"
-                checked={consent}
-                onChange={() => setConsent(!consent)}
-                required
-                  label={
-                    <span className="text-sm text-gray-700 leading-relaxed font-semibold">
-                      Vyjadrujem súhlas so{' '}
-                      <a
-                        href="/terms"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary-600 hover:text-primary-700 underline font-medium"
-                      >
-                        Všeobecnými obchodnými podmienkami
-                      </a>
-                      {' '}a beriem na vedomie, že Informáciu o spracúvaní osobných údajov nájdem{' '}
-                      <a
-                        href="/gdpr"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary-600 hover:text-primary-700 underline font-medium"
-                      >
-                        TU
-                      </a>.
-                      {' '}<span className="font-semibold">(povinné)</span>
-                    </span>
-                  }
-                style={{ marginBottom: '24px' }}
-              />
-            </Form.Group>
+            <div>
+              <div className="flex items-start">
+                <Form.Check
+                  type="checkbox"
+                  id="consent"
+                  checked={consent}
+                  onChange={() => setConsent(!consent)}
+                  required
+                  className="mt-1"
+                />
+                <label htmlFor="consent" className="ml-3 text-sm text-neutral-700 leading-relaxed font-bold cursor-pointer">
+                  Vyjadrujem súhlas so{' '}
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary-600 underline font-extrabold">Všeobecnými obchodnými podmienkami</a>
+                  {' '}a beriem na vedomie, že Informáciu o spracúvaní osobných údajov nájdem{' '}
+                  <a href="/gdpr" target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary-600 underline font-extrabold">TU</a>.
+                  {' '}<span className="text-red-500">(povinné)</span>
+                </label>
+              </div>
+            </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Pricing and Submission Card */}
-        <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200 mb-8">
-          <div className="p-6 text-center">
+        {/* 6. Pricing and Submission */}
+        <motion.div
+          custom={5}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-40px' }}
+          variants={cardVariants}
+          className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-emerald-500 overflow-hidden mb-8"
+        >
+          <div className="bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+              <CreditCard className="w-4 h-4" />
+            </div>
+            <h5 className="text-lg font-extrabold text-foreground m-0">
+              {t?.booking?.summary || 'Zhrnutie a platba'}
+            </h5>
+          </div>
+          <div className="p-8 sm:p-10 text-center">
             {!useSeasonTicket && !isCreditMode && (
-              <div className="mb-6">
-                <h4 className="text-2xl font-bold text-primary-600">
+              <div className="mb-8">
+                <h4 className="text-3xl sm:text-4xl font-black text-foreground mb-2">
                   {t?.booking?.totalPrice || 'Total Price'}:
-                  {/* ZMENA: Tu voláme tvoju novú funkciu */}
-                  <span className="ml-2">€{calculateTotalPrice().toFixed(2)}</span>
+                  <span className="ml-3 text-primary">€{calculateTotalPrice().toFixed(2)}</span>
                 </h4>
-                <div className="text-gray-600 text-sm mt-1">
+                <div className="text-neutral-500 text-sm font-medium">
                   {ageGroup === 'adult'
                     ? (t?.booking?.adultParticipantShort || 'adult participant')
                     : (
@@ -2448,17 +2272,36 @@ const Booking = () => {
               </div>
             )}
 
-            {warningMessage && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-center">
-                <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                {warningMessage}
-              </div>
-            )}
+            <AnimatePresence>
+              {warningMessage && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden mb-6"
+                >
+                  <div className="bg-red-50 border border-red-200 text-red-800 px-5 py-4 rounded-2xl flex items-center gap-3 font-bold text-sm text-left">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-600" />
+                    <span>{warningMessage}</span>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            <Button
+            <motion.button
               type="submit"
-              className="w-full py-4 font-bold text-lg bg-green-500 border-green-500 hover:bg-green-600"
-              disabled={!consent || loading || !availability.isAvailable || (useSeasonTicket && !selectedSeasonTicket) || (isCreditMode && (!selectedDate || !selectedTime)) || (!useSeasonTicket && !isCreditMode && !serviceConsent)}
+              whileHover={{ scale: 1.015 }}
+              whileTap={{ scale: 0.98 }}
+              className="w-full py-4 px-8 rounded-full font-extrabold text-base sm:text-lg bg-gradient-to-r from-emerald-500 to-emerald-400 text-white hover:from-emerald-600 hover:to-emerald-500 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+              disabled={
+                !consent ||
+                loading ||
+                !availability.isAvailable ||
+                (useSeasonTicket && !selectedSeasonTicket) ||
+                (isCreditMode && (!selectedDate || !selectedTime)) ||
+                (!useSeasonTicket && !isCreditMode && !serviceConsent) ||
+                (!isCreditMode && !trainingId)
+              }
               data-tooltip-id="booking-tooltip"
               data-tooltip-content={
                 !availability.isAvailable
@@ -2467,63 +2310,66 @@ const Booking = () => {
                     ? t?.booking?.consentRequired || 'You must agree to the rules to complete the booking.'
                     : useSeasonTicket && !selectedSeasonTicket
                       ? t?.booking?.selectSeasonTicketRequired || 'Please select a season ticket.'
-                      : isCreditMode && (!selectedDate || !selectedTime)
-                        ? t?.booking?.selectDateTimeRequired || 'Please select date and time for your credit booking.'
+                      : !isCreditMode && !trainingId
+                        ? t?.booking?.selectDateTimeRequired || 'Prosím, vyberte termín.'
+                        : isCreditMode && (!selectedDate || !selectedTime)
+                          ? t?.booking?.selectDateTimeRequired || 'Prosím, vyberte dátum a čas pre rezerváciu s kreditom.'
                         : ''
               }
             >
               {loading ? (
                 <>
-                  <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-                  {t?.booking?.processing || 'Processing...'}
+                  <Spinner size="sm" />
+                  <span>{t?.booking?.processing || 'Processing...'}</span>
                 </>
               ) : (
-                <div>
+                <>
                   {isCreditMode ? (
                     <>
-                      <i className="bi bi-ticket-perforated me-2"></i>
-                      {t?.booking?.bookWithCredit || 'Book with Credit'}
+                      <Ticket className="w-5 h-5" />
+                      <span>{t?.booking?.bookWithCredit || 'Book with Credit'}</span>
                     </>
                   ) : useSeasonTicket ? (
                     <>
-                      <i className="bi bi-check-circle me-2"></i>
-                      {t?.booking?.bookWithSeasonTicket || 'Book with Season Ticket'}
+                      <CheckCircle2 className="w-5 h-5" />
+                      <span>{t?.booking?.bookWithSeasonTicket || 'Book with Season Ticket'}</span>
                     </>
                   ) : (
                     <>
-                      <i className="bi bi-credit-card me-2"></i>
-                      {t?.booking?.bookWithPayment || 'Confirm reservation'}
+                      <CreditCard className="w-5 h-5" />
+                      <span>{t?.booking?.bookWithPayment || 'Confirm reservation'}</span>
                     </>
                   )}
-                </div>
+                </>
               )}
-            </Button>
-            <Tooltip id="booking-tooltip" />
+            </motion.button>
+            <Tooltip id="booking-tooltip" className="z-[9999]" />
 
             {!isCreditMode && !useSeasonTicket && (
-              <div className="mt-2">
-                <div className="text-gray-800 text-base font-semibold">
-                  {'| '}{t?.booking?.paymentObligation || 'with payment obligation'}{' |'}
+              <div className="mt-4">
+                <div className="text-neutral-500 text-xs font-bold uppercase tracking-wider">
+                  {t?.booking?.paymentObligation || 'with payment obligation'}
                 </div>
               </div>
             )}
 
-            <div className="mt-4">
-
-              <div className="text-gray-600 text-sm mt-8">
-                {'🔒 '}{t?.booking?.secureBooking || 'Your booking is secure and protected'}
-              </div>
+            <div className="mt-8 flex justify-center items-center gap-2 text-neutral-400 text-xs font-bold">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>
+              <span>{t?.booking?.secureBooking || 'Your booking is secure and protected'}</span>
             </div>
           </div>
-        </div>
-      </Form>
+        </motion.div>
+      </form>
 
+      {/* Duplicate Booking Modal */}
       <Modal show={showDuplicateBookingModal} onHide={handleDuplicateBookingCancel} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>{t?.booking?.duplicateBookingTitle || 'Duplicate booking confirmation'}</Modal.Title>
+        <Modal.Header closeButton className="border-neutral-200">
+          <Modal.Title className="font-extrabold text-xl text-foreground">
+            {t?.booking?.duplicateBookingTitle || 'Duplicate booking confirmation'}
+          </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          <p className="mb-0 text-gray-700">
+        <Modal.Body className="p-6">
+          <p className="mb-0 text-neutral-700 font-medium leading-relaxed">
             {duplicateBookingModalContext?.source === 'pending'
               ? 'Na tento termín už máte rozpracovanú rezerváciu. Dokončite platbu.'
               : duplicateBookingModalContext?.source === 'activity' || duplicateBookingModalContext?.source === 'backend' || duplicateBookingModalContext?.source === 'selection'
@@ -2531,22 +2377,30 @@ const Booking = () => {
               : t?.booking?.duplicateBookingDateMessage || 'You already have a booking on this date. Do you really want to continue and create another one?'}
           </p>
           {duplicateBookingModalContext?.source === 'pending' && pendingExistingBookingId && (
-            <p className="mt-2 mb-0 text-sm text-gray-500">ID rezervácie: {pendingExistingBookingId}</p>
+            <p className="mt-3 mb-0 text-xs font-bold text-neutral-400">ID rezervácie: {pendingExistingBookingId}</p>
           )}
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleDuplicateBookingCancel}>
+        <Modal.Footer className="border-neutral-200 p-6">
+          <button 
+            type="button" 
+            onClick={handleDuplicateBookingCancel}
+            className="px-6 py-2.5 rounded-full border border-neutral-200 text-neutral-700 font-bold hover:bg-neutral-100 transition-all text-sm"
+          >
             {duplicateBookingModalContext?.source === 'pending'
               ? 'Zrušiť'
               : duplicateBookingModalContext?.source === 'activity'
               ? t?.booking?.duplicateBookingBackToActivities || t?.activities?.backToActivities || 'Back to activities'
               : t?.booking?.duplicateBookingCancel || t?.booking?.cancel || 'No'}
-          </Button>
-          <Button variant="primary" onClick={handleDuplicateBookingConfirm}>
+          </button>
+          <button 
+            type="button" 
+            onClick={handleDuplicateBookingConfirm}
+            className="px-6 py-2.5 rounded-full bg-primary text-white font-bold hover:bg-primary-600 transition-all text-sm shadow-sm"
+          >
             {duplicateBookingModalContext?.source === 'pending'
               ? 'Dokončiť platbu'
               : t?.booking?.duplicateBookingConfirm || 'Yes, continue'}
-          </Button>
+          </button>
         </Modal.Footer>
       </Modal>
 
@@ -2555,98 +2409,378 @@ const Booking = () => {
         <Modal show={showCreditModal} onHide={() => {
           setShowCreditModal(false);
           setFillFormPreference({});
-        }}>
-          <Modal.Header closeButton>
-            <Modal.Title>{t?.booking?.chooseCredit || 'Choose Your Credit'}</Modal.Title>
+        }} centered size="lg">
+          <Modal.Header closeButton className="border-neutral-200">
+            <Modal.Title className="font-extrabold text-xl text-foreground">
+              {t?.booking?.chooseCredit || 'Choose Your Credit'}
+            </Modal.Title>
           </Modal.Header>
-          <Modal.Body>
+          <Modal.Body className="p-6">
             {(ageGroup === 'child' ? childCredits : adultCredits).length === 0 ? (
-              <p>{t?.booking?.noCredits || 'No credits available.'}</p>
+              <p className="text-neutral-500 font-medium text-center py-8">{t?.booking?.noCredits || 'No credits available.'}</p>
             ) : (
-              (ageGroup === 'child' ? childCredits : adultCredits).map((credit) => (
-                <div key={credit.id} className="mb-4 p-4 border border-gray-300 rounded-lg">
-                  <p><strong>{t?.booking?.originalDate || 'Original Date'}:</strong> {new Date(credit.original_date).toLocaleString()}</p>
-                  <p><strong>{t?.booking?.children || 'Children'}:</strong> {credit.child_count} | <strong>{t?.booking?.accompanyingPerson || 'Accompanying Person'}:</strong> {credit.accompanying_person ? 'Yes' : 'No'}</p>
-                  <p><strong>{t?.booking?.trainingType?.label || 'Training Type'}:</strong> {credit.training_type}</p>
-                  {isMiniMidiMaxiCredit(credit) && (
-                    <p className="text-amber-700 font-semibold">Tento kredit mozete vyuzivat na hodiny MINI, MIDI alebo MAXI.</p>
-                  )}
-                  <p><strong>{t?.booking?.photoConsent || 'Photo Consent'}:</strong> {credit.photo_consent ? 'Agreed' : 'Disagreed'}</p>
-                  {credit.mobile && <p><strong>{t?.booking?.mobile || 'Mobile'}:</strong> {credit.mobile}</p>}
-                  {credit.note && <p><strong>{t?.booking?.notes || 'Notes'}:</strong> {credit.note}</p>}
+              <div className="space-y-4">
+                {(ageGroup === 'child' ? childCredits : adultCredits).map((credit) => (
+                  <div key={credit.id} className="bg-neutral-50 border border-neutral-200 rounded-2xl p-5 transition-all hover:border-primary/30">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-neutral-700 mb-4">
+                      <div><strong className="text-foreground">{t?.booking?.originalDate || 'Original Date'}:</strong> {new Date(credit.original_date).toLocaleString('sk-SK')}</div>
+                      <div><strong className="text-foreground">{t?.booking?.trainingType?.label || 'Training Type'}:</strong> {credit.training_type}</div>
+                      <div><strong className="text-foreground">{t?.booking?.children || 'Children'}:</strong> {credit.child_count}</div>
+                      <div><strong className="text-foreground">{t?.booking?.accompanyingPerson || 'Accompanying Person'}:</strong> {credit.accompanying_person ? 'Áno' : 'Nie'}</div>
+                      <div><strong className="text-foreground">{t?.booking?.photoConsent || 'Photo Consent'}:</strong> {credit.photo_consent ? 'Súhlas' : 'Nesúhlas'}</div>
+                      {credit.mobile && <div className="sm:col-span-2"><strong className="text-foreground">{t?.booking?.mobile || 'Mobile'}:</strong> {credit.mobile}</div>}
+                      {credit.note && <div className="sm:col-span-2"><strong className="text-foreground">{t?.booking?.notes || 'Notes'}:</strong> {credit.note}</div>}
+                    </div>
 
-                  <Form.Check
-                    type="checkbox"
-                    id={`fill-form-${credit.id}`}
-                    label={t?.booking?.fillFormFromOriginal || 'Fill in the form based on the original booking'}
-                    className="mb-3 mt-3"
-                    checked={fillFormPreference[credit.id] || false}
-                    onChange={(e) => {
-                      setFillFormPreference(prev => ({
-                        ...prev,
-                        [credit.id]: e.target.checked
-                      }));
-                    }}
-                  />
+                    {isMiniMidiMaxiCredit(credit) && (
+                      <div className="bg-amber-50 text-amber-800 px-3 py-2 rounded-xl text-xs font-bold mb-4 border border-amber-200">
+                        Tento kredit môžete využívať na hodiny MINI, MIDI alebo MAXI.
+                      </div>
+                    )}
 
-                  <Button
-                    variant="primary"
-                    onClick={() => selectCredit(credit, fillFormPreference[credit.id] || false)}
-                    className="w-full"
-                  >
-                    {t?.booking?.useThisCredit || 'Use this credit'}
-                  </Button>
-                </div>
-              ))
+                    <Form.Check
+                      type="checkbox"
+                      id={`fill-form-${credit.id}`}
+                      label={<span className="font-bold text-sm text-neutral-700">Predvyplniť formulár podľa pôvodnej rezervácie</span>}
+                      className="mb-4"
+                      checked={fillFormPreference[credit.id] || false}
+                      onChange={(e) => {
+                        setFillFormPreference(prev => ({
+                          ...prev,
+                          [credit.id]: e.target.checked
+                        }));
+                      }}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => selectCredit(credit, fillFormPreference[credit.id] || false)}
+                      className="w-full bg-primary hover:bg-primary-600 text-white font-bold py-2.5 rounded-xl transition-all shadow-sm text-sm flex items-center justify-center gap-2"
+                    >
+                      <Ticket className="w-4 h-4" />
+                      <span>{t?.booking?.useThisCredit || 'Použiť tento kredit'}</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
           </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => {
-              setShowCreditModal(false);
-              setFillFormPreference({});
-            }}>
+          <Modal.Footer className="border-neutral-200 p-6">
+            <button 
+              type="button" 
+              onClick={() => { setShowCreditModal(false); setFillFormPreference({}); }}
+              className="px-6 py-2.5 rounded-full border border-neutral-200 text-neutral-700 font-bold hover:bg-neutral-100 transition-all text-sm"
+            >
               {t?.booking?.cancel || 'Cancel'}
-            </Button>
+            </button>
           </Modal.Footer>
         </Modal>
       )}
 
-      {/* Service Consent Modal */}
-      {showServiceConsentModal && (
-        <div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-            {/* Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-900">{t?.booking?.serviceConsentTitle || 'Súhlas so začatím poskytovania služby'}</h2>
-              <button
-                onClick={closeServiceConsentModal}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-              </button>
+      {/* Admin Create Type Modal */}
+      <Modal show={showCreateTypeModal} onHide={() => setShowCreateTypeModal(false)} size="lg" centered>
+        <Modal.Header closeButton className="border-neutral-200">
+          <Modal.Title className="font-extrabold text-xl text-foreground">Vytvoriť nový typ tréningu</Modal.Title>
+        </Modal.Header>
+        <form onSubmit={handleCreateType}>
+          <Modal.Body className="p-6 space-y-6">
+            <div>
+              <label className="block font-bold mb-3 text-sm text-neutral-700">Cieľová skupina *</label>
+              <div className="flex flex-wrap gap-4 bg-neutral-50 p-4 rounded-2xl border border-neutral-200">
+                <Form.Check
+                  type="radio"
+                  label={<span className="font-bold text-sm text-foreground">Deti</span>}
+                  name="audienceType"
+                  value="children"
+                  checked={newAudienceType === 'children'}
+                  onChange={(e) => setNewAudienceType(e.target.value)}
+                  className="m-0"
+                />
+                <Form.Check
+                  type="radio"
+                  label={<span className="font-bold text-sm text-foreground">Dospelí</span>}
+                  name="audienceType"
+                  value="adults"
+                  checked={newAudienceType === 'adults'}
+                  onChange={(e) => setNewAudienceType(e.target.value)}
+                  className="m-0"
+                />
+                <Form.Check
+                  type="radio"
+                  label={<span className="font-bold text-sm text-foreground">Oboje</span>}
+                  name="audienceType"
+                  value="both"
+                  checked={newAudienceType === 'both'}
+                  onChange={(e) => setNewAudienceType(e.target.value)}
+                  className="m-0"
+                />
+              </div>
             </div>
 
-            {/* Content */}
-            <div className="px-6 py-6 text-gray-700 leading-relaxed text-sm">
-              <p>
-                Podľa zákona č. 108/2024 Z.z. o ochrane spotrebiteľa týmto žiadam a udeľujem prevádzkovateľovi Nitráčik, o.z., IČO: 56374453 výslovný súhlas so začatím poskytovania služby pred uplynutím lehoty na odstúpenie od zmluvy a súčasne vyhlasujem, že som bol riadne poučený, že udelením tohto súhlasu strácam ako spotrebiteľ právo na odstúpenie od zmluvy po úplnom poskytnutí služby podľa § 19 ods. 1 písm. a) zákona č. 108/2024 Z.z. o ochrane spotrebiteľa v platnom znení.
-              </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="font-bold text-sm text-neutral-700 mb-1.5">Názov *</label>
+                <Form.Control
+                  required
+                  value={newTypeName}
+                  onChange={e => setNewTypeName(e.target.value)}
+                  placeholder="napr. Maľovanie, MIDI, Yoga"
+                  className="rounded-xl border-neutral-200 bg-neutral-50/50 py-2.5 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-sm text-neutral-700 mb-1.5">Trvanie (min) *</label>
+                <Form.Control
+                  type="number"
+                  required
+                  value={newTypeDuration}
+                  onChange={e => setNewTypeDuration(e.target.value)}
+                  className="rounded-xl border-neutral-200 bg-neutral-50/50 py-2.5 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+              </div>
+
+              {newAudienceType === 'children' && (
+                <div>
+                  <label className="font-bold text-sm text-neutral-700 mb-1.5">Sprevádzajúca osoba (€)</label>
+                  <Form.Control
+                    type="number"
+                    step="0.01"
+                    value={newAccompanyingPrice}
+                    onChange={e => setNewAccompanyingPrice(e.target.value)}
+                    className="rounded-xl border-neutral-200 bg-neutral-50/50 py-2.5 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Footer */}
-            <div className="border-t border-gray-200 px-6 py-4 bg-gray-50 flex justify-end">
-              <button
-                onClick={closeServiceConsentModal}
-                className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium"
-              >
-                Rozumiem
-              </button>
+            <div>
+              <label className="font-bold text-sm text-neutral-700 mb-1.5">Popis</label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={newTypeDesc}
+                onChange={e => setNewTypeDesc(e.target.value)}
+                className="rounded-xl border-neutral-200 bg-neutral-50/50 py-2.5 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
+              />
             </div>
+
+            <div className="relative">
+              <label className="block font-bold mb-2 text-sm text-neutral-700">Farba v kalendári</label>
+              <div className="flex items-center gap-4 bg-neutral-50 p-4 rounded-2xl border border-neutral-200">
+                <div
+                  onClick={() => setShowColorPicker(!showColorPicker)}
+                  className="w-12 h-12 rounded-xl border border-neutral-200 cursor-pointer shadow-sm hover:scale-105 transition-transform"
+                  style={{ backgroundColor: newTypeColor }}
+                />
+                <div className="flex flex-col">
+                  <span className="font-mono text-sm font-bold uppercase text-foreground">{newTypeColor}</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowColorPicker(!showColorPicker)}
+                    className="text-xs text-primary font-bold hover:underline text-left mt-0.5"
+                  >
+                    {showColorPicker ? 'Zavrieť výber' : 'Vybrať farbu'}
+                  </button>
+                </div>
+
+                <div className="ml-auto hidden sm:block">
+                  <div className="text-[10px] text-neutral-400 uppercase font-bold mb-1.5">Náhľad v rozvrhu</div>
+                  <div
+                    className="px-3 py-1.5 rounded-lg text-xs font-black uppercase border-l-4"
+                    style={{
+                      backgroundColor: `${newTypeColor}15`,
+                      borderColor: newTypeColor,
+                      color: '#1f2937'
+                    }}
+                  >
+                    {newTypeName || 'Tréning'}
+                  </div>
+                </div>
+              </div>
+
+              <AnimatePresence>
+                {showColorPicker && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute z-50 mt-2 bg-white p-4 rounded-2xl shadow-xl border border-neutral-100"
+                  >
+                    <HexColorPicker color={newTypeColor} onChange={setNewTypeColor} />
+                    <button
+                      type="button"
+                      className="w-full mt-4 bg-foreground text-white text-xs py-2.5 rounded-xl font-bold transition-all hover:bg-neutral-800"
+                      onClick={() => setShowColorPicker(false)}
+                    >
+                      Potvrdiť farbu
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <div className="border-t border-neutral-100 pt-6">
+              <h6 className="font-extrabold text-foreground mb-4 text-base">Cenová stratégia</h6>
+              
+              {(newAudienceType === 'adults' || newAudienceType === 'both') ? (
+                <div className="bg-neutral-50 p-5 rounded-2xl border border-neutral-200">
+                  <div>
+                    <label className="font-bold text-sm text-primary-700 mb-2">
+                      {newAudienceType === 'adults' ? 'Cena za osobu (€)' : 'Fixná cena (€)'}
+                    </label>
+                    <Form.Control
+                      type="number"
+                      step="0.01"
+                      value={fixedPricePerChild}
+                      onChange={e => setFixedPricePerChild(e.target.value)}
+                      className="rounded-xl border-neutral-200 bg-white py-2.5 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary max-w-[200px]"
+                    />
+                    <div className="text-xs text-neutral-500 font-medium mt-2">
+                      {newAudienceType === 'adults' 
+                        ? 'Jednotná cena pre dospelých.' 
+                        : 'Jednotná fixná cena pre všetkých účastníkov.'}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex gap-4 mb-4 bg-neutral-50 p-4 rounded-2xl border border-neutral-200">
+                    <Form.Check
+                      type="radio"
+                      label={<span className="font-bold text-sm text-foreground">Fixná cena za dieťa</span>}
+                      name="pricingMode"
+                      id="modeFixed"
+                      checked={pricingMode === 'fixed'}
+                      onChange={() => setPricingMode('fixed')}
+                      className="m-0"
+                    />
+                    <Form.Check
+                      type="radio"
+                      label={<span className="font-bold text-sm text-foreground">Vlastné / stupňované zľavy</span>}
+                      name="pricingMode"
+                      id="modeTiered"
+                      checked={pricingMode === 'tiered'}
+                      onChange={() => setPricingMode('tiered')}
+                      className="m-0"
+                    />
+                  </div>
+
+                  <div className="bg-neutral-50 p-5 rounded-2xl border border-neutral-200">
+                    {pricingMode === 'fixed' ? (
+                      <div>
+                        <label className="font-bold text-sm text-primary-700 mb-2">Cena za 1 dieťa (€)</label>
+                        <Form.Control
+                          type="number"
+                          step="0.01"
+                          value={fixedPricePerChild}
+                          onChange={e => setFixedPricePerChild(e.target.value)}
+                          className="rounded-xl border-neutral-200 bg-white py-2.5 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary max-w-[200px]"
+                        />
+                        <div className="text-xs text-neutral-500 font-medium mt-2">
+                          Systém automaticky vypočíta: 2 deti = €{(fixedPricePerChild * 2).toFixed(2)}, 3 deti = €{(fixedPricePerChild * 3).toFixed(2)}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+                        <div>
+                          <label className="font-bold text-sm text-neutral-700 mb-1.5">1 dieťa (€)</label>
+                          <Form.Control
+                            type="number"
+                            value={newTypePrice1}
+                            onChange={e => setNewTypePrice1(e.target.value)}
+                            className="rounded-xl border-neutral-200 bg-white py-2.5 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-bold text-sm text-neutral-700 mb-1.5">2 deti (€)</label>
+                          <Form.Control
+                            type="number"
+                            value={newTypePrice2}
+                            onChange={e => setNewTypePrice2(e.target.value)}
+                            className="rounded-xl border-neutral-200 bg-white py-2.5 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-bold text-sm text-neutral-700 mb-1.5">3 deti (€)</label>
+                          <Form.Control
+                            type="number"
+                            value={newTypePrice3}
+                            onChange={e => setNewTypePrice3(e.target.value)}
+                            className="rounded-xl border-neutral-200 bg-white py-2.5 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary w-full"
+                          />
+                        </div>
+                        <div className="sm:col-span-3 text-xs text-neutral-500 font-medium mt-1">
+                          Nastavte konkrétne ceny pre zľavu súrodencov.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </Modal.Body>
+
+          <Modal.Footer className="border-neutral-200 p-6">
+            <button 
+              type="button" 
+              onClick={() => setShowCreateTypeModal(false)}
+              className="px-6 py-2.5 rounded-full border border-neutral-200 text-neutral-700 font-bold hover:bg-neutral-100 transition-all text-sm"
+            >
+              Zavrieť
+            </button>
+            <button 
+              type="submit" 
+              className="px-6 py-2.5 rounded-full bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-all text-sm shadow-sm"
+            >
+              Vytvoriť typ
+            </button>
+          </Modal.Footer>
+        </form>
+      </Modal>
+
+      {/* Service Consent Modal (Tailwind/Framer Motion) */}
+      <AnimatePresence>
+        {showServiceConsentModal && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, y: 30, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 30, scale: 0.95 }}
+              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden border border-neutral-200"
+            >
+              <div className="px-6 sm:px-8 py-5 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
+                <h2 className="text-xl font-extrabold text-foreground m-0">{t?.booking?.serviceConsentTitle || 'Súhlas so začatím poskytovania služby'}</h2>
+                <button
+                  onClick={closeServiceConsentModal}
+                  className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-500 hover:bg-neutral-200 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="px-6 sm:px-8 py-6 text-neutral-600 leading-relaxed text-sm font-medium overflow-y-auto">
+                <p>
+                  Podľa zákona č. 108/2024 Z.z. o ochrane spotrebiteľa týmto žiadam a udeľujem prevádzkovateľovi Nitráčik, o.z., IČO: 56374453 výslovný súhlas so začatím poskytovania služby pred uplynutím lehoty na odstúpenie od zmluvy a súčasne vyhlasujem, že som bol riadne poučený, že udelením tohto súhlasu strácam ako spotrebiteľ právo na odstúpenie od zmluvy po úplnom poskytnutí služby podľa § 19 ods. 1 písm. a) zákona č. 108/2024 Z.z. o ochrane spotrebiteľa v platnom znení.
+                </p>
+              </div>
+
+              <div className="border-t border-neutral-100 px-6 sm:px-8 py-5 bg-neutral-50 flex justify-end shrink-0">
+                <button
+                  onClick={closeServiceConsentModal}
+                  className="px-6 py-2.5 bg-primary text-white rounded-full font-bold text-sm shadow-sm hover:bg-primary-600 transition-all"
+                >
+                  Rozumiem
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </AnimatePresence>
+
+    </motion.section>
   );
 };
 
 export default Booking;
+

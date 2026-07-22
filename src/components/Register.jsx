@@ -2,34 +2,34 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from '../contexts/LanguageContext';
 import api from '../api/api';
-import { Turnstile } from '@marsidev/react-turnstile'; // IMPORT CLOUDFLARE TURNSTILE
+import { Turnstile } from '@marsidev/react-turnstile';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  User, 
+  Mail, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  MapPin, 
+  Home, 
+  Hash,
+  Check,
+  X,
+  Loader2,
+  AlertCircle,
+  ArrowRight
+} from 'lucide-react';
 
-// --- IKONY ---
-const CheckIcon = ({ className }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-  </svg>
-);
-
-const XIcon = ({ className }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-  </svg>
-);
-
-const SpinnerIcon = ({ className }) => (
-  <svg className={`animate-spin ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-  </svg>
-);
+const fadeInUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+};
 
 const Register = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Scroll to top when component mounts or location changes
   useEffect(() => {
     setTimeout(() => {
       window.scrollTo(0, 0);
@@ -61,13 +61,12 @@ const Register = () => {
 
   // Checkboxy
   const [agreementChecked, setAgreementChecked] = useState(false);
-  // Nový stav pre marketing
   const [noMarketingChecked, setNoMarketingChecked] = useState(false);
 
   // Anti-bot & Security
   const [honey, setHoney] = useState('');
-  const [captchaToken, setCaptchaToken] = useState(null); // STATE PRE TURNSTILE TOKEN
-  const turnstileRef = useRef(null); // REF PRE RESETOVANIE TURNSTILE
+  const [captchaToken, setCaptchaToken] = useState(null);
+  const turnstileRef = useRef(null);
 
   // UX State
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
@@ -93,11 +92,8 @@ const Register = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- ADRESS SEARCH LOGIC ---
-
   // 1. Vyhľadávanie MESTA
   useEffect(() => {
-    // Funkciu definujeme priamo tu, aby bola "čerstvá" pri každom spustení efektu
     const searchCity = async (query) => {
       if (query.length < 2) return;
       setIsSearchingCity(true);
@@ -114,17 +110,15 @@ const Register = () => {
     };
 
     const timer = setTimeout(() => {
-      // Pridali sme showCityDropdown do podmienky aj do závislostí
       if (addrCity && showCityDropdown) searchCity(addrCity);
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [addrCity, showCityDropdown]); // Teraz je to kompletné
+  }, [addrCity, showCityDropdown]);
 
   // 2. Vyhľadávanie ULICE
   useEffect(() => {
     const searchStreet = async (query) => {
-      // Tu používame addrCity, takže ho musíme dať do závislostí dole
       if (query.length < 2 || !addrCity || hasNoStreet) return;
       setIsSearchingStreet(true);
       try {
@@ -144,7 +138,7 @@ const Register = () => {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [addrStreet, hasNoStreet, showStreetDropdown, addrCity]); // Pridané všetky potrebné závislosti
+  }, [addrStreet, hasNoStreet, showStreetDropdown, addrCity]);
 
   const handleSelectCity = (city) => {
     const cityName = city.address.city || city.address.town || city.address.village || city.display_name.split(',')[0];
@@ -215,7 +209,6 @@ const Register = () => {
   const doPasswordsMatch = password && repeatPassword && password === repeatPassword;
   const isAddressValid = addrCity && (hasNoStreet || addrStreet) && addrNumber && addrZip;
 
-  // VALIDACIA FORMULARA TERAZ KONTROLUJE captchaToken
   const isFormValid =
     !Object.values(errors).some((error) => error) &&
     firstName && lastName && email &&
@@ -228,7 +221,6 @@ const Register = () => {
     setApiError('');
     if (!doPasswordsMatch) return;
 
-    // Adresa logika
     let fullAddress = '';
     if (hasNoStreet) {
       fullAddress = `${addrCity} ${addrNumber}, ${addrZip} ${addrCity}`;
@@ -243,13 +235,12 @@ const Register = () => {
         address: fullAddress,
         _honey: honey,
         turnstileToken: captchaToken,
-        noMarketingChecked // <-- posielame rovno hodnotu checkboxu
+        noMarketingChecked
       });
       setApiError(`success: ${response.data.message}`);
       setTimeout(() => navigate('/login'), 3000);
     } catch (err) {
       setApiError(err.response?.data?.message || 'Registration failed');
-      // Pri chybe resetujeme Turnstile, aby ju musel užívateľ vyplniť znova (prevencia proti replay útokom)
       setCaptchaToken(null);
       if (turnstileRef.current) turnstileRef.current.reset();
     } finally {
@@ -258,13 +249,13 @@ const Register = () => {
   };
 
   const PasswordRequirement = ({ met, text }) => {
-    let colorClass = met ? 'text-green-600 font-medium' : (!isPasswordFocused && passwordTouched ? 'text-red-500 font-medium' : 'text-gray-500');
-    let Icon = met ? CheckIcon : (!isPasswordFocused && passwordTouched ? XIcon : null);
+    let colorClass = met ? 'text-emerald-600 font-bold' : (!isPasswordFocused && passwordTouched ? 'text-red-500 font-bold' : 'text-neutral-500 font-medium');
+    let Icon = met ? Check : (!isPasswordFocused && passwordTouched ? X : null);
 
     return (
       <li className={`flex items-center text-xs transition-colors duration-200 ${colorClass}`}>
-        <div className="w-5 h-5 mr-1.5 flex items-center justify-center flex-shrink-0">
-          {Icon ? <Icon className="w-4 h-4" /> : <div className={`w-1.5 h-1.5 rounded-full ${met ? 'bg-green-500' : 'bg-gray-300'}`} />}
+        <div className="w-4 h-4 mr-1.5 flex items-center justify-center flex-shrink-0">
+          {Icon ? <Icon className="w-3.5 h-3.5" /> : <div className={`w-1.5 h-1.5 rounded-full ${met ? 'bg-emerald-500' : 'bg-neutral-300'}`} />}
         </div>
         {text}
       </li>
@@ -274,282 +265,390 @@ const Register = () => {
   const showPasswordRequirements = isPasswordFocused || (passwordTouched && !isPasswordValid);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
-      <div className="max-w-xl w-full bg-white rounded-2xl shadow-xl p-8 sm:p-12 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-secondary-100 rounded-bl-full opacity-50 -mr-16 -mt-16 pointer-events-none"></div>
-        <h2 className="text-3xl font-bold text-center text-gray-900 mb-8 relative z-10">{t?.login?.register?.title || 'Create Account'}</h2>
+    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+      <motion.div 
+        initial="hidden"
+        animate="visible"
+        variants={fadeInUp}
+        className="max-w-2xl w-full"
+      >
+        <div className="bg-white/95 backdrop-blur-xl rounded-[2rem] shadow-sm border border-neutral-200 p-8 sm:p-12 relative overflow-hidden">
+          {/* Subtle decoration */}
+          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+          
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-center text-foreground mb-10 relative z-10 tracking-tight">
+            {t?.login?.register?.title || 'Vytvoriť účet'}
+          </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
-          <div style={{ display: 'none', opacity: 0, position: 'absolute', left: '-9999px' }}>
-            <input type="text" name="_honey" value={honey} onChange={(e) => setHoney(e.target.value)} tabIndex="-1" autoComplete="off" />
-          </div>
-
-          {/* MENO A PRIEZVISKO */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t?.login?.register?.firstName || 'First Name'}</label>
-              <input name="firstName" type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} onBlur={handleBlur} className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.firstName ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:border-primary-500'}`} placeholder="Janko" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t?.login?.register?.lastName || 'Last Name'}</label>
-              <input name="lastName" type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} onBlur={handleBlur} className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.lastName ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:border-primary-500'}`} placeholder="Mrkvička" />
-            </div>
-          </div>
-
-          {/* EMAIL */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t?.login?.register?.email || 'Email Address'}</label>
-            <input name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={handleBlur} className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.email ? 'border-red-500 bg-red-50' : 'border-gray-200 focus:border-primary-500'}`} placeholder="janko@example.com" />
-          </div>
-
-          {/* --- SMART ADRESA SEKCE --- */}
-          <div className="space-y-3">
-            <label className="block text-sm font-medium text-gray-700">{t?.login?.register?.address || 'Address'}</label>
-
-            {/* 1. MESTO */}
-            <div className="relative" ref={cityInputRef}>
-              <input
-                type="text"
-                name="addrCity"
-                value={addrCity}
-                onChange={(e) => { setAddrCity(e.target.value); setShowCityDropdown(true); }}
-                onFocus={() => setShowCityDropdown(true)}
-                className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.addrCity ? 'border-red-500' : 'border-gray-200 focus:border-primary-500'}`}
-                placeholder="Mesto / Obec (napr. Nitra)"
-              />
-              {isSearchingCity && <div className="absolute right-3 top-3.5"><SpinnerIcon className="w-5 h-5 text-gray-400" /></div>}
-              {showCityDropdown && citySuggestions.length > 0 && (
-                <ul className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
-                  {citySuggestions.map((city, idx) => (
-                    <li key={idx} onClick={() => handleSelectCity(city)} className="px-4 py-2 hover:bg-primary-50 cursor-pointer text-sm text-gray-700">{city.display_name}</li>
-                  ))}
-                </ul>
-              )}
+          <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
+            <div style={{ display: 'none', opacity: 0, position: 'absolute', left: '-9999px' }}>
+              <input type="text" name="_honey" value={honey} onChange={(e) => setHoney(e.target.value)} tabIndex="-1" autoComplete="off" />
             </div>
 
-            {/* 2. ULICA + CHECKBOX PRE DEDINY */}
-            <div className="relative" ref={streetInputRef}>
-              <input
-                type="text"
-                name="addrStreet"
-                value={addrStreet}
-                onChange={(e) => { setAddrStreet(e.target.value); setShowStreetDropdown(true); }}
-                onFocus={() => !hasNoStreet && setShowStreetDropdown(true)}
-                disabled={!addrCity || hasNoStreet}
-                className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all 
-                    ${hasNoStreet ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''}
-                    ${errors.addrStreet && !hasNoStreet ? 'border-red-500' : 'border-gray-200 focus:border-primary-500'}`}
-                placeholder={hasNoStreet ? 'Obec nemá ulice' : (addrCity ? `Ulica v ${addrCity}` : "Najprv vyberte mesto")}
-              />
-              {isSearchingStreet && !hasNoStreet && <div className="absolute right-3 top-3.5"><SpinnerIcon className="w-5 h-5 text-gray-400" /></div>}
-              {showStreetDropdown && streetSuggestions.length > 0 && !hasNoStreet && (
-                <ul className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
-                  {streetSuggestions.map((street, idx) => (
-                    <li key={idx} onClick={() => handleSelectStreet(street)} className="px-4 py-2 hover:bg-primary-50 cursor-pointer text-sm text-gray-700">{street.display_name.split(',')[0]}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 mt-1 mb-2">
-              <input
-                type="checkbox"
-                id="noStreet"
-                checked={hasNoStreet}
-                onChange={(e) => {
-                  setHasNoStreet(e.target.checked);
-                  if (e.target.checked) {
-                    setAddrStreet('');
-                    setErrors(prev => ({ ...prev, addrStreet: '' }));
-                  }
-                }}
-                className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
-              />
-              <label htmlFor="noStreet" className="text-xs text-gray-600 cursor-pointer select-none">
-                {t?.login?.register?.noStreetLabel || 'Obec nemá ulice (použiť len číslo domu)'}
-              </label>
-            </div>
-
-            {/* 3. ČÍSLO a PSČ */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-1">
-                <input
-                  ref={numberInputRef}
-                  type="text"
-                  name="addrNumber"
-                  value={addrNumber}
-                  onChange={(e) => setAddrNumber(e.target.value)}
-                  className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.addrNumber ? 'border-red-500' : 'border-gray-200 focus:border-primary-500'}`}
-                  placeholder="Číslo"
+            {/* MENO A PRIEZVISKO */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+              <div>
+                <label className="block text-sm font-bold text-neutral-700 mb-1.5 pl-1">{t?.login?.register?.firstName || 'Meno'}</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-neutral-400">
+                    <User className="w-5 h-5" />
+                  </div>
+                  <input 
+                    name="firstName" 
+                    type="text" 
+                    value={firstName} 
+                    onChange={(e) => setFirstName(e.target.value)} 
+                    onBlur={handleBlur} 
+                    className={`w-full pl-11 pr-4 py-3 bg-neutral-50 border rounded-2xl outline-none transition-all text-sm font-medium ${errors.firstName ? 'border-red-300 bg-red-50/50' : 'border-neutral-200 focus:border-primary focus:ring-2 focus:ring-primary'}`} 
+                    placeholder="Janko" 
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-neutral-700 mb-1.5 pl-1">{t?.login?.register?.lastName || 'Priezvisko'}</label>
+                <input 
+                  name="lastName" 
+                  type="text" 
+                  value={lastName} 
+                  onChange={(e) => setLastName(e.target.value)} 
+                  onBlur={handleBlur} 
+                  className={`w-full px-4 py-3 bg-neutral-50 border rounded-2xl outline-none transition-all text-sm font-medium ${errors.lastName ? 'border-red-300 bg-red-50/50' : 'border-neutral-200 focus:border-primary focus:ring-2 focus:ring-primary'}`} 
+                  placeholder="Mrkvička" 
                 />
               </div>
-              <div className="col-span-2">
+            </div>
+
+            {/* EMAIL */}
+            <div>
+              <label className="block text-sm font-bold text-neutral-700 mb-1.5 pl-1">{t?.login?.register?.email || 'Email'}</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-neutral-400">
+                  <Mail className="w-5 h-5" />
+                </div>
+                <input 
+                  name="email" 
+                  type="email" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  onBlur={handleBlur} 
+                  className={`w-full pl-11 pr-4 py-3 bg-neutral-50 border rounded-2xl outline-none transition-all text-sm font-medium ${errors.email ? 'border-red-300 bg-red-50/50' : 'border-neutral-200 focus:border-primary focus:ring-2 focus:ring-primary'}`} 
+                  placeholder="janko@example.com" 
+                />
+              </div>
+            </div>
+
+            {/* --- SMART ADRESA SEKCE --- */}
+            <div className="space-y-4 bg-neutral-50/50 p-5 rounded-2xl border border-neutral-100">
+              <label className="block text-sm font-extrabold text-foreground tracking-wide uppercase">{t?.login?.register?.address || 'Adresa'}</label>
+
+              {/* 1. MESTO */}
+              <div className="relative" ref={cityInputRef}>
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-neutral-400">
+                  <MapPin className="w-5 h-5" />
+                </div>
+                <input
+                  type="text"
+                  name="addrCity"
+                  value={addrCity}
+                  onChange={(e) => { setAddrCity(e.target.value); setShowCityDropdown(true); }}
+                  onFocus={() => setShowCityDropdown(true)}
+                  className={`w-full pl-11 pr-4 py-3 bg-white border rounded-xl outline-none transition-all text-sm font-medium ${errors.addrCity ? 'border-red-300' : 'border-neutral-200 focus:border-primary focus:ring-2 focus:ring-primary'}`}
+                  placeholder="Mesto / Obec (napr. Nitra)"
+                />
+                {isSearchingCity && <div className="absolute right-4 top-3.5"><Loader2 className="w-5 h-5 text-primary animate-spin" /></div>}
+                
+                <AnimatePresence>
+                  {showCityDropdown && citySuggestions.length > 0 && (
+                    <motion.ul 
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -5 }}
+                      className="absolute z-50 w-full bg-white border border-neutral-200 rounded-xl shadow-lg max-h-48 overflow-y-auto mt-2 py-1"
+                    >
+                      {citySuggestions.map((city, idx) => (
+                        <li key={idx} onClick={() => handleSelectCity(city)} className="px-4 py-2.5 hover:bg-neutral-50 cursor-pointer text-sm font-medium text-neutral-700 transition-colors border-b border-neutral-50 last:border-0">
+                          {city.display_name}
+                        </li>
+                      ))}
+                    </motion.ul>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* 2. ULICA + CHECKBOX PRE DEDINY */}
+              <div className="relative" ref={streetInputRef}>
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-neutral-400">
+                  <Home className="w-5 h-5" />
+                </div>
+                <input
+                  type="text"
+                  name="addrStreet"
+                  value={addrStreet}
+                  onChange={(e) => { setAddrStreet(e.target.value); setShowStreetDropdown(true); }}
+                  onFocus={() => !hasNoStreet && setShowStreetDropdown(true)}
+                  disabled={!addrCity || hasNoStreet}
+                  className={`w-full pl-11 pr-4 py-3 bg-white border rounded-xl outline-none transition-all text-sm font-medium
+                      ${hasNoStreet ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed border-neutral-100' : ''}
+                      ${errors.addrStreet && !hasNoStreet ? 'border-red-300' : 'border-neutral-200 focus:border-primary focus:ring-2 focus:ring-primary'}`}
+                  placeholder={hasNoStreet ? 'Obec nemá ulice' : (addrCity ? `Ulica v ${addrCity}` : "Najprv vyberte mesto")}
+                />
+                {isSearchingStreet && !hasNoStreet && <div className="absolute right-4 top-3.5"><Loader2 className="w-5 h-5 text-primary animate-spin" /></div>}
+                
+                <AnimatePresence>
+                  {showStreetDropdown && streetSuggestions.length > 0 && !hasNoStreet && (
+                    <motion.ul 
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -5 }}
+                      className="absolute z-50 w-full bg-white border border-neutral-200 rounded-xl shadow-lg max-h-48 overflow-y-auto mt-2 py-1"
+                    >
+                      {streetSuggestions.map((street, idx) => (
+                        <li key={idx} onClick={() => handleSelectStreet(street)} className="px-4 py-2.5 hover:bg-neutral-50 cursor-pointer text-sm font-medium text-neutral-700 transition-colors border-b border-neutral-50 last:border-0">
+                          {street.display_name.split(',')[0]}
+                        </li>
+                      ))}
+                    </motion.ul>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div className="flex items-center gap-2.5 pt-1 mb-2">
+                <input
+                  type="checkbox"
+                  id="noStreet"
+                  checked={hasNoStreet}
+                  onChange={(e) => {
+                    setHasNoStreet(e.target.checked);
+                    if (e.target.checked) {
+                      setAddrStreet('');
+                      setErrors(prev => ({ ...prev, addrStreet: '' }));
+                    }
+                  }}
+                  className="w-4 h-4 text-primary border-neutral-300 rounded focus:ring-primary cursor-pointer"
+                />
+                <label htmlFor="noStreet" className="text-sm text-neutral-600 font-medium cursor-pointer select-none">
+                  {t?.login?.register?.noStreetLabel || 'Obec nemá ulice (použiť len číslo domu)'}
+                </label>
+              </div>
+
+              {/* 3. ČÍSLO a PSČ */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-neutral-400">
+                    <Hash className="w-4 h-4" />
+                  </div>
+                  <input
+                    ref={numberInputRef}
+                    type="text"
+                    name="addrNumber"
+                    value={addrNumber}
+                    onChange={(e) => setAddrNumber(e.target.value)}
+                    className={`w-full pl-10 pr-4 py-3 bg-white border rounded-xl outline-none transition-all text-sm font-medium ${errors.addrNumber ? 'border-red-300' : 'border-neutral-200 focus:border-primary focus:ring-2 focus:ring-primary'}`}
+                    placeholder="Číslo domu"
+                  />
+                </div>
                 <input
                   type="text"
                   name="addrZip"
                   value={addrZip}
                   onChange={(e) => setAddrZip(e.target.value)}
-                  className={`w-full px-4 py-3 bg-gray-50 border rounded-lg outline-none transition-all ${errors.addrZip ? 'border-red-500' : 'border-gray-200 focus:border-primary-500'}`}
+                  className={`w-full px-4 py-3 bg-white border rounded-xl outline-none transition-all text-sm font-medium ${errors.addrZip ? 'border-red-300' : 'border-neutral-200 focus:border-primary focus:ring-2 focus:ring-primary'}`}
                   placeholder="PSČ"
                 />
               </div>
             </div>
-          </div>
 
-          {/* HESLO */}
-          <div className="px-3 py-5 sm:p-5 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t?.login?.register?.password || 'Password'}</label>
-              <div className="relative">
-                <input
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onFocus={() => setIsPasswordFocused(true)}
-                  onBlur={handleBlur}
-                  className={`w-full px-4 py-3 pr-10 bg-white border rounded-lg outline-none transition-all ${passwordTouched && !isPasswordValid ? 'border-red-300' : 'border-gray-300 focus:border-primary-500'}`}
-                  placeholder="••••••••"
-                />
-                <button
-                  type="button"
-                  aria-label="Show password"
-                  className="absolute inset-y-0 right-0 px-3 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
-                  onMouseDown={(e) => { e.preventDefault(); setShowPassword(true); }}
-                  onMouseUp={() => setShowPassword(false)}
-                  onMouseLeave={() => setShowPassword(false)}
-                  onTouchStart={() => setShowPassword(true)}
-                  onTouchEnd={() => setShowPassword(false)}
-                  onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') setShowPassword(true); }}
-                  onKeyUp={() => setShowPassword(false)}
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                </button>
+            {/* HESLO */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-neutral-700 mb-1.5 pl-1">{t?.login?.register?.password || 'Heslo'}</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-neutral-400">
+                    <Lock className="w-5 h-5" />
+                  </div>
+                  <input
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onFocus={() => setIsPasswordFocused(true)}
+                    onBlur={handleBlur}
+                    className={`w-full pl-11 pr-12 py-3 bg-neutral-50 border rounded-2xl outline-none transition-all text-sm font-medium ${passwordTouched && !isPasswordValid ? 'border-red-300 bg-red-50/50' : 'border-neutral-200 focus:border-primary focus:ring-2 focus:ring-primary'}`}
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Show password"
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center justify-center text-neutral-400 hover:text-primary transition-colors focus:outline-none"
+                    onMouseDown={(e) => { e.preventDefault(); setShowPassword(true); }}
+                    onMouseUp={() => setShowPassword(false)}
+                    onMouseLeave={() => setShowPassword(false)}
+                    onTouchStart={() => setShowPassword(true)}
+                    onTouchEnd={() => setShowPassword(false)}
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+                
+                <AnimatePresence>
+                  {showPasswordRequirements && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 p-3 bg-neutral-50 rounded-xl border border-neutral-100">
+                        <PasswordRequirement met={passwordCriteria.length} text={t?.login?.register?.passwordRequirements?.length || "Min. 8 znakov"} />
+                        <PasswordRequirement met={passwordCriteria.upper} text={t?.login?.register?.passwordRequirements?.upper || "1 veľké písmeno"} />
+                        <PasswordRequirement met={passwordCriteria.lower} text={t?.login?.register?.passwordRequirements?.lower || "1 malé písmeno"} />
+                        <PasswordRequirement met={passwordCriteria.number} text={t?.login?.register?.passwordRequirements?.number || "1 číslo (0-9)"} />
+                      </ul>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              <div className={`overflow-hidden transition-all duration-500 ease-in-out ${showPasswordRequirements ? 'max-h-48 opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
-                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-1">
-                  <PasswordRequirement met={passwordCriteria.length} text={t?.login?.register?.passwordRequirements?.length || "Min. 8 characters"} />
-                  <PasswordRequirement met={passwordCriteria.upper} text={t?.login?.register?.passwordRequirements?.upper || "1 uppercase letter (A-Z)"} />
-                  <PasswordRequirement met={passwordCriteria.lower} text={t?.login?.register?.passwordRequirements?.lower || "1 lowercase letter (a-z)"} />
-                  <PasswordRequirement met={passwordCriteria.number} text={t?.login?.register?.passwordRequirements?.number || "1 number (0-9)"} />
-                </ul>
-              </div>
-            </div>
-            <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t?.login?.register?.repeatPassword || 'Confirm Password'}</label>
-              <div className="relative">
-                <input
-                  name="repeatPassword"
-                  type={showRepeatPassword ? 'text' : 'password'}
-                  value={repeatPassword}
-                  onChange={(e) => setRepeatPassword(e.target.value)}
-                  className={`w-full px-4 py-3 bg-white border rounded-lg outline-none transition-all pr-10 ${doPasswordsMatch ? 'border-green-500 ring-1 ring-green-500' : 'border-gray-300 focus:border-primary-500'}`}
-                  placeholder="••••••••"
-                  disabled={!password}
-                />
-                <button
-                  type="button"
-                  aria-label="Show password"
-                  className="absolute inset-y-0 right-0 px-3 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors"
-                  onMouseDown={(e) => { e.preventDefault(); setShowRepeatPassword(true); }}
-                  onMouseUp={() => setShowRepeatPassword(false)}
-                  onMouseLeave={() => setShowRepeatPassword(false)}
-                  onTouchStart={() => setShowRepeatPassword(true)}
-                  onTouchEnd={() => setShowRepeatPassword(false)}
-                  onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') setShowRepeatPassword(true); }}
-                  onKeyUp={() => setShowRepeatPassword(false)}
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                </button>
-                {doPasswordsMatch && <div className="absolute inset-y-0 right-9 pr-1 flex items-center pointer-events-none"><CheckIcon className="h-6 w-6 text-green-500" /></div>}
-              </div>
-              {!doPasswordsMatch && repeatPassword && <p className="text-xs text-red-500 mt-1">Passwords do not match</p>}
-            </div>
-          </div>
 
-          {/* CHECKBOX */}
-          <div className="flex flex-col gap-2 pt-2">
-            <div className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                id="agreementChecked"
-                name="agreementChecked"
-                checked={agreementChecked}
-                onChange={(e) => setAgreementChecked(e.target.checked)}
-                className="mt-1 w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500 focus:ring-2 flex-shrink-0"
-              />
-              <label
-                htmlFor="agreementChecked"
-                className="text-xs sm:text-sm text-gray-700 leading-relaxed font-semibold"
-              >
-                Vyjadrujem súhlas so{' '}
-                <a
-                  href="/terms"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary-500 hover:text-primary-600 underline font-medium"
-                >
-                  Všeobecnými obchodnými podmienkami
-                </a>{' '}
-                a beriem na vedomie, že Informáciu o spracúvaní osobných údajov nájdem{' '}
-                <a
-                  href="/gdpr"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary-500 hover:text-primary-600 underline font-medium"
-                >
-                  TU
-                </a>.
-                {' '}<span className="font-semibold">(povinné)</span>
-              </label>
+              <div>
+                <label className="block text-sm font-bold text-neutral-700 mb-1.5 pl-1">{t?.login?.register?.repeatPassword || 'Potvrdiť heslo'}</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-neutral-400">
+                    <Lock className="w-5 h-5" />
+                  </div>
+                  <input
+                    name="repeatPassword"
+                    type={showRepeatPassword ? 'text' : 'password'}
+                    value={repeatPassword}
+                    onChange={(e) => setRepeatPassword(e.target.value)}
+                    className={`w-full pl-11 pr-12 py-3 bg-neutral-50 border rounded-2xl outline-none transition-all text-sm font-medium ${doPasswordsMatch && repeatPassword ? 'border-emerald-400 ring-2 ring-emerald-100' : 'border-neutral-200 focus:border-primary focus:ring-2 focus:ring-primary'}`}
+                    placeholder="••••••••"
+                    disabled={!password}
+                  />
+                  <button
+                    type="button"
+                    aria-label="Show password"
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center justify-center text-neutral-400 hover:text-primary transition-colors focus:outline-none"
+                    onMouseDown={(e) => { e.preventDefault(); setShowRepeatPassword(true); }}
+                    onMouseUp={() => setShowRepeatPassword(false)}
+                    onMouseLeave={() => setShowRepeatPassword(false)}
+                    onTouchStart={() => setShowRepeatPassword(true)}
+                    onTouchEnd={() => setShowRepeatPassword(false)}
+                  >
+                    {showRepeatPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                  {doPasswordsMatch && repeatPassword && (
+                    <div className="absolute inset-y-0 right-12 pr-2 flex items-center pointer-events-none">
+                      <Check className="h-5 w-5 text-emerald-500" />
+                    </div>
+                  )}
+                </div>
+                {!doPasswordsMatch && repeatPassword && (
+                  <p className="text-xs text-red-500 mt-2 font-bold pl-1">Heslá sa nezhodujú</p>
+                )}
+              </div>
             </div>
-            {/* NOVÝ DOBROVOĽNÝ CHECKBOX - MARKETING */}
-            <div className="flex items-start mt-4">
-              <div className="flex items-center h-5">
+
+            {/* CHECKBOX */}
+            <div className="space-y-4 pt-4 border-t border-neutral-100">
+              <div className="flex items-start gap-3 bg-neutral-50/50 p-4 rounded-xl border border-neutral-100">
+                <input
+                  type="checkbox"
+                  id="agreementChecked"
+                  name="agreementChecked"
+                  checked={agreementChecked}
+                  onChange={(e) => setAgreementChecked(e.target.checked)}
+                  className="mt-1 w-4 h-4 text-primary border-neutral-300 rounded focus:ring-primary cursor-pointer shrink-0"
+                />
+                <label
+                  htmlFor="agreementChecked"
+                  className="text-sm text-neutral-600 leading-relaxed font-semibold cursor-pointer"
+                >
+                  Vyjadrujem súhlas so{' '}
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-extrabold">
+                    Všeobecnými obchodnými podmienkami
+                  </a>{' '}
+                  a beriem na vedomie, že Informáciu o spracúvaní osobných údajov nájdem{' '}
+                  <a href="/gdpr" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-extrabold">
+                    TU
+                  </a>.
+                  {' '}<span className="text-red-500 font-bold">*</span>
+                </label>
+              </div>
+
+              <div className="flex items-start gap-3 p-4">
                 <input
                   id="noMarketing"
                   name="noMarketing"
                   type="checkbox"
                   checked={noMarketingChecked}
                   onChange={(e) => setNoMarketingChecked(e.target.checked)}
-                  className="w-4 h-4 text-primary-600 bg-gray-50 border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
+                  className="mt-1 w-4 h-4 text-primary border-neutral-300 rounded focus:ring-primary cursor-pointer shrink-0"
                 />
-              </div>
-              <div className="ml-3 text-sm">
-                <label htmlFor="noMarketing" className="text-gray-600 cursor-pointer">
-                  Nemám záujem, aby mi boli zasielané marketingové informácie o vlastných podobných tovaroch a službách súvisiacich s novinkami, súťažami, voľnými termínmi na tréningy, workshopy alebo senzorické hry
+                <label htmlFor="noMarketing" className="text-sm text-neutral-500 cursor-pointer font-medium leading-relaxed">
+                  Nemám záujem, aby mi boli zasielané marketingové informácie o vlastných podobných tovaroch a službách (novinky, súťaže, voľné termíny na tréningy).
                 </label>
               </div>
             </div>
+
+            {/* --- CLOUDFLARE TURNSTILE --- */}
+            <div className="flex justify-center py-4 bg-neutral-50/50 rounded-xl border border-neutral-100">
+              <Turnstile
+                siteKey={import.meta.env.VITE_CLOUDFLARE_SITEKEY}
+                onSuccess={(token) => setCaptchaToken(token)}
+                ref={turnstileRef}
+              />
+            </div>
+
+            <button 
+              type="submit" 
+              className={`w-full py-4 px-6 rounded-full text-white font-bold text-base transition-all flex items-center justify-center gap-2 ${
+                isFormValid 
+                  ? 'bg-primary hover:bg-primary-600 hover:-translate-y-0.5 shadow-sm' 
+                  : 'bg-neutral-300 cursor-not-allowed text-neutral-500'
+              }`} 
+              disabled={!isFormValid || loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>{t?.login?.register?.loading || 'Vytváram účet...'}</span>
+                </>
+              ) : (
+                <>
+                  <span>{t?.login?.register?.submit || 'Zaregistrovať sa'}</span>
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )}
+            </button>
+
+            <AnimatePresence>
+              {apiError && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`flex items-center justify-center gap-2 p-4 rounded-2xl text-sm font-bold border ${
+                    apiError.includes('success') 
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                      : 'bg-red-50 text-red-700 border-red-200'
+                  }`}
+                >
+                  {apiError.includes('success') ? <Check className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
+                  <span>{apiError.replace('success: ', '')}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </form>
+
+          <div className="mt-8 text-center border-t border-neutral-100 pt-8 relative z-10">
+            <p className="text-neutral-600 font-medium">
+              {t?.login?.register?.loginPrompt || 'Už máte vytvorený účet?'} 
+              <Link to="/login" className="text-primary hover:text-primary-600 font-extrabold transition-colors hover:underline ml-2">
+                {t?.login?.register?.loginLink || 'Prihláste sa tu'}
+              </Link>
+            </p>
           </div>
-
-          {/* --- CLOUDFLARE TURNSTILE IMPLEMENTÁCIA --- */}
-          <div className="flex justify-center py-2">
-            <Turnstile
-              siteKey={import.meta.env.VITE_CLOUDFLARE_SITEKEY}
-              onSuccess={(token) => setCaptchaToken(token)}
-              ref={turnstileRef}
-            />
-          </div>
-
-
-          <button type="submit" className={`w-full py-4 px-6 rounded-xl text-white font-bold text-lg shadow-lg transition-all duration-300 transform hover:-translate-y-1 ${isFormValid ? 'bg-primary-500 hover:bg-primary-600 hover:shadow-primary-500/30' : 'bg-gray-300 cursor-not-allowed shadow-none'}`} disabled={!isFormValid || loading}>
-            {loading ? <div className="flex items-center justify-center gap-3"><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>{t?.login?.register?.loading || 'Registering...'}</span></div> : t?.login?.register?.submit || 'Create Account'}
-          </button>
-
-          {apiError && <div className={`text-center text-sm font-medium py-3 px-4 rounded-lg border animate-fadeIn ${apiError.includes('success') ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>{apiError}</div>}
-        </form>
-
-        <div className="mt-8 text-center border-t border-gray-100 pt-6">
-          <p className="text-gray-600">{t?.login?.register?.loginPrompt || 'Already have an account?'} <Link to="/login" className="text-primary-600 hover:text-primary-700 font-bold transition-colors hover:underline">{t?.login?.register?.loginLink || 'Login here'}</Link></p>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

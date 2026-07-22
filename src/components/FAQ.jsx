@@ -1,7 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ChevronDownIcon, ChevronUpIcon, PencilSquareIcon, TrashIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
-import { Modal, Button, Form } from 'react-bootstrap';
+import { Modal, Button, Form, Spinner } from 'react-bootstrap';
 import api from '../api/api';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ChevronDown, 
+  ChevronUp, 
+  Pencil, 
+  Trash2, 
+  Plus, 
+  HelpCircle, 
+  X 
+} from 'lucide-react';
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+};
 
 const FAQ = () => {
   const [faqData, setFaqData] = useState([]);
@@ -17,7 +31,6 @@ const FAQ = () => {
   const [currentFaq, setCurrentFaq] = useState({ id: null, question: '', answer: '' });
   const [loading, setLoading] = useState(false);
 
-  // 1. Obalíme funkcie do useCallback, aby boli stabilné
   const fetchFaqs = useCallback(async () => {
     try {
       const response = await api.get('/api/faqs');
@@ -30,7 +43,6 @@ const FAQ = () => {
   const checkAdminStatus = useCallback(async () => {
     try {
       const response = await api.get(`/api/users/${userId}`);
-      // Kontrola podľa role (fallback na localStorage pre staršie sesie)
       if (response.data.role === 'admin' || localStorage.getItem('userRole') === 'admin') {
         setIsAdmin(true);
       }
@@ -39,7 +51,6 @@ const FAQ = () => {
     }
   }, [userId]);
 
-  // 2. Teraz ich môžeme bezpečne pridať do závislostí useEffect
   useEffect(() => {
     fetchFaqs();
     if (userId) {
@@ -51,8 +62,6 @@ const FAQ = () => {
     setOpenIndex(openIndex === index ? null : index);
   };
 
-  // --- HANDLERS ---
-
   const handleShowAdd = () => {
     setIsEditing(false);
     setCurrentFaq({ id: null, question: '', answer: '' });
@@ -60,7 +69,7 @@ const FAQ = () => {
   };
 
   const handleShowEdit = (e, faq) => {
-    e.stopPropagation(); // Zabráni otvoreniu akordeónu pri kliknutí na edit
+    e.stopPropagation();
     setIsEditing(true);
     setCurrentFaq(faq);
     setShowModal(true);
@@ -71,7 +80,7 @@ const FAQ = () => {
     if (window.confirm('Naozaj chcete vymazať túto otázku?')) {
       try {
         await api.delete(`/api/admin/faqs/${id}`);
-        fetchFaqs(); // Refresh zoznamu
+        fetchFaqs();
       } catch (error) {
         alert('Nepodarilo sa vymazať otázku.');
         console.error(error);
@@ -109,134 +118,163 @@ const FAQ = () => {
   };
 
   return (
-    <section className="min-h-screen bg-background py-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-800 mb-3">
-            Často kladené otázky (FAQ)
-          </h1>
-          <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            Nájdete tu odpovede na najčastejšie otázky o Nitráčikovi
-          </p>
+    <motion.section 
+      initial="hidden"
+      animate="visible"
+      variants={fadeInUp}
+      className="py-12 md:py-16 container-custom max-w-4xl mx-auto px-4 sm:px-6"
+    >
+      {/* Header */}
+      <div className="text-center mb-8">
+        <h1 className="text-3xl sm:text-5xl font-extrabold text-foreground tracking-tight mb-2">
+          Často kladené otázky (FAQ)
+        </h1>
+        <p className="text-neutral-600 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
+          Nájdete tu odpovede na najčastejšie otázky o Nitráčikovi
+        </p>
 
-          {/* Admin tlačidlo - zobrazí sa len ak je isAdmin true */}
-          {isAdmin && (
-            <div className="mt-6">
-              <button
-                onClick={handleShowAdd}
-                className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors shadow-sm"
+        {isAdmin && (
+          <div className="mt-6 flex justify-center">
+            <button
+              type="button"
+              onClick={handleShowAdd}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-full font-bold text-sm shadow-sm hover:bg-primary-600 transition-all"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Pridať novú otázku</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Zoznam FAQ */}
+      <div className="space-y-4">
+        {faqData.length === 0 ? (
+          <div className="text-center py-16 bg-white rounded-[2rem] border border-neutral-200 shadow-sm">
+            <HelpCircle className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
+            <p className="text-neutral-500 font-medium">Momentálne nie sú dostupné žiadne otázky.</p>
+          </div>
+        ) : (
+          faqData.map((faq, index) => (
+            <div 
+              key={faq.id} 
+              className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden transition-all hover:shadow-md"
+            >
+              <div
+                className="w-full px-6 sm:px-8 py-3 flex justify-between items-center cursor-pointer select-none transition-colors duration-200"
+                onClick={() => toggleAccordion(index)}
               >
-                <PlusCircleIcon className="w-5 h-5 mr-2" />
-                Pridať novú otázku
-              </button>
-            </div>
-          )}
-        </div>
+                <span className="text-base sm:text-lg font-extrabold text-foreground pr-4 flex-1">
+                  {faq.question}
+                </span>
+                
+                <div className="flex items-center gap-3">
+                  {isAdmin && (
+                    <div className="flex items-center gap-2 mr-2 border-r pr-3 border-neutral-200">
+                      <button
+                        type="button"
+                        onClick={(e) => handleShowEdit(e, faq)}
+                        className="p-2 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all border border-emerald-200"
+                        title="Upraviť"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDelete(e, faq.id)}
+                        className="p-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-all border border-red-100"
+                        title="Vymazať"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
 
-        {/* Zoznam FAQ */}
-        <div className="space-y-3">
-          {faqData.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">Momentálne nie sú dostupné žiadne otázky.</p>
-          ) : (
-            faqData.map((faq, index) => (
-              <div key={faq.id} className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200 overflow-hidden">
-                <div
-                  className="w-full px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors duration-200"
-                  onClick={() => toggleAccordion(index)}
-                >
-                  <span className="text-lg font-medium text-gray-900 pr-4 flex-1">
-                    {faq.question}
-                  </span>
-                  
-                  <div className="flex items-center gap-3">
-                    {/* Admin Actions Icons */}
-                    {isAdmin && (
-                      <div className="flex items-center gap-2 mr-2 border-r pr-3 border-gray-300">
-                        <button
-                          onClick={(e) => handleShowEdit(e, faq)}
-                          className="p-1 text-blue-600 hover:text-blue-800 transition-colors"
-                          title="Upraviť"
-                        >
-                          <PencilSquareIcon className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={(e) => handleDelete(e, faq.id)}
-                          className="p-1 text-red-600 hover:text-red-800 transition-colors"
-                          title="Vymazať"
-                        >
-                          <TrashIcon className="w-5 h-5" />
-                        </button>
-                      </div>
-                    )}
-
+                  <div className="w-9 h-9 rounded-full bg-neutral-50 border border-neutral-200 flex items-center justify-center text-neutral-500">
                     {openIndex === index ? (
-                      <ChevronUpIcon className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                      <ChevronUp className="w-4 h-4" />
                     ) : (
-                      <ChevronDownIcon className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                      <ChevronDown className="w-4 h-4" />
                     )}
                   </div>
                 </div>
-                
-                {openIndex === index && (
-                  <div className="px-6 pb-4">
-                    <div className="border-t border-gray-200 pt-4">
-                      <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+              </div>
+              
+              <AnimatePresence>
+                  {openIndex === index && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="px-6 sm:px-8 pb-4"
+                  >
+                    <div className="border-t border-neutral-100 pt-4">
+                      <p className="text-neutral-600 font-medium leading-relaxed whitespace-pre-line text-base sm:text-lg">
                         {faq.answer}
                       </p>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
-              </div>
-            ))
-          )}
-        </div>
+              </AnimatePresence>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Admin Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
-        <Modal.Header closeButton>
-          <Modal.Title>{isEditing ? 'Upraviť otázku' : 'Pridať novú otázku'}</Modal.Title>
+        <Modal.Header closeButton className="border-neutral-200">
+          <Modal.Title className="font-extrabold text-xl text-foreground">
+            {isEditing ? 'Upraviť otázku' : 'Pridať novú otázku'}
+          </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="p-6 space-y-5">
           <Form>
             <Form.Group className="mb-4">
-              <Form.Label className="font-semibold">Otázka</Form.Label>
+              <Form.Label className="font-bold text-sm text-neutral-700 mb-1.5">Otázka</Form.Label>
               <Form.Control
                 type="text"
                 placeholder="Napíšte otázku..."
                 value={currentFaq.question}
                 onChange={(e) => setCurrentFaq({ ...currentFaq, question: e.target.value })}
                 autoFocus
+                className="rounded-xl border-neutral-200 py-3 bg-neutral-50/50 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
               />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label className="font-semibold">Odpoveď</Form.Label>
+              <Form.Label className="font-bold text-sm text-neutral-700 mb-1.5">Odpoveď</Form.Label>
               <Form.Control
                 as="textarea"
                 rows={6}
                 placeholder="Napíšte odpoveď..."
                 value={currentFaq.answer}
                 onChange={(e) => setCurrentFaq({ ...currentFaq, answer: e.target.value })}
+                className="rounded-xl border-neutral-200 py-3 bg-neutral-50/50 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
               />
             </Form.Group>
           </Form>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
+        <Modal.Footer className="border-neutral-200 p-6">
+          <button 
+            type="button"
+            onClick={() => setShowModal(false)} 
+            className="px-6 py-2.5 rounded-full border border-neutral-200 text-neutral-700 font-bold hover:bg-neutral-100 transition-all text-sm"
+          >
             Zrušiť
-          </Button>
-          <Button 
-            variant="primary" 
+          </button>
+          <button 
+            type="button"
             onClick={handleSave} 
             disabled={loading}
-            className="bg-blue-600 text-white hover:bg-blue-700"
+            className="px-6 py-2.5 rounded-full bg-primary text-white font-bold hover:bg-primary-600 transition-all text-sm shadow-sm disabled:opacity-50 flex items-center gap-2"
           >
-            {loading ? 'Ukladám...' : 'Uložiť'}
-          </Button>
+            {loading && <Spinner size="sm" />}
+            <span>{loading ? 'Ukladám...' : 'Uložiť'}</span>
+          </button>
         </Modal.Footer>
       </Modal>
-    </section>
+    </motion.section>
   );
 };
 

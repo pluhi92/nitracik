@@ -5,6 +5,8 @@ import 'dayjs/locale/sk';
 import 'dayjs/locale/en';
 import api from '../api/api';
 import { useTranslation } from '../contexts/LanguageContext';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Clock, Tag, Calendar, ChevronRight, AlertCircle } from 'lucide-react';
 
 const slugify = (value = '') =>
   value
@@ -14,6 +16,11 @@ const slugify = (value = '') =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+};
 
 const ActivityDetail = () => {
   const { type } = useParams();
@@ -110,7 +117,7 @@ const ActivityDetail = () => {
   if (loading) {
     return (
       <section className="min-h-[60vh] flex items-center justify-center px-4">
-        <p className="text-gray-600 text-lg">{t?.activities?.loading || 'Loading activities...'}</p>
+        <p className="text-neutral-500 font-medium text-lg">Načítavam detail aktivity...</p>
       </section>
     );
   }
@@ -118,93 +125,120 @@ const ActivityDetail = () => {
   if (error || !currentType) {
     return (
       <section className="min-h-[60vh] flex items-center justify-center px-4">
-        <div className="text-center">
-          <p className="text-red-600 font-semibold">{error || t?.activities?.notFound || 'Activity was not found.'}</p>
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center bg-white border border-neutral-200 rounded-[2rem] p-8 shadow-sm max-w-md w-full">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-foreground font-bold mb-6">{error || t?.activities?.notFound || 'Activity was not found.'}</p>
           <Link
             to="/aktivity"
-            className="inline-block mt-4 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+            className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-primary-600 transition-all"
           >
             {t?.activities?.backToActivities || 'Back to activities'}
           </Link>
-        </div>
+        </motion.div>
       </section>
     );
   }
 
   return (
-    <section className="min-h-screen bg-background py-8 md:py-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <motion.section 
+      initial="hidden"
+      animate="visible"
+      variants={fadeInUp}
+      className="min-h-screen py-12 md:py-16"
+    >
+      <div className="container-custom max-w-4xl mx-auto">
         <Link
           to="/aktivity"
-          className="inline-flex items-center text-sm font-semibold text-gray-600 hover:text-gray-900 mb-5"
+          className="inline-flex items-center text-sm font-bold text-neutral-600 hover:text-foreground mb-6 transition-colors"
         >
-          ← {t?.activities?.backToActivities || 'Back to activities'}
+          <ArrowLeft className="w-4 h-4 mr-2" /> {t?.activities?.backToActivities || 'Back to activities'}
         </Link>
 
-        <article className="rounded-2xl border bg-white shadow-sm overflow-hidden" style={{ borderColor: currentType.color_hex || '#f1f5f9' }}>
-          <header className="p-4 sm:p-5 border-b border-gray-100">
+        <article className="bg-white border border-neutral-200 rounded-[2rem] shadow-sm overflow-hidden">
+          {/* Header */}
+          <header className="p-8 sm:p-10 border-b border-neutral-100">
             <h1
-              className="text-3xl font-bold tracking-tight"
+              className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4"
               style={{
-                color: currentType.color_hex || '#111827',
-                WebkitTextStroke: '0.35px #111827',
-                textShadow: '-0.5px 0 #111827, 0 0.5px #111827, 0.5px 0 #111827, 0 -0.5px #111827'
+                color: currentType.color_hex || 'inherit',
+                WebkitTextStroke: '1px rgba(0,0,0,0.36)',
+                textShadow: '0 0 1.2px rgba(0,0,0,0.12)'
               }}
             >
               {currentType.name}
             </h1>
-            <p className="mt-2 text-gray-600">
-              {t?.activities?.duration || 'Duration'}: {currentType.duration_minutes || 60} min
-              <span className="mx-2">|</span>
-              {t?.activities?.price || 'Price'}: {priceLabel}
-            </p>
+            
+            <div className="flex flex-wrap items-center gap-4 text-neutral-600 text-sm font-medium mb-6">
+              <span className="inline-flex items-center bg-neutral-100 px-3 py-1 rounded-full">
+                <Clock className="w-4 h-4 mr-1.5 text-neutral-500" />
+                {currentType.duration_minutes || 60} min
+              </span>
+              <span className="inline-flex items-center bg-neutral-100 px-3 py-1 rounded-full">
+                <Tag className="w-4 h-4 mr-1.5 text-neutral-500" />
+                {priceLabel}
+              </span>
+            </div>
+
             {currentType.description && (
-              <p className="mt-3 text-gray-700 leading-relaxed text-left sm:text-justify break-words [overflow-wrap:anywhere]">
+              <p className="text-neutral-600 text-base sm:text-lg leading-relaxed text-justify">
                 {currentType.description}
               </p>
             )}
           </header>
 
-          <div className="p-4 sm:p-5 bg-gray-50/60">
-            <div className="w-full max-w-md mx-auto">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 text-center">
-                {t?.activities?.availableDates || 'Dostupne terminy'}
+          {/* Available Dates Section */}
+          <div className="p-8 sm:p-10 bg-neutral-50/50">
+            <div className="max-w-xl mx-auto">
+              <h2 className="text-2xl font-extrabold text-foreground mb-6 text-center">
+                {t?.activities?.availableDates || 'Dostupné termíny'}
               </h2>
 
               {dates.length === 0 && (
-                <p className="text-gray-600">{t?.activities?.noDates || 'Momentalne nie je dostupny ziadny termin.'}</p>
+                <div className="text-center py-8 bg-white border border-neutral-200 rounded-2xl p-6">
+                  <Calendar className="w-10 h-10 text-neutral-400 mx-auto mb-3" />
+                  <p className="text-neutral-600 font-medium">{t?.activities?.noDates || 'Momentálne nie je dostupný žiadny termín.'}</p>
+                </div>
               )}
 
               {dates.length > 0 && (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {dates.map((session) => (
-                    <div
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                      whileHover={{ scale: 1.01 }}
                       key={session.id}
-                      className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4"
+                      className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 transition-all hover:border-primary/50"
                       style={{
-                        borderLeftWidth: '4px',
-                        borderLeftColor: currentType.color_hex || '#f43f5e'
+                        borderLeftWidth: '5px',
+                        borderLeftColor: currentType.color_hex || 'hsl(38 72% 58%)'
                       }}
                     >
-                      <p className="font-semibold text-gray-900 text-center">{formatDate(session.training_date)}</p>
-                      {session.theme && (
-                        <div className="mt-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 text-center sm:text-left">
-                            {t?.activities?.theme || 'Tema'}
-                          </p>
-                          <p className="mt-1 text-sm font-semibold text-gray-900 text-center sm:text-left">{session.theme}</p>
-                        </div>
-                      )}
-                      <div className="mt-3 flex flex-col sm:flex-row gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleReserve(session)}
-                          className="px-4 py-2 rounded-lg bg-rose-600 text-white font-semibold hover:bg-rose-700 transition"
-                        >
-                          {t?.activities?.reserve || 'Rezervovat'}
-                        </button>
+                      <div className="text-center sm:text-left">
+                        <p className="font-extrabold text-foreground text-base sm:text-lg">
+                          {formatDate(session.training_date)}
+                        </p>
+                        {session.theme && (
+                          <div className="mt-1.5">
+                            <span className="text-xs font-bold uppercase tracking-widest text-neutral-400 block sm:inline mr-2">
+                              {t?.activities?.theme || 'Téma'}:
+                            </span>
+                            <span className="text-sm font-semibold text-neutral-700">
+                              {session.theme}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                    </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleReserve(session)}
+                        className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary-600 transition-all shrink-0"
+                      >
+                        {t?.activities?.reserve || 'Rezervovať'} <ChevronRight className="w-4 h-4 ml-1" />
+                      </button>
+                    </motion.div>
                   ))}
                 </div>
               )}
@@ -212,7 +246,7 @@ const ActivityDetail = () => {
           </div>
         </article>
       </div>
-    </section>
+    </motion.section>
   );
 };
 

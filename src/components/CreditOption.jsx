@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CreditCard, CheckCircle2, AlertTriangle, Loader2, ArrowRight } from 'lucide-react';
 import api from '../api/api';
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } }
+};
 
 export default function CreditOption() {
   const [params] = useSearchParams();
@@ -39,7 +46,6 @@ export default function CreditOption() {
       })
       .catch((err) => {
         console.error('[ERROR] Credit request failed:', err);
-        // Preklad chybových hlášok
         setStatus('error');
         setMessage('Vyskytla sa neočakávaná chyba pri spracovaní.');
       });
@@ -67,82 +73,87 @@ export default function CreditOption() {
   const getIcon = () => {
     switch (status) {
       case 'success':
-        return '🎫';
+        return <CreditCard className="w-10 h-10 text-emerald-600" />;
       case 'already':
-        return '✅';
+        return <CheckCircle2 className="w-10 h-10 text-emerald-600" />;
       case 'error':
-        return '⚠️';
+        return <AlertTriangle className="w-10 h-10 text-red-600" />;
       default:
-        return '⏳';
+        return <Loader2 className="w-10 h-10 text-primary animate-spin" />;
     }
   };
 
-  // Názov farby pre nadpis podľa stavu (Tailwind triedy riešime nižšie, toto je len helper ak treba)
   const isError = status === 'error';
 
   return (
-    <section className="min-h-screen bg-background py-12 flex items-center justify-center">
-      <div className="max-w-container mx-auto px-4 sm:px-6 w-full flex justify-center">
+    <motion.section 
+      initial="hidden"
+      animate="visible"
+      variants={fadeInUp}
+      className="py-12 md:py-20 container-custom max-w-xl mx-auto px-4 sm:px-6 relative text-center"
+    >
+      <div className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 p-8 sm:p-12">
         
-        {/* Main Card Container - Dizajn zhodný s Contact.jsx */}
-        <div className="bg-overlay-80 backdrop-blur-sm rounded-xl shadow-lg border-2 border-gray-200 p-8 sm:p-10 max-w-lg w-full text-center">
-          
-          {/* Ikona s animáciou */}
-          <div className={`text-6xl sm:text-7xl mb-6 select-none ${status === 'success' ? 'animate-bounce' : ''}`}>
-            {getIcon()}
-          </div>
-
-          {/* Hlavný nadpis / Správa */}
-          <h2 className={`text-xl sm:text-2xl font-bold mb-4 ${isError ? 'text-red-600' : 'text-gray-800'}`}>
-            {message}
-          </h2>
-
-          {/* Success / Already stav */}
-          {(status === 'success' || status === 'already') && (
-            <div className="mt-6 space-y-6">
-              <p className="text-gray-600 text-base sm:text-lg leading-relaxed">
-                Kredit máte pripísaný na profile. <br />
-                Môžete ho ihneď použiť.
-              </p>
-              
-              <div className="text-sm text-gray-500">
-                Presmerovanie na rezervácie o <span className="font-bold text-gray-800">{countdown}</span> sekúnd...
-              </div>
-
-              <a
-                href="/booking"
-                className="inline-block w-full sm:w-auto px-8 py-3 bg-primary-500 text-white font-semibold rounded-lg shadow-md hover:bg-primary-600 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
-              >
-                Prejsť na rezervácie ihneď
-              </a>
-            </div>
-          )}
-
-          {/* Error stav */}
-          {status === 'error' && (
-            <div className="mt-6 space-y-6">
-              <p className="text-gray-600 leading-relaxed">
-                Ak problém pretrváva, kontaktujte prosím podporu.
-              </p>
-              
-              <a
-                href="/booking"
-                className="inline-block w-full sm:w-auto px-8 py-3 bg-gray-500 text-white font-semibold rounded-lg shadow-md hover:bg-gray-600 hover:-translate-y-0.5 transition-all duration-300"
-              >
-                Späť na rezervácie
-              </a>
-            </div>
-          )}
-
-          {/* Processing stav */}
-          {status === 'processing' && (
-            <p className="text-gray-500 mt-4 animate-pulse">
-              Prosím čakajte, overujem údaje...
-            </p>
-          )}
-
+        {/* Ikona s animáciou */}
+        <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 ${
+          status === 'success' || status === 'already' ? 'bg-emerald-50' :
+          isError ? 'bg-red-50' :
+          'bg-primary/10'
+        } ${status === 'success' ? 'animate-bounce' : ''}`}>
+          {getIcon()}
         </div>
+
+        {/* Hlavný nadpis / Správa */}
+        <h2 className={`text-xl sm:text-2xl font-black mb-4 uppercase tracking-tight ${isError ? 'text-red-600' : 'text-foreground'}`}>
+          {message}
+        </h2>
+
+        {/* Success / Already stav */}
+        {(status === 'success' || status === 'already') && (
+          <div className="mt-6 space-y-6">
+            <p className="text-neutral-600 font-medium text-base sm:text-lg leading-relaxed">
+              Kredit máte pripísaný na profile. <br />
+              Môžete ho ihneď použiť.
+            </p>
+            
+            <div className="text-sm font-bold text-neutral-400">
+              Presmerovanie na rezervácie o <span className="text-foreground font-black">{countdown}</span> sekúnd...
+            </div>
+
+            <Link
+              to="/booking"
+              className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3.5 bg-primary hover:bg-primary-600 text-white font-bold rounded-xl shadow-lg hover:-translate-y-0.5 transition-all duration-300"
+            >
+              <span>Prejsť na rezervácie ihneď</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        )}
+
+        {/* Error stav */}
+        {status === 'error' && (
+          <div className="mt-6 space-y-6">
+            <p className="text-neutral-600 font-medium leading-relaxed">
+              Ak problém pretrváva, kontaktujte prosím podporu.
+            </p>
+            
+            <Link
+              to="/booking"
+              className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3.5 bg-neutral-800 hover:bg-neutral-900 text-white font-bold rounded-xl shadow-lg hover:-translate-y-0.5 transition-all duration-300"
+            >
+              <span>Späť na rezervácie</span>
+            </Link>
+          </div>
+        )}
+
+        {/* Processing stav */}
+        {status === 'processing' && (
+          <p className="text-neutral-400 font-bold text-sm mt-4 animate-pulse">
+            Prosím čakajte, overujem údaje...
+          </p>
+        )}
+
       </div>
-    </section>
+    </motion.section>
   );
 }

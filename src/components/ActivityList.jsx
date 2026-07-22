@@ -5,6 +5,8 @@ import 'dayjs/locale/sk';
 import 'dayjs/locale/en';
 import { useTranslation } from '../contexts/LanguageContext';
 import api from '../api/api';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Calendar, Clock, Tag, RefreshCcw, ChevronDown, ChevronUp, ChevronRight, AlertCircle, Sparkles } from 'lucide-react';
 
 const slugify = (value = '') =>
   value
@@ -14,6 +16,11 @@ const slugify = (value = '') =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+};
 
 const ActivityList = () => {
   const { t, language } = useTranslation();
@@ -151,7 +158,7 @@ const ActivityList = () => {
   if (loading) {
     return (
       <section className="min-h-[60vh] flex items-center justify-center px-4">
-        <p className="text-gray-600 text-lg">{t?.activities?.loading || 'Loading activities...'}</p>
+        <p className="text-neutral-500 font-medium text-lg">{t?.activities?.loading || 'Načítavam aktivity...'}</p>
       </section>
     );
   }
@@ -159,66 +166,63 @@ const ActivityList = () => {
   if (error) {
     return (
       <section className="min-h-[60vh] flex items-center justify-center px-4">
-        <div className="text-center">
-          <p className="text-red-600 font-semibold">{error}</p>
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center bg-white border border-neutral-200 rounded-[2rem] p-8 shadow-sm max-w-md w-full">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-foreground font-bold mb-6">{error}</p>
           <button
             type="button"
             onClick={() => fetchData(true)}
-            className="mt-4 px-4 py-2 rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition"
+            className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-primary-600 transition-all"
           >
-            {t?.activities?.retry || 'Retry'}
+            {t?.activities?.retry || 'Skúsiť znova'}
           </button>
-        </div>
+        </motion.div>
       </section>
     );
   }
 
   return (
-    <section className="min-h-screen bg-background py-8 md:py-12">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-white/90 backdrop-blur p-4 sm:p-5 shadow-sm">
-          <div className="text-center">
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
+    <motion.section 
+      initial="hidden"
+      animate="visible"
+      variants={fadeInUp}
+      className="min-h-screen py-12 md:py-16"
+    >
+      <div className="container-custom max-w-5xl mx-auto">
+        {/* Header Banner */}
+        <div className="mb-10 rounded-[2rem] border border-neutral-200 bg-white p-6 sm:p-10 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 rounded-full bg-primary/10 blur-3xl pointer-events-none"></div>
+
+          <div className="text-center relative z-10">
+            <h1 className="text-3xl sm:text-5xl font-extrabold text-foreground tracking-tight mb-4">
               {t?.activities?.title || 'Aktivity'}
             </h1>
-            <p className="mt-2 text-sm sm:text-base text-gray-600 max-w-2xl mx-auto">
-              {t?.activities?.subtitle || 'Najdite pre vas vyhovujuce aktivity a zarezervujte si termin.'}
+            <p className="text-base sm:text-lg text-neutral-600 max-w-2xl mx-auto leading-relaxed">
+              {t?.activities?.subtitle || 'Nájdite pre vás vyhovujúce aktivity a zarezervujte si termín.'}
             </p>
           </div>
 
-          <div className="mt-3 flex justify-center">
+          <div className="mt-6 flex justify-center items-center gap-3 relative z-10">
             <button
               type="button"
               onClick={() => fetchData(true)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 hover:border-rose-300 hover:bg-rose-50 text-gray-700 transition"
-              aria-label={t?.activities?.refresh || 'Refresh'}
-              title={t?.activities?.refresh || 'Refresh'}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-700 shadow-sm transition-all"
+              aria-label={t?.activities?.refresh || 'Obnoviť'}
+              title={t?.activities?.refresh || 'Obnoviť'}
             >
-              <svg
-                viewBox="0 0 24 24"
-                className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-                <polyline points="21 3 21 9 15 9" />
-              </svg>
+              <RefreshCcw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
           </div>
 
-          <div className="mt-3 flex justify-center">
-            <div className="inline-flex w-auto rounded-2xl bg-gray-100 p-1.5">
+          <div className="mt-6 flex justify-center relative z-10">
+            <div className="inline-flex rounded-full bg-neutral-100 p-1.5 border border-neutral-200/60">
               <button
                 type="button"
                 onClick={() => setAudience('children')}
-                className={`px-6 py-3 rounded-xl text-base font-semibold transition ${
+                className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all ${
                   audience === 'children'
-                    ? 'bg-white text-secondary-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-white text-foreground shadow-sm'
+                    : 'text-neutral-500 hover:text-foreground'
                 }`}
               >
                 {t?.activities?.children || 'Pre deti'}
@@ -226,122 +230,147 @@ const ActivityList = () => {
               <button
                 type="button"
                 onClick={() => setAudience('adults')}
-                className={`px-6 py-3 rounded-xl text-base font-semibold transition ${
+                className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all ${
                   audience === 'adults'
-                    ? 'bg-white text-secondary-700 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-white text-foreground shadow-sm'
+                    : 'text-neutral-500 hover:text-foreground'
                 }`}
               >
-                {t?.activities?.adults || 'Pre dospelych'}
+                {t?.activities?.adults || 'Pre dospelých'}
               </button>
             </div>
           </div>
         </div>
 
-        <div className="space-y-4">
+        {/* Activities List */}
+        <div className="space-y-6">
           {types.length === 0 && (
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 text-gray-600">
-              {t?.activities?.noActivities || 'No activities available for this audience right now.'}
+            <div className="rounded-[2rem] border border-neutral-200 bg-white p-8 text-center text-neutral-500 font-medium">
+              {t?.activities?.noActivities || 'Momentálne nie sú dostupné žiadne aktivity.'}
             </div>
           )}
 
           {types.map((type) => {
-            const typeDates = datesByTypeId.get(type.id) || [];
+            const typeDates = datesByTypeId.get(type.id)  || [];
             const expanded = Boolean(expandedTypeIds[type.id]);
 
             return (
-              <article
+              <motion.article
                 key={type.id}
-                className="rounded-2xl border bg-white shadow-sm overflow-hidden"
-                style={{ borderColor: type.color_hex || '#f1f5f9' }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="rounded-[2rem] border border-neutral-200 bg-white shadow-sm overflow-hidden transition-all hover:shadow-md"
+                style={{ borderLeftWidth: '6px', borderLeftColor: type.color_hex || '#f43f5e' }}
               >
-                <div className="flex items-start justify-between gap-4 p-4 sm:p-5 hover:bg-gray-50 transition">
-                  <div className="flex flex-1 min-w-0 items-start justify-between gap-4">
-                    <div className="w-full">
-                      <Link
-                        to={`/aktivity/${slugify(type.name)}`}
-                        className="inline-flex items-center gap-2 text-xl sm:text-2xl font-bold tracking-tight hover:opacity-80 transition"
-                        style={{
-                          color: type.color_hex || '#111827',
-                          WebkitTextStroke: '0.35px #111827',
-                          textShadow: '-0.5px 0 #111827, 0 0.5px #111827, 0.5px 0 #111827, 0 -0.5px #111827'
-                        }}
-                      >
-                        {type.name}
-                      </Link>
-                      <p className="mt-1 text-sm text-gray-600">
-                        {t?.activities?.duration || 'Duration'}: {type.duration_minutes || 60} min
-                        <span className="mx-2">|</span>
-                        {t?.activities?.price || 'Price'}: {getPriceLabel(type)}
-                      </p>
-                      {type.description && (
-                        <p className="mt-2 text-sm sm:text-base text-gray-700 leading-relaxed text-left sm:text-justify break-words [overflow-wrap:anywhere]">{type.description}</p>
-                      )}
+                <div className="flex items-start justify-between gap-4 p-6 sm:p-8">
+                  <div className="flex-1 min-w-0">
+                    <Link
+                      to={`/aktivity/${slugify(type.name)}`}
+                      className="inline-flex items-center gap-2 text-2xl sm:text-3xl font-extrabold tracking-tight hover:opacity-80 transition-colors"
+                      style={{
+                        color: type.color_hex || 'inherit',
+                        WebkitTextStroke: '1px rgba(0,0,0,0.36)',
+                        textShadow: '0 0 1.2px rgba(0,0,0,0.12)'
+                      }}
+                    >
+                      {type.name}
+                    </Link>
+                    <div className="mt-3 flex flex-wrap items-center gap-4 text-neutral-500 text-sm font-semibold">
+                      <span className="inline-flex items-center bg-neutral-100 px-3 py-1 rounded-full">
+                        <Clock className="w-4 h-4 mr-1.5 text-neutral-400" />
+                        {type.duration_minutes || 60} min
+                      </span>
+                      <span className="inline-flex items-center bg-neutral-100 px-3 py-1 rounded-full">
+                        <Tag className="w-4 h-4 mr-1.5 text-neutral-400" />
+                        {getPriceLabel(type)}
+                      </span>
                     </div>
+                    {type.description && (
+                      <p className="mt-4 text-neutral-600 text-base leading-relaxed text-justify">
+                        {type.description}
+                      </p>
+                    )}
                   </div>
+                  
                   <button
                     type="button"
                     onClick={() => handleToggleExpanded(type.id)}
-                    className="shrink-0 rounded-full border border-gray-200 px-3 py-2 text-2xl leading-none text-gray-400 hover:border-gray-300 hover:text-gray-600 transition"
+                    className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full border border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300 hover:text-foreground transition-all"
                     aria-expanded={expanded}
-                    aria-label={expanded ? 'Collapse activity dates' : 'Expand activity dates'}
+                    aria-label={expanded ? 'Zbaliť termíny' : 'Rozbaliť termíny'}
                   >
-                    {expanded ? '−' : '+'}
+                    {expanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                   </button>
                 </div>
 
-                <div className={`${expanded ? 'block' : 'hidden'} border-t border-gray-100 bg-gray-50/60 p-4 sm:p-5`}>
-                  {typeDates.length === 0 && (
-                    <p className="text-gray-600">
-                      {t?.activities?.noDates || 'Momentalne nie je dostupny ziadny termin.'}
-                    </p>
-                  )}
+                <AnimatePresence>
+                  {expanded && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                      className="border-t border-neutral-100 bg-neutral-50/50 p-6 sm:p-8"
+                    >
+                      {typeDates.length === 0 && (
+                        <p className="text-neutral-500 text-center font-medium py-4">
+                          {t?.activities?.noDates || 'Momentálne nie je dostupný žiadny termín.'}
+                        </p>
+                      )}
 
-                  {typeDates.length > 0 && (
-                    <div className="w-full max-w-md mx-auto">
-                      <h3 className="font-semibold text-gray-800 mb-3 text-center">
-                        {t?.activities?.availableDates || 'Dostupne terminy'}
-                      </h3>
-                      <div className="space-y-3">
-                        {typeDates.map((session) => (
-                          <div
-                            key={session.id}
-                            className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4"
-                            style={{
-                              borderLeftWidth: '4px',
-                              borderLeftColor: type.color_hex || '#f43f5e'
-                            }}
-                          >
-                            <p className="font-semibold text-gray-900 text-center">{formatDate(session.training_date)}</p>
-                            {session.theme && (
-                              <div className="mt-3">
-                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 text-center sm:text-left">
-                                  {t?.activities?.theme || 'Tema'}
-                                </p>
-                                <p className="mt-1 text-sm font-semibold text-gray-900 text-center sm:text-left">{session.theme}</p>
-                              </div>
-                            )}
-                            <div className="mt-3 flex flex-col sm:flex-row gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleReserve(session, type)}
-                                className="px-4 py-2 rounded-lg bg-rose-600 text-white font-semibold hover:bg-rose-700 transition"
+                      {typeDates.length > 0 && (
+                        <div className="w-full max-w-xl mx-auto">
+                          <h3 className="font-extrabold text-foreground mb-4 text-center text-lg">
+                            {t?.activities?.availableDates || 'Dostupné termíny'}
+                          </h3>
+                          <div className="space-y-3">
+                            {typeDates.map((session) => (
+                              <div
+                                key={session.id}
+                                className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4"
+                                style={{
+                                  borderLeftWidth: '4px',
+                                  borderLeftColor: type.color_hex || '#f43f5e'
+                                }}
                               >
-                                {t?.activities?.reserve || 'Rezervovat'}
-                              </button>
-                            </div>
+                                <div className="text-center sm:text-left">
+                                  <p className="font-extrabold text-foreground text-base">
+                                    {formatDate(session.training_date)}
+                                  </p>
+                                  {session.theme && (
+                                    <div className="mt-1">
+                                      <span className="text-xs font-bold uppercase tracking-widest text-neutral-400 block sm:inline mr-2">
+                                        {t?.activities?.theme || 'Téma'}:
+                                      </span>
+                                      <span className="text-sm font-semibold text-neutral-700">
+                                        {session.theme}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleReserve(session, type)}
+                                  className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary-600 transition-all shrink-0"
+                                >
+                                  {t?.activities?.reserve || 'Rezervovať'} <ChevronRight className="w-4 h-4 ml-1" />
+                                </button>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    </div>
+                        </div>
+                      )}
+                    </motion.div>
                   )}
-                </div>
-              </article>
+                </AnimatePresence>
+              </motion.article>
             );
           })}
         </div>
       </div>
-    </section>
+    </motion.section>
   );
 };
 

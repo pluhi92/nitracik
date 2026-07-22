@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, ChevronUp, ShieldCheck, Cookie, FileText } from 'lucide-react';
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+};
 
 const CookiesInfo = () => {
   const location = useLocation();
@@ -27,27 +34,44 @@ const CookiesInfo = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8 relative">
-      <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-8 sm:p-12">
-        <Link to="/gdpr" className="inline-flex items-center text-blue-600 hover:underline mb-6">
-          ← Späť na GDPR
-        </Link>
+    <motion.section 
+      initial="hidden"
+      animate="visible"
+      variants={fadeInUp}
+      className="py-12 md:py-16 container-custom max-w-4xl mx-auto px-4 sm:px-6 relative"
+    >
+      <div className="bg-white rounded-[2rem] border border-neutral-200 shadow-sm p-6 sm:p-12">
+        <div className="mb-8">
+          <Link 
+            to="/gdpr" 
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-neutral-200 bg-white text-foreground font-bold hover:bg-neutral-50 transition-all text-sm no-underline shadow-sm"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Späť na GDPR</span>
+          </Link>
+        </div>
         
-        <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center border-b pb-4">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground mb-8 text-center border-b border-neutral-100 pb-6 tracking-tight leading-snug">
           Podmienky a informácie o spracovávaní osobných údajov - Cookies https://nitracik.sk/
         </h1>
 
-        <div className="space-y-6 text-gray-700 leading-relaxed text-justify">
+        <div className="space-y-6 text-neutral-600 leading-relaxed text-base font-medium">
 
-      {showScrollButton && (
-        <button
-          onClick={scrollToTop}
-          className="fixed bottom-8 right-8 border-2 border-gray-700 text-gray-700 hover:text-gray-900 hover:border-gray-900 hover:shadow-2xl rounded-full shadow-lg transition-all duration-300 z-50 bg-white/80 w-16 h-16 flex items-center justify-center"
-          aria-label="Scroll to top"
-        >
-          <span className="text-3xl font-black leading-none translate-y-1">^</span>
-        </button>
-      )}
+          <AnimatePresence>
+            {showScrollButton && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                onClick={scrollToTop}
+                className="fixed bottom-8 right-8 bg-primary hover:bg-primary-600 text-white rounded-full shadow-lg transition-all duration-300 z-50 w-14 h-14 flex items-center justify-center cursor-pointer border-2 border-white"
+                aria-label="Scroll to top"
+              >
+                <ChevronUp className="w-6 h-6" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+
           <section>
             <p>
               Občianske združenie Nitráčik o.z., so sídlom na Hydinárska 13A Nitra 94901, IČO: 56374453, DIČ: 2122328791 zapísaná v Registri mimovládnych neziskových organizácií, reg. č.: VVS/1-900/90-70205 (ďalej len "občianske združenie" alebo "prevádzkovateľ" alebo „Nitráčik o.z.") ako prevádzkovateľ získava a spracúva osobné údaje dotknutých osôb, ktorým týmto poskytuje informácie v zmysle Nariadenia Európskeho parlamentu a Rady (EÚ) 2016/679 z 27.04.2016 o ochrane fyzických osôb pri spracúvaní osobných údajov a o voľnom pohybe takýchto údajov, ktorým sa zrušuje smernica 95/46/ES ("GDPR" alebo „Nariadenie").
@@ -55,7 +79,7 @@ const CookiesInfo = () => {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Čo sú cookies?</h2>
+            <h2 className="text-xl sm:text-2xl font-extrabold text-foreground mb-4">Čo sú cookies?</h2>
             <p>
               Cookies sú malé textové súbory, ktoré váš internetový prehliadač uloží alebo načíta na pevnom disku vášho koncového zariadenia (napr. počítač, notebook alebo smartphone) prostredníctvom webových stránok, ktoré navštívite, pre účely uloženia určitých informácii alebo obrazových súborov, akými sú napr. pixely. Keď nabudúce navštívite našu webovú stránku na rovnakom zariadení, budú informácie o vašich cookies už uložené. Cookies sú odovzdané buď našej webovej stránke („vlastné cookies") alebo inej webovej stránke, ku ktorej cookies patria („externé cookies" alebo „cookies tretej strany"). V prípade, ak našu webovú stránku navštívite z iného zariadenia ako zariadenia, na ktorom ste už cookies nastavili alebo v prípade, ak nastane zmena v procese spracúvania cookies (napr. úprava lehoty, atď.) budete opätovne požiadaný o nastavenie vašich cookies na našej webovej stránke t. j. napríklad poskytnutie vášho súhlasu a/alebo nastavenie vašich preferencií.
             </p>
@@ -77,15 +101,15 @@ const CookiesInfo = () => {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Správa súhlasu s cookies</h2>
+            <h2 className="text-xl sm:text-2xl font-extrabold text-foreground mb-4">Správa súhlasu s cookies</h2>
             <p>
               O súhlas s používaním cookies vás žiadame prostredníctvom našej cookie lišty, ktorej spravovanie a zrozumiteľnosť sme sa snažili prispôsobiť používateľom našej webovej stránky. Na úvodnej strane cookies lišty (prvá vrstva) vám poskytujeme stručné a základné informácie k spracúvaniu cookies na našej webovej stránke. Sú vám ponúknuté možnosti spravovania zberu cookies.
             </p>
             <p className="mt-4">
-              Ak si však neželáte, aby došlo k používaniu všetkých cookies na našej webovej stránke, máte možnosť v rámci prvej vrstvy cookie lišty kliknúť na tlačidlo <strong>NASTAVIŤ COOKIES</strong>, ktoré vás presunie do druhej vrstvy našej cookie lišty. V rámci druhej vrstvy je možné oboznámiť s druhmi účelov a zvoliť si len tie účely na ktoré nám súhlas udelíte a kliknúť na tlačidlo <strong>ULOŽIŤ VÝBER</strong>, alebo jedným tlačidlom <strong>PRIJAŤ VŠETKY</strong> udeliť súhlas na všetky cookies nachádzajúce sa na našej webovej stránke, ale kliknúť na tlačidlo <strong>ODMIETNUŤ VŠETKY</strong> a vtedy budeme spracúvať iba nevyhnutné cookies. Veríme, že takýto manažment preferencií je pre každého používateľa našej webovej stránky vyhovujúci.
+              Ak si však neželáte, aby došlo k používaniu všetkých cookies na našej webovej stránke, máte možnosť v rámci prvej vrstvy cookie lišty kliknúť na tlačidlo <strong className="text-foreground">NASTAVIŤ COOKIES</strong>, ktoré vás presunie do druhej vrstvy našej cookie lišty. V rámci druhej vrstvy je možné oboznámiť s druhmi účelov a zvoliť si len tie účely na ktoré nám súhlas udelíte a kliknúť na tlačidlo <strong className="text-foreground">ULOŽIŤ VÝBER</strong>, alebo jedným tlačidlom <strong className="text-foreground">PRIJAŤ VŠETKY</strong> udeliť súhlas na všetky cookies nachádzajúce sa na našej webovej stránke, ale kliknúť na tlačidlo <strong className="text-foreground">ODMIETNUŤ VŠETKY</strong> a vtedy budeme spracúvať iba nevyhnutné cookies. Veríme, že takýto manažment preferencií je pre každého používateľa našej webovej stránky vyhovujúci.
             </p>
             <p className="mt-4">
-              V rámci prvej vrstvy cookie lišty máte možnosť kliknúť na tlačidlo <strong>ODMIETNUŤ VŠETKY</strong> a vtedy budeme spracúvať iba nevyhnutné cookies, alebo kliknúť na tlačidlo <strong>PRIJAŤ VŠETKY</strong> a udeliť nám súhlas, aby sme o vás spracúvali všetky cookies, ktoré sa nachádzajú na našej stránke.
+              V rámci prvej vrstvy cookie lišty máte možnosť kliknúť na tlačidlo <strong className="text-foreground">ODMIETNUŤ VŠETKY</strong> a vtedy budeme spracúvať iba nevyhnutné cookies, alebo kliknúť na tlačidlo <strong className="text-foreground">PRIJAŤ VŠETKY</strong> a udeliť nám súhlas, aby sme o vás spracúvali všetky cookies, ktoré sa nachádzajú na našej stránke.
             </p>
           </section>
 
@@ -96,50 +120,50 @@ const CookiesInfo = () => {
           </section>
 
           <section>
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse border border-gray-300 text-sm">
-                <thead className="bg-gray-100">
+            <div className="overflow-x-auto rounded-2xl border border-neutral-200">
+              <table className="min-w-full border-collapse text-xs sm:text-sm">
+                <thead className="bg-neutral-50 text-foreground font-extrabold uppercase tracking-wider">
                   <tr>
-                    <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Účel spracúvania osobných údajov</th>
-                    <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Právny základ spracúvania osobných údajov</th>
-                    <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Kategória dotknutých osôb</th>
-                    <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Doba spracúvania OÚ</th>
-                    <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Príjemcovia alebo kategória príjemcov</th>
+                    <th className="border-b border-neutral-200 px-4 py-3 text-left">Účel spracúvania osobných údajov</th>
+                    <th className="border-b border-neutral-200 px-4 py-3 text-left">Právny základ spracúvania osobných údajov</th>
+                    <th className="border-b border-neutral-200 px-4 py-3 text-left">Kategória dotknutých osôb</th>
+                    <th className="border-b border-neutral-200 px-4 py-3 text-left">Doba spracúvania OÚ</th>
+                    <th className="border-b border-neutral-200 px-4 py-3 text-left">Príjemcovia alebo kategória príjemcov</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-neutral-100 font-medium">
                   <tr>
-                    <td className="border border-gray-300 px-4 py-2">
-                      <strong>TECHNICKÉ COOKIES (NEVYHNUTNÉ)</strong><br/>
+                    <td className="border-r border-neutral-100 px-4 py-3">
+                      <strong className="text-foreground">TECHNICKÉ COOKIES (NEVYHNUTNÉ)</strong><br/>
                       Účelom spracúvania osobných údajov je prenos alebo uľahčenie prenosu správy prostredníctvom siete, alebo ak je to bezpodmienečne potrebné pre prevádzkovateľa ako poskytovateľa služieb informačnej spoločnosti na poskytovanie služby informačnej spoločnosti, ktorú výslovne požaduje užívateľ
                     </td>
-                    <td className="border border-gray-300 px-4 py-2">
+                    <td className="border-r border-neutral-100 px-4 py-3">
                       spracúvanie je v zmysle čl. 6 ods. 1 písm. f) Nariadenia – OPRÁVNENÝ ZÁUJEM, ktorý sleduje prevádzkovateľ a vyplývajúci mu z § 108 ods. 9 zákona č. 452/2021 Z. z. o elektronických komunikáciách<br/><br/>
                       Oprávneným záujmom je: technické uloženiu údajov alebo prístupu k nim, za účelom prenosu alebo uľahčenia prenosu správy prostredníctvom siete, alebo ak je to bezpodmienečne potrebné pre poskytovateľa služieb informačnej spoločnosti na poskytovanie služby informačnej spoločnosti, ktorú výslovne požaduje užívateľ.
                     </td>
-                    <td className="border border-gray-300 px-4 py-2">Návštevníci webových stránok</td>
-                    <td className="border border-gray-300 px-4 py-2">Konkrétne lehoty a účel jednotlivej cookie nájdete v druhej vrstve cookie lišty, po kliknutí na Technické cookies (Nevyhnutné)</td>
-                    <td className="border border-gray-300 px-4 py-2">subjekty, ktorým prevádzkovateľ poskytuje osobné údaje na základe zákona; odborní konzultanti a poradcovia, ktorí sú viazaní zákonnou a/alebo zmluvnou povinnosťou mlčanlivosti;</td>
+                    <td className="border-r border-neutral-100 px-4 py-3">Návštevníci webových stránok</td>
+                    <td className="border-r border-neutral-100 px-4 py-3">Konkrétne lehoty a účel jednotlivej cookie nájdete v druhej vrstve cookie lišty, po kliknutí na Technické cookies (Nevyhnutné)</td>
+                    <td className="px-4 py-3">subjekty, ktorým prevádzkovateľ poskytuje osobné údaje na základe zákona; odborní konzultanti a poradcovia, ktorí sú viazaní zákonnou a/alebo zmluvnou povinnosťou mlčanlivosti;</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-4 py-2">
-                      <strong>ANALYTICKÉ COOKIES</strong><br/>
+                    <td className="border-r border-neutral-100 px-4 py-3">
+                      <strong className="text-foreground">ANALYTICKÉ COOKIES</strong><br/>
                       Účelom spracúvania osobných údajov analytických cookies je umožniť prevádzkovateľovi rozpoznať a spočítať počet návštevníkov stránok a získať informácie o tom, ako sa webová stránka používa (napr. ktoré stránky najčastejšie otvára dotknutá osoba a či dotknutá osoba od niektorých stránok dostáva chybové hlásenia). To prevádzkovateľovi pomáha zlepšiť spôsob, akým funguje jej webová stránka, napríklad tým, že dotknutá osoba môže ľahko nájsť to, čo hľadá.
                     </td>
-                    <td className="border border-gray-300 px-4 py-2">čl. 6 ods. 1 písm. a) GDPR – súhlas dotknutej osoby</td>
-                    <td className="border border-gray-300 px-4 py-2">Návštevníci webových stránok</td>
-                    <td className="border border-gray-300 px-4 py-2">Konkrétne lehoty a účel jednotlivej cookie nájdete v druhej vrstve cookie lišty, po kliknutí na Analytické cookies</td>
-                    <td className="border border-gray-300 px-4 py-2">subjekty, ktorým prevádzkovateľ poskytuje osobné údaje na základe zákona; odborní konzultanti a poradcovia, ktorí sú viazaní zákonnou a/alebo zmluvnou povinnosťou mlčanlivosti; spoločnosť Google poskytujúca Google Analytics t.z. analytické nástroje;</td>
+                    <td className="border-r border-neutral-100 px-4 py-3">čl. 6 ods. 1 písm. a) GDPR – súhlas dotknutej osoby</td>
+                    <td className="border-r border-neutral-100 px-4 py-3">Návštevníci webových stránok</td>
+                    <td className="border-r border-neutral-100 px-4 py-3">Konkrétne lehoty a účel jednotlivej cookie nájdete v druhej vrstve cookie lišty, po kliknutí na Analytické cookies</td>
+                    <td className="px-4 py-3">subjekty, ktorým prevádzkovateľ poskytuje osobné údaje na základe zákona; odborní konzultanti a poradcovia, ktorí sú viazaní zákonnou a/alebo zmluvnou povinnosťou mlčanlivosti; spoločność Google poskytujúca Google Analytics t.z. analytické nástroje;</td>
                   </tr>
                   <tr>
-                    <td className="border border-gray-300 px-4 py-2">
-                      <strong>UPLATNENIE PRÁV DOTKNUTEJ OSOBY</strong><br/>
+                    <td className="border-r border-neutral-100 px-4 py-3">
+                      <strong className="text-foreground">UPLATNENIE PRÁV DOTKNUTEJ OSOBY</strong><br/>
                       Účelom spracúvania OÚ je uplatňovanie práv dotknutých osôb podľa GDPR. (tento účel sa vzťahuje na prípady, keď dôjde k uplatneniu Vašich práv podľa GDPR)
                     </td>
-                    <td className="border border-gray-300 px-4 py-2">spracúvanie je v zmysle čl. 6 ods. 1 písm. c) Nariadenia nevyhnutné na splnenie zákonnej povinnosti prevádzkovateľa vyplývajúcej z nariadenia a zo zákona č. 18/2018 Z. z.</td>
-                    <td className="border border-gray-300 px-4 py-2">fyzické osoby uplatňujúce svoje práva ako dotknuté osoby</td>
-                    <td className="border border-gray-300 px-4 py-2">5 rokov nasledujúcich po roku, v ktorom bola žiadosť vybavená</td>
-                    <td className="border border-gray-300 px-4 py-2">subjekty, ktorým prevádzkovateľ poskytuje osobné údaje na základe zákona; odborní konzultanti a poradcovia, ktorí sú viazaní zákonnou a/alebo zmluvnou povinnosťou mlčanlivosti; spoločnosť Google poskytujúca dátové úložisko Google Disk, Google email a ďalšie nástroje Google Workspace služby;</td>
+                    <td className="border-r border-neutral-100 px-4 py-3">spracúvanie je v zmysle čl. 6 ods. 1 písm. c) Nariadenia nevyhnutné na splnenie zákonnej povinnosti prevádzkovateľa vyplývajúcej z nariadenia a zo zákona č. 18/2018 Z. z.</td>
+                    <td className="border-r border-neutral-100 px-4 py-3">fyzické osoby uplatňujúce svoje práva ako dotknuté osoby</td>
+                    <td className="border-r border-neutral-100 px-4 py-3">5 rokov nasledujúcich po roku, v ktorom bola žiadosť vybavená</td>
+                    <td className="px-4 py-3">subjekty, ktorým prevádzkovateľ poskytuje osobné údaje na základe zákona; odborní konzultanti a poradcovia, ktorí sú viazaní zákonnou a/alebo zmluvnou povinnosťou mlčanlivosti; spoločnosť Google poskytujúca dátové úložisko Google Disk, Google email a ďalšie nástroje Google Workspace služby;</td>
                   </tr>
                 </tbody>
               </table>
@@ -147,9 +171,9 @@ const CookiesInfo = () => {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Osobitne k službám tretích strán, ktoré používame na analytické, štatistické účely</h2>
+            <h2 className="text-xl sm:text-2xl font-extrabold text-foreground mb-4">Osobitne k službám tretích strán, ktoré používame na analytické, štatistické účely</h2>
             
-            <h3 className="text-xl font-semibold text-gray-900 mb-3 mt-6">Služba Google Analytics od spoločnosti Google</h3>
+            <h3 className="text-lg sm:text-xl font-extrabold text-foreground mb-3 mt-6">Služba Google Analytics od spoločnosti Google</h3>
             <p>
               Webové stránky prevádzkovateľa využívajú na analytické a štatistický účely službu Google Analytics, t. j. webovú analytickú službu poskytovanú spoločnosťou Google. Služba Google Analytics používa súbory cookies na to, aby nám pomohla analyzovať spôsob využívania našej webovej stránky.
             </p>
@@ -161,16 +185,16 @@ const CookiesInfo = () => {
             </p>
             <p className="mt-4">
               Podmienky poskytovania služby Google Analytics sú dostupné tu:{' '}
-              <a href="https://www.google.com/analytics/terms/gb.html" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+              <a href="https://www.google.com/analytics/terms/gb.html" target="_blank" rel="noopener noreferrer" className="text-primary font-bold hover:underline">
                 https://www.google.com/analytics/terms/gb.html
               </a>.
             </p>
             <p className="mt-4">
               Všeobecný prehľad o zásadách zabezpečenia a ochrany súkromia v Google Analytics je dostupný tu:{' '}
-              <a href="https://support.google.com/analytics/answer/6004245?hl=sk" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+              <a href="https://support.google.com/analytics/answer/6004245?hl=sk" target="_blank" rel="noopener noreferrer" className="text-primary font-bold hover:underline">
                 https://support.google.com/analytics/answer/6004245?hl=sk
               </a>, a taktiež politika o ochrane súkromia spoločnosti Google je dostupná tu:{' '}
-              <a href="https://policies.google.com/privacy?hl=sk" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+              <a href="https://policies.google.com/privacy?hl=sk" target="_blank" rel="noopener noreferrer" className="text-primary font-bold hover:underline">
                 https://policies.google.com/privacy?hl=sk
               </a>.
             </p>
@@ -180,7 +204,7 @@ const CookiesInfo = () => {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Všeobecne k spracúvaniu OÚ v súvislosti s COOKIES</h2>
+            <h2 className="text-xl sm:text-2xl font-extrabold text-foreground mb-4">Všeobecne k spracúvaniu OÚ v súvislosti s COOKIES</h2>
             <p>
               Vezmite, prosím, na vedomie, že prevádzkovateľ využíva služby tretích strán, aby sa dozvedela o používaní jej webovej stránky s cieľom optimalizovať Vaše používateľské skúsenosti. Tieto tretie strany (vrátane napr. poskytovateľov externých služieb ako sú služby analýzy webovej prevádzky a i.) môžu tiež používať súbory cookies, nad ktorými nemáme žiadnu kontrolu.
             </p>
@@ -198,7 +222,7 @@ const CookiesInfo = () => {
           <section>
             <p>
               Prevádzkovateľ uskutočňuje prenos OÚ do tretích krajín (mimo EÚ/EHS), v prípade emailovej komunikácie sa využíva Google Workspace, kde sprostredkovateľ spoločnosť Google Ireland Ltd. môže mať subdodávateľov v tretích krajinách, ktoré zaručujú primeranú úroveň ochrany osobných údajov Japonsko – Rozhodnutie Komisie 2019/419, Švajčiarsko – Rozhodnutie Komisie č. 2000/518/EC, Veľká Británia - Rozhodnutie Komisie 2021/1772, Rozhodnutie Komisie 2021/1773 ako aj v tretích krajinách, ktoré nezaručujú primeranú úroveň ochrany osobných údajov ako je napr. India, Mexiko, USA, Malajzia s uvedenými subdodávateľmi má Google uzatvorené štandardné zmluvné doložky – konkrétny zoznam subdodávateľov nájdete na{' '}
-              <a href="https://workspace.google.com/intl/en/terms/subprocessors.html" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+              <a href="https://workspace.google.com/intl/en/terms/subprocessors.html" target="_blank" rel="noopener noreferrer" className="text-primary font-bold hover:underline">
                 https://workspace.google.com/intl/en/terms/subprocessors.html
               </a>.
             </p>
@@ -224,17 +248,17 @@ const CookiesInfo = () => {
 
           <section>
             <p>
-              <strong>Zdroj:</strong> Vaše osobné údaje máme iba od Vás a prípadne ich vytvoril prevádzkovateľ ako napr. dátum návštevy stránky a zvolené preferencie.
+              <strong className="text-foreground">Zdroj:</strong> Vaše osobné údaje máme iba od Vás a prípadne ich vytvoril prevádzkovateľ ako napr. dátum návštevy stránky a zvolené preferencie.
             </p>
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Práva dotknutých osôb</h2>
-            <p className="mb-3">V súvislosti so spracúvaním OÚ má dotknutá osoba najmä nasledovné práva:</p>
+            <h2 className="text-xl sm:text-2xl font-extrabold text-foreground mb-4">Práva dotknutých osôb</h2>
+            <p className="mb-4">V súvislosti so spracúvaním OÚ má dotknutá osoba najmä nasledovné práva:</p>
             
             <div className="space-y-4">
               <div>
-                <p><strong>1) Právo na prístup k osobným údajom</strong></p>
+                <p><strong className="text-foreground">1) Právo na prístup k osobným údajom</strong></p>
                 <p>
                   Na základe žiadosti vyžadovať od prevádzkovateľa právo na prístup k osobným údajom (právo na prístup), t. j. dotknutá osoba má právo získať od prevádzkovateľa potvrdenie o tom, či sa spracúvajú OÚ, ktoré sa jej týkajú, a ak tomu tak je, má právo získať prístup k týmto OÚ a tieto informácie:
                 </p>
@@ -252,12 +276,12 @@ const CookiesInfo = () => {
               </div>
 
               <div>
-                <p><strong>2) Právo na opravu</strong></p>
+                <p><strong className="text-foreground">2) Právo na opravu</strong></p>
                 <p>Na základe žiadosti vyžadovať od prevádzkovateľa opravu nesprávnych alebo neaktuálnych OÚ, resp. doplnenie neúplných OÚ (právo na opravu);</p>
               </div>
 
               <div>
-                <p><strong>3) Právo na výmaz</strong></p>
+                <p><strong className="text-foreground">3) Právo na výmaz</strong></p>
                 <p>Na základe žiadosti vyžadovať od prevádzkovateľa vymazanie/likvidáciu OÚ (právo na výmaz), ak:</p>
                 <ul className="list-disc pl-6 mt-2 space-y-1">
                   <li>OÚ už nie sú potrebné na účel, na ktorý sa získali alebo inak spracúvali,</li>
@@ -270,7 +294,7 @@ const CookiesInfo = () => {
               </div>
 
               <div>
-                <p><strong>4) Právo na obmedzenie spracúvania</strong></p>
+                <p><strong className="text-foreground">4) Právo na obmedzenie spracúvania</strong></p>
                 <p>Na základe žiadosti vyžadovať od prevádzkovateľa obmedzenie spracúvania OÚ (právo na obmedzenie spracúvania), ak:</p>
                 <ul className="list-disc pl-6 mt-2 space-y-1">
                   <li>dotknutá osoba napadne správnosť OÚ, a to počas obdobia umožňujúceho prevádzkovateľovi overiť správnosť OÚ;</li>
@@ -281,7 +305,7 @@ const CookiesInfo = () => {
               </div>
 
               <div>
-                <p><strong>5) Právo na prenosnosť OÚ</strong></p>
+                <p><strong className="text-foreground">5) Právo na prenosnosť OÚ</strong></p>
                 <p>
                   Na základe žiadosti vyžadovať od prevádzkovateľa OÚ, ktoré sa týkajú dotknutej osoby, a ktoré poskytla prevádzkovateľovi, v štruktúrovanom, bežne používanom a strojovo čitateľnom formáte a právo preniesť tieto údaje (právo na prenosnosť OÚ) ďalšiemu prevádzkovateľovi bez toho, aby jej prevádzkovateľ, ktorému sa tieto OÚ poskytli, bránil, ak:
                 </p>
@@ -295,21 +319,21 @@ const CookiesInfo = () => {
               </div>
 
               <div>
-                <p><strong>6) Právo podať návrh</strong></p>
+                <p><strong className="text-foreground">6) Právo podať návrh</strong></p>
                 <p>Podať návrh na začatie konania na Úrade na ochranu osobných údajov SR;</p>
               </div>
             </div>
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Právo odvolať súhlas so spracúvaním osobných údajov</h2>
+            <h2 className="text-xl sm:text-2xl font-extrabold text-foreground mb-4">Právo odvolať súhlas so spracúvaním osobných údajov</h2>
             <p>
               Vaše odvolanie súhlasu môžete poslať osobne alebo poštou na Nitráčik o.z., so sídlom na Hydinárska 13A Nitra 94901 alebo e-mailom na{' '}
-              <a href="mailto:gdpr@nitracik.sk" className="text-blue-600 hover:underline">gdpr@nitracik.sk</a>.
+              <a href="mailto:gdpr@nitracik.sk" className="text-primary font-bold hover:underline">gdpr@nitracik.sk</a>.
             </p>
             <p className="mt-4">
               Ako sme spomínali vyššie Váš súhlas so spracúvaním osobných údajov môžete odvolať aj prostredníctvom cookie lišty. Ku cookie lište sa dostanete prostredníctvom kliknutia na tlačidlo (button) „Nastavenia cookies" na spodnej lište na webovej stránke{' '}
-              <a href="https://nitracik.sk/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+              <a href="https://nitracik.sk/" target="_blank" rel="noopener noreferrer" className="text-primary font-bold hover:underline">
                 https://nitracik.sk/
               </a>, a tak môžete zmeniť svoje rozhodnutie, ktoré sa týka cookies (napr. odvolať súhlas). Súbory cookies môžete tiež zablokovať alebo odstrániť prostredníctvom internetového prehliadača.
             </p>
@@ -318,11 +342,11 @@ const CookiesInfo = () => {
           <section>
             <p>
               Podrobné informácie o jednotlivých právach dotknutých osôb a spôsobe ich uplatnenia sú uvedené na{' '}
-              <a href="https://nitracik.sk/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+              <a href="https://nitracik.sk/" target="_blank" rel="noopener noreferrer" className="text-primary font-bold hover:underline">
                 https://nitracik.sk/
               </a>{' '}
               v časti Ochrana osobných údajov. Žiadosti v súvislosti s vyššie uvedenými právami je dotknutá osoba oprávnená uplatniť na adrese{' '}
-              <a href="mailto:gdpr@nitracik.sk" className="text-blue-600 hover:underline">gdpr@nitracik.sk</a>, resp. formou doporučeného listu doručeného prevádzkovateľovi – jeho zodpovednej osobe, prípadne osobne v sídle prevádzkovateľa.
+              <a href="mailto:gdpr@nitracik.sk" className="text-primary font-bold hover:underline">gdpr@nitracik.sk</a>, resp. formou doporučeného listu doručeného prevádzkovateľovi – jeho zodpovednej osobe, prípadne osobne v sídle prevádzkovateľa.
             </p>
           </section>
 
@@ -335,9 +359,9 @@ const CookiesInfo = () => {
           <section>
             <p>
               V prípade pochybností o dodržiavaní povinností súvisiacich so spracúvaním osobných údajov sa môžete obrátiť priamo na prevádzkovateľa, a to u zodpovednej osoby na adrese{' '}
-              <a href="mailto:gdpr@nitracik.sk" className="text-blue-600 hover:underline">gdpr@nitracik.sk</a>. Zároveň máte právo obrátiť sa so sťažnosťou na Úrad na ochranu osobných údajov Slovenskej republiky, so sídlom Budova Park one, Námestie 1. mája 18, 811 06 Bratislava, e-mail:{' '}
-              <a href="mailto:statny.dozor@pdp.gov.sk" className="text-blue-600 hover:underline">statny.dozor@pdp.gov.sk</a>, www:{' '}
-              <a href="https://dataprotection.gov.sk/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+              <a href="mailto:gdpr@nitracik.sk" className="text-primary font-bold hover:underline">gdpr@nitracik.sk</a>. Zároveň máte právo obrátiť sa so sťažnosťou na Úrad na ochranu osobných údajov Slovenskej republiky, so sídlom Budova Park one, Námestie 1. mája 18, 811 06 Bratislava, e-mail:{' '}
+              <a href="mailto:statny.dozor@pdp.gov.sk" className="text-primary font-bold hover:underline">statny.dozor@pdp.gov.sk</a>, www:{' '}
+              <a href="https://dataprotection.gov.sk/" target="_blank" rel="noopener noreferrer" className="text-primary font-bold hover:underline">
                 https://dataprotection.gov.sk/
               </a>.
             </p>
@@ -346,18 +370,18 @@ const CookiesInfo = () => {
           <section>
             <p>
               Aktuálna verzia tohto dokumentu sa nachádza aj v sídle prevádzkovateľa a na internetovej webovej stránke{' '}
-              <a href="https://nitracik.sk/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+              <a href="https://nitracik.sk/" target="_blank" rel="noopener noreferrer" className="text-primary font-bold hover:underline">
                 https://nitracik.sk/
               </a>, v časti Ochrana osobných údajov.
             </p>
           </section>
 
-          <section className="text-right text-gray-600 italic">
+          <section className="text-right text-neutral-400 italic pt-6 border-t border-neutral-100 font-bold text-sm">
             <p>V Nitre dňa 18.02.2026</p>
           </section>
         </div>
       </div>
-    </div>
+    </motion.section>
   );
 };
 

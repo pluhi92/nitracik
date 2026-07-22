@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from '../contexts/LanguageContext';
 import FlagEN from '../assets/gb.png';
 import FlagSK from '../assets/sk.png';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
 
 const LanguageSwitcher = () => {
   const { language, changeLanguage } = useTranslation();
@@ -13,7 +15,6 @@ const LanguageSwitcher = () => {
     { code: 'en', flag: FlagEN, label: 'EN' },
   ];
 
-  // Close dropdown if clicked outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -24,36 +25,54 @@ const LanguageSwitcher = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const currentLang = languages.find((l) => l.code === language) || languages[0];
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-full border border-[rgba(230,138,117,0.3)] bg-[rgba(230,138,117,0.15)] text-secondary-500 hover:bg-[rgba(230,138,117,0.25)] transition"
+        className="flex items-center gap-2 px-3.5 py-2 rounded-full border border-neutral-200 bg-neutral-50 text-foreground hover:bg-neutral-100 transition-all font-bold text-xs shadow-2xs cursor-pointer"
       >
         <img
-          src={languages.find((l) => l.code === language)?.flag}
+          src={currentLang.flag}
           alt={language}
-          className="w-5 h-5 object-contain"
+          className="w-4 h-4 object-contain rounded-xs"
         />
-        <span className="font-semibold">{language.toUpperCase()}</span>
+        <span>{language.toUpperCase()}</span>
+        <ChevronDown className={`w-3.5 h-3.5 text-neutral-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      <div
-        className={`absolute right-0 mt-2 w-28 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 transition-all
-          ${isOpen ? 'animate-dropdownIn opacity-100 visible' : 'animate-dropdownOut opacity-0 invisible'}`}
-      >
-        {languages.map((lang) => (
-          <button
-            key={lang.code}
-            onClick={() => { changeLanguage(lang.code); setIsOpen(false); }}
-            className={`flex items-center gap-2 w-full px-4 py-2 text-left rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition
-              ${language === lang.code ? 'bg-secondary-500 text-white' : 'text-gray-800 dark:text-gray-200'}`}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 8, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.95 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className="absolute right-0 mt-2 w-32 bg-white rounded-2xl shadow-lg border border-neutral-200 overflow-hidden z-50 p-1.5 space-y-1"
           >
-            <img src={lang.flag} alt={lang.label} className="w-5 h-5 object-contain" />
-            {lang.label}
-          </button>
-        ))}
-      </div>
+            {languages.map((lang) => {
+              const isSelected = language === lang.code;
+              return (
+                <button
+                  key={lang.code}
+                  type="button"
+                  onClick={() => { changeLanguage(lang.code); setIsOpen(false); }}
+                  className={`flex items-center gap-2.5 w-full px-3 py-2 text-left rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    isSelected 
+                      ? 'bg-primary text-white shadow-2xs' 
+                      : 'text-neutral-700 hover:bg-neutral-50'
+                  }`}
+                >
+                  <img src={lang.flag} alt={lang.label} className="w-4 h-4 object-contain rounded-xs" />
+                  <span>{lang.label}</span>
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

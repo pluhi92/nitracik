@@ -1,4 +1,3 @@
-// Blog.jsx - WITH IMAGE DELETE & THUMBNAIL SUPPORT & SHARE BUTTON
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../contexts/LanguageContext';
@@ -6,7 +5,26 @@ import { Modal, Button, Form, Spinner, Alert } from 'react-bootstrap';
 import api from '../api/api';
 import { useUser } from '../contexts/UserContext';
 import ShareModal from './ShareModal';
-import { ArrowRightCircle, Share, Pencil, Trash, PlusCircle, Link45deg, CloudArrowUp } from 'react-bootstrap-icons';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Plus, 
+  ArrowRight, 
+  Share2, 
+  Pencil, 
+  Trash2, 
+  Link as LinkIcon, 
+  UploadCloud, 
+  X, 
+  CheckCircle2, 
+  AlertCircle,
+  BookOpen,
+  Calendar
+} from 'lucide-react';
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+};
 
 const Blog = ({ limit = null, showViewAll = true }) => {
   const { t } = useTranslation();
@@ -95,8 +113,6 @@ const Blog = ({ limit = null, showViewAll = true }) => {
       }
 
       const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      console.log(`📤 Vybraný obrázok: ${file.name} (${fileSizeMB} MB)`);
-
       setSelectedFile(file);
       setCompressionInfo(null);
 
@@ -130,7 +146,6 @@ const Blog = ({ limit = null, showViewAll = true }) => {
           processedSize: (response.data.processedSize / 1024).toFixed(2),
           compression: response.data.compression
         });
-        console.log(`✅ Kompresia: ${response.data.compression} úspora`);
       }
 
       return response.data.imageUrl;
@@ -151,7 +166,6 @@ const Blog = ({ limit = null, showViewAll = true }) => {
           await api.delete('/api/admin/delete-blog-image', {
             data: { imageUrl: formData.image_url }
           });
-          console.log('🗑️ Obrázok zmazaný zo servera');
         }
 
         await api.put(`/api/admin/blog-posts/${currentPost.id}`, {
@@ -163,8 +177,6 @@ const Blog = ({ limit = null, showViewAll = true }) => {
         setImagePreview(null);
         setSelectedFile(null);
         fetchPosts();
-
-        console.log('✅ Obrázok úspešne odstránený');
       } catch (error) {
         console.error('Error deleting image:', error);
         setError('Nepodarilo sa zmazať obrázok');
@@ -281,57 +293,58 @@ const Blog = ({ limit = null, showViewAll = true }) => {
     setShowEditModal(true);
   };
 
-  const handleOpenShareModal = (post) => {
-    setCurrentPost(post);
-    setShowShareModal(true);
-  };
-
   const getThumbnailUrl = (imageUrl) => {
     if (!imageUrl) return null;
-
     if (imageUrl.includes('/uploads/blog/')) {
       return imageUrl.replace('.webp', '-thumb.webp');
     }
-
     return imageUrl;
   };
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center py-5">
-        <Spinner animation="border" />
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <Spinner animation="border" className="text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="blog-section">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <Link to="/blog" className="section-title" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <h2>{t?.blog?.title || 'Aktuality & Blog'}</h2>
+    <motion.section 
+      initial="hidden"
+      animate="visible"
+      variants={fadeInUp}
+      className="py-6 md:py-8 container-custom max-w-6xl mx-auto px-4 sm:px-6"
+    >
+      <div className="flex justify-between items-center mb-6">
+        <Link to="/blog" className="no-underline group">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight group-hover:text-primary transition-colors">
+            {t?.blog?.title || 'Aktuality & Blog'}
+          </h2>
         </Link>
         {isAdmin && (
-          <div
+          <button
+            type="button"
             onClick={handleOpenCreateModal}
             title={t?.blog?.newPost || 'Nový článok'}
-            className="cursor-pointer text-secondary-500 hover:text-secondary-800 transition-all duration-300 hover:drop-shadow-md"
+            className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-full font-bold shadow-sm hover:bg-primary-600 transition-all text-sm"
           >
-            {/* Veľkosť 40, aby to bolo výrazné vedľa nadpisu */}
-            <PlusCircle size={40} />
-          </div>
+            <Plus className="w-5 h-5" />
+            <span>{t?.blog?.newPost || 'Nový článok'}</span>
+          </button>
         )}
       </div>
 
       {error && (
-        <Alert variant="danger" onClose={() => setError('')} dismissible>
+        <Alert variant="danger" onClose={() => setError('')} dismissible className="rounded-2xl border-red-200 bg-red-50 text-red-800 font-medium">
           {error}
         </Alert>
       )}
 
       {compressionInfo && (
-        <Alert variant="success" dismissible onClose={() => setCompressionInfo(null)}>
+        <Alert variant="success" dismissible onClose={() => setCompressionInfo(null)} className="rounded-2xl border-emerald-200 bg-emerald-50 text-emerald-800">
           <strong>🎉 Obrázok úspešne optimalizovaný!</strong>
-          <ul className="mb-0 mt-2">
+          <ul className="mb-0 mt-2 text-xs">
             <li>Pôvodná veľkosť: {compressionInfo.originalSize} MB</li>
             <li>Po kompresii: {compressionInfo.processedSize} KB</li>
             <li>Úspora: {compressionInfo.compression}</li>
@@ -340,29 +353,33 @@ const Blog = ({ limit = null, showViewAll = true }) => {
       )}
 
       {posts.length === 0 ? (
-        <div className="text-center py-5">
-          <p className="text-muted">{t?.blog?.noPosts || 'Žiadne články na zobrazenie'}</p>
+        <div className="text-center py-16 bg-white rounded-[2rem] border border-neutral-200 shadow-sm">
+          <BookOpen className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
+          <p className="text-neutral-500 font-medium mb-6">{t?.blog?.noPosts || 'Žiadne články na zobrazenie'}</p>
           {isAdmin && (
-            <Button
-              variant="outline-primary"
+            <button
               onClick={handleOpenCreateModal}
+              className="px-6 py-3 bg-primary text-white rounded-full font-bold shadow-sm hover:bg-primary-600 transition-all text-sm"
             >
               {t?.blog?.createFirstPost || 'Vytvoriť prvý článok'}
-            </Button>
+            </button>
           )}
         </div>
       ) : (
         <>
-          <div className="row">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {(limit ? posts.slice(0, limit) : posts).map(post => (
-              <div key={post.id} className="col-lg-4 col-md-6 mb-4">
-                <div className="card h-100 shadow-sm">
-                  {post.image_url && (
+              <motion.div 
+                key={post.id} 
+                className="bg-white rounded-[2rem] border border-neutral-200 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all group"
+                whileHover={{ y: -4 }}
+              >
+                {post.image_url && (
+                  <div className="h-48 overflow-hidden bg-neutral-100 relative">
                     <img
                       src={api.makeImageUrl(getThumbnailUrl(post.image_url))}
-                      className="card-img-top"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       alt={post.title}
-                      style={{ height: '200px', objectFit: 'cover' }}
                       onError={(e) => {
                         e.target.src = api.makeImageUrl(post.image_url);
                         e.target.onerror = () => {
@@ -370,100 +387,93 @@ const Blog = ({ limit = null, showViewAll = true }) => {
                         };
                       }}
                     />
+                  </div>
+                )}
+                
+                <div className="p-5 flex flex-col flex-grow">
+                  {/* Label Badge */}
+                  {post.label_id && (
+                    <span
+                      className="inline-block px-3 py-1 rounded-full text-xs font-bold text-white mb-3 w-fit shadow-xs"
+                      style={{
+                        backgroundColor: getLabelById(post.label_id)?.color || '#3b82f6',
+                      }}
+                    >
+                      {getLabelById(post.label_id)?.name || 'Label'}
+                    </span>
                   )}
-                  <div className="card-body d-flex flex-column">
-                    {/* Label Badge */}
-                    {post.label_id && (
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          backgroundColor: getLabelById(post.label_id)?.color || '#3b82f6',
-                          color: '#fff',
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          fontSize: '12px',
-                          fontWeight: '500',
-                          marginBottom: '8px',
-                          width: 'fit-content',
-                          textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
-                        }}
+                  
+                  <h3 className="text-xl font-extrabold text-foreground mb-3 tracking-tight line-clamp-2">
+                    {post.title}
+                  </h3>
+                  
+                  <p className="text-neutral-600 text-sm leading-relaxed mb-6 line-clamp-3 font-medium">
+                    {post.perex}
+                  </p>
+                  
+                  <div className="mt-auto pt-6 border-t border-neutral-100 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-neutral-400">
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>{formatDate(post.created_at)}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Link
+                        to={`/blog/${post.slug}`}
+                        title={t?.blog?.readMore || 'Čítať viac'}
+                        className="w-9 h-9 rounded-full bg-neutral-50 border border-neutral-200 flex items-center justify-center text-neutral-600 hover:border-primary hover:text-primary hover:bg-primary/10 transition-all"
                       >
-                        {getLabelById(post.label_id)?.name || 'Label'}
-                      </span>
-                    )}
-                    <h5 className="card-title">{post.title}</h5>
-                    <p className="card-text text-muted">{post.perex}</p>
-                    <div className="mt-auto">
-                      <small className="text-muted">
-                        {formatDate(post.created_at)}
-                      </small>
-                      <div className="mt-4 flex justify-center items-center gap-6">
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
 
-                        {/* 1. Ikona Čítať viac (Šedá -> Tmavšia + Tieň) */}
-                        <Link
-                          to={`/blog/${post.slug}`}
-                          title={t?.blog?.readMore || 'Čítať viac'}
-                          className="text-gray-400 hover:text-gray-600 hover:drop-shadow-md transition-all duration-300"
-                        >
-                          <ArrowRightCircle size={28} />
-                        </Link>
+                      <button
+                        type="button"
+                        title="Zdieľať článok"
+                        onClick={() => {
+                          setCurrentPost(post);
+                          setShowShareModal(true);
+                        }}
+                        className="w-9 h-9 rounded-full bg-neutral-50 border border-neutral-200 flex items-center justify-center text-neutral-600 hover:border-primary hover:text-primary hover:bg-primary/10 transition-all"
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </button>
 
-                        {/* 2. Ikona Zdieľať (Šedá -> Tmavšia + Tieň) */}
-                        <div
-                          title="Zdieľať článok"
-                          onClick={() => {
-                            setCurrentPost(post);
-                            setShowShareModal(true);
-                          }}
-                          className="cursor-pointer text-gray-400 hover:text-gray-600 hover:drop-shadow-md transition-all duration-300"
-                        >
-                          <Share size={26} />
-                        </div>
+                      {isAdmin && (
+                        <>
+                          <button
+                            type="button"
+                            title={t?.blog?.edit || 'Upraviť'}
+                            onClick={() => handleOpenEditModal(post)}
+                            className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 hover:bg-emerald-100 transition-all"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
 
-                        {/* 3. Admin nástroje */}
-                        {isAdmin && (
-                          <>
-                            {/* Zvislá čiara (Tailwind verzia) */}
-                            <div className="w-px h-6 bg-gray-300 mx-2"></div>
-
-                            {/* Ikona Upraviť (Zelená -> Tmavšia) */}
-                            <div
-                              title={t?.blog?.edit || 'Upraviť'}
-                              onClick={() => handleOpenEditModal(post)}
-                              className="cursor-pointer text-green-600 hover:text-green-800 hover:drop-shadow-md transition-all duration-300"
-                            >
-                              <Pencil size={24} />
-                            </div>
-
-                            {/* Ikona Zmazať (Červená -> Tmavšia) */}
-                            <div
-                              title={t?.blog?.delete || 'Zmazať'}
-                              onClick={() => handleDeletePost(post.id)}
-                              className="cursor-pointer text-red-600 hover:text-red-800 hover:drop-shadow-md transition-all duration-300"
-                            >
-                              <Trash size={24} />
-                            </div>
-                          </>
-                        )}
-                      </div>
+                          <button
+                            type="button"
+                            title={t?.blog?.delete || 'Zmazať'}
+                            onClick={() => handleDeletePost(post.id)}
+                            className="w-9 h-9 rounded-full bg-red-50 border border-red-200 flex items-center justify-center text-red-600 hover:bg-red-100 transition-all"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
 
           {showViewAll && limit && posts.length > limit && (
-            <div className="text-center mt-4">
+            <div className="text-center mt-12">
               <Link
                 to="/blog"
-                className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors shadow-md hover:shadow-lg"
-                style={{ textDecoration: 'none', display: 'inline-flex' }}
+                className="inline-flex items-center gap-2 px-8 py-4 bg-primary hover:bg-primary-600 text-white rounded-full font-bold transition-all shadow-sm text-base no-underline"
               >
-                📚 Pozrieť všetky články ({posts.length})
-                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '20px' }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <span>Pozrieť všetky články ({posts.length})</span>
+                <ArrowRight className="w-5 h-5" />
               </Link>
             </div>
           )}
@@ -471,57 +481,66 @@ const Blog = ({ limit = null, showViewAll = true }) => {
       )}
 
       {/* Create Post Modal */}
-      <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>{t?.blog?.createPost || 'Vytvoriť nový článok'}</Modal.Title>
+      <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg" centered>
+        <Modal.Header closeButton className="border-neutral-200">
+          <Modal.Title className="font-extrabold text-xl text-foreground">{t?.blog?.createPost || 'Vytvoriť nový článok'}</Modal.Title>
         </Modal.Header>
         <Form onSubmit={handleCreatePost}>
-          <Modal.Body>
-            <Form.Group className="mb-3">
-              <Form.Label>{t?.blog?.titleLabel || 'Názov'}</Form.Label>
+          <Modal.Body className="p-6 space-y-5">
+            <Form.Group>
+              <Form.Label className="font-bold text-sm text-neutral-700 mb-1.5">{t?.blog?.titleLabel || 'Názov'}</Form.Label>
               <Form.Control
                 required
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                className="rounded-xl border-neutral-200 py-3 bg-neutral-50/50 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
               />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>{t?.blog?.perexLabel || 'Krátky popis (perex)'}</Form.Label>
+            
+            <Form.Group>
+              <Form.Label className="font-bold text-sm text-neutral-700 mb-1.5">{t?.blog?.perexLabel || 'Krátky popis (perex)'}</Form.Label>
               <Form.Control
                 required
                 as="textarea"
                 rows={3}
                 value={formData.perex}
                 onChange={(e) => setFormData({ ...formData, perex: e.target.value })}
+                className="rounded-xl border-neutral-200 py-3 bg-neutral-50/50 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
               />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>{t?.blog?.contentLabel || 'Obsah'}</Form.Label>
+
+            <Form.Group>
+              <Form.Label className="font-bold text-sm text-neutral-700 mb-1.5">{t?.blog?.contentLabel || 'Obsah'}</Form.Label>
               <Form.Control
                 as="textarea"
-                rows={8}
+                rows={6}
                 value={formData.content}
                 onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                className="rounded-xl border-neutral-200 py-3 bg-neutral-50/50 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
               />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Zdroj (URL)</Form.Label>
+
+            <Form.Group>
+              <Form.Label className="font-bold text-sm text-neutral-700 mb-1.5">Zdroj (URL)</Form.Label>
               <Form.Control
                 type="text"
                 value={formData.source_url}
                 onChange={(e) => setFormData({ ...formData, source_url: e.target.value })}
                 placeholder="https://priklad.sk"
+                className="rounded-xl border-neutral-200 py-3 bg-neutral-50/50 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
               />
-              <Form.Text className="text-muted">
+              <Form.Text className="text-neutral-400 text-xs mt-1">
                 Voliteľné: URL zdroja článku. Ak je vyplnené, zobrazí sa ako odkaz na konci článku.
               </Form.Text>
             </Form.Group>
+
             {/* LABEL SELECTOR */}
-            <Form.Group className="mb-3">
-              <Form.Label>Kategória článku</Form.Label>
+            <Form.Group>
+              <Form.Label className="font-bold text-sm text-neutral-700 mb-1.5">Kategória článku</Form.Label>
               <Form.Select
                 value={formData.label_id || ''}
                 onChange={(e) => setFormData({ ...formData, label_id: e.target.value ? parseInt(e.target.value) : null })}
+                className="rounded-xl border-neutral-200 py-3 bg-neutral-50/50 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
               >
                 <option value="">Bez kategórie</option>
                 {labels.map(label => (
@@ -531,207 +550,154 @@ const Blog = ({ limit = null, showViewAll = true }) => {
                 ))}
               </Form.Select>
             </Form.Group>
-            <Form.Group className="mb-4">
-              <Form.Label className="fw-bold mb-3">Obrázok článku</Form.Label>
 
-              {/* Výber metódy - Dizajn dlaždíc */}
-              <div className="d-flex gap-3 mb-3">
+            <Form.Group>
+              <Form.Label className="font-extrabold text-sm text-foreground mb-3">Obrázok článku</Form.Label>
 
-                {/* 1. Karta: URL Adresa */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
                 <div
                   onClick={() => {
                     setUploadMethod('url');
                     setSelectedFile(null);
                   }}
-                  className={`flex-1 p-3 border rounded cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-2
-        ${uploadMethod === 'url'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500'
-                      : 'border-gray-200 hover:bg-gray-50 text-gray-600'
-                    }`}
+                  className={`p-4 border rounded-2xl cursor-pointer transition-all flex flex-col items-center justify-center gap-2 text-center ${
+                    uploadMethod === 'url'
+                      ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary font-bold'
+                      : 'border-neutral-200 bg-neutral-50/50 text-neutral-600 hover:bg-neutral-100'
+                  }`}
                 >
-                  <Link45deg size={24} />
-                  <span className="text-sm font-medium">Vložiť URL odkazu</span>
+                  <LinkIcon className="w-5 h-5" />
+                  <span className="text-xs font-bold">Vložiť URL odkazu</span>
                 </div>
 
-                {/* 2. Karta: Upload zo zariadenia */}
                 <div
                   onClick={() => {
                     setUploadMethod('upload');
                     setFormData({ ...formData, image_url: '' });
                   }}
-                  className={`flex-1 p-3 border rounded cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-2
-        ${uploadMethod === 'upload'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500'
-                      : 'border-gray-200 hover:bg-gray-50 text-gray-600'
-                    }`}
+                  className={`p-4 border rounded-2xl cursor-pointer transition-all flex flex-col items-center justify-center gap-2 text-center ${
+                    uploadMethod === 'upload'
+                      ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary font-bold'
+                      : 'border-neutral-200 bg-neutral-50/50 text-neutral-600 hover:bg-neutral-100'
+                  }`}
                 >
-                  <CloudArrowUp size={24} />
-                  <span className="text-sm font-medium">Nahrať zo zariadenia</span>
+                  <UploadCloud className="w-5 h-5" />
+                  <span className="text-xs font-bold">Nahrať zo zariadenia</span>
                 </div>
               </div>
 
-              {/* Obsah podľa výberu */}
               {uploadMethod === 'url' ? (
-                <div className="animate-fadeIn">
+                <div>
                   <Form.Control
                     type="text"
                     value={formData.image_url}
                     onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
                     placeholder="https://priklad.sk/obrazok.jpg"
-                    className="bg-gray-50 border-gray-300 focus:bg-white transition-colors"
+                    className="rounded-xl border-neutral-200 py-3 bg-neutral-50/50 text-sm font-medium"
                   />
-                  <Form.Text className="text-muted">
-                    Vložte priamy odkaz na obrázok z internetu.
-                  </Form.Text>
                 </div>
               ) : (
-                <div className="animate-fadeIn p-3 bg-gray-50 rounded border border-dashed border-gray-300">
+                <div className="p-4 bg-neutral-50 rounded-2xl border border-dashed border-neutral-300 text-center">
                   <Form.Control
                     type="file"
                     accept="image/*"
                     onChange={handleFileSelect}
-                    className="mb-2"
+                    className="mb-2 text-xs"
                   />
-
-                  <div className="text-xs text-gray-500 mt-2">
+                  <div className="text-xs text-neutral-500 font-medium">
                     ✨ Obrázky sú automaticky optimalizované do WebP formátu.
                   </div>
 
-                  {/* Preview obrázka */}
                   {imagePreview && (
-                    <div className="mt-3 relative inline-block">
+                    <div className="mt-4 relative inline-block">
                       <img
                         src={imagePreview}
                         alt="Preview"
-                        className="rounded shadow-sm border"
-                        style={{ maxHeight: '150px', objectFit: 'cover' }}
+                        className="rounded-xl shadow-xs border border-neutral-200 max-h-32 object-cover"
                       />
-                      {selectedFile && (
-                        <div className="mt-1 text-xs font-mono text-gray-500">
-                          {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
-                          {selectedFile.size > 1024 * 1024 && <span className="text-green-600 ml-1">→ Auto-kompresia</span>}
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
               )}
             </Form.Group>
           </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
+          <Modal.Footer className="border-neutral-200 p-6">
+            <button
+              type="button"
+              onClick={() => setShowCreateModal(false)}
+              className="px-6 py-2.5 rounded-full border border-neutral-200 text-neutral-700 font-bold hover:bg-neutral-100 transition-all text-sm"
+            >
               {t?.blog?.cancel || 'Zrušiť'}
-            </Button>
-            <Button variant="primary" type="submit" disabled={uploading}>
-              {uploading ? (
-                <>
-                  <Spinner size="sm" className="me-2" />
-                  Optimalizujem a nahrávam...
-                </>
-              ) : (
-                t?.blog?.create || 'Vytvoriť článok'
-              )}
-            </Button>
+            </button>
+            <button
+              type="submit"
+              disabled={uploading}
+              className="px-6 py-2.5 rounded-full bg-primary text-white font-bold hover:bg-primary-600 transition-all text-sm shadow-sm disabled:opacity-50 flex items-center gap-2"
+            >
+              {uploading && <Spinner size="sm" />}
+              <span>{uploading ? 'Optimalizujem...' : (t?.blog?.create || 'Vytvoriť článok')}</span>
+            </button>
           </Modal.Footer>
         </Form>
       </Modal>
 
-      {/* Read-Only Modal */}
-      <Modal show={showReadModal} onHide={() => setShowReadModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>{currentPost?.title}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {currentPost?.image_url && (
-            <img
-              src={api.makeImageUrl(currentPost.image_url)}
-              alt={currentPost.title}
-              className="img-fluid mb-4 rounded"
-              onError={(e) => {
-                e.target.src = 'https://picsum.photos/800/400?random=' + currentPost.id;
-              }}
-            />
-          )}
-          <div className="text-muted mb-4">
-            <small>{formatDate(currentPost?.created_at)}</small>
-          </div>
-          <div className="blog-content"
-            style={{
-              whiteSpace: 'pre-wrap',
-              wordWrap: 'break-word',
-              overflowWrap: 'break-word',
-              maxWidth: '100%',
-              overflowX: 'hidden'
-            }}
-          >
-            {currentPost?.content}
-          </div>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant="primary"
-            onClick={() => handleOpenShareModal(currentPost)}
-          >
-            🔗 Zdieľať
-          </Button>
-          <Button variant="secondary" onClick={() => setShowReadModal(false)}>
-            {t?.blog?.close || 'Zavrieť'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
       {/* Edit Post Modal */}
-      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>{t?.blog?.editPost || 'Upraviť článok'}</Modal.Title>
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg" centered>
+        <Modal.Header closeButton className="border-neutral-200">
+          <Modal.Title className="font-extrabold text-xl text-foreground">{t?.blog?.editPost || 'Upraviť článok'}</Modal.Title>
         </Modal.Header>
         <Form onSubmit={handleUpdatePost}>
-          <Modal.Body>
-            <Form.Group className="mb-3">
-              <Form.Label>{t?.blog?.titleLabel || 'Názov'}</Form.Label>
+          <Modal.Body className="p-6 space-y-5">
+            <Form.Group>
+              <Form.Label className="font-bold text-sm text-neutral-700 mb-1.5">{t?.blog?.titleLabel || 'Názov'}</Form.Label>
               <Form.Control
                 required
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                className="rounded-xl border-neutral-200 py-3 bg-neutral-50/50 text-sm font-medium"
               />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>{t?.blog?.perexLabel || 'Krátky popis (perex)'}</Form.Label>
+            
+            <Form.Group>
+              <Form.Label className="font-bold text-sm text-neutral-700 mb-1.5">{t?.blog?.perexLabel || 'Krátky popis (perex)'}</Form.Label>
               <Form.Control
                 required
                 as="textarea"
                 rows={3}
                 value={formData.perex}
                 onChange={(e) => setFormData({ ...formData, perex: e.target.value })}
+                className="rounded-xl border-neutral-200 py-3 bg-neutral-50/50 text-sm font-medium"
               />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>{t?.blog?.contentLabel || 'Obsah'}</Form.Label>
+
+            <Form.Group>
+              <Form.Label className="font-bold text-sm text-neutral-700 mb-1.5">{t?.blog?.contentLabel || 'Obsah'}</Form.Label>
               <Form.Control
                 as="textarea"
-                rows={8}
+                rows={6}
                 value={formData.content}
                 onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                className="rounded-xl border-neutral-200 py-3 bg-neutral-50/50 text-sm font-medium"
               />
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Zdroj (URL)</Form.Label>
+
+            <Form.Group>
+              <Form.Label className="font-bold text-sm text-neutral-700 mb-1.5">Zdroj (URL)</Form.Label>
               <Form.Control
                 type="text"
                 value={formData.source_url}
                 onChange={(e) => setFormData({ ...formData, source_url: e.target.value })}
                 placeholder="https://priklad.sk"
+                className="rounded-xl border-neutral-200 py-3 bg-neutral-50/50 text-sm font-medium"
               />
-              <Form.Text className="text-muted">
-                Voliteľné: URL zdroja článku. Ak je vyplnené, zobrazí sa ako odkaz na konci článku.
-              </Form.Text>
             </Form.Group>
-            {/* LABEL SELECTOR */}
-            <Form.Group className="mb-3">
-              <Form.Label>Kategória články</Form.Label>
+
+            <Form.Group>
+              <Form.Label className="font-bold text-sm text-neutral-700 mb-1.5">Kategória článku</Form.Label>
               <Form.Select
                 value={formData.label_id || ''}
                 onChange={(e) => setFormData({ ...formData, label_id: e.target.value ? parseInt(e.target.value) : null })}
+                className="rounded-xl border-neutral-200 py-3 bg-neutral-50/50 text-sm font-medium"
               >
                 <option value="">Bez kategórie</option>
                 {labels.map(label => (
@@ -740,146 +706,97 @@ const Blog = ({ limit = null, showViewAll = true }) => {
                   </option>
                 ))}
               </Form.Select>
-              {formData.label_id && (
-                <div className="mt-2">
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      backgroundColor: getLabelById(parseInt(formData.label_id))?.color || '#3b82f6',
-                      color: '#fff',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      fontWeight: '500',
-                      textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
-                    }}
-                  >
-                    {getLabelById(parseInt(formData.label_id))?.name}
-                  </span>
-                </div>
-              )}
             </Form.Group>
-            <Form.Group className="mb-4">
-              <Form.Label className="fw-bold mb-3">Obrázok článku</Form.Label>
 
-              {/* 1. Zobrazenie AKTUÁLNEHO obrázka (ak existuje) */}
+            <Form.Group>
+              <Form.Label className="font-extrabold text-sm text-foreground mb-3">Obrázok článku</Form.Label>
+
               {formData.image_url && (
-                <div className="mb-4 p-3 border rounded bg-gray-50 flex items-center justify-between">
+                <div className="mb-4 p-4 border border-neutral-200 rounded-2xl bg-neutral-50 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {/* Náhľad */}
                     <img
                       src={api.makeImageUrl(formData.image_url)}
                       alt="Current"
-                      className="w-16 h-16 rounded object-cover border"
+                      className="w-14 h-14 rounded-xl object-cover border border-neutral-200"
                       onError={(e) => { e.target.style.display = 'none'; }}
                     />
-                    {/* Info */}
                     <div>
-                      <p className="mb-0 text-sm font-bold text-gray-700">Aktuálny obrázok</p>
-                      <p className="mb-0 text-xs text-gray-500 truncate max-w-[200px]">
-                        {formData.image_url}
-                      </p>
+                      <p className="mb-0 text-sm font-bold text-foreground">Aktuálny obrázok</p>
+                      <p className="mb-0 text-xs text-neutral-400 truncate max-w-[220px]">{formData.image_url}</p>
                     </div>
                   </div>
-
-                  {/* Tlačidlo Zmazať (Ikona) */}
-                  <div
+                  <button
+                    type="button"
                     onClick={handleDeleteImage}
                     title="Odstrániť obrázok"
-                    className="cursor-pointer p-2 text-red-500 hover:bg-red-100 hover:text-red-700 rounded-full transition-all duration-200"
+                    className="p-2.5 text-red-500 hover:bg-red-50 rounded-xl transition-all border border-red-100"
                   >
-                    <Trash size={20} />
-                  </div>
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               )}
 
-              {/* 2. Výber metódy pre NOVÝ obrázok (Dlaždice) */}
-              <div className="d-flex gap-3 mb-3">
-                {/* Karta: URL */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
                 <div
                   onClick={() => {
                     setUploadMethod('url');
                     setSelectedFile(null);
                   }}
-                  className={`flex-1 p-3 border rounded cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-2
-        ${uploadMethod === 'url'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500'
-                      : 'border-gray-200 hover:bg-gray-50 text-gray-600'
-                    }`}
+                  className={`p-4 border rounded-2xl cursor-pointer transition-all flex flex-col items-center justify-center gap-2 text-center ${
+                    uploadMethod === 'url' ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary font-bold' : 'border-neutral-200 bg-neutral-50/50 text-neutral-600 hover:bg-neutral-100'
+                  }`}
                 >
-                  <Link45deg size={24} />
-                  <span className="text-sm font-medium">Vložiť URL odkazu</span>
+                  <LinkIcon className="w-5 h-5" />
+                  <span className="text-xs font-bold">Vložiť URL odkazu</span>
                 </div>
-
-                {/* Karta: Upload */}
                 <div
-                  onClick={() => {
-                    setUploadMethod('upload');
-                  }}
-                  className={`flex-1 p-3 border rounded cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-2
-        ${uploadMethod === 'upload'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500'
-                      : 'border-gray-200 hover:bg-gray-50 text-gray-600'
-                    }`}
+                  onClick={() => setUploadMethod('upload')}
+                  className={`p-4 border rounded-2xl cursor-pointer transition-all flex flex-col items-center justify-center gap-2 text-center ${
+                    uploadMethod === 'upload' ? 'border-primary bg-primary/5 text-primary ring-1 ring-primary font-bold' : 'border-neutral-200 bg-neutral-50/50 text-neutral-600 hover:bg-neutral-100'
+                  }`}
                 >
-                  <CloudArrowUp size={24} />
-                  <span className="text-sm font-medium">Nahrať zo zariadenia</span>
+                  <UploadCloud className="w-5 h-5" />
+                  <span className="text-xs font-bold">Nahrať zo zariadenia</span>
                 </div>
               </div>
 
-              {/* 3. Vstupy podľa výberu */}
               {uploadMethod === 'url' ? (
-                <div className="animate-fadeIn">
-                  <Form.Control
-                    type="text"
-                    value={formData.image_url}
-                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                    placeholder="https://example.com/image.jpg"
-                    className="bg-gray-50 border-gray-300 focus:bg-white transition-colors"
-                  />
-                </div>
+                <Form.Control
+                  type="text"
+                  value={formData.image_url}
+                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                  placeholder="https://example.com/image.jpg"
+                  className="rounded-xl border-neutral-200 py-3 bg-neutral-50/50 text-sm font-medium"
+                />
               ) : (
-                <div className="animate-fadeIn p-3 bg-gray-50 rounded border border-dashed border-gray-300">
-                  <Form.Control
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                    className="mb-2"
-                  />
-                  <div className="text-xs text-gray-500 mt-1">
-                    ✨ Obrázky sú automaticky optimalizované do WebP.
-                  </div>
-
-                  {/* Preview NOVÉHO súboru */}
+                <div className="p-4 bg-neutral-50 rounded-2xl border border-dashed border-neutral-300 text-center">
+                  <Form.Control type="file" accept="image/*" onChange={handleFileSelect} className="mb-2 text-xs" />
+                  <div className="text-xs text-neutral-500 font-medium">✨ Optimalizácia do WebP formátu.</div>
                   {selectedFile && imagePreview && (
-                    <div className="mt-3 relative inline-block">
-                      <p className="text-xs font-bold text-green-600 mb-1">Nový výber:</p>
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="rounded shadow-sm border"
-                        style={{ maxHeight: '150px', objectFit: 'cover' }}
-                      />
+                    <div className="mt-3">
+                      <img src={imagePreview} alt="Preview" className="rounded-xl shadow-xs border max-h-32 object-cover mx-auto" />
                     </div>
                   )}
                 </div>
               )}
             </Form.Group>
           </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowEditModal(false)}>
+          <Modal.Footer className="border-neutral-200 p-6">
+            <button
+              type="button"
+              onClick={() => setShowEditModal(false)}
+              className="px-6 py-2.5 rounded-full border border-neutral-200 text-neutral-700 font-bold hover:bg-neutral-100 transition-all text-sm"
+            >
               {t?.blog?.cancel || 'Zrušiť'}
-            </Button>
-            <Button variant="primary" type="submit" disabled={uploading}>
-              {uploading ? (
-                <>
-                  <Spinner size="sm" className="me-2" />
-                  Optimalizujem a nahrávam...
-                </>
-              ) : (
-                t?.blog?.update || 'Uložiť zmeny'
-              )}
-            </Button>
+            </button>
+            <button
+              type="submit"
+              disabled={uploading}
+              className="px-6 py-2.5 rounded-full bg-primary text-white font-bold hover:bg-primary-600 transition-all text-sm shadow-sm disabled:opacity-50 flex items-center gap-2"
+            >
+              {uploading && <Spinner size="sm" />}
+              <span>{uploading ? 'Ukladám...' : (t?.blog?.update || 'Uložiť zmeny')}</span>
+            </button>
           </Modal.Footer>
         </Form>
       </Modal>
@@ -891,7 +808,7 @@ const Blog = ({ limit = null, showViewAll = true }) => {
         postId={currentPost?.slug}
         postTitle={currentPost?.title}
       />
-    </div>
+    </motion.section>
   );
 };
 

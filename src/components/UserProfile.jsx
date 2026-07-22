@@ -1,9 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Modal, Button } from 'react-bootstrap';
+import { Modal } from 'react-bootstrap';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Tooltip } from 'react-tooltip';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ClipboardCheck, XCircle, Zap, Trash2, 
+  MapPin, Phone, ShieldAlert, FileText, 
+  Ticket, CalendarDays, History, Archive,
+  AlertTriangle, ChevronDown, CheckCircle, CreditCard, RefreshCw, ChevronUp
+} from 'lucide-react';
 import api from '../api/api';
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } }
+};
 
 const SpinnerIcon = ({ className }) => (
   <svg className={`animate-spin ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -16,7 +28,6 @@ const UserProfile = () => {
   const { t } = useTranslation();
   const location = useLocation();
 
-  // Scroll to top when component mounts or location changes
   useEffect(() => {
     setTimeout(() => {
       window.scrollTo(0, 0);
@@ -24,6 +35,7 @@ const UserProfile = () => {
       document.body.scrollTop = 0;
     }, 0);
   }, [location]);
+
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -50,8 +62,8 @@ const UserProfile = () => {
   const [selectedSession, setSelectedSession] = useState(null);
   const [reason, setReason] = useState('');
   const [forceCancel, setForceCancel] = useState(false);
-  const [showHistory, setShowHistory] = useState(false); // Nový state pre históriu
-
+  const [showHistory, setShowHistory] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   // --- SMART ADRESA LOGIKA ---
   const [addrCity, setAddrCity] = useState('');
@@ -84,6 +96,22 @@ const UserProfile = () => {
     setTimeout(() => setAlertMessage(''), 5000);
   };
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollButton(window.scrollY > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -125,7 +153,7 @@ const UserProfile = () => {
       try {
         const endpoint = isAdmin ? '/api/admin/bookings' : `/api/bookings/user/${userId}`;
         const response = await api.get(endpoint);
-        setBookedSessions(isAdmin ? response.data : response.data);
+        setBookedSessions(response.data);
       } catch (error) {
         console.error('Error fetching sessions:', error);
       }
@@ -162,14 +190,13 @@ const UserProfile = () => {
     }
   }, [userId]);
 
-  // Parsovanie existujúcej adresy pri zapnutí editácie
   useEffect(() => {
     if (isEditing && editedAddress) {
       try {
         const parts = editedAddress.split(',');
         if (parts.length >= 2) {
-          const part1 = parts[0].trim(); // Ulica + Číslo
-          const part2 = parts[1].trim(); // PSČ + Mesto
+          const part1 = parts[0].trim();
+          const part2 = parts[1].trim();
 
           const streetMatch = part1.match(/^(.*)\s+(\S+)$/);
           if (streetMatch) {
@@ -192,9 +219,8 @@ const UserProfile = () => {
       } catch (e) { console.error(e); }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditing]); // Odstránené editedAddress zo závislostí aby sa neprepisovalo počas písania, len pri otvorení
+  }, [isEditing]);
 
-  // Click outside handler
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (cityInputRef.current && !cityInputRef.current.contains(event.target)) setShowCityDropdown(false);
@@ -204,7 +230,6 @@ const UserProfile = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // API Search functions
   const searchCity = async (query) => {
     if (query.length < 2) return;
     setIsSearchingCity(true);
@@ -255,7 +280,6 @@ const UserProfile = () => {
     if (numberInputRef.current) numberInputRef.current.focus();
   };
 
-  // Upravený SAVE handler (spojí adresu dokopy)
   const handleUpdateProfile = async () => {
     setIsUpdating(true);
     setUpdateMessage('');
@@ -275,7 +299,7 @@ const UserProfile = () => {
 
       setUpdateMessage(t?.profile?.update?.success || 'Profile updated successfully!');
       setUpdateVariant('success');
-      setEditedAddress(fullAddress); // Aktualizujeme hlavný state
+      setEditedAddress(fullAddress);
       setIsEditing(false);
     } catch (err) {
       setUpdateMessage(err.response?.data?.error || t?.profile?.update?.error?.generic || 'Failed to update profile');
@@ -290,7 +314,6 @@ const UserProfile = () => {
       console.error('Expected array but received:', data);
       return [];
     }
-
     const grouped = {};
     data.forEach((session) => {
       const key = `${session.training_date}-${session.training_type}`;
@@ -340,54 +363,29 @@ const UserProfile = () => {
     const year = date.getFullYear();
     const hours = date.getHours().toString().padStart(2, '0');
     const minutes = date.getMinutes().toString().padStart(2, '0');
-
-    // Získanie dňa týždňa
     const dayOfWeek = date.getDay();
     const daysSK = ['NE', 'PO', 'UT', 'ST', 'ŠT', 'PI', 'SO'];
     const daysEN = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-
     const dayName = t?.calendar ? t.calendar[daysEN[dayOfWeek].toLowerCase()] : daysSK[dayOfWeek];
-
     return `${day}. ${month}. ${year} - ${hours}:${minutes} (${dayName})`;
   };
 
-  const processedAdminSessions = React.useMemo(() =>
-    processSessions(bookedSessions),
-    [bookedSessions]);
+  const processedAdminSessions = React.useMemo(() => processSessions(bookedSessions), [bookedSessions]);
+  const availableSessionTypes = [...new Set(processedAdminSessions.map(session => session.training_type).filter(type => type))];
 
-  // 2. Vytiahneme unikátne typy tréningov (odstránime duplicity)
-  const availableSessionTypes = [...new Set(processedAdminSessions
-    .map(session => session.training_type)
-    .filter(type => type) // Odstráni prázdne hodnoty (null/undefined)
-  )];
-
-  // 3. Zoradíme ich: MINI, MIDI, MAXI prvé, ostatné podľa abecedy
   const sortedSessionTypes = availableSessionTypes.sort((a, b) => {
     const priorityOrder = ['MINI', 'MIDI', 'MAXI'];
     const indexA = priorityOrder.indexOf(a);
     const indexB = priorityOrder.indexOf(b);
-
-    // Ak sú oba v prioritnom zozname, zoraď podľa poradia v zozname
     if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-    // Ak je len A prioritný, ide dopredu
     if (indexA !== -1) return -1;
-    // Ak je len B prioritný, ide dopredu
     if (indexB !== -1) return 1;
-
-    // Ostatné zoraď abecedne
     return a.localeCompare(b);
   });
 
-  // Logika pre rozdelenie tiketov
   const currentDate = new Date();
-
-  const activeTickets = seasonTickets.filter(ticket =>
-    ticket.entries_remaining > 0 && new Date(ticket.expiry_date) > currentDate
-  );
-
-  const historyTickets = seasonTickets.filter(ticket =>
-    ticket.entries_remaining === 0 || new Date(ticket.expiry_date) <= currentDate
-  );
+  const activeTickets = seasonTickets.filter(ticket => ticket.entries_remaining > 0 && new Date(ticket.expiry_date) > currentDate);
+  const historyTickets = seasonTickets.filter(ticket => ticket.entries_remaining === 0 || new Date(ticket.expiry_date) <= currentDate);
 
   const renderSessionTable = (type) => {
     const filtered = processSessions(bookedSessions)
@@ -396,132 +394,111 @@ const UserProfile = () => {
 
     if (filtered.length === 0) return null;
 
-
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 mb-8">
-        <h4 className="text-xl font-bold text-gray-800 dark:text-white px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          {t?.profile?.sessionType?.[type.toLowerCase()] || `${type} Sessions`}
-        </h4>
+      <div className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 mb-8 overflow-hidden">
+        <div className="px-6 py-5 border-b border-neutral-100 bg-neutral-50/50">
+          <h4 className="text-xl font-extrabold text-foreground">
+            {t?.profile?.sessionType?.[type.toLowerCase()] || `${type} Sessions`}
+          </h4>
+        </div>
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700">
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  {t?.profile?.table?.date || 'Dátum'}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  {t?.profile?.table?.type || 'Typ'}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  {t?.profile?.table?.availableSpots || 'Miesta'}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  {t?.profile?.table?.participants || 'Účastníci'}
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  {t?.profile?.table?.children || 'Deti'}
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  {t?.profile?.table?.actions || 'Akcie'}
-                </th>
+              <tr className="border-b border-neutral-100 bg-white">
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">{t?.profile?.table?.date || 'Dátum'}</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">{t?.profile?.table?.type || 'Typ'}</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">{t?.profile?.table?.availableSpots || 'Miesta'}</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">{t?.profile?.table?.participants || 'Účastníci'}</th>
+                <th className="px-6 py-4 text-center text-xs font-bold text-neutral-500 uppercase tracking-wider">{t?.profile?.table?.children || 'Deti'}</th>
+                <th className="px-6 py-4 text-right text-xs font-bold text-neutral-500 uppercase tracking-wider">{t?.profile?.table?.actions || 'Akcie'}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="divide-y divide-neutral-100 bg-white">
               {filtered.map((session, index) => {
                 const sessionTime = new Date(session.training_date);
                 const currentTime = new Date();
                 const hoursDifference = (sessionTime - currentTime) / (1000 * 60 * 60);
 
-                // PODMIENKY PRE STAV
                 const isWithin10Hours = hoursDifference <= 10;
                 const isCancelled = session.cancelled === true;
                 const remainingBookings = session.participants.filter(p => p.active === true).length;
                 const totalChildren = session.participants.reduce((sum, participant) => sum + participant.children, 0);
 
-                // --- LOGIKA PRE AKTIVITU TLAČIDIEL ---
-
-                // 1. Checklist: Aktívny len ak nie je zrušený
                 const canChecklist = !isCancelled;
-
-                // 2. Cancel: Aktívny len ak nie je zrušený A ZÁROVEŇ je viac ako 10 hodín do začiatku
                 const canCancel = !isCancelled && !isWithin10Hours;
-
-                // 3. Force Cancel: Aktívny len ak nie je zrušený A ZÁROVEŇ je menej ako 10 hodín
                 const canForceCancel = !isCancelled && isWithin10Hours;
-
-                // 4. Delete: Aktívny len ak JE zrušený A nemá žiadnych aktívnych účastníkov
                 const canDelete = isCancelled && remainingBookings === 0;
 
                 return (
                   <tr
                     key={`${session.training_id || 'session'}-${session.training_date || ''}-${session.training_type || ''}-${index}`}
                     className={`
-                      ${isCancelled ? 'bg-gray-100 dark:bg-gray-700 text-gray-400' : ''}
-                      ${isWithin10Hours && !isCancelled ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}
-                      hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors
+                      ${isCancelled ? 'bg-neutral-50 text-neutral-400' : ''}
+                      ${isWithin10Hours && !isCancelled ? 'bg-orange-50/30' : ''}
+                      hover:bg-neutral-50 transition-colors
                     `}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-semibold text-gray-900 dark:text-white">
+                      <div className="font-bold text-foreground">
                         {formatSlovakDate(session.training_date)}
                       </div>
                       {isCancelled && (
-                        <div className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 mt-1">
-                          ❌ {t?.profile?.cancelled || 'CANCELLED'}
+                        <div className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-red-50 text-red-600 border border-red-100 mt-1.5">
+                          <XCircle className="w-3.5 h-3.5 mr-1" /> {t?.profile?.cancelled || 'CANCELLED'}
                         </div>
                       )}
                       {isWithin10Hours && !isCancelled && (
-                        <div className="text-orange-600 dark:text-orange-400 text-xs font-medium mt-1 flex items-center">
-                          ⏳ {Math.round(hoursDifference)} {t?.profile?.hoursUntilSession || 'h'}
+                        <div className="text-orange-600 text-xs font-bold mt-1.5 flex items-center gap-1">
+                          <AlertTriangle className="w-3.5 h-3.5" /> {Math.round(hoursDifference)} {t?.profile?.hoursUntilSession || 'h'}
                         </div>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
                         {session.training_type}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-center">
-                        <span className={`font-bold ${session.available_spots === 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                        <span className={`font-black text-lg ${session.available_spots === 0 ? 'text-red-500' : 'text-emerald-500'}`}>
                           {session.available_spots}
                         </span>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">of {session.max_participants}</div>
+                        <div className="text-xs font-medium text-neutral-400">z {session.max_participants}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="space-y-2 max-w-xs">
                         {session.participants.map((participant, index) => (
-                          <div key={`${participant.email || 'participant'}-${participant.first_name || ''}-${participant.last_name || ''}-${index}`} className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3">
+                          <div key={`${participant.email || 'participant'}-${participant.first_name || ''}-${participant.last_name || ''}-${index}`} className="bg-white border border-neutral-200 rounded-xl p-3 shadow-sm">
                             <div className="space-y-1">
-                              <div className="font-medium text-gray-900 dark:text-white">{participant.first_name} {participant.last_name}</div>
-                              <div className="text-sm text-gray-600 dark:text-gray-300">{participant.email}</div>
-                              <div className="flex flex-wrap gap-2 items-center">
+                              <div className="font-bold text-foreground text-sm">{participant.first_name} {participant.last_name}</div>
+                              <div className="text-xs text-neutral-500">{participant.email}</div>
+                              <div className="flex flex-wrap gap-1.5 items-center mt-2">
                                 <span className={`
-                                  inline-flex items-center px-2 py-1 rounded text-xs font-medium
+                                  inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border
                                   ${participant.booking_type === 'credit'
-                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
                                     : participant.booking_type === 'season_ticket'
-                                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                      ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
                                       : participant.booking_type === 'paid' && participant.active === false
-                                        ? 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200'
+                                        ? 'bg-neutral-100 text-neutral-600 border-neutral-200'
                                         : participant.booking_type === 'paid' && (!participant.amount_paid || participant.amount_paid === 0)
-                                          ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
-                                          : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                          ? 'bg-orange-50 text-orange-700 border-orange-200'
+                                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                   }
                                 `}>
                                   {participant.booking_type === 'credit'
-                                    ? '💳 Credit'
+                                    ? 'Kredit'
                                     : participant.booking_type === 'season_ticket'
-                                      ? '🎫 Season Ticket'
+                                      ? 'Permanentka'
                                       : participant.booking_type === 'paid' && participant.active === false
-                                        ? '❌ Cancelled'
+                                        ? 'Zrušené'
                                         : participant.booking_type === 'paid' && (!participant.amount_paid || participant.amount_paid === 0)
-                                          ? '⏳ Pending'
-                                          : '💰 Paid'}
+                                          ? 'Čaká na platbu'
+                                          : 'Zaplatené'}
                                 </span>
                                 {participant.amount_paid > 0 && (
-                                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
                                     €{participant.amount_paid}
                                   </span>
                                 )}
@@ -529,84 +506,63 @@ const UserProfile = () => {
                             </div>
                           </div>
                         ))}
-                        {session.participants.length === 0 && <div className="text-sm text-gray-500 dark:text-gray-400 italic">No participants</div>}
+                        {session.participants.length === 0 && <div className="text-sm font-medium text-neutral-400 italic">Žiadni účastníci</div>}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-center">
-                        <span className="font-bold text-blue-600 dark:text-blue-400">{totalChildren}</span>
+                        <span className="font-black text-lg text-primary">{totalChildren}</span>
                       </div>
                     </td>
-
-                    {/* --- UPRAVENÁ SEKCIA S IKONAMI --- */}
                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex justify-end items-center gap-2">
-
-                        {/* 1. CHECKLIST IKONA */}
+                      <div className="flex justify-end items-center gap-1.5">
                         <button
                           disabled={!canChecklist}
-                          className={`p-2 rounded-full transition-all ${canChecklist
-                            ? 'text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer'
-                            : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                          className={`p-2 rounded-xl transition-all ${canChecklist
+                            ? 'text-primary hover:bg-primary/10 cursor-pointer'
+                            : 'text-neutral-300 cursor-not-allowed'
                             }`}
                           onClick={() => canChecklist && navigate(`/admin/checklist/${session.training_id}`)}
                           title={canChecklist ? "Otvoriť Checklist" : "Nedostupné (Zrušené)"}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                          </svg>
+                          <ClipboardCheck className="w-5 h-5" />
                         </button>
 
-                        {/* 2. CANCEL SESSION IKONA (Teraz sivá ak je < 10h) */}
                         <button
                           disabled={!canCancel}
-                          className={`p-2 rounded-full transition-all ${canCancel
-                            ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer'
-                            : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                          className={`p-2 rounded-xl transition-all ${canCancel
+                            ? 'text-red-500 hover:bg-red-50 cursor-pointer'
+                            : 'text-neutral-300 cursor-not-allowed'
                             }`}
                           onClick={() => canCancel && handleAdminCancelSession(session.training_id, session.training_type, session.training_date, false)}
-                          title={canCancel
-                            ? (t?.profile?.cancelSession || "Cancel Session")
-                            : isWithin10Hours
-                              ? "Menej ako 10h (Použi Force Cancel)"
-                              : "Už zrušené"
-                          }
+                          title={canCancel ? (t?.profile?.cancelSession || "Cancel Session") : isWithin10Hours ? "Menej ako 10h (Použi Force Cancel)" : "Už zrušené"}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
+                          <XCircle className="w-5 h-5" />
                         </button>
 
-                        {/* 3. FORCE CANCEL IKONA */}
                         <button
                           disabled={!canForceCancel}
-                          className={`p-2 rounded-full transition-all ${canForceCancel
-                            ? 'text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 cursor-pointer'
-                            : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                          className={`p-2 rounded-xl transition-all ${canForceCancel
+                            ? 'text-orange-500 hover:bg-orange-50 cursor-pointer'
+                            : 'text-neutral-300 cursor-not-allowed'
                             }`}
                           onClick={() => canForceCancel && handleAdminCancelSession(session.training_id, session.training_type, session.training_date, true)}
                           title={canForceCancel ? "Force Cancel" : "Dostupné len 10h pred tréningom"}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                          </svg>
+                          <Zap className="w-5 h-5" />
                         </button>
 
-                        {/* 4. DELETE SESSION IKONA */}
                         <button
                           disabled={!canDelete}
-                          className={`p-2 rounded-full transition-all ${canDelete
-                            ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer'
-                            : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                          className={`p-2 rounded-xl transition-all ${canDelete
+                            ? 'text-red-600 hover:bg-red-50 cursor-pointer'
+                            : 'text-neutral-300 cursor-not-allowed'
                             }`}
                           onClick={() => canDelete && handleDeleteSession(session.training_id, session.training_type, session.training_date)}
                           title={canDelete ? "Delete Session" : isCancelled ? `Čakám na zrušenie ${remainingBookings} rezervácií` : "Session musí byť najprv zrušený"}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
+                          <Trash2 className="w-5 h-5" />
                         </button>
-
                       </div>
                     </td>
                   </tr>
@@ -651,7 +607,6 @@ const UserProfile = () => {
       });
 
       showAlert(`Session canceled successfully! ${response.data.canceledBookings} bookings affected.${response.data.forceCancelUsed ? ' (Force Cancel)' : ''}`, 'success');
-
       await refreshBookings();
 
     } catch (error) {
@@ -720,14 +675,11 @@ const UserProfile = () => {
     setShowCancelModal(true);
   };
 
-  // Updated confirmCancellation function in UserProfile.jsx
-
   const confirmCancellation = async () => {
     if (!selectedBooking) return;
 
     try {
       if (cancellationType === 'refund') {
-        // Original refund logic - DELETE request WITHOUT requestCredit flag
         const response = await api.delete(
           `/api/bookings/${selectedBooking.bookingId}`
         );
@@ -752,11 +704,10 @@ const UserProfile = () => {
         }
 
       } else if (cancellationType === 'credit') {
-        // NEW: Request credit instead of refund
         const response = await api.delete(
           `/api/bookings/${selectedBooking.bookingId}`,
           {
-            data: { requestCredit: true } // Send flag to backend
+            data: { requestCredit: true }
           }
         );
 
@@ -773,7 +724,6 @@ const UserProfile = () => {
         }
 
       } else if (cancellationType === 'return') {
-        // NEW: Return season ticket entry or credit
         const response = await api.delete(
           `/api/bookings/${selectedBooking.bookingId}`
         );
@@ -788,7 +738,6 @@ const UserProfile = () => {
         }
 
       } else if (cancellationType === 'replacement' && selectedReplacement) {
-        // Original replacement logic
         await api.post(
           `/api/replace-booking/${selectedBooking.bookingId}`,
           { newTrainingId: selectedReplacement }
@@ -796,13 +745,11 @@ const UserProfile = () => {
         showAlert(t?.profile?.cancel?.replacementSuccess || 'Session successfully replaced.', 'success');
       }
 
-      // Refresh bookings
       const bookingsResponse = await api.get(`/api/bookings/user/${userId}`);
       setBookedSessions(bookingsResponse.data);
 
     } catch (error) {
       console.error('Error processing cancellation:', error);
-
       if (error.response?.data?.error?.includes('10 hours')) {
         showAlert('Cancellation is not allowed within 10 hours of the session.', 'danger');
       } else {
@@ -830,11 +777,8 @@ const UserProfile = () => {
       const response = await api.delete(
         `/api/admin/training-sessions/${trainingId}`
       );
-
       showAlert(response.data.message || 'Session deleted successfully!', 'success');
-
       await refreshBookings();
-
     } catch (error) {
       console.error('Error deleting session:', error);
       const errorMessage = error.response?.data?.error || 'Failed to delete session';
@@ -854,35 +798,18 @@ const UserProfile = () => {
 
     setIsDeleting(true);
     try {
-      // 1. Overenie hesla (volá Váš pôvodný endpoint)
-      const verifyResponse = await api.post(
-        '/api/verify-password',
-        { password }
-      );
+      const verifyResponse = await api.post('/api/verify-password', { password });
 
-      // Keďže Váš verify endpoint vracia 200 len pri úspechu a 400 pri chybe,
-      // podmienka if (verifyResponse.data.success) je tu vlastne redundantná,
-      // ale pre zachovanie logiky ju môžeme nechať.
       if (verifyResponse.data.success) {
-
-        // 2. Zmazanie užívateľa (volá nový endpoint s mailom)
         await api.delete(`/api/users/${userId}`);
-
-        // 3. Vyčistenie klientskych dát
         localStorage.removeItem('userId');
         localStorage.removeItem('isLoggedIn');
-        localStorage.removeItem('userRole'); // Ak používate aj role
-        // localStorage.clear(); // TIP: Toto pre istotu vymaže úplne všetko z localStorage
-
-        // 4. TVRDÝ RELOAD A PRESMEROVANIE
-        // Namiesto navigate('/account-deleted') použijeme toto:
+        localStorage.removeItem('userRole'); 
         window.location.href = '/account-deleted';
-
       } else {
         setError(t?.profile?.delete?.error?.incorrect || 'Incorrect password');
       }
     } catch (err) {
-      // Tu zachytávame 400 z verify-password alebo 500 z delete
       setError(err.response?.data?.error || t?.profile?.delete?.error?.generic || 'Failed to delete account');
     } finally {
       setIsDeleting(false);
@@ -925,24 +852,43 @@ const UserProfile = () => {
   });
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl mt-8 space-y-10">
-      {alertMessage && (
-        <div className={`alert alert-${alertVariant} rounded-lg p-4 mb-6 ${alertVariant === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
-          alertVariant === 'danger' ? 'bg-red-100 text-red-800 border border-red-200' :
-            'bg-blue-100 text-blue-800 border border-blue-200'
-          }`} role="alert">
-          {alertMessage}
-        </div>
-      )}
+    <motion.section 
+      initial="hidden"
+      animate="visible"
+      variants={fadeInUp}
+      className="py-12 md:py-16 container-custom max-w-7xl mx-auto px-4 sm:px-6 relative space-y-8"
+    >
+      {/* Alert Banner */}
+      <AnimatePresence>
+        {alertMessage && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className={`rounded-2xl p-5 border shadow-sm flex items-start gap-3 ${
+              alertVariant === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+              alertVariant === 'danger' ? 'bg-red-50 text-red-800 border-red-200' :
+              'bg-blue-50 text-blue-800 border-blue-200'
+            }`} 
+            role="alert"
+          >
+            {alertVariant === 'success' && <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-emerald-600" />}
+            {alertVariant === 'danger' && <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-600" />}
+            <span className="font-medium text-sm sm:text-base">{alertMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <h2 className="text-3xl font-bold text-center text-gray-800 dark:text-white mb-8">
-        {t?.profile?.title || 'Account Settings'}
-      </h2>
+      {/* Hlavný nadpis */}
+      <div className="text-center mb-10">
+        <h2 className="text-3xl sm:text-4xl font-black text-foreground uppercase tracking-tight">
+          {t?.profile?.title || 'Nastavenia účtu'}
+        </h2>
+      </div>
 
       {isAdmin ? (
         <div className="space-y-8">
-
-          {/* Dynamicky vykreslíme tabuľku pre každý nájdený typ */}
+          {/* Administrátorské Tabuľky Tréningov */}
           {sortedSessionTypes.length > 0 ? (
             sortedSessionTypes.map((type) => (
               <React.Fragment key={type}>
@@ -950,63 +896,63 @@ const UserProfile = () => {
               </React.Fragment>
             ))
           ) : (
-            <p className="text-gray-500 dark:text-gray-400 text-center py-4">
-              Žiadne tréningy na zobrazenie.
-            </p>
+            <div className="bg-white rounded-[2rem] border border-neutral-200 p-12 text-center shadow-sm">
+              <CalendarDays className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
+              <p className="text-neutral-500 font-bold">
+                Žiadne tréningy na zobrazenie.
+              </p>
+            </div>
           )}
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-200 dark:border-gray-700">
-            <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
-              {t?.profile?.seasonTickets?.title || 'Drzitelia permanentiek'}
+          {/* Administrátorské Permanentky */}
+          <div className="bg-white rounded-[2rem] shadow-sm p-8 border border-neutral-200 overflow-hidden">
+            <h3 className="text-2xl font-extrabold text-foreground mb-6 flex items-center gap-3">
+              <Ticket className="w-6 h-6 text-primary" />
+              {t?.profile?.seasonTickets?.title || 'Držitelia permanentiek'}
             </h3>
+            
             {adminSeasonTickets.length === 0 ? (
-              <p className="text-gray-600 dark:text-gray-400 text-center py-8">
-                {t?.profile?.seasonTickets?.noTickets || 'No users have purchased season tickets.'}
-              </p>
+              <div className="text-center py-8 bg-neutral-50 rounded-xl border border-dashed border-neutral-300">
+                <p className="text-neutral-500 font-bold">
+                  {t?.profile?.seasonTickets?.noTickets || 'Zatiaľ nikto nemá zakúpenú permanentku.'}
+                </p>
+              </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead>
+              <div className="overflow-x-auto rounded-xl border border-neutral-200 shadow-sm">
+                <table className="min-w-full divide-y divide-neutral-200">
+                  <thead className="bg-neutral-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        {t?.profile?.seasonTickets?.name || 'Name'}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        {t?.profile?.seasonTickets?.email || 'Email'}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        {t?.profile?.seasonTickets?.type || 'Typ'}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        {t?.profile?.seasonTickets?.totalEntries || 'Total Entries'}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        {t?.profile?.seasonTickets?.remainingEntries || 'Remaining Entries'}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        {t?.profile?.seasonTickets?.expiryDate || 'Expiry Date'}
-                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">{t?.profile?.seasonTickets?.name || 'Name'}</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">{t?.profile?.seasonTickets?.email || 'Email'}</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">{t?.profile?.seasonTickets?.type || 'Typ'}</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">{t?.profile?.seasonTickets?.totalEntries || 'Celkovo'}</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">{t?.profile?.seasonTickets?.remainingEntries || 'Zostatok'}</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">{t?.profile?.seasonTickets?.expiryDate || 'Platnosť do'}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="divide-y divide-neutral-100 bg-white">
                     {adminSeasonTickets.map((ticket, index) => (
-                      <tr key={`${ticket.id || 'ticket'}-${ticket.email || ''}-${index}`} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      <tr key={`${ticket.id || 'ticket'}-${ticket.email || ''}-${index}`} className="hover:bg-neutral-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-foreground">
                           {ticket.first_name} {ticket.last_name}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
                           {ticket.email}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
-                          {ticket.product_name || ticket.product_code || ticket.training_type_name || ticket.training_type || '-'}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase bg-primary/10 text-primary border border-primary/20">
+                            {ticket.product_name || ticket.product_code || ticket.training_type_name || ticket.training_type || '-'}
+                          </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-neutral-500">
                           {ticket.entries_total}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
-                          {ticket.entries_remaining}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${ticket.entries_remaining > 0 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+                            {ticket.entries_remaining}
+                          </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 font-medium">
                           {formatSlovakDate(ticket.expiry_date).split(' - ')[0]}
                         </td>
                       </tr>
@@ -1016,22 +962,28 @@ const UserProfile = () => {
               </div>
             )}
           </div>
-          {/* TLAČIDLO ARCHÍV - pridaj za Season Ticket Holders sekciou */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
-                  📦 {t?.archive?.title || 'Archív hodín'}
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400">
-                  {t?.archive?.description || 'Zobraziť uskutočnené tréningy z minulosti'}
-                </p>
+
+          {/* TLAČIDLO ARCHÍV (Admin) */}
+          <div className="bg-white rounded-[2rem] shadow-sm p-8 border border-neutral-200">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <Archive className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-extrabold text-foreground mb-1">
+                    {t?.archive?.title || 'Archív hodín'}
+                  </h3>
+                  <p className="text-sm font-medium text-neutral-500">
+                    {t?.archive?.description || 'Zobraziť uskutočnené tréningy z minulosti'}
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => navigate('/archive')}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                className="w-full sm:w-auto bg-primary hover:bg-primary-600 text-white px-6 py-3 rounded-xl font-bold transition-all hover:-translate-y-0.5 hover:shadow-md"
               >
-                {t?.archive?.open || 'Otvoriť archív'} →
+                {t?.archive?.open || 'Otvoriť archív'}
               </button>
             </div>
           </div>
@@ -1039,69 +991,63 @@ const UserProfile = () => {
       ) : (
         // ================== USER ČASŤ (Nový dizajn) ==================
         <>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
-            <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
+          <div className="bg-white rounded-[2rem] shadow-sm p-8 border border-neutral-200 mb-8">
+            <h3 className="text-2xl font-extrabold text-foreground mb-6 flex items-center gap-3">
+              <Ticket className="w-6 h-6 text-primary" />
               {t?.profile?.mySeasonTickets?.title || 'Vaše permanentky'}
             </h3>
 
             {/* 1. AKTÍVNE PERMANENTKY */}
             {activeTickets.length === 0 ? (
-              <div className="text-center py-8 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
+              <div className="text-center py-10 bg-neutral-50 rounded-2xl border border-dashed border-neutral-300">
+                <Ticket className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
+                <p className="text-neutral-500 font-bold mb-4">
                   {t?.profile?.mySeasonTickets?.noTickets || 'Nemáte žiadne aktívne permanentky.'}
                 </p>
                 <button
                   onClick={() => navigate('/season-tickets')}
-                  className="bg-secondary-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-secondary-600 transition-colors"
+                  className="bg-secondary text-white px-6 py-2.5 rounded-xl font-bold hover:bg-secondary-600 transition-all hover:shadow-md hover:-translate-y-0.5"
                 >
-                  Kúpiť novú permanentku →
+                  Kúpiť novú permanentku
                 </button>
               </div>
             ) : (
-              <div className="overflow-x-auto mb-2">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
+              <div className="overflow-x-auto rounded-xl border border-neutral-200 shadow-sm mb-4">
+                <table className="min-w-full divide-y divide-neutral-200">
+                  <thead className="bg-neutral-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        {t?.profile?.mySeasonTickets?.type || 'Typ'}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        {t?.profile?.mySeasonTickets?.entriesTotal || 'Vstupy'}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        {t?.profile?.mySeasonTickets?.entriesRemaining || 'Zostatok'}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        {t?.profile?.mySeasonTickets?.purchaseDate || 'Kúpené'}
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        {t?.profile?.mySeasonTickets?.expiryDate || 'Platnosť'}
-                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">{t?.profile?.mySeasonTickets?.type || 'Typ'}</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">{t?.profile?.mySeasonTickets?.entriesTotal || 'Vstupy'}</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">{t?.profile?.mySeasonTickets?.entriesRemaining || 'Zostatok'}</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">{t?.profile?.mySeasonTickets?.purchaseDate || 'Kúpené'}</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-neutral-500 uppercase tracking-wider">{t?.profile?.mySeasonTickets?.expiryDate || 'Platnosť do'}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                  <tbody className="divide-y divide-neutral-100 bg-white">
                     {activeTickets.map((ticket, index) => (
-                      <tr key={`${ticket.id || 'ticket'}-${ticket.purchase_date || ''}-${index}`} className="hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">
-                          <div>{ticket.product_name || ticket.product_code || ticket.training_type_name || ticket.training_type || '-'}</div>
+                      <tr key={`${ticket.id || 'ticket'}-${ticket.purchase_date || ''}-${index}`} className="hover:bg-primary/5 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="font-bold text-foreground text-sm">
+                            {ticket.product_name || ticket.product_code || ticket.training_type_name || ticket.training_type || '-'}
+                          </div>
                           {ticket.training_types && ticket.training_types.length > 0 && (
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                            <div className="text-xs font-medium text-neutral-400 mt-1">
                               {ticket.training_types.map((type) => type.name).join(', ')}
                             </div>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-neutral-500">
                           {ticket.entries_total}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 py-1 px-3 rounded-full text-sm font-bold">
+                          <span className="bg-emerald-50 text-emerald-600 border border-emerald-100 py-1 px-3 rounded-full text-xs font-bold">
                             {ticket.entries_remaining}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-500">
                           {formatSlovakDate(ticket.purchase_date).split(' - ')[0]}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-500">
                           {formatSlovakDate(ticket.expiry_date).split(' - ')[0]}
                         </td>
                       </tr>
@@ -1111,90 +1057,113 @@ const UserProfile = () => {
               </div>
             )}
 
-            {/* 2. HISTÓRIA / VYČERPANÉ (Zobrazí sa len ak existujú staré lístky) */}
+            {/* 2. HISTÓRIA / VYČERPANÉ */}
             {historyTickets.length > 0 && (
-              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="mt-8 pt-6 border-t border-neutral-100">
                 <button
                   onClick={() => setShowHistory(!showHistory)}
-                  className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-sm font-medium transition-colors mb-4"
+                  className="flex items-center gap-2 text-neutral-400 hover:text-primary font-bold text-sm transition-colors mb-4 group"
                 >
+                  <History className="w-4 h-4" />
                   {showHistory ? 'Skryť históriu permanentiek' : `Zobraziť históriu / Vyčerpané permanentky (${historyTickets.length})`}
-                  <span className={`transform transition-transform duration-200 ${showHistory ? 'rotate-180' : ''}`}>▼</span>
+                  <ChevronDown className={`w-4 h-4 transform transition-transform duration-300 ${showHistory ? 'rotate-180' : ''}`} />
                 </button>
 
-                {showHistory && (
-                  <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 opacity-75 hover:opacity-100 transition-opacity">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                      <thead className="bg-gray-100 dark:bg-gray-900">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Typ</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Dátum nákupu</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-gray-50 dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {historyTickets.map((ticket, index) => (
-                          <tr key={`${ticket.id || 'ticket'}-${ticket.purchase_date || ''}-${index}`}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                              <div>{ticket.product_name || ticket.product_code || ticket.training_type_name || ticket.training_type || '-'}</div>
-                              {ticket.training_types && ticket.training_types.length > 0 && (
-                                <div className="text-xs text-gray-400">
-                                  {ticket.training_types.map((type) => type.name).join(', ')}
-                                </div>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              {ticket.entries_remaining === 0 ? (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300">
-                                  Vyčerpaná
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-300">
-                                  Expirovaná
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                              {formatSlovakDate(ticket.purchase_date).split(' - ')[0]}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                <AnimatePresence>
+                  {showHistory && (
+                    <motion.div 
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="overflow-x-auto rounded-xl border border-neutral-200">
+                        <table className="min-w-full divide-y divide-neutral-200">
+                          <thead className="bg-neutral-50">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-bold text-neutral-400 uppercase">Typ</th>
+                              <th className="px-6 py-3 text-left text-xs font-bold text-neutral-400 uppercase">Status</th>
+                              <th className="px-6 py-3 text-left text-xs font-bold text-neutral-400 uppercase">Dátum nákupu</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-neutral-100">
+                            {historyTickets.map((ticket, index) => (
+                              <tr key={`${ticket.id || 'ticket'}-${ticket.purchase_date || ''}-${index}`} className="opacity-75 hover:opacity-100 transition-opacity">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="font-bold text-sm text-neutral-600">
+                                    {ticket.product_name || ticket.product_code || ticket.training_type_name || ticket.training_type || '-'}
+                                  </div>
+                                  {ticket.training_types && ticket.training_types.length > 0 && (
+                                    <div className="text-xs font-medium text-neutral-400 mt-1">
+                                      {ticket.training_types.map((type) => type.name).join(', ')}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  {ticket.entries_remaining === 0 ? (
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-neutral-100 text-neutral-600 border border-neutral-200">
+                                      Vyčerpaná
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-50 text-red-600 border border-red-100">
+                                      Expirovaná
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-500">
+                                  {formatSlovakDate(ticket.purchase_date).split(' - ')[0]}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
           </div>
 
-          {/*  ARCHÍV TLAČIDLO  */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
-                  📦 {t?.archive?.title || 'Archív hodín'}
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400">
-                  {t?.archive?.userDescription || 'Zobraziť históriu vašich absolvovaných hodín'}
-                </p>
+          {/* ARCHÍV TLAČIDLO (User) */}
+          <div className="bg-white rounded-[2rem] shadow-sm p-8 border border-neutral-200 mb-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <Archive className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-extrabold text-foreground mb-1">
+                    {t?.archive?.title || 'Archív hodín'}
+                  </h3>
+                  <p className="text-sm font-medium text-neutral-500">
+                    {t?.archive?.userDescription || 'Zobraziť históriu vašich absolvovaných hodín'}
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => navigate('/archive')}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                className="w-full sm:w-auto bg-primary hover:bg-primary-600 text-white px-6 py-3 rounded-xl font-bold transition-all hover:-translate-y-0.5 hover:shadow-md"
               >
-                {t?.archive?.open || 'Otvoriť archív'} →
+                {t?.archive?.open || 'Otvoriť archív'}
               </button>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
-            <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
+          {/* VAŠE REZERVOVANÉ RELÁCIE */}
+          <div className="bg-white rounded-[2rem] shadow-sm p-8 border border-neutral-200 mb-8">
+            <h3 className="text-2xl font-extrabold text-foreground mb-6 flex items-center gap-3">
+              <CalendarDays className="w-6 h-6 text-primary" />
               {t?.profile?.bookedSessions?.title || 'Vaše rezervované relácie'}
             </h3>
+            
             {bookedSessions.length === 0 ? (
-              <p className="text-gray-600 dark:text-gray-400 text-center py-8">
-                {t?.profile?.bookedSessions?.noSessions || 'Nemáte žiadne rezervované relácie.'}
-              </p>
+              <div className="text-center py-10 bg-neutral-50 rounded-2xl border border-dashed border-neutral-300">
+                <CalendarDays className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
+                <p className="text-neutral-500 font-bold">
+                  {t?.profile?.bookedSessions?.noSessions || 'Nemáte žiadne rezervované relácie.'}
+                </p>
+              </div>
             ) : (
               <div className="space-y-4">
                 {visibleSessions.map((session, index) => {
@@ -1202,47 +1171,19 @@ const UserProfile = () => {
                   const canCancel = !isCancelled && canCancelSession(session.training_date);
 
                   const getBookingTypeInfo = () => {
-                    // PRIORITA 1: Skontroluj booking_type (najspoľahlivejšie)
                     if (session.booking_type === 'credit') {
-                      return {
-                        type: 'credit',
-                        label: t?.profile?.bookingMethods?.credit || '💳 Kredit',
-                        badgeClass: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                      };
+                      return { type: 'credit', label: t?.profile?.bookingMethods?.credit || 'Kredit', icon: <CreditCard className="w-3.5 h-3.5"/>, badgeClass: 'bg-blue-50 text-blue-700 border-blue-200' };
                     }
-
                     if (session.booking_type === 'season_ticket') {
-                      return {
-                        type: 'season_ticket',
-                        label: t?.profile?.bookingMethods?.season_ticket || '🎫 Permanentka',
-                        badgeClass: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                      };
+                      return { type: 'season_ticket', label: t?.profile?.bookingMethods?.season_ticket || 'Permanentka', icon: <Ticket className="w-3.5 h-3.5"/>, badgeClass: 'bg-yellow-50 text-yellow-700 border-yellow-200' };
                     }
-
-                    // PRIORITA 3: Platená rezervácia (MUST have both conditions)
                     if (session.booking_type === 'paid' && session.amount_paid && session.amount_paid > 0) {
-                      return {
-                        type: 'paid',
-                        label: t?.profile?.bookingMethods?.paid || '💰 Zaplatené',
-                        badgeClass: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      };
+                      return { type: 'paid', label: t?.profile?.bookingMethods?.paid || 'Zaplatené', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
                     }
-
-                    // PRIORITA 4: Pending platená rezervácia (bez potvrdenia)
                     if (session.booking_type === 'paid' && (!session.amount_paid || session.amount_paid === 0)) {
-                      return {
-                        type: 'pending',
-                        label: t?.profile?.bookingMethods?.pending || '⏳ Čaká sa na platbu',
-                        badgeClass: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
-                      };
+                      return { type: 'pending', label: t?.profile?.bookingMethods?.pending || 'Čaká sa na platbu', badgeClass: 'bg-orange-50 text-orange-700 border-orange-200' };
                     }
-
-                    // PRIORITA 5: Neznámy typ (fallback)
-                    return {
-                      type: 'unknown',
-                      label: t?.profile?.bookingMethods?.reservation || 'Rezervácia',
-                      badgeClass: 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-200'
-                    };
+                    return { type: 'unknown', label: t?.profile?.bookingMethods?.reservation || 'Rezervácia', badgeClass: 'bg-neutral-100 text-neutral-600 border-neutral-200' };
                   };
 
                   const bookingTypeInfo = getBookingTypeInfo();
@@ -1250,33 +1191,32 @@ const UserProfile = () => {
                   return (
                     <div
                       key={`${session.booking_id || 'booking'}-${session.training_date || ''}-${index}`}
-                      className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border ${isCancelled
-                        ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600'
-                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-                        } transition-colors`}
+                      className={`flex flex-col md:flex-row md:items-center justify-between p-5 rounded-2xl border ${isCancelled
+                        ? 'bg-neutral-50 border-neutral-200'
+                        : 'bg-white border-neutral-200 shadow-sm hover:border-primary/30 transition-colors'
+                        }`}
                     >
-                      <div className="flex-1 mb-3 sm:mb-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
-                          <strong className="text-lg text-gray-900 dark:text-white font-semibold">
+                      <div className="flex-1 mb-4 md:mb-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
+                          <strong className={`text-lg font-black uppercase ${isCancelled ? 'text-neutral-400' : 'text-foreground'}`}>
                             {session.training_type}
                           </strong>
-                          <span className="text-base text-gray-700 dark:text-gray-300 font-medium">
+                          <span className={`text-sm font-medium ${isCancelled ? 'text-neutral-400' : 'text-neutral-600'}`}>
                             {formatSlovakDate(session.training_date)}
                           </span>
-                          <div className="flex-shrink-0">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${bookingTypeInfo.badgeClass}`}>
-                              {bookingTypeInfo.label}
-                            </span>
-                          </div>
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border ${isCancelled ? 'bg-neutral-100 text-neutral-400 border-neutral-200' : bookingTypeInfo.badgeClass}`}>
+                            {bookingTypeInfo.icon} {bookingTypeInfo.label}
+                          </span>
                         </div>
                         {session.theme && (
-                          <div className="mt-2 text-center">
-                            <span className="text-black font-bold text-sm">
+                          <div className="inline-flex items-center px-3 py-1 bg-neutral-100 rounded-lg">
+                            <span className="text-neutral-600 font-bold text-xs uppercase tracking-wider">
                               Téma: {session.theme}
                             </span>
                           </div>
                         )}
                       </div>
+                      
                       <div
                         data-tooltip-id="cancel-tooltip"
                         data-tooltip-content={
@@ -1286,16 +1226,17 @@ const UserProfile = () => {
                               ? t?.profile?.cancel?.tooltip || 'Zrušenie už nie je možné, do relácie zostáva menej ako 10 hodín.'
                               : ''
                         }
-                        className="flex-shrink-0 w-auto"
+                        className="flex-shrink-0 w-full md:w-auto"
                       >
                         <button
-                          className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${isCancelled || !canCancel
-                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-600 dark:text-gray-400'
-                            : 'bg-red-600 hover:bg-red-700 text-white'
+                          className={`w-full md:w-auto px-5 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${isCancelled || !canCancel
+                            ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed border border-neutral-200'
+                            : 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600'
                             }`}
                           onClick={() => handleCancelSession(session.booking_id, session.training_date, session.training_type)}
                           disabled={isCancelled || !canCancel}
                         >
+                          <XCircle className="w-4 h-4" />
                           {isCancelled ? t?.profile?.cancelled || 'Zrušené' : t?.profile?.cancel?.button || 'Zrušiť reláciu'}
                         </button>
                       </div>
@@ -1304,46 +1245,58 @@ const UserProfile = () => {
                 })}
               </div>
             )}
-            <Tooltip id="cancel-tooltip" place="top" effect="solid" />
+            <Tooltip id="cancel-tooltip" place="top" effect="solid" className="rounded-lg !bg-neutral-800 !text-white font-medium text-xs px-3 py-2 shadow-xl" />
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700">
-            <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">
-              {t?.profile?.info?.title || 'Your Profile Information'}
+          {/* PROFILOVÉ INFORMÁCIE (Smart Adresa) */}
+          <div className="bg-white rounded-[2rem] shadow-sm p-8 border border-neutral-200 mb-8">
+            <h3 className="text-2xl font-extrabold text-foreground mb-6 flex items-center gap-3">
+              <ShieldAlert className="w-6 h-6 text-primary" />
+              {t?.profile?.info?.title || 'Profilové informácie'}
             </h3>
 
-            {updateMessage && (
-              <div className={`rounded-lg p-4 mb-6 ${updateVariant === 'success'
-                ? 'bg-green-100 text-green-800 border border-green-200'
-                : 'bg-red-100 text-red-800 border border-red-200'
-                }`}>
-                {updateMessage}
-              </div>
-            )}
+            <AnimatePresence>
+              {updateMessage && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className={`rounded-xl p-4 mb-6 border font-medium text-sm flex items-start gap-3 ${updateVariant === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    : 'bg-red-50 text-red-800 border-red-200'
+                  }`}
+                >
+                  {updateVariant === 'success' ? <CheckCircle className="w-5 h-5 flex-shrink-0" /> : <AlertTriangle className="w-5 h-5 flex-shrink-0" />}
+                  <span className="mt-0.5">{updateMessage}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
+            <div className="bg-neutral-50 rounded-2xl p-6 md:p-8 border border-neutral-100">
               {!isEditing ? (
-                // VIEW MODE (Bez zmeny)
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                // VIEW MODE
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div>
-                    <h5 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+                    <h5 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <MapPin className="w-4 h-4" />
                       {t?.profile?.info?.address || 'Address'}
                     </h5>
-                    <p className="text-gray-600 dark:text-gray-300">
-                      {editedAddress || t?.profile?.info?.noAddress || 'No address provided'}
+                    <p className="text-lg font-bold text-foreground">
+                      {editedAddress || <span className="text-neutral-400 font-medium italic">{t?.profile?.info?.noAddress || 'No address provided'}</span>}
                     </p>
                   </div>
                   <div>
-                    <h5 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+                    <h5 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                      <Phone className="w-4 h-4" />
                       {t?.profile?.info?.mobile || 'Mobile Number'}
                     </h5>
-                    <p className="text-gray-600 dark:text-gray-300">
-                      {editedMobile || t?.profile?.info?.noMobile || 'No mobile number provided'}
+                    <p className="text-lg font-bold text-foreground">
+                      {editedMobile || <span className="text-neutral-400 font-medium italic">{t?.profile?.info?.noMobile || 'No mobile number provided'}</span>}
                     </p>
                   </div>
-                  <div className="md:col-span-2">
+                  <div className="md:col-span-2 pt-4 border-t border-neutral-200">
                     <button
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+                      className="bg-primary hover:bg-primary-600 text-white font-bold py-3 px-6 rounded-xl transition-all hover:shadow-md hover:-translate-y-0.5"
                       onClick={() => setIsEditing(true)}
                     >
                       {t?.profile?.info?.editButton || 'Edit Profile Information'}
@@ -1352,11 +1305,9 @@ const UserProfile = () => {
                 </div>
               ) : (
                 // EDIT MODE (SMART ADRESA)
-                <div className="space-y-4">
-
-                  {/* 1. MESTO */}
+                <div className="space-y-5">
                   <div className="relative" ref={cityInputRef}>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-bold text-foreground mb-1.5">
                       Mesto / Obec *
                     </label>
                     <input
@@ -1364,14 +1315,14 @@ const UserProfile = () => {
                       value={addrCity}
                       onChange={(e) => { setAddrCity(e.target.value); setShowCityDropdown(true); }}
                       onFocus={() => setShowCityDropdown(true)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
+                      className="w-full px-4 py-3 bg-white border border-neutral-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors text-foreground font-medium"
                       placeholder="Napr. Nitra"
                     />
-                    {isSearchingCity && <div className="absolute right-3 top-9"><SpinnerIcon className="w-5 h-5 text-gray-400" /></div>}
+                    {isSearchingCity && <div className="absolute right-4 top-10"><SpinnerIcon className="w-5 h-5 text-primary" /></div>}
                     {showCityDropdown && citySuggestions.length > 0 && (
-                      <ul className="absolute z-50 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
+                      <ul className="absolute z-50 w-full bg-white border border-neutral-200 rounded-xl shadow-xl max-h-60 overflow-y-auto mt-2 py-1">
                         {citySuggestions.map((city, idx) => (
-                          <li key={city.place_id || idx} onClick={() => handleSelectCity(city)} className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200">
+                          <li key={city.place_id || idx} onClick={() => handleSelectCity(city)} className="px-4 py-3 hover:bg-primary/5 cursor-pointer text-sm font-medium text-neutral-700 border-b border-neutral-50 last:border-0">
                             {city.display_name}
                           </li>
                         ))}
@@ -1379,9 +1330,8 @@ const UserProfile = () => {
                     )}
                   </div>
 
-                  {/* 2. ULICA + CHECKBOX */}
                   <div className="relative" ref={streetInputRef}>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-bold text-foreground mb-1.5">
                       Ulica *
                     </label>
                     <input
@@ -1390,15 +1340,15 @@ const UserProfile = () => {
                       onChange={(e) => { setAddrStreet(e.target.value); setShowStreetDropdown(true); }}
                       onFocus={() => !hasNoStreet && setShowStreetDropdown(true)}
                       disabled={!addrCity || hasNoStreet}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:text-white
-                          ${hasNoStreet ? 'bg-gray-200 dark:bg-gray-800 text-gray-500 cursor-not-allowed border-gray-300' : 'bg-white dark:bg-gray-600 border-gray-300 dark:border-gray-600'}`}
+                      className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors font-medium
+                          ${hasNoStreet ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed border-neutral-200' : 'bg-white border-neutral-300 text-foreground'}`}
                       placeholder={hasNoStreet ? 'Obec nemá ulice' : (addrCity ? `Ulica v ${addrCity}` : "Najprv vyberte mesto")}
                     />
-                    {isSearchingStreet && !hasNoStreet && <div className="absolute right-3 top-9"><SpinnerIcon className="w-5 h-5 text-gray-400" /></div>}
+                    {isSearchingStreet && !hasNoStreet && <div className="absolute right-4 top-10"><SpinnerIcon className="w-5 h-5 text-primary" /></div>}
                     {showStreetDropdown && streetSuggestions.length > 0 && !hasNoStreet && (
-                      <ul className="absolute z-50 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1">
+                      <ul className="absolute z-50 w-full bg-white border border-neutral-200 rounded-xl shadow-xl max-h-60 overflow-y-auto mt-2 py-1">
                         {streetSuggestions.map((street, idx) => (
-                          <li key={street.place_id || idx} onClick={() => handleSelectStreet(street)} className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-700 dark:text-gray-200">
+                          <li key={street.place_id || idx} onClick={() => handleSelectStreet(street)} className="px-4 py-3 hover:bg-primary/5 cursor-pointer text-sm font-medium text-neutral-700 border-b border-neutral-50 last:border-0">
                             {street.display_name.split(',')[0]}
                           </li>
                         ))}
@@ -1406,7 +1356,7 @@ const UserProfile = () => {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-3 bg-white p-3 border border-neutral-200 rounded-xl">
                     <input
                       type="checkbox"
                       id="noStreetProfile"
@@ -1415,73 +1365,66 @@ const UserProfile = () => {
                         setHasNoStreet(e.target.checked);
                         if (e.target.checked) setAddrStreet('');
                       }}
-                      className="w-4 h-4 text-blue-600 rounded"
+                      className="w-5 h-5 text-primary border-neutral-300 rounded focus:ring-primary"
                     />
-                    <label htmlFor="noStreetProfile" className="text-xs text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+                    <label htmlFor="noStreetProfile" className="text-sm font-bold text-neutral-700 cursor-pointer select-none">
                       Obec nemá ulice (použiť len číslo domu)
                     </label>
                   </div>
 
-                  {/* 3. ČÍSLO a PSČ */}
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="col-span-1">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Číslo *</label>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">Číslo *</label>
                       <input
                         ref={numberInputRef}
                         type="text"
                         value={addrNumber}
                         onChange={(e) => setAddrNumber(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
+                        className="w-full px-4 py-3 bg-white border border-neutral-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors text-foreground font-medium"
                         placeholder="36"
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">PSČ *</label>
+                      <label className="block text-sm font-bold text-foreground mb-1.5">PSČ *</label>
                       <input
                         type="text"
                         value={addrZip}
                         onChange={(e) => setAddrZip(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
+                        className="w-full px-4 py-3 bg-white border border-neutral-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors text-foreground font-medium"
                         placeholder="949 01"
                       />
                     </div>
                   </div>
 
-                  {/* 4. MOBILE */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-bold text-foreground mb-1.5">
                       {t?.profile?.info?.mobile || 'Mobile Number'}
                     </label>
                     <input
                       type="tel"
                       value={editedMobile}
                       onChange={(e) => setEditedMobile(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-600 dark:text-white"
+                      className="w-full px-4 py-3 bg-white border border-neutral-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors text-foreground font-medium"
                       placeholder={t?.profile?.info?.mobilePlaceholder || 'Enter your mobile number (optional)'}
                     />
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-xs font-medium text-neutral-500 mt-2">
                       {t?.profile?.info?.mobileHelp || 'Optional: Add your mobile number for important updates'}
                     </p>
                   </div>
 
-                  {/* BUTTONS */}
-                  <div className="flex gap-3 pt-2">
+                  <div className="flex flex-wrap gap-3 pt-4 border-t border-neutral-200 mt-2">
                     <button
-                      className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-xl transition-all hover:shadow-md hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none flex items-center justify-center min-w-[140px]"
                       onClick={handleUpdateProfile}
                       disabled={isUpdating || !addrCity || !addrZip || !addrNumber}
                     >
-                      {isUpdating
-                        ? (t?.profile?.update?.updating || 'Updating...')
-                        : (t?.profile?.update?.save || 'Save Changes')
-                      }
+                      {isUpdating ? <SpinnerIcon className="w-5 h-5 text-white" /> : (t?.profile?.update?.save || 'Uložiť zmeny')}
                     </button>
                     <button
-                      className="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-6 rounded-lg transition-colors disabled:opacity-50"
+                      className="bg-white border border-neutral-300 hover:bg-neutral-50 text-neutral-700 font-bold py-3 px-8 rounded-xl transition-colors disabled:opacity-50"
                       onClick={() => {
                         setIsEditing(false);
                         setUpdateMessage('');
-                        // Reset pri zrušení
                         api.get(`/api/users/${userId}`).then(res => {
                           setEditedAddress(res.data.address || '');
                           setEditedMobile(res.data.mobile || '');
@@ -1489,7 +1432,7 @@ const UserProfile = () => {
                       }}
                       disabled={isUpdating}
                     >
-                      {t?.profile?.update?.cancel || 'Cancel'}
+                      {t?.profile?.update?.cancel || 'Zrušiť'}
                     </button>
                   </div>
                 </div>
@@ -1499,66 +1442,53 @@ const UserProfile = () => {
         </>
       )}
 
-      {/* --- GENERATE PAYMENT REPORT--- */}
+      {/* --- GENERATE PAYMENT REPORT (Admin) --- */}
       {isAdmin && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700 mt-8">
-          <h4 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+        <div className="bg-white rounded-[2rem] shadow-sm p-8 border border-neutral-200">
+          <h4 className="text-xl font-extrabold text-foreground mb-6 flex items-center gap-3">
+            <FileText className="w-6 h-6 text-primary" />
             {t?.profile?.report?.title || 'Generate Payment Report'}
           </h4>
-          <form onSubmit={handleGenerateReport}>
+          <form onSubmit={handleGenerateReport} className="bg-neutral-50 p-6 rounded-2xl border border-neutral-100">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-              <div className="md:col-span-5 w-full min-w-0"> {/* Pridané min-w-0 aj sem */}
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <div className="md:col-span-5 w-full min-w-0">
+                <label className="block text-sm font-bold text-foreground mb-2">
                   {t?.profile?.report?.startDate || 'Start Date'}
                 </label>
-                {/* Začiatočný dátum */}
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  // block zabezpečí riadkovanie, min-h vynúti výšku aj keď je input prázdny
-                  className="w-full min-w-0 block min-h-[42px] px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  style={{
-                    WebkitAppearance: 'none', // Odstráni iOS sivý gradient
-                    appearance: 'none',
-                    MozAppearance: 'none'
-                  }}
+                  className="w-full min-w-0 block min-h-[46px] px-4 bg-white border border-neutral-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium text-foreground"
+                  style={{ WebkitAppearance: 'none', appearance: 'none', MozAppearance: 'none' }}
                   required
                 />
-                {/* Tooltip message */}
                 {tooltipMessage && (
-                  <div className="text-red-500 text-sm mt-1">
+                  <div className="text-red-500 text-xs font-bold mt-2">
                     {tooltipMessage}
                   </div>
                 )}
-
               </div>
               <div className="md:col-span-5 w-full min-w-0">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-bold text-foreground mb-2">
                   {t?.profile?.report?.endDate || 'End Date'}
                 </label>
-                {/* Koncový dátum */}
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full min-w-0 block min-h-[42px] px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  style={{
-                    WebkitAppearance: 'none',
-                    appearance: 'none',
-                    MozAppearance: 'none'
-                  }}
+                  className="w-full min-w-0 block min-h-[46px] px-4 bg-white border border-neutral-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary font-medium text-foreground"
+                  style={{ WebkitAppearance: 'none', appearance: 'none', MozAppearance: 'none' }}
                   required
                 />
               </div>
               <div className="md:col-span-2">
-                {/* Tlačidlo môže zostať ako máš */}
                 <button
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-primary hover:bg-primary-600 text-white font-bold py-3 px-4 rounded-xl transition-all hover:shadow-md disabled:opacity-50 min-h-[46px]"
                   disabled={isButtonDisabled}
                 >
-                  {t?.profile?.report?.generate || 'Generate PDF'}
+                  {t?.profile?.report?.generate || 'PDF'}
                 </button>
               </div>
             </div>
@@ -1566,373 +1496,425 @@ const UserProfile = () => {
         </div>
       )}
 
-      {/* --- ARCHÍV ZRUŠENÝCH HODÍN --- */}
+      {/* --- ARCHÍV ZRUŠENÝCH HODÍN (Admin) --- */}
       {isAdmin && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 mb-8 border border-gray-200 dark:border-gray-700 mt-8">
-          <h4 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+        <div className="bg-white rounded-[2rem] shadow-sm p-8 border border-neutral-200">
+          <h4 className="text-xl font-extrabold text-foreground mb-6 flex items-center gap-3">
+            <Archive className="w-6 h-6 text-primary" />
             Archív zrušených hodín
           </h4>
-
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end"> {/* Zmenené na items-end pre zarovnanie s buttonom */}
-            <div className="md:col-span-10 w-full min-w-0">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Informačný prehľad
-              </label>
-              <div className="w-full min-h-[42px] px-3 py-2 border border-transparent bg-gray-50 dark:bg-gray-700/50 rounded-lg text-sm text-gray-600 dark:text-gray-400 flex items-center">
-                Stiahnite si prehľad všetkých zrušených hodín, ktoré už boli vymazané z kalendára, ale zostali v databáze pre účely auditu.
+          <div className="bg-neutral-50 p-6 rounded-2xl border border-neutral-100">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+              <div className="md:col-span-10 w-full min-w-0">
+                <label className="block text-sm font-bold text-foreground mb-2">
+                  Informačný prehľad
+                </label>
+                <div className="w-full min-h-[46px] px-4 bg-white border border-neutral-200 rounded-xl text-sm font-medium text-neutral-600 flex items-center">
+                  Stiahnite si prehľad všetkých zrušených hodín, ktoré už boli vymazané z kalendára, ale zostali v databáze pre účely auditu.
+                </div>
               </div>
-            </div>
-
-            <div className="md:col-span-2">
-              <button
-                onClick={async () => {
-                  try {
-                    const response = await api.get('/api/admin/archived-sessions-report', { responseType: 'blob' });
-                    const url = window.URL.createObjectURL(new Blob([response.data]));
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.setAttribute('download', `archiv_zrusenych_hodin_${new Date().toISOString().split('T')[0]}.pdf`);
-                    document.body.appendChild(link);
-                    link.click();
-                    link.remove();
-                  } catch (err) {
-                    alert('Nepodarilo sa vygenerovať PDF: ' + err.message);
-                  }
-                }}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {t?.profile?.report?.generate || 'Generate PDF'}
-              </button>
+              <div className="md:col-span-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      const response = await api.get('/api/admin/archived-sessions-report', { responseType: 'blob' });
+                      const url = window.URL.createObjectURL(new Blob([response.data]));
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.setAttribute('download', `archiv_zrusenych_hodin_${new Date().toISOString().split('T')[0]}.pdf`);
+                      document.body.appendChild(link);
+                      link.click();
+                      link.remove();
+                    } catch (err) {
+                      alert('Nepodarilo sa vygenerovať PDF: ' + err.message);
+                    }
+                  }}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-all hover:shadow-md min-h-[46px]"
+                >
+                  {t?.profile?.report?.generate || 'Generovať PDF'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-red-200 dark:border-red-800 relative overflow-hidden mt-8 mb-8">
-        <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-red-500 to-orange-500"></div>
-        <h5 className="text-xl font-bold text-red-600 dark:text-red-400 mb-4 flex items-center gap-2">
-          <span>⚠️</span>
+      {/* DANGER ZONE */}
+      <div className="bg-white rounded-[2rem] shadow-sm p-8 sm:p-10 border border-red-200 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-red-500 to-orange-500"></div>
+        <h5 className="text-2xl font-black text-red-600 mb-3 flex items-center gap-3">
+          <AlertTriangle className="w-7 h-7" />
           {t?.profile?.dangerZone?.title || 'Danger Zone'}
         </h5>
-        <p className="text-gray-600 dark:text-gray-300 mb-4">
+        <p className="text-neutral-600 font-medium mb-6 max-w-2xl">
           {t?.profile?.dangerZone?.description || 'Deleting your account will permanently remove all your data from our system. This action is irreversible.'}
         </p>
         <button
           onClick={handleDeleteAccount}
-          className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-lg transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-red-50 hover:bg-red-600 text-red-600 hover:text-white font-bold py-3 px-8 rounded-xl border border-red-200 hover:border-red-600 transition-all hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           disabled={isDeleting}
         >
+          {isDeleting ? <SpinnerIcon className="w-5 h-5" /> : <Trash2 className="w-5 h-5" />}
           {isDeleting
-            ? t?.profile?.dangerZone?.deleting || 'Deleting...'
-            : t?.profile?.dangerZone?.delete || 'Delete My Account'
+            ? t?.profile?.dangerZone?.deleting || 'Odstraňujem...'
+            : t?.profile?.dangerZone?.delete || 'Vymazať môj účet'
           }
         </button>
-        {error && <div className="bg-red-100 text-red-800 rounded-lg p-3 mt-4 border border-red-200">{error}</div>}
+        {error && (
+          <div className="bg-red-50 text-red-800 rounded-xl p-4 mt-5 border border-red-200 font-bold text-sm flex items-center gap-2">
+            <XCircle className="w-5 h-5" />
+            {error}
+          </div>
+        )}
       </div>
 
-      <Modal show={showPasswordModal} onHide={() => setShowPasswordModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title className="text-xl font-semibold text-gray-800">
-            {t?.profile?.deleteModal?.title || 'Confirm Account Deletion'}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <form>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t?.profile?.deleteModal?.label || 'Enter your password to confirm deletion:'}
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                placeholder={t?.profile?.deleteModal?.placeholder || 'Password'}
-              />
-            </div>
-          </form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowPasswordModal(false)}>
-            {t?.profile?.deleteModal?.cancel || 'Cancel'}
-          </Button>
-          <Button variant="danger" onClick={confirmDeleteAccount}>
-            {t?.profile?.deleteModal?.confirm || 'Confirm Deletion'}
-          </Button>
-        </Modal.Footer>
+      {/* ================= MODALS ================= */}
+
+      {/* Password Modal pre Delete Account */}
+      <Modal show={showPasswordModal} onHide={() => setShowPasswordModal(false)} centered>
+        <div className="bg-white rounded-[2rem] shadow-2xl border-0 overflow-hidden">
+          <Modal.Header closeButton className="border-b border-neutral-100 p-6 pb-4">
+            <Modal.Title className="text-2xl font-black text-foreground">
+              {t?.profile?.deleteModal?.title || 'Potvrdiť vymazanie účtu'}
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="p-6">
+            <form>
+              <div className="mb-2">
+                <label className="block text-sm font-bold text-foreground mb-2">
+                  {t?.profile?.deleteModal?.label || 'Zadajte heslo pre potvrdenie vymazania:'}
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-colors font-medium text-foreground"
+                  placeholder={t?.profile?.deleteModal?.placeholder || 'Heslo'}
+                />
+              </div>
+            </form>
+          </Modal.Body>
+          <Modal.Footer className="border-t border-neutral-100 p-6 pt-4 flex gap-3">
+            <button 
+              className="px-6 py-2.5 rounded-xl font-bold text-neutral-600 bg-neutral-100 hover:bg-neutral-200 transition-colors flex-1"
+              onClick={() => setShowPasswordModal(false)}
+            >
+              {t?.profile?.deleteModal?.cancel || 'Zrušiť'}
+            </button>
+            <button 
+              className="px-6 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-all hover:shadow-md flex-1"
+              onClick={confirmDeleteAccount}
+            >
+              {t?.profile?.deleteModal?.confirm || 'Potvrdiť vymazanie'}
+            </button>
+          </Modal.Footer>
+        </div>
       </Modal>
 
-      <Modal show={showCancelModal} onHide={() => setShowCancelModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title className="text-xl font-semibold text-gray-800">
-            {t?.profile?.cancelModal?.title || 'Zrušiť rezerváciu'}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <h5 className="text-lg font-semibold text-gray-800 mb-4">
-            {t?.profile?.cancelModal?.chooseOption || 'Vyberte možnosť zrušenia:'}
-          </h5>
+      {/* Zrušenie Rezervácie Modal (USER) */}
+      <Modal show={showCancelModal} onHide={() => setShowCancelModal(false)} size="lg" centered dialogClassName="mx-4 sm:mx-auto">
+        <div className="bg-white rounded-[2rem] shadow-2xl border-0 overflow-hidden">
+          <Modal.Header closeButton className="border-b border-neutral-100 p-6 sm:p-8 pb-4">
+            <Modal.Title className="text-2xl font-black text-foreground">
+              {t?.profile?.cancelModal?.title || 'Zrušiť rezerváciu'}
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="p-6 sm:p-8">
+            <h5 className="text-lg font-bold text-foreground mb-5">
+              {t?.profile?.cancelModal?.chooseOption || 'Vyberte možnosť zrušenia:'}
+            </h5>
 
-          <div className="space-y-4 mb-4">
-            {/* ========== PAID BOOKING OPTIONS ========== */}
-            {bookingType === 'paid' && (
-              <>
-                {/* Option 1: Refund */}
-                <div className="flex items-start p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    name="cancellationType"
-                    id="refundOption"
-                    checked={cancellationType === 'refund'}
-                    onChange={() => setCancellationType('refund')}
-                    className="w-4 h-4 mt-1 text-blue-600 focus:ring-blue-500"
-                  />
-                  <label htmlFor="refundOption" className="ml-3 flex-1 cursor-pointer">
-                    <div className="font-semibold text-gray-800">
-                      💰 {t?.profile?.cancelModal?.refundOption || 'Požiadať o vrátenie peňazí'}
+            <div className="space-y-4 mb-6">
+              {/* ========== PAID BOOKING OPTIONS ========== */}
+              {bookingType === 'paid' && (
+                <>
+                  <label className={`block flex items-start p-4 border rounded-2xl cursor-pointer transition-all ${cancellationType === 'refund' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-neutral-200 hover:border-primary/40 hover:bg-neutral-50'}`}>
+                    <input
+                      type="radio"
+                      name="cancellationType"
+                      checked={cancellationType === 'refund'}
+                      onChange={() => setCancellationType('refund')}
+                      className="w-5 h-5 mt-0.5 text-primary border-neutral-300 focus:ring-primary"
+                    />
+                    <div className="ml-4 flex-1">
+                      <div className="font-bold text-foreground text-base">
+                        💰 {t?.profile?.cancelModal?.refundOption || 'Požiadať o vrátenie peňazí'}
+                      </div>
+                      <p className="text-sm font-medium text-neutral-500 mt-1">
+                        {t?.profile?.cancelModal?.refundDescription || 'Peniaze vám budú vrátené na váš bankový účet do 5-10 pracovných dní'}
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {t?.profile?.cancelModal?.refundDescription || 'Peniaze vám budú vrátené na váš bankový účet do 5-10 pracovných dní'}
-                    </p>
                   </label>
-                </div>
 
-                {/* Option 2: Credit */}
-                <div className="flex items-start p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    name="cancellationType"
-                    id="creditOption"
-                    checked={cancellationType === 'credit'}
-                    onChange={() => setCancellationType('credit')}
-                    className="w-4 h-4 mt-1 text-blue-600 focus:ring-blue-500"
-                  />
-                  <label htmlFor="creditOption" className="ml-3 flex-1 cursor-pointer">
-                    <div className="font-semibold text-gray-800">
-                      💳 {t?.profile?.cancelModal?.creditOption || 'Požiadať o kredit'}
+                  <label className={`block flex items-start p-4 border rounded-2xl cursor-pointer transition-all ${cancellationType === 'credit' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-neutral-200 hover:border-primary/40 hover:bg-neutral-50'}`}>
+                    <input
+                      type="radio"
+                      name="cancellationType"
+                      checked={cancellationType === 'credit'}
+                      onChange={() => setCancellationType('credit')}
+                      className="w-5 h-5 mt-0.5 text-primary border-neutral-300 focus:ring-primary"
+                    />
+                    <div className="ml-4 flex-1">
+                      <div className="font-bold text-foreground text-base">
+                        💳 {t?.profile?.cancelModal?.creditOption || 'Požiadať o kredit'}
+                      </div>
+                      <p className="text-sm font-medium text-neutral-500 mt-1">
+                        {t?.profile?.cancelModal?.creditDescription || 'Kredit sa pripíše na váš účet a môžete ho použiť na budúcu rezerváciu'}
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {t?.profile?.cancelModal?.creditDescription || 'Kredit sa pripíše na váš účet a môžete ho použiť na budúcu rezerváciu'}
-                    </p>
                   </label>
-                </div>
 
-                {/* Option 3: Replace */}
-                <div className="flex items-start p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    name="cancellationType"
-                    id="replacementOption"
-                    checked={cancellationType === 'replacement'}
-                    onChange={() => setCancellationType('replacement')}
-                    className="w-4 h-4 mt-1 text-blue-600 focus:ring-blue-500"
-                  />
-                  <label htmlFor="replacementOption" className="ml-3 flex-1 cursor-pointer">
-                    <div className="font-semibold text-gray-800">
-                      🔄 {t?.profile?.cancelModal?.replacementOption || 'Nájsť iný termín'}
+                  <label className={`block flex items-start p-4 border rounded-2xl cursor-pointer transition-all ${cancellationType === 'replacement' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-neutral-200 hover:border-primary/40 hover:bg-neutral-50'}`}>
+                    <input
+                      type="radio"
+                      name="cancellationType"
+                      checked={cancellationType === 'replacement'}
+                      onChange={() => setCancellationType('replacement')}
+                      className="w-5 h-5 mt-0.5 text-primary border-neutral-300 focus:ring-primary"
+                    />
+                    <div className="ml-4 flex-1">
+                      <div className="font-bold text-foreground text-base">
+                        🔄 {t?.profile?.cancelModal?.replacementOption || 'Nájsť iný termín'}
+                      </div>
+                      <p className="text-sm font-medium text-neutral-500 mt-1">
+                        {t?.profile?.cancelModal?.replacementDescription || 'Vyberte si náhradný termín zo zoznamu dostupných hodín'}
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {t?.profile?.cancelModal?.replacementDescription || 'Vyberte si náhradný termín zo zoznamu dostupných hodín'}
-                    </p>
                   </label>
-                </div>
-              </>
-            )}
+                </>
+              )}
 
-            {/* ========== SEASON TICKET / CREDIT OPTIONS ========== */}
-            {(bookingType === 'season_ticket' || bookingType === 'credit') && (
-              <>
-                {/* Option 1: Return entry/credit */}
-                <div className="flex items-start p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    name="cancellationType"
-                    id="returnOption"
-                    checked={cancellationType === 'return'}
-                    onChange={() => setCancellationType('return')}
-                    className="w-4 h-4 mt-1 text-blue-600 focus:ring-blue-500"
-                  />
-                  <label htmlFor="returnOption" className="ml-3 flex-1 cursor-pointer">
-                    <div className="font-semibold text-gray-800">
-                      {bookingType === 'season_ticket' ? '🎫' : '💳'}
-                      {' '}
-                      {bookingType === 'season_ticket'
-                        ? (t?.profile?.cancelModal?.returnTicket || 'Vrátiť vstup z permanentky')
-                        : (t?.profile?.cancelModal?.returnCredit || 'Vrátiť kredit na účet')
-                      }
+              {/* ========== SEASON TICKET / CREDIT OPTIONS ========== */}
+              {(bookingType === 'season_ticket' || bookingType === 'credit') && (
+                <>
+                  <label className={`block flex items-start p-4 border rounded-2xl cursor-pointer transition-all ${cancellationType === 'return' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-neutral-200 hover:border-primary/40 hover:bg-neutral-50'}`}>
+                    <input
+                      type="radio"
+                      name="cancellationType"
+                      checked={cancellationType === 'return'}
+                      onChange={() => setCancellationType('return')}
+                      className="w-5 h-5 mt-0.5 text-primary border-neutral-300 focus:ring-primary"
+                    />
+                    <div className="ml-4 flex-1">
+                      <div className="font-bold text-foreground text-base">
+                        {bookingType === 'season_ticket' ? '🎫' : '💳'}{' '}
+                        {bookingType === 'season_ticket'
+                          ? (t?.profile?.cancelModal?.returnTicket || 'Vrátiť vstup z permanentky')
+                          : (t?.profile?.cancelModal?.returnCredit || 'Vrátiť kredit na účet')
+                        }
+                      </div>
+                      <p className="text-sm font-medium text-neutral-500 mt-1">
+                        {bookingType === 'season_ticket'
+                          ? (t?.profile?.cancelModal?.returnTicketDescription || 'Vstup sa vráti na vašu permanentku a môžete ho použiť neskôr')
+                          : (t?.profile?.cancelModal?.returnCreditDescription || 'Kredit sa vráti na váš účet a môžete ho použiť na inú hodinu')
+                        }
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {bookingType === 'season_ticket'
-                        ? (t?.profile?.cancelModal?.returnTicketDescription || 'Vstup sa vráti na vašu permanentku a môžete ho použiť neskôr')
-                        : (t?.profile?.cancelModal?.returnCreditDescription || 'Kredit sa vráti na váš účet a môžete ho použiť na inú hodinu')
-                      }
-                    </p>
                   </label>
-                </div>
 
-                {/* Option 2: Replace */}
-                <div className="flex items-start p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    name="cancellationType"
-                    id="replacementOption"
-                    checked={cancellationType === 'replacement'}
-                    onChange={() => setCancellationType('replacement')}
-                    className="w-4 h-4 mt-1 text-blue-600 focus:ring-blue-500"
-                  />
-                  <label htmlFor="replacementOption" className="ml-3 flex-1 cursor-pointer">
-                    <div className="font-semibold text-gray-800">
-                      🔄 {t?.profile?.cancelModal?.replacementOption || 'Nájsť iný termín'}
+                  <label className={`block flex items-start p-4 border rounded-2xl cursor-pointer transition-all ${cancellationType === 'replacement' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-neutral-200 hover:border-primary/40 hover:bg-neutral-50'}`}>
+                    <input
+                      type="radio"
+                      name="cancellationType"
+                      checked={cancellationType === 'replacement'}
+                      onChange={() => setCancellationType('replacement')}
+                      className="w-5 h-5 mt-0.5 text-primary border-neutral-300 focus:ring-primary"
+                    />
+                    <div className="ml-4 flex-1">
+                      <div className="font-bold text-foreground text-base">
+                        🔄 {t?.profile?.cancelModal?.replacementOption || 'Nájsť iný termín'}
+                      </div>
+                      <p className="text-sm font-medium text-neutral-500 mt-1">
+                        {t?.profile?.cancelModal?.replacementDescription || 'Vyberte si náhradný termín zo zoznamu dostupných hodín'}
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {t?.profile?.cancelModal?.replacementDescription || 'Vyberte si náhradný termín zo zoznamu dostupných hodín'}
-                    </p>
                   </label>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* ========== REPLACEMENT SESSION SELECTOR ========== */}
-          {cancellationType === 'replacement' && (
-            <div className="mb-4 mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t?.profile?.cancelModal?.selectReplacement || 'Vyberte náhradný termín:'}
-              </label>
-              <select
-                value={selectedReplacement}
-                onChange={(e) => setSelectedReplacement(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">{t?.profile?.cancelModal?.chooseSession || 'Vyberte termín...'}</option>
-                {replacementSessions.map((session, index) => (
-                  <option key={`${session.id || 'replacement'}-${session.training_date || ''}-${index}`} value={session.id}>
-                    {new Date(session.training_date).toLocaleString('sk-SK', {
-                      day: 'numeric',
-                      month: 'numeric',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })} - {session.training_type}
-                    {' '}({session.available_spots} voľných miest)
-                  </option>
-                ))}
-              </select>
-              {replacementSessions.length === 0 && (
-                <p className="text-sm text-orange-600 mt-2">
-                  ⚠️ {t?.profile?.cancelModal?.noReplacements || 'Momentálne nie sú dostupné žiadne náhradné termíny.'}
-                </p>
+                </>
               )}
             </div>
-          )}
 
-          {/* ========== INFO BOXES ========== */}
-          {cancellationType === 'refund' && bookingType === 'paid' && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <strong className="text-blue-800">ℹ️ {t?.profile?.cancelModal?.refundInfo || 'Informácie o vrátení peňazí:'}</strong>
-              <p className="text-blue-700 mt-1 text-sm">
-                {t?.profile?.cancelModal?.refundDetails || 'Peniaze budú automaticky vrátené na váš bankový účet. Proces môže trvať 5-10 pracovných dní.'}
-                <a
-                  href="https://docs.stripe.com/refunds"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-1 font-medium underline hover:text-blue-900"
+            {/* ========== REPLACEMENT SESSION SELECTOR ========== */}
+            {cancellationType === 'replacement' && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                className="mb-4 mt-6 p-5 bg-blue-50/50 rounded-2xl border border-blue-100"
+              >
+                <label className="block text-sm font-bold text-blue-900 mb-2">
+                  {t?.profile?.cancelModal?.selectReplacement || 'Vyberte náhradný termín:'}
+                </label>
+                <select
+                  value={selectedReplacement}
+                  onChange={(e) => setSelectedReplacement(e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium text-foreground"
                 >
-                  {t?.profile?.cancelModal?.moreInfo || 'Viac info'}
-                </a>
-              </p>
-            </div>
-          )}
+                  <option value="">{t?.profile?.cancelModal?.chooseSession || 'Vyberte termín...'}</option>
+                  {replacementSessions.map((session, index) => (
+                    <option key={`${session.id || 'replacement'}-${session.training_date || ''}-${index}`} value={session.id}>
+                      {new Date(session.training_date).toLocaleString('sk-SK', {
+                        day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                      })} - {session.training_type} ({session.available_spots} voľných miest)
+                    </option>
+                  ))}
+                </select>
+                {replacementSessions.length === 0 && (
+                  <p className="text-sm font-bold text-orange-600 mt-3 flex items-center gap-1">
+                    <AlertTriangle className="w-4 h-4" /> 
+                    {t?.profile?.cancelModal?.noReplacements || 'Momentálne nie sú dostupné žiadne náhradné termíny.'}
+                  </p>
+                )}
+              </motion.div>
+            )}
 
-          {cancellationType === 'credit' && bookingType === 'paid' && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-              <strong className="text-green-800">✅ {t?.profile?.cancelModal?.creditInfo || 'Informácie o kredite:'}</strong>
-              <p className="text-green-700 mt-1 text-sm">
-                {t?.profile?.cancelModal?.creditDetails || 'Kredit bude okamžite pripísaný na váš účet so všetkými pôvodnými podmienkami rezervácie. Použiť ho môžete na akúkoľvek budúcu hodinu.'}
-              </p>
-            </div>
-          )}
+            {/* ========== INFO BOXES ========== */}
+            <AnimatePresence mode='wait'>
+              {cancellationType === 'refund' && bookingType === 'paid' && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-blue-50 border border-blue-200 rounded-xl p-4 mt-4 flex items-start gap-3">
+                  <div className="text-blue-600 mt-0.5">ℹ️</div>
+                  <div>
+                    <strong className="text-blue-900 block mb-1 text-sm">{t?.profile?.cancelModal?.refundInfo || 'Informácie o vrátení peňazí:'}</strong>
+                    <p className="text-blue-700 text-sm font-medium">
+                      {t?.profile?.cancelModal?.refundDetails || 'Peniaze budú automaticky vrátené na váš bankový účet. Proces môže trvať 5-10 pracovných dní.'}
+                      <a href="https://docs.stripe.com/refunds" target="_blank" rel="noopener noreferrer" className="ml-1 font-bold underline hover:text-blue-900">
+                        {t?.profile?.cancelModal?.moreInfo || 'Viac info'}
+                      </a>
+                    </p>
+                  </div>
+                </motion.div>
+              )}
 
-          {cancellationType === 'return' && bookingType === 'season_ticket' && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-              <strong className="text-yellow-800">🎫 {t?.profile?.cancelModal?.ticketReturnInfo || 'Informácie o permanentke:'}</strong>
-              <p className="text-yellow-700 mt-1 text-sm">
-                {t?.profile?.cancelModal?.ticketReturnDetails || 'Vstup bude okamžite vrátený na vašu permanentku a môžete ho použiť na inú hodinu.'}
-              </p>
-            </div>
-          )}
+              {cancellationType === 'credit' && bookingType === 'paid' && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mt-4 flex items-start gap-3">
+                  <div className="text-emerald-600 mt-0.5">✅</div>
+                  <div>
+                    <strong className="text-emerald-900 block mb-1 text-sm">{t?.profile?.cancelModal?.creditInfo || 'Informácie o kredite:'}</strong>
+                    <p className="text-emerald-700 text-sm font-medium">
+                      {t?.profile?.cancelModal?.creditDetails || 'Kredit bude okamžite pripísaný na váš účet so všetkými pôvodnými podmienkami rezervácie. Použiť ho môžete na akúkoľvek budúcu hodinu.'}
+                    </p>
+                  </div>
+                </motion.div>
+              )}
 
-          {cancellationType === 'return' && bookingType === 'credit' && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-              <strong className="text-green-800">💳 {t?.profile?.cancelModal?.creditReturnInfo || 'Informácie o kredite:'}</strong>
-              <p className="text-green-700 mt-1 text-sm">
-                {t?.profile?.cancelModal?.creditReturnDetails || 'Kredit bude okamžite vrátený na váš účet a môžete ho použiť na inú hodinu.'}
-              </p>
-            </div>
-          )}
-        </Modal.Body>
+              {cancellationType === 'return' && bookingType === 'season_ticket' && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mt-4 flex items-start gap-3">
+                  <div className="text-yellow-600 mt-0.5">🎫</div>
+                  <div>
+                    <strong className="text-yellow-900 block mb-1 text-sm">{t?.profile?.cancelModal?.ticketReturnInfo || 'Informácie o permanentke:'}</strong>
+                    <p className="text-yellow-700 text-sm font-medium">
+                      {t?.profile?.cancelModal?.ticketReturnDetails || 'Vstup bude okamžite vrátený na vašu permanentku a môžete ho použiť na inú hodinu.'}
+                    </p>
+                  </div>
+                </motion.div>
+              )}
 
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowCancelModal(false)}>
-            {t?.profile?.cancelModal?.cancel || 'Zatvoriť'}
-          </Button>
-          <Button
-            variant="primary"
-            onClick={confirmCancellation}
-            disabled={
-              !cancellationType ||
-              (cancellationType === 'replacement' && !selectedReplacement)
-            }
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300"
+              {cancellationType === 'return' && bookingType === 'credit' && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mt-4 flex items-start gap-3">
+                  <div className="text-emerald-600 mt-0.5">💳</div>
+                  <div>
+                    <strong className="text-emerald-900 block mb-1 text-sm">{t?.profile?.cancelModal?.creditReturnInfo || 'Informácie o kredite:'}</strong>
+                    <p className="text-emerald-700 text-sm font-medium">
+                      {t?.profile?.cancelModal?.creditReturnDetails || 'Kredit bude okamžite vrátený na váš účet a môžete ho použiť na inú hodinu.'}
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </Modal.Body>
+
+          <Modal.Footer className="border-t border-neutral-100 p-6 pt-4 flex gap-3">
+            <button 
+              className="px-6 py-2.5 rounded-xl font-bold text-neutral-600 bg-neutral-100 hover:bg-neutral-200 transition-colors flex-1"
+              onClick={() => setShowCancelModal(false)}
+            >
+              {t?.profile?.cancelModal?.cancel || 'Zatvoriť'}
+            </button>
+            <button
+              onClick={confirmCancellation}
+              disabled={!cancellationType || (cancellationType === 'replacement' && !selectedReplacement)}
+              className="px-6 py-2.5 rounded-xl font-bold text-white bg-primary hover:bg-primary-600 transition-all hover:shadow-md disabled:bg-neutral-300 disabled:shadow-none flex-1 flex items-center justify-center gap-2"
+            >
+              {cancellationType === 'replacement' && selectedReplacement
+                ? <><RefreshCw className="w-4 h-4" /> {t?.profile?.cancelModal?.confirmReplace || 'Potvrdiť presun'}</>
+                : cancellationType === 'refund'
+                  ? <><CreditCard className="w-4 h-4" /> {t?.profile?.cancelModal?.confirmRefund || 'Potvrdiť vrátenie peňazí'}</>
+                  : cancellationType === 'credit'
+                    ? <><CreditCard className="w-4 h-4" /> {t?.profile?.cancelModal?.confirmCredit || 'Potvrdiť kredit'}</>
+                    : cancellationType === 'return'
+                      ? <><RefreshCw className="w-4 h-4" /> {t?.profile?.cancelModal?.confirmReturn || 'Potvrdiť vrátenie'}</>
+                      : (t?.profile?.cancelModal?.confirm || 'Potvrdiť zrušenie')
+              }
+            </button>
+          </Modal.Footer>
+        </div>
+      </Modal>
+
+      {/* Admin Cancel Modal */}
+      <Modal show={showAdminCancelModal} onHide={() => setShowAdminCancelModal(false)} centered>
+        <div className="bg-white rounded-[2rem] shadow-2xl border-0 overflow-hidden">
+          <Modal.Header closeButton className="border-b border-neutral-100 p-6 pb-4">
+            <Modal.Title className="text-2xl font-black text-foreground flex items-center gap-2">
+              {forceCancel ? 'Force Cancel Session' : 'Cancel Session'}
+              {forceCancel && <span className="text-orange-600 text-sm uppercase bg-orange-100 px-2 py-0.5 rounded-md tracking-wider">(Within 10 Hours)</span>}
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="p-6">
+            <p className="text-neutral-600 font-medium mb-4">
+              <strong className="text-foreground">{forceCancel ? 'FORCE CANCEL:' : 'Cancel'}</strong> {selectedSession?.type} session on {selectedSession?.date ? formatSlovakDate(selectedSession.date) : ''}?
+            </p>
+            {forceCancel && (
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4 text-orange-800 text-sm font-bold flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                This session is within 10 hours. Force cancel will proceed despite timing restrictions.
+              </div>
+            )}
+            <div className="mb-2">
+              <label className="block text-sm font-bold text-foreground mb-2">Reason for cancellation:</label>
+              <textarea
+                rows={3}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-colors font-medium text-foreground resize-none"
+                required
+                placeholder="Enter cancellation reason..."
+              />
+            </div>
+          </Modal.Body>
+          <Modal.Footer className="border-t border-neutral-100 p-6 pt-4 flex gap-3">
+            <button 
+              className="px-6 py-2.5 rounded-xl font-bold text-neutral-600 bg-neutral-100 hover:bg-neutral-200 transition-colors flex-1"
+              onClick={() => setShowAdminCancelModal(false)}
+            >
+              Zrušiť
+            </button>
+            <button 
+              className="px-6 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-all hover:shadow-md flex-1"
+              onClick={confirmAdminCancel}
+            >
+              {forceCancel ? 'Force Cancel' : 'Potvrdiť'}
+            </button>
+          </Modal.Footer>
+        </div>
+      </Modal>
+
+      {/* Moderný React Tooltip global */}
+      <Tooltip id="generate-tooltip" place="top" effect="solid" className="rounded-lg !bg-neutral-800 !text-white font-medium text-xs px-3 py-2 shadow-xl" />
+      
+      {/* Scroll to Top */}
+      <AnimatePresence>
+        {showScrollButton && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            onClick={scrollToTop}
+            className="fixed bottom-8 right-8 bg-primary hover:bg-primary-600 text-white rounded-full shadow-lg transition-all duration-300 z-50 w-14 h-14 flex items-center justify-center cursor-pointer border-2 border-white hover:scale-110"
+            aria-label="Scroll to top"
           >
-            {cancellationType === 'replacement' && selectedReplacement
-              ? (t?.profile?.cancelModal?.confirmReplace || 'Potvrdiť presun')
-              : cancellationType === 'refund'
-                ? (t?.profile?.cancelModal?.confirmRefund || 'Potvrdiť vrátenie peňazí')
-                : cancellationType === 'credit'
-                  ? (t?.profile?.cancelModal?.confirmCredit || 'Potvrdiť kredit')
-                  : cancellationType === 'return'
-                    ? (t?.profile?.cancelModal?.confirmReturn || 'Potvrdiť vrátenie')
-                    : (t?.profile?.cancelModal?.confirm || 'Potvrdiť zrušenie')
-            }
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      <Modal show={showAdminCancelModal} onHide={() => setShowAdminCancelModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title className="text-xl font-semibold text-gray-800">
-            {forceCancel ? 'Force Cancel Session' : 'Cancel Session'}
-            {forceCancel && <span className="text-orange-600 ml-2">(Within 10 Hours)</span>}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <p className="text-gray-700 mb-4">
-            {forceCancel ? 'FORCE CANCEL:' : 'Cancel'} {selectedSession?.type} session on {selectedSession?.date ? new Date(selectedSession.date).toLocaleString() : ''}?
-            {forceCancel && <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mt-2 text-orange-800">This session is within 10 hours. Force cancel will proceed despite timing restrictions.</div>}
-          </p>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Reason for cancellation:</label>
-            <textarea
-              rows={3}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-              required
-            />
-          </div>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowAdminCancelModal(false)}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={confirmAdminCancel}>
-            {forceCancel ? 'Force Cancel' : 'Confirm Cancel'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-      <Tooltip id="generate-tooltip" place="top" effect="solid" />
-    </div>
+            <ChevronUp className="w-6 h-6" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+    </motion.section>
   );
 };
 
