@@ -2150,15 +2150,19 @@ const Booking = () => {
                     className="m-0"
                     label={
                       <div className="ml-2">
-                        <span className="font-extrabold text-sm text-foreground block">
+                        <span className="font-extrabold text-sm text-foreground flex items-center gap-2">
                           {t?.booking?.accompanyingPerson || 'Participation of Accompanying Person'} (3€)
+                          <button
+                            type="button"
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-neutral-300 text-[11px] font-black leading-none text-neutral-500 hover:border-primary hover:text-primary transition-colors"
+                            data-tooltip-id="accompanying-person-tooltip"
+                            data-tooltip-content={t?.booking?.accompanyingPersonHelp || 'An accompanying person is someone other than the parent who accompanies the child.'}
+                            onClick={(event) => event.preventDefault()}
+                            aria-label="Show accompanying person help"
+                          >
+                            ?
+                          </button>
                         </span>
-                        {accompanyingPerson && (
-                          <div className="text-neutral-500 text-xs mt-1.5 flex items-start gap-1">
-                            <Info className="w-3.5 h-3.5 flex-shrink-0" /> 
-                            <span>{t?.booking?.accompanyingPersonHelp || 'An accompanying person is someone other than the parent who accompanies the child.'}</span>
-                          </div>
-                        )}
                         {isCreditMode && (
                           <div className="text-primary text-xs mt-1.5 flex items-start gap-1">
                             <Info className="w-3.5 h-3.5 flex-shrink-0" /> 
@@ -2173,6 +2177,20 @@ const Booking = () => {
                         )}
                       </div>
                     }
+                  />
+                  <Tooltip
+                    id="accompanying-person-tooltip"
+                    className="z-[9999] max-w-xs px-3 py-2 text-sm font-medium text-neutral-900 shadow-sm"
+                    opacity={1}
+                    place="bottom"
+                    offset={12}
+                    style={{
+                      backgroundColor: '#171717',
+                      color: '#ffffff',
+                      border: '5px solid #171717',
+                      borderRadius: '1rem',
+                      opacity: 3,
+                    }}
                   />
                 </div>
               </div>
