@@ -917,15 +917,15 @@ const SeasonTickets = () => {
       {/* MODAL WINDOW - Potvrdenie nákupu */}
       <AnimatePresence>
         {showConfirmModal && ticketToBuy && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm">
             <motion.div 
               variants={modalVariant}
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden border border-neutral-200"
+              className="bg-white rounded-[1.5rem] sm:rounded-[2rem] shadow-2xl w-full max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-hidden border border-neutral-200 flex flex-col"
             >
-              <div className="px-6 py-5 border-b border-neutral-100 flex justify-between items-center bg-neutral-50/50">
+              <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-neutral-100 flex justify-between items-center bg-neutral-50/50 shrink-0">
                 <h3 className="font-extrabold text-lg text-foreground m-0 flex items-center gap-2">
                   <Ticket className="w-5 h-5 text-primary" />
                   {t?.seasonTicketsPage?.buyButton || 'Kúpiť permanentku'}
@@ -938,8 +938,8 @@ const SeasonTickets = () => {
                 </button>
               </div>
 
-              <div className="p-8 pb-4 text-center">
-                <div className="inline-flex flex-col items-center justify-center bg-neutral-50 px-8 py-6 rounded-3xl border border-neutral-100 mb-6 w-full">
+              <div className="p-4 sm:p-8 pb-4 text-center overflow-y-auto">
+                <div className="inline-flex flex-col items-center justify-center bg-neutral-50 px-4 sm:px-8 py-4 sm:py-6 rounded-2xl sm:rounded-3xl border border-neutral-100 mb-4 sm:mb-6 w-full">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-3xl font-black text-neutral-800">
                       {ticketToBuy.entries}
@@ -961,15 +961,15 @@ const SeasonTickets = () => {
                 </div>
               </div>
 
-              <div className="px-8 pb-8">
+              <div className="px-4 sm:px-8 pb-4 sm:pb-8">
                 {error && (
-                  <div className="mb-6 p-4 bg-red-50 text-red-700 text-sm font-bold rounded-2xl border border-red-200 flex items-start gap-3">
+                  <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 text-red-700 text-sm font-bold rounded-2xl border border-red-200 flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                     <span>{error}</span>
                   </div>
                 )}
 
-                <div className="space-y-4 mb-8 bg-neutral-50 p-5 rounded-2xl border border-neutral-100">
+                <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-8 bg-neutral-50 p-3 sm:p-5 rounded-2xl border border-neutral-100">
                   <label className="flex items-start gap-3 cursor-pointer group">
                     <input
                       type="checkbox"
@@ -1014,7 +1014,7 @@ const SeasonTickets = () => {
                 <button
                   onClick={executePayment}
                   disabled={loading || !agreementChecked || !serviceConsent}
-                  className="w-full py-4 px-6 rounded-full font-extrabold text-white transition-all shadow-md flex justify-center items-center gap-2 bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-600 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-3 sm:py-4 px-4 sm:px-6 rounded-full font-extrabold text-white transition-all shadow-md flex justify-center items-center gap-2 bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-600 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <>
@@ -1037,15 +1037,15 @@ const SeasonTickets = () => {
       {/* SERVICE CONSENT MODAL */}
       <AnimatePresence>
         {showServiceConsentModal && (
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm">
             <motion.div 
               variants={modalVariant}
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden border border-neutral-200"
+              className="bg-white rounded-[1.5rem] sm:rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[85vh] flex flex-col overflow-hidden border border-neutral-200"
             >
-              <div className="px-6 sm:px-8 py-5 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
+              <div className="px-4 sm:px-8 py-4 sm:py-5 border-b border-neutral-100 flex justify-between items-center bg-white shrink-0">
                 <h2 className="text-xl font-extrabold text-foreground m-0">
                   Súhlas so začatím poskytovania služby
                 </h2>
@@ -1057,13 +1057,13 @@ const SeasonTickets = () => {
                 </button>
               </div>
 
-              <div className="px-6 sm:px-8 py-6 text-neutral-600 leading-relaxed text-sm font-medium overflow-y-auto">
+              <div className="px-4 sm:px-8 py-4 sm:py-6 text-neutral-600 leading-relaxed text-sm font-medium overflow-y-auto">
                 <p>
                   Podľa zákona č. 108/2024 Z.z. o ochrane spotrebiteľa týmto žiadam a udeľujem prevádzkovateľovi Nitráčik, o.z., IČO: 56374453 výslovný súhlas so začatím poskytovania služby pred uplynutím lehoty na odstúpenie od zmluvy a súčasne vyhlasujem, že som bol riadne poučený, že udelením tohto súhlasu strácam ako spotrebiteľ právo na odstúpenie od zmluvy po úplnom poskytnutí služby podľa § 19 ods. 1 písm. a) zákona č. 108/2024 Z.z. o ochrane spotrebiteľa v platnom znení.
                 </p>
               </div>
 
-              <div className="border-t border-neutral-100 px-6 sm:px-8 py-5 bg-neutral-50 flex justify-end shrink-0">
+              <div className="border-t border-neutral-100 px-4 sm:px-8 py-4 sm:py-5 bg-neutral-50 flex justify-end shrink-0">
                 <button
                   onClick={closeServiceConsentModal}
                   className="px-6 py-2.5 bg-primary text-white rounded-full font-bold text-sm shadow-sm hover:bg-primary-600 transition-all"

@@ -365,7 +365,7 @@ const BlogPage = () => {
             initial="hidden"
             animate="visible"
             variants={fadeInUp}
-            className="py-12 md:py-16 container-custom max-w-6xl mx-auto px-4 sm:px-6"
+            className="py-12 md:py-16 container-custom max-w-6xl mx-auto px-3 sm:px-6"
         >
             {/* Back Button */}
             <div className="mb-8">
@@ -482,7 +482,7 @@ const BlogPage = () => {
                     </p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-8">
                     {currentPosts.map((post) => {
                         return (
                             <motion.div 
@@ -503,7 +503,7 @@ const BlogPage = () => {
                                     </div>
                                 )}
 
-                                <div className="p-6 sm:p-8 flex flex-col flex-grow">
+                                <div className="p-3 sm:p-8 flex flex-col flex-grow">
                                     {post.label_id && (
                                         <span
                                             className="inline-block px-3 py-1 rounded-full text-xs font-bold text-white mb-3 w-fit shadow-2xs"
@@ -542,7 +542,7 @@ const BlogPage = () => {
                                         </div>
                                     )}
 
-                                    <div className="mt-auto pt-6 border-t border-neutral-100 flex items-center justify-end gap-2">
+                                    <div className="mt-auto pt-6 border-t border-neutral-100 flex items-center justify-center gap-2">
                                         <Link
                                             to={`/blog/${post.slug}`}
                                             title={t?.blog?.readMore || 'Čítať viac'}

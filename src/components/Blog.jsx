@@ -314,11 +314,11 @@ const Blog = ({ limit = null, showViewAll = true }) => {
       initial="hidden"
       animate="visible"
       variants={fadeInUp}
-      className="py-6 md:py-8 container-custom max-w-6xl mx-auto px-4 sm:px-6"
+      className="py-6 md:py-8 container-custom max-w-6xl mx-auto px-1 sm:px-6"
     >
-      <div className="flex justify-between items-center mb-6">
-        <Link to="/blog" className="no-underline group">
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight group-hover:text-primary transition-colors">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
+        <Link to="/blog" className="no-underline group flex justify-center sm:block">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight group-hover:text-primary transition-colors whitespace-nowrap leading-tight text-center sm:text-left">
             {t?.blog?.title || 'Aktuality & Blog'}
           </h2>
         </Link>
@@ -327,7 +327,7 @@ const Blog = ({ limit = null, showViewAll = true }) => {
             type="button"
             onClick={handleOpenCreateModal}
             title={t?.blog?.newPost || 'Nový článok'}
-            className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-full font-bold shadow-sm hover:bg-primary-600 transition-all text-sm"
+            className="flex items-center justify-center gap-2 bg-primary text-white px-4 sm:px-5 py-2.5 rounded-full font-bold shadow-sm hover:bg-primary-600 transition-all text-sm w-full sm:w-auto"
           >
             <Plus className="w-5 h-5" />
             <span>{t?.blog?.newPost || 'Nový článok'}</span>
@@ -367,15 +367,15 @@ const Blog = ({ limit = null, showViewAll = true }) => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-8">
             {(limit ? posts.slice(0, limit) : posts).map(post => (
               <motion.div 
                 key={post.id} 
-                className="bg-white rounded-[2rem] border border-neutral-200 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all group"
+                className="bg-white rounded-[2rem] border border-neutral-200 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-all group w-full"
                 whileHover={{ y: -4 }}
               >
                 {post.image_url && (
-                  <div className="h-48 overflow-hidden bg-neutral-100 relative">
+                  <div className="h-56 sm:h-48 overflow-hidden bg-neutral-100 relative">
                     <img
                       src={api.makeImageUrl(getThumbnailUrl(post.image_url))}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -390,7 +390,7 @@ const Blog = ({ limit = null, showViewAll = true }) => {
                   </div>
                 )}
                 
-                <div className="p-5 flex flex-col flex-grow">
+                <div className="px-3 py-3 sm:px-5 sm:py-5 flex flex-col flex-grow">
                   {/* Label Badge */}
                   {post.label_id && (
                     <span
@@ -411,13 +411,13 @@ const Blog = ({ limit = null, showViewAll = true }) => {
                     {post.perex}
                   </p>
                   
-                  <div className="mt-auto pt-6 border-t border-neutral-100 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-neutral-400">
+                  <div className="mt-auto pt-6 border-t border-neutral-100">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-neutral-400 mb-3">
                       <Calendar className="w-3.5 h-3.5" />
                       <span>{formatDate(post.created_at)}</span>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center gap-2 flex-nowrap">
                       <Link
                         to={`/blog/${post.slug}`}
                         title={t?.blog?.readMore || 'Čítať viac'}
@@ -444,7 +444,7 @@ const Blog = ({ limit = null, showViewAll = true }) => {
                             type="button"
                             title={t?.blog?.edit || 'Upraviť'}
                             onClick={() => handleOpenEditModal(post)}
-                            className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 hover:bg-emerald-100 transition-all"
+                            className="w-10 h-10 sm:w-9 sm:h-9 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 hover:bg-emerald-100 transition-all"
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
@@ -453,7 +453,7 @@ const Blog = ({ limit = null, showViewAll = true }) => {
                             type="button"
                             title={t?.blog?.delete || 'Zmazať'}
                             onClick={() => handleDeletePost(post.id)}
-                            className="w-9 h-9 rounded-full bg-red-50 border border-red-200 flex items-center justify-center text-red-600 hover:bg-red-100 transition-all"
+                            className="w-10 h-10 sm:w-9 sm:h-9 rounded-full bg-red-50 border border-red-200 flex items-center justify-center text-red-600 hover:bg-red-100 transition-all"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>

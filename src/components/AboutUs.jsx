@@ -6,7 +6,8 @@ import { Link } from 'react-router-dom';
 import { Button, Modal, Form, Alert } from 'react-bootstrap';
 import api from '../api/api';
 import Blog from './Blog';
-import ownerImage from '../assets/owner.jpg';
+import ownerImageDesktop from '../assets/owner.jpg';
+import ownerImageMobile from '../assets/owner2.jpg';
 import googleIcon from '../assets/google_icon.png';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -634,14 +635,17 @@ const AboutUs = () => {
         <div className="bg-white border border-neutral-200 rounded-[2rem] shadow-sm p-0 overflow-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-2 items-stretch">
             <motion.div variants={fadeInUp} className="h-[400px] lg:h-auto relative">
-              <img
-                src={ownerImage}
-                alt="Saška - Majiteľka Nitráčika"
-                className="absolute inset-0 w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.src = 'https://picsum.photos/500/600?random=owner';
-                }}
-              />
+              <picture>
+                <source media="(min-width: 1024px)" srcSet={ownerImageDesktop} />
+                <img
+                  src={ownerImageMobile}
+                  alt="Saška - Majiteľka Nitráčika"
+                  className="absolute inset-0 w-full h-full object-cover object-top"
+                  onError={(e) => {
+                    e.target.src = 'https://picsum.photos/500/600?random=owner';
+                  }}
+                />
+              </picture>
             </motion.div>
 
             <motion.div variants={fadeInUp} className="p-8 sm:p-12 lg:p-16 flex flex-col justify-center">

@@ -214,14 +214,14 @@ const Navbar = () => {
             transition={{ duration: 0.3, ease: "easeInOut" }}
             className="lg:hidden bg-white/95 backdrop-blur-xl border-b border-neutral-200/60 shadow-lg overflow-hidden"
           >
-            <div className="px-4 py-6 space-y-2">
+            <div className="px-4 py-6 space-y-2 flex flex-col items-center text-center">
               {navLinks.map(({ path, label }) => {
                 const isActive = location.pathname.startsWith(path);
                 return (
                   <Link
                     key={path}
                     to={path}
-                    className={`block px-5 py-3.5 rounded-2xl font-bold text-[15px] transition-all ${
+                    className={`flex justify-center items-center w-full px-5 py-3.5 rounded-2xl font-bold text-[15px] transition-all ${
                         isActive 
                           ? 'text-rose-700 bg-rose-50' 
                           : 'text-foreground hover:bg-neutral-100'
@@ -232,9 +232,8 @@ const Navbar = () => {
                 );
               })}
 
-              <div className="border-t border-neutral-100 my-4 pt-4 px-2">
-                <div className="flex items-center justify-between mb-6">
-                  <span className="font-bold text-neutral-500 text-sm">Jazyk aplikácie</span>
+              <div className="border-t border-neutral-100 my-4 pt-4 px-2 w-full flex flex-col items-center">
+                <div className="mb-6 flex justify-center">
                   <LanguageSwitcher />
                 </div>
                 
