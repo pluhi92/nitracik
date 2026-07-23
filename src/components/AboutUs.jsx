@@ -120,7 +120,7 @@ const AboutUs = () => {
   const [reviewCardsPerView, setReviewCardsPerView] = useState(3);
   const [googleRating, setGoogleRating] = useState(null);
   const [googleTotalRatings, setGoogleTotalRatings] = useState(null);
-  const [expandedReviewIndex, setExpandedReviewIndex] = useState(null);
+  const [selectedReview, setSelectedReview] = useState(null);
 
   // Stavy pre editovanie sekcii
   const [aboutContent, setAboutContent] = useState({
@@ -286,7 +286,7 @@ const AboutUs = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const reviewGapRem = reviewCardsPerView === 1 ? 0 : reviewCardsPerView === 2 ? 1.5 : 2;
+  const reviewGapRem = reviewCardsPerView === 1 ? 1 : reviewCardsPerView === 2 ? 1.5 : 2;
 
   return (
     <motion.div 
@@ -508,15 +508,15 @@ const AboutUs = () => {
             </p>
           </motion.div>
 
-          <motion.div variants={fadeInUp} className="relative px-4 sm:px-8 mt-2">
+          <motion.div variants={fadeInUp} className="relative px-0 sm:px-8 mt-2">
             {reviews.length > 0 ? (
               <div className="relative">
                 {reviewCarouselIndex > 0 && (
                   <button
                     onClick={() => setReviewCarouselIndex((prev) => Math.max(0, prev - 1))}
-                    className="absolute -left-3 sm:-left-8 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white shadow-md border border-neutral-100 flex items-center justify-center text-foreground transition-all hover:scale-110"
+                    className="absolute -left-4 sm:-left-8 top-1/2 -translate-y-1/2 z-20 h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-white shadow-md border border-neutral-100 flex items-center justify-center text-foreground transition-all hover:scale-110"
                   >
-                    <ChevronLeft className="w-5 h-5" />
+                    <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                 )}
 
@@ -528,63 +528,59 @@ const AboutUs = () => {
                       transform: `translateX(calc(-${reviewCarouselIndex} * ((100% - ${(reviewCardsPerView - 1) * reviewGapRem}rem) / ${reviewCardsPerView} + ${reviewGapRem}rem)))`,
                     }}
                   >
-                    {reviews.slice(0, 5).map((review, index) => {
-                      const isExpanded = expandedReviewIndex === index;
-
-                      return (
-                        <div
-                          key={index}
-                          className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm flex-shrink-0 cursor-pointer flex flex-col transition-all duration-300 hover:shadow-md"
-                          style={{ width: `calc((100% - ${(reviewCardsPerView - 1) * reviewGapRem}rem) / ${reviewCardsPerView})` }}
-                          onClick={() => setExpandedReviewIndex(isExpanded ? null : index)}
-                        >
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={review.profile_photo_url || getAvatarDataUri(review.author_name)}
-                                alt=""
-                                className="w-10 h-10 rounded-full border border-neutral-100"
-                                referrerPolicy="no-referrer"
-                                onError={(e) => {
-                                  e.currentTarget.onerror = null;
-                                  e.currentTarget.src = getAvatarDataUri(review.author_name);
-                                }}
-                              />
-                              <div>
-                                <h4 className="font-bold text-foreground text-sm">{review.author_name}</h4>
-                                {review.relative_time_description && (
-                                  <span className="text-neutral-500 text-xs block mt-0.5 font-medium">
-                                    {review.relative_time_description}
-                                  </span>
-                                )}
-                              </div>
+                    {reviews.slice(0, 5).map((review, index) => (
+                      <div
+                        key={index}
+                        className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm flex-shrink-0 cursor-pointer flex flex-col transition-all duration-300 hover:shadow-md"
+                        style={{ width: `calc((100% - ${(reviewCardsPerView - 1) * reviewGapRem}rem) / ${reviewCardsPerView})` }}
+                        onClick={() => setSelectedReview(review)}
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={review.profile_photo_url || getAvatarDataUri(review.author_name)}
+                              alt=""
+                              className="w-10 h-10 rounded-full border border-neutral-100"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = getAvatarDataUri(review.author_name);
+                              }}
+                            />
+                            <div>
+                              <h4 className="font-bold text-foreground text-sm">{review.author_name}</h4>
+                              {review.relative_time_description && (
+                                <span className="text-neutral-500 text-xs block mt-0.5 font-medium">
+                                  {review.relative_time_description}
+                                </span>
+                              )}
                             </div>
                           </div>
-                          <div className="flex gap-1 mb-3">
-                            {[...Array(5)].map((_, i) => (
-                              <Star key={i} className={`w-4 h-4 stroke-[1.5px] ${i < review.rating ? 'fill-yellow-400 text-neutral-700' : 'fill-transparent text-neutral-300'}`} />
-                            ))}
-                          </div>
-                          <p className="text-neutral-600 text-sm leading-relaxed relative text-justify">
-                            "{isExpanded ? review.text : (review.text.length > 150 ? review.text.substring(0, 150) + '...' : review.text)}"
-                            {review.text.length > 150 && (
-                              <span className="text-primary font-bold ml-1 inline-block">
-                                {isExpanded ? 'menej' : 'viac'}
-                              </span>
-                            )}
-                          </p>
                         </div>
-                      );
-                    })}
+                        <div className="flex gap-1 mb-3">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className={`w-4 h-4 stroke-[1.5px] ${i < review.rating ? 'fill-yellow-400 text-neutral-700' : 'fill-transparent text-neutral-300'}`} />
+                          ))}
+                        </div>
+                        <p className="text-neutral-600 text-sm leading-relaxed relative text-justify">
+                          "{review.text.length > 150 ? review.text.substring(0, 150) + '...' : review.text}"
+                          {review.text.length > 150 && (
+                            <span className="text-primary font-bold ml-1 inline-block">
+                              viac
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
                 {reviewCarouselIndex < reviews.slice(0, 5).length - reviewCardsPerView && (
                   <button
                     onClick={() => setReviewCarouselIndex((prev) => Math.min(reviews.slice(0, 5).length - reviewCardsPerView, prev + 1))}
-                    className="absolute -right-3 sm:-right-8 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white shadow-md border border-neutral-100 flex items-center justify-center text-foreground transition-all hover:scale-110"
+                    className="absolute -right-4 sm:-right-8 top-1/2 -translate-y-1/2 z-20 h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-white shadow-md border border-neutral-100 flex items-center justify-center text-foreground transition-all hover:scale-110"
                   >
-                    <ChevronRight className="w-5 h-5" />
+                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                 )}
               </div>
@@ -868,6 +864,85 @@ const AboutUs = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Review Detail Modal */}
+      <AnimatePresence>
+        {selectedReview && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
+            onClick={() => setSelectedReview(null)}
+          >
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+
+            {/* Modal Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 40 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 40 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-lg max-h-[80vh] overflow-y-auto bg-white rounded-2xl sm:rounded-[2rem] shadow-2xl border border-neutral-200 p-5 sm:p-8"
+            >
+              {/* Close button */}
+              <button
+                onClick={() => setSelectedReview(null)}
+                className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-500 hover:text-neutral-700 transition-all"
+                aria-label="Zavrieť"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+
+              {/* Author info */}
+              <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-5">
+                <img
+                  src={selectedReview.profile_photo_url || getAvatarDataUri(selectedReview.author_name)}
+                  alt=""
+                  className="w-10 h-10 sm:w-14 sm:h-14 rounded-full border-2 border-neutral-100"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = getAvatarDataUri(selectedReview.author_name);
+                  }}
+                />
+                <div>
+                  <h3 className="font-extrabold text-foreground text-base sm:text-lg">{selectedReview.author_name}</h3>
+                  {selectedReview.relative_time_description && (
+                    <span className="text-neutral-500 text-xs sm:text-sm block mt-0.5 font-medium">
+                      {selectedReview.relative_time_description}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Stars */}
+              <div className="flex gap-1 mb-4 sm:mb-5">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className={`w-4 h-4 sm:w-5 sm:h-5 stroke-[1.5px] ${i < selectedReview.rating ? 'fill-yellow-400 text-neutral-700' : 'fill-transparent text-neutral-300'}`} />
+                ))}
+              </div>
+
+              {/* Full review text */}
+              <div className="text-neutral-600 text-sm sm:text-base leading-relaxed text-justify">
+                <p>"{selectedReview.text}"</p>
+              </div>
+
+              {/* Google icon footer */}
+              <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-neutral-100 flex items-center gap-2 text-xs text-neutral-400 font-medium">
+                <img src={googleIcon} alt="Google" className="w-3.5 h-3.5" />
+                Overená recenzia z Google
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
