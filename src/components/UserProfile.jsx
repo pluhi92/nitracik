@@ -8,7 +8,8 @@ import {
   ClipboardCheck, XCircle, Zap, Trash2, 
   MapPin, Phone, ShieldAlert, FileText, 
   Ticket, CalendarDays, History, Archive,
-  AlertTriangle, ChevronDown, CheckCircle, CreditCard, RefreshCw, ChevronUp
+  AlertTriangle, ChevronDown, CheckCircle, CreditCard, RefreshCw, ChevronUp,
+  Mail
 } from 'lucide-react';
 import api from '../api/api';
 
@@ -64,6 +65,12 @@ const UserProfile = () => {
   const [forceCancel, setForceCancel] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [showBulkEmailModal, setShowBulkEmailModal] = useState(false);
+  const [bulkEmailSession, setBulkEmailSession] = useState(null);
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailMessage, setEmailMessage] = useState('');
+  const [showEmailConfirm, setShowEmailConfirm] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   // --- SMART ADRESA LOGIKA ---
   const [addrCity, setAddrCity] = useState('');
@@ -552,6 +559,24 @@ const UserProfile = () => {
                           <Zap className="w-5 h-5" />
                         </button>
 
+                        {/* Bulk Email Button */}
+                        <button
+                          disabled={(session.participants || []).filter(p => p.active !== false).length === 0}
+                          className={`p-2 rounded-xl transition-all ${
+                            (session.participants || []).filter(p => p.active !== false).length > 0
+                              ? 'text-blue-500 hover:bg-blue-50 cursor-pointer'
+                              : 'text-neutral-300 cursor-not-allowed'
+                          }`}
+                          onClick={() => handleOpenBulkEmail(session)}
+                          title={
+                            (session.participants || []).filter(p => p.active !== false).length > 0
+                              ? 'Poslať hromadný email účastníkom'
+                              : 'Žiadni aktívni účastníci'
+                          }
+                        >
+                          <Mail className="w-5 h-5" />
+                        </button>
+
                         <button
                           disabled={!canDelete}
                           className={`p-2 rounded-xl transition-all ${canDelete
@@ -595,6 +620,36 @@ const UserProfile = () => {
         }
       }
       setShowAdminCancelModal(true);
+    }
+  };
+
+  const handleOpenBulkEmail = (session) => {
+    setBulkEmailSession(session);
+    setEmailSubject('');
+    setEmailMessage('');
+    setShowBulkEmailModal(true);
+  };
+
+  const handleSendBulkEmail = async () => {
+    if (!bulkEmailSession?.training_id || !emailSubject.trim() || !emailMessage.trim()) {
+      showAlert('Vyplň predmet a správu pred odoslaním.', 'danger');
+      return;
+    }
+
+    setIsSendingEmail(true);
+    try {
+      const response = await api.post('/api/admin/send-bulk-email', {
+        trainingId: bulkEmailSession.training_id,
+        subject: emailSubject,
+        message: emailMessage,
+      });
+      setShowEmailConfirm(false);
+      setShowBulkEmailModal(false);
+      showAlert(`✅ Email odoslaný ${response.data.sent} účastníkom.`, 'success');
+    } catch (err) {
+      showAlert(err.response?.data?.error || 'Chyba pri odosielaní.', 'danger');
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -1125,31 +1180,6 @@ const UserProfile = () => {
             )}
           </div>
 
-          {/* ARCHÍV TLAČIDLO (User) */}
-          <div className="bg-white rounded-[2rem] shadow-sm p-8 border border-neutral-200 mb-8">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center flex-shrink-0">
-                  <Archive className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-extrabold text-foreground mb-1">
-                    {t?.archive?.title || 'Archív hodín'}
-                  </h3>
-                  <p className="text-sm font-medium text-neutral-500">
-                    {t?.archive?.userDescription || 'Zobraziť históriu vašich absolvovaných hodín'}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => navigate('/archive')}
-                className="w-full sm:w-auto bg-primary hover:bg-primary-600 text-white px-6 py-3 rounded-xl font-bold transition-all hover:-translate-y-0.5 hover:shadow-md"
-              >
-                {t?.archive?.open || 'Otvoriť archív'}
-              </button>
-            </div>
-          </div>
-
           {/* VAŠE REZERVOVANÉ RELÁCIE */}
           <div className="bg-white rounded-[2rem] shadow-sm p-8 border border-neutral-200 mb-8">
             <h3 className="text-2xl font-extrabold text-foreground mb-6 flex items-center gap-3">
@@ -1439,6 +1469,31 @@ const UserProfile = () => {
               )}
             </div>
           </div>
+
+          {/* ARCHÍV TLAČIDLO (User) */}
+          <div className="bg-white rounded-[2rem] shadow-sm p-8 border border-neutral-200 mb-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center flex-shrink-0">
+                  <Archive className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-extrabold text-foreground mb-1">
+                    {t?.archive?.title || 'Archív hodín'}
+                  </h3>
+                  <p className="text-sm font-medium text-neutral-500">
+                    {t?.archive?.userDescription || 'Zobraziť históriu vašich absolvovaných hodín'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate('/archive')}
+                className="w-full sm:w-auto bg-primary hover:bg-primary-600 text-white px-6 py-3 rounded-xl font-bold transition-all hover:-translate-y-0.5 hover:shadow-md"
+              >
+                {t?.archive?.open || 'Otvoriť archív'}
+              </button>
+            </div>
+          </div>
         </>
       )}
 
@@ -1612,7 +1667,15 @@ const UserProfile = () => {
       </Modal>
 
       {/* Zrušenie Rezervácie Modal (USER) */}
-      <Modal show={showCancelModal} onHide={() => setShowCancelModal(false)} size="lg" centered dialogClassName="mx-4 sm:mx-auto">
+      <Modal
+        show={showCancelModal}
+        onHide={() => setShowCancelModal(false)}
+        size="lg"
+        centered
+        className="d-flex align-items-center justify-content-center"
+        dialogClassName="mx-4 w-full max-w-2xl"
+        contentClassName="rounded-[2rem] shadow-2xl border-0 overflow-hidden"
+      >
         <div className="bg-white rounded-[2rem] shadow-2xl border-0 overflow-hidden">
           <Modal.Header closeButton className="border-b border-neutral-100 p-6 sm:p-8 pb-4">
             <Modal.Title className="text-2xl font-black text-foreground">
@@ -1891,6 +1954,101 @@ const UserProfile = () => {
               onClick={confirmAdminCancel}
             >
               {forceCancel ? 'Force Cancel' : 'Potvrdiť'}
+            </button>
+          </Modal.Footer>
+        </div>
+      </Modal>
+
+      {/* Bulk Email Compose Modal */}
+      <Modal show={showBulkEmailModal} onHide={() => setShowBulkEmailModal(false)} centered>
+        <div className="bg-white rounded-[2rem] shadow-2xl border-0 overflow-hidden">
+          <Modal.Header closeButton className="border-b border-neutral-100 p-6 pb-4">
+            <Modal.Title className="text-xl font-black text-foreground flex items-center gap-2">
+              <Mail className="w-5 h-5 text-blue-500" />
+              Hromadný email účastníkom
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="p-6 space-y-4">
+            {bulkEmailSession && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm font-medium text-blue-800">
+                📅 {bulkEmailSession.training_type} — {formatSlovakDate(bulkEmailSession.training_date)}
+                <span className="ml-2 text-blue-600">
+                  ({(bulkEmailSession.participants || []).filter(p => p.active !== false).length} príjemcov)
+                </span>
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-bold text-foreground mb-2">Predmet</label>
+              <input
+                type="text"
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+                placeholder="Napr. Zmena termínu hodiny..."
+                className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors font-medium text-foreground"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-foreground mb-2">Správa</label>
+              <textarea
+                rows={6}
+                value={emailMessage}
+                onChange={(e) => setEmailMessage(e.target.value)}
+                placeholder="Tu napíš správu pre účastníkov..."
+                className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors font-medium text-foreground resize-none"
+              />
+            </div>
+          </Modal.Body>
+          <Modal.Footer className="border-t border-neutral-100 p-6 pt-4 flex gap-3">
+            <button
+              className="px-6 py-2.5 rounded-xl font-bold text-neutral-600 bg-neutral-100 hover:bg-neutral-200 transition-colors flex-1"
+              onClick={() => setShowBulkEmailModal(false)}
+            >
+              Zrušiť
+            </button>
+            <button
+              disabled={!emailSubject.trim() || !emailMessage.trim()}
+              className="px-6 py-2.5 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all hover:shadow-md disabled:bg-neutral-300 disabled:shadow-none flex-1 flex items-center justify-center gap-2"
+              onClick={() => { setShowBulkEmailModal(false); setShowEmailConfirm(true); }}
+            >
+              <Mail className="w-4 h-4" /> Pokračovať
+            </button>
+          </Modal.Footer>
+        </div>
+      </Modal>
+
+      {/* Bulk Email Confirm Modal */}
+      <Modal show={showEmailConfirm} onHide={() => { setShowEmailConfirm(false); setShowBulkEmailModal(true); }} centered>
+        <div className="bg-white rounded-[2rem] shadow-2xl border-0 overflow-hidden">
+          <Modal.Header closeButton className="border-b border-neutral-100 p-6 pb-4">
+            <Modal.Title className="text-xl font-black text-foreground flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-orange-500" />
+              Naozaj odoslať?
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="p-6">
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-sm text-orange-800 font-medium space-y-2">
+              <p>Chystáte sa odoslať email <strong>{(bulkEmailSession?.participants || []).filter(p => p.active !== false).length} účastníkom</strong> hodiny:</p>
+              <p className="font-bold">{bulkEmailSession?.training_type} — {bulkEmailSession ? formatSlovakDate(bulkEmailSession.training_date) : ''}</p>
+              <p className="mt-3">📧 <strong>Predmet:</strong> {emailSubject}</p>
+            </div>
+            <p className="text-sm text-neutral-500 font-medium mt-4">Táto akcia sa nedá vrátiť späť. Pokračovať?</p>
+          </Modal.Body>
+          <Modal.Footer className="border-t border-neutral-100 p-6 pt-4 flex gap-3">
+            <button
+              className="px-6 py-2.5 rounded-xl font-bold text-neutral-600 bg-neutral-100 hover:bg-neutral-200 transition-colors flex-1"
+              onClick={() => { setShowEmailConfirm(false); setShowBulkEmailModal(true); }}
+            >
+              Späť
+            </button>
+            <button
+              disabled={isSendingEmail}
+              className="px-6 py-2.5 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all hover:shadow-md disabled:bg-neutral-300 flex-1 flex items-center justify-center gap-2"
+              onClick={handleSendBulkEmail}
+            >
+              {isSendingEmail
+                ? <><SpinnerIcon className="w-4 h-4" /> Odosielam...</>
+                : <><Mail className="w-4 h-4" /> Áno, odoslať</>
+              }
             </button>
           </Modal.Footer>
         </div>

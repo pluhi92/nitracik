@@ -2278,6 +2278,78 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
     };
 
     return transporter.sendMail(mailOptions);
+  },
+
+  sendBulkAdminEmail: async (recipients, subject, message, trainingInfo) => {
+    const formattedDate = dayjs(trainingInfo.training_date)
+      .tz('Europe/Bratislava')
+      .format('DD.MM.YYYY (dddd) HH:mm');
+
+    const sendPromises = recipients.map(({ email, first_name }) => {
+      const mailOptions = {
+        from: SENDER,
+        to: email,
+        subject: subject,
+        html: injectImageUrls(`
+          <!DOCTYPE html>
+          <html lang="sk">
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
+              .container { max-width: 600px; margin: 20px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+              .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #eab308; }
+              .content { padding: 30px; color: #333; line-height: 1.7; }
+              .info-box { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 16px; margin: 20px 0; font-size: 14px; color: #92400e; }
+              .message-box { background: #f9fafb; border-left: 4px solid #2563eb; padding: 20px; border-radius: 0 6px 6px 0; margin: 20px 0; white-space: pre-wrap; line-height: 1.8; }
+              .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+            </style>
+          </head>
+          <body>
+            <div style="background-color:#f4f4f4; padding: 40px 0;">
+              <div class="container">
+                <div class="header">
+                  <img src="cid:nitracikLogo" alt="Nitráčik" style="width:220px; height:auto; display:block; margin:0 auto;"/>
+                </div>
+                <div class="content">
+                  <p style="font-size:18px; font-weight:bold;">Dobrý deň, ${first_name}.</p>
+
+                  <div class="info-box">
+                    📅 Správa sa týka hodiny: <strong>${trainingInfo.training_type} — ${formattedDate}</strong>
+                  </div>
+
+                  <div class="message-box">${message}</div>
+
+                  <p style="margin-top: 24px;">V prípade otázok nás kontaktujte na <a href="mailto:info@nitracik.sk" style="color:#2563eb;">info@nitracik.sk</a>.</p>
+
+                  <div style="margin-top: 30px;">
+                    <p style="font-family: 'Brush Script MT', cursive; font-size:24px; color:#ef3f3f; margin-bottom:4px;">Saška</p>
+                    <p style="font-size:14px; margin:0;"><strong>JUDr. Košičárová Alexandra</strong></p>
+                    <p style="font-size:13px; color:#666; margin:0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
+                  </div>
+                </div>
+                <div class="footer">
+                  <div style="margin-bottom:12px;">
+                    <a href="https://www.instagram.com/nitracik/" style="margin:0 8px;">
+                      <img src="cid:igIcon" alt="Instagram" style="width:26px; height:26px; vertical-align:middle;"/>
+                    </a>
+                    <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="margin:0 8px;">
+                      <img src="cid:fbIcon" alt="Facebook" style="width:26px; height:26px; vertical-align:middle;"/>
+                    </a>
+                  </div>
+                  <p style="margin:0;">© 2026 O.z. Nitráčik</p>
+                </div>
+              </div>
+            </div>
+          </body>
+          </html>
+        `),
+        attachments: getCommonAttachments()
+      };
+      return transporter.sendMail(mailOptions);
+    });
+
+    return Promise.allSettled(sendPromises);
   }
 }; // Koniec module.exports
 

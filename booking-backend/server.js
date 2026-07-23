@@ -2909,6 +2909,36 @@ app.get('/api/bookings/user/:userId', isAuthenticated, async (req, res) => {
   }
 });
 
+app.post('/api/bookings/cancel-pending', isAuthenticated, async (req, res) => {
+  const { bookingId } = req.body;
+  const userId = req.session.userId;
+
+  if (!bookingId) {
+    return res.status(400).json({ error: 'Chýba bookingId.' });
+  }
+
+  try {
+    const result = await pool.query(
+      `DELETE FROM bookings
+       WHERE id = $1
+         AND user_id = $2
+         AND active = false
+         AND amount_paid IS NULL
+       RETURNING id`,
+      [bookingId, userId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Rezervácia nenájdená alebo nie je možné ju zrušiť.' });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[CANCEL PENDING] Error:', err.message);
+    res.status(500).json({ error: 'Nepodarilo sa zrušiť rezerváciu.' });
+  }
+});
+
 app.get('/api/bookings/:bookingId/type', isAuthenticated, async (req, res) => {
   try {
     const bookingId = req.params.bookingId;
@@ -5121,6 +5151,70 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
   } catch (error) {
     console.error('[DEBUG] Adult payment session outer error:', error.message);
     res.status(500).json({ error: `Chyba pri vytváraní platby: ${error.message}` });
+  }
+});
+
+// POST /api/admin/send-bulk-email
+app.post('/api/admin/send-bulk-email', isAdmin, async (req, res) => {
+  const { trainingId, subject, message } = req.body;
+
+  if (!trainingId || !subject?.trim() || !message?.trim()) {
+    return res.status(400).json({ error: 'Chýba trainingId, predmet alebo správa.' });
+  }
+
+  let client;
+  try {
+    client = await pool.connect();
+
+    const result = await client.query(`
+      SELECT 
+        ta.training_type,
+        ta.training_date,
+        u.email,
+        u.first_name
+      FROM bookings b
+      JOIN users u ON b.user_id = u.id
+      JOIN training_availability ta ON b.training_id = ta.id
+      WHERE ta.id = $1
+        AND b.active = true
+      ORDER BY b.booked_at ASC
+    `, [trainingId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Žiadni aktívni účastníci pre tento tréning.' });
+    }
+
+    const trainingInfo = {
+      training_type: result.rows[0].training_type,
+      training_date: result.rows[0].training_date,
+    };
+
+    const recipients = result.rows.map(r => ({
+      email: r.email,
+      first_name: r.first_name,
+    }));
+
+    const results = await emailService.sendBulkAdminEmail(
+      recipients, subject, message, trainingInfo
+    );
+
+    const sent = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+
+    console.log(`✅ [BULK EMAIL] Sent: ${sent}, Failed: ${failed}, Training: ${trainingId}`);
+
+    res.json({
+      success: true,
+      sent,
+      failed,
+      total: recipients.length,
+    });
+
+  } catch (err) {
+    console.error('[BULK EMAIL] Error:', err.message);
+    res.status(500).json({ error: 'Chyba pri odosielaní emailov.' });
+  } finally {
+    if (client) client.release();
   }
 });
 

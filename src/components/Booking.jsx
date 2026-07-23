@@ -1266,40 +1266,56 @@ const Booking = () => {
       try {
         const stripe = await stripePromise;
 
-        if (!pendingExistingSessionId) {
-          throw new Error('Missing pending Stripe session id');
+        if (pendingExistingSessionId) {
+          try {
+            const { error } = await stripe.redirectToCheckout({
+              sessionId: pendingExistingSessionId,
+            });
+
+            if (!error) {
+              return;
+            }
+          } catch (redirectError) {
+            console.warn('Pending booking redirect failed, falling back to new checkout:', redirectError);
+          }
         }
 
-        const { error } = await stripe.redirectToCheckout({
-          sessionId: pendingExistingSessionId,
-        });
-
-        if (error) {
-          throw error;
+        if (pendingExistingBookingId) {
+          try {
+            await api.post('/api/bookings/cancel-pending', {
+              bookingId: pendingExistingBookingId,
+            });
+          } catch (cancelErr) {
+            console.warn('[PENDING] Could not cancel old pending booking:', cancelErr.message);
+          }
         }
+
+        await startPaidBookingCheckout({ forceAllowDuplicate: true });
         return;
       } catch (error) {
         console.error('Pending booking redirect error:', error);
 
-        try {
-          await startPaidBookingCheckout({ forceAllowDuplicate: true });
-          return;
-        } catch (fallbackError) {
-          console.error('Pending booking fallback checkout error:', fallbackError);
-
-          if (fallbackError.response?.status === 409 && (fallbackError.response?.data?.code === 'DUPLICATE_BOOKING' || fallbackError.response?.data?.code === 'ACTIVE_DUPLICATE')) {
+        if (error.response?.status === 409) {
+          const code = error.response?.data?.code;
+          if (code === 'DUPLICATE_BOOKING' || code === 'ACTIVE_DUPLICATE') {
             openBackendDuplicateBookingModal();
             setWarningMessage('');
-          } else if (fallbackError.response?.data?.error) {
-            setWarningMessage(fallbackError.response.data.error);
-          } else {
-            setWarningMessage('Nepodarilo sa presmerovať na rozpracovanú platbu. Skúste to prosím znova.');
+          } else if (code === 'PENDING_BOOKING') {
+            openPendingDuplicateBookingModal(
+              error.response?.data?.existingSessionId,
+              error.response?.data?.existingBookingId
+            );
+            setWarningMessage('');
           }
-
-          setLoading(false);
-          return;
+        } else if (error.response?.data?.error) {
+          setWarningMessage(error.response.data.error);
+        } else {
+          setWarningMessage('Nepodarilo sa presmerovať na platbu. Skúste to prosím znova.');
         }
+
+        setLoading(false);
       }
+      return;
     }
 
     if (duplicateBookingModalContext.source === 'backend') {
