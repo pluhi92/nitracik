@@ -269,13 +269,7 @@ module.exports = {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-soft': 'linear-gradient(135deg, rgba(234,189,100,0.08) 0%, rgba(239,63,63,0.05) 100%)',
         // Nové ružovo-modro-žlté fľakaté pozadie
-        'custom-flakes': `
-          radial-gradient(circle at 15% 30%, rgba(236, 72, 153, 0.10) 0%, transparent 35%),
-          radial-gradient(circle at 85% 20%, rgba(59, 130, 246, 0.10) 0%, transparent 35%),
-          radial-gradient(circle at 50% 80%, rgba(234, 179, 8, 0.12) 0%, transparent 40%),
-          radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.08) 0%, transparent 30%),
-          radial-gradient(circle at 20% 70%, rgba(59, 130, 246, 0.08) 0%, transparent 30%)
-        `,
+        'custom-flakes': `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Crect width='600' height='600' fill='%23fffde7'/%3E%3Cfilter id='blur'%3E%3CfeGaussianBlur stdDeviation='18'/%3E%3C/filter%3E%3Cg filter='url(%23blur)'%3E%3Ccircle cx='80' cy='80' r='55' fill='rgba(147,197,253,0.5)'/%3E%3Ccircle cx='300' cy='60' r='40' fill='rgba(255,150,180,0.5)'/%3E%3Ccircle cx='520' cy='100' r='50' fill='rgba(167,243,208,0.45)'/%3E%3Ccircle cx='150' cy='280' r='65' fill='rgba(255,150,180,0.45)'/%3E%3Ccircle cx='420' cy='250' r='55' fill='rgba(147,197,253,0.5)'/%3E%3Ccircle cx='70' cy='480' r='50' fill='rgba(255,210,80,0.35)'/%3E%3Ccircle cx='320' cy='450' r='60' fill='rgba(147,197,253,0.4)'/%3E%3Ccircle cx='530' cy='420' r='45' fill='rgba(255,150,180,0.45)'/%3E%3Ccircle cx='240' cy='550' r='40' fill='rgba(167,243,208,0.4)'/%3E%3Ccircle cx='460' cy='560' r='35' fill='rgba(255,210,80,0.30)'/%3E%3C/g%3E%3C/svg%3E")`,
       },
     },
   },
@@ -287,6 +281,12 @@ module.exports = {
     require("tailwindcss-animate"),
     function ({ addUtilities }) {
       addUtilities({
+       '.card-glass': {
+  'background': 'rgba(255, 255, 255, 0.92) !important',
+  'backdrop-filter': 'blur(4px)',
+  '-webkit-backdrop-filter': 'blur(4px)',
+  'border-color': 'rgba(255, 255, 255, 0.8) !important',
+},
         '.scroll-smooth': {
           'scroll-behavior': 'smooth',
           '-webkit-overflow-scrolling': 'touch',

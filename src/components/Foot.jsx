@@ -102,7 +102,7 @@ const Foot = () => {
       whileInView="visible"
       viewport={{ once: true, margin: "-50px" }}
       variants={fadeInUp}
-      className="bg-white text-foreground pt-16 pb-6 px-6 font-sans text-sm border-t border-neutral-200 mt-auto"
+      className="card-glass text-foreground pt-16 pb-6 px-6 font-sans text-sm border-t border-neutral-200 mt-auto"
     >
       {/* Main Content */}
       <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 items-start gap-12 mb-8">
@@ -225,7 +225,7 @@ const Foot = () => {
             {partners.map((partner, index) => (
               <div
                 key={index}
-                className="border border-neutral-200 rounded-2xl p-5 bg-white shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                className="border border-neutral-200 rounded-2xl p-5 card-glass shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
               >
                 <div>
                   <div className="mb-4 h-40 bg-neutral-50 rounded-xl overflow-hidden flex items-center justify-center p-3 border border-neutral-100">
