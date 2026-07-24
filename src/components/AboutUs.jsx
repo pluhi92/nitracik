@@ -9,6 +9,7 @@ import Blog from './Blog';
 import ownerImageDesktop from '../assets/owner.jpg';
 import ownerImageMobile from '../assets/owner2.jpg';
 import googleIcon from '../assets/google_icon.png';
+import mascotImage from '../assets/logo_bez.PNG';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Edit2, 
@@ -404,7 +405,14 @@ const AboutUs = () => {
         variants={staggerContainer}
         className="section-wrapper container-custom"
       >
-        <div className="bg-white border border-neutral-200 rounded-[2rem] shadow-sm p-8 sm:p-12 relative overflow-hidden">
+        <div className="relative">
+          <img
+            src={mascotImage}
+            alt=""
+            className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 sm:w-24 z-20 pointer-events-none"
+            style={{ filter: 'drop-shadow(2px 4px 12px rgba(0,0,0,0.12))' }}
+          />
+          <div className="card-glass border border-neutral-200 rounded-[2rem] shadow-sm p-8 sm:p-12 relative">
           
           {/* Centered Heading at the top */}
           <motion.div variants={fadeInUp}>
@@ -447,6 +455,7 @@ const AboutUs = () => {
               )}
             </motion.div>
           </div>
+          </div>
         </div>
       </motion.section>
 
@@ -458,7 +467,7 @@ const AboutUs = () => {
         variants={fadeInUp}
         className="section-wrapper container-custom"
       >
-        <div className="bg-white border border-neutral-200 rounded-[2rem] shadow-sm p-8 sm:p-12">
+        <div className="card-glass border border-neutral-200 rounded-[2rem] shadow-sm p-8 sm:p-12">
           <Blog limit={3} showViewAll={true} />
         </div>
       </motion.section>
@@ -471,7 +480,14 @@ const AboutUs = () => {
         variants={staggerContainer}
         className="section-wrapper container-custom"
       >
-        <div className="bg-white border border-neutral-200 rounded-[2rem] shadow-sm p-8 sm:p-12">
+        <div className="relative">
+          <img
+            src={mascotImage}
+            alt=""
+            className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 sm:w-24 z-20 pointer-events-none"
+            style={{ filter: 'drop-shadow(2px 4px 12px rgba(0,0,0,0.12))' }}
+          />
+          <div className="card-glass border border-neutral-200 rounded-[2rem] shadow-sm p-8 sm:p-12">
           <motion.div variants={fadeInUp} className="text-center mb-6">
             <h2 className="text-3xl sm:text-4xl font-extrabold mb-6">
               Napísali ste o nás
@@ -617,6 +633,7 @@ const AboutUs = () => {
               </button>
             </motion.div>
           )}
+          </div>
         </div>
       </motion.section>
 
@@ -696,7 +713,7 @@ const AboutUs = () => {
         variants={fadeInUp}
         className="section-wrapper container-custom pb-24"
       >
-        <div className="relative overflow-hidden rounded-[2rem] bg-white border border-neutral-200 shadow-sm p-8 sm:p-12">
+        <div className="card-glass border border-neutral-200 rounded-[2rem] shadow-sm p-8 sm:p-12 relative">
           {/* Subtle background decoration instead of strong gradients to match the softer cards */}
           <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 rounded-full bg-primary/10 blur-3xl pointer-events-none"></div>
 
