@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ClipboardCheck, XCircle, Zap, Trash2, 
   MapPin, Phone, ShieldAlert, FileText, 
-  Ticket, CalendarDays, History, Archive, Gift,
+  Ticket, CalendarDays, History, Archive,
   AlertTriangle, ChevronDown, CheckCircle, CreditCard, RefreshCw, ChevronUp,
   Mail
 } from 'lucide-react';
@@ -43,7 +43,6 @@ const UserProfile = () => {
   const [password, setPassword] = useState('');
   const [bookedSessions, setBookedSessions] = useState([]);
   const [seasonTickets, setSeasonTickets] = useState([]);
-  const [giftCards, setGiftCards] = useState([]);
   const [adminSeasonTickets, setAdminSeasonTickets] = useState([]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -65,7 +64,6 @@ const UserProfile = () => {
   const [reason, setReason] = useState('');
   const [forceCancel, setForceCancel] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [showGcHistory, setShowGcHistory] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [showBulkEmailModal, setShowBulkEmailModal] = useState(false);
   const [bulkEmailSession, setBulkEmailSession] = useState(null);
@@ -141,15 +139,6 @@ const UserProfile = () => {
       }
     };
 
-    const fetchGiftCards = async () => {
-      try {
-        const response = await api.get(`/api/gift-cards/user/${userId}`);
-        setGiftCards(response.data);
-      } catch (error) {
-        console.error('Error fetching gift cards:', error);
-      }
-    };
-
     const fetchAdminSeasonTickets = async () => {
       try {
         const response = await api.get(`/api/admin/season-tickets`);
@@ -162,7 +151,6 @@ const UserProfile = () => {
     if (userId) {
       checkAdmin();
       fetchSeasonTickets();
-      fetchGiftCards();
       if (isAdmin) fetchAdminSeasonTickets();
     }
   }, [userId, isAdmin]);
@@ -499,26 +487,22 @@ const UserProfile = () => {
                                     ? 'bg-blue-50 text-blue-700 border-blue-200'
                                     : participant.booking_type === 'season_ticket'
                                       ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
-                                      : participant.booking_type === 'gift_card'
-                                        ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                        : participant.booking_type === 'paid' && participant.active === false
-                                          ? 'bg-neutral-100 text-neutral-600 border-neutral-200'
-                                          : participant.booking_type === 'paid' && (!participant.amount_paid || participant.amount_paid === 0)
-                                            ? 'bg-orange-50 text-orange-700 border-orange-200'
-                                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                      : participant.booking_type === 'paid' && participant.active === false
+                                        ? 'bg-neutral-100 text-neutral-600 border-neutral-200'
+                                        : participant.booking_type === 'paid' && (!participant.amount_paid || participant.amount_paid === 0)
+                                          ? 'bg-orange-50 text-orange-700 border-orange-200'
+                                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                   }
                                 `}>
                                   {participant.booking_type === 'credit'
                                     ? 'Kredit'
                                     : participant.booking_type === 'season_ticket'
                                       ? 'Permanentka'
-                                      : participant.booking_type === 'gift_card'
-                                        ? '🎁 Zaplatená'
-                                        : participant.booking_type === 'paid' && participant.active === false
-                                          ? 'Zrušené'
-                                          : participant.booking_type === 'paid' && (!participant.amount_paid || participant.amount_paid === 0)
-                                            ? 'Čaká na platbu'
-                                            : 'Zaplatená'}
+                                      : participant.booking_type === 'paid' && participant.active === false
+                                        ? 'Zrušené'
+                                        : participant.booking_type === 'paid' && (!participant.amount_paid || participant.amount_paid === 0)
+                                          ? 'Čaká na platbu'
+                                          : 'Zaplatené'}
                                 </span>
                                 {participant.amount_paid > 0 && (
                                   <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
@@ -768,8 +752,6 @@ const UserProfile = () => {
             message += ` ${t?.profile?.cancel?.seasonTicketSuccess?.replace('{count}', response.data.seasonTicketEntriesReturned) || `${response.data.seasonTicketEntriesReturned} entries returned to your season ticket.`}`;
           } else if (response.data.creditReturned) {
             message += ` ${t?.profile?.cancel?.creditReturned || 'Your credit has been returned to your account.'}`;
-          } else if (response.data.giftCardBalanceRestored) {
-            message += ' Hodnota rezervácie bola vrátená na váš darčekový poukaz.';
           } else if (response.data.refundError) {
             message += ` ${t?.profile?.cancel?.refundFailed || 'Refund processing failed.'} ${response.data.refundError}`;
           }
@@ -1198,116 +1180,6 @@ const UserProfile = () => {
             )}
           </div>
 
-          {giftCards.length > 0 && (() => {
-            const activeGiftCards = giftCards.filter(gc => 
-              gc.status === 'active' && new Date(gc.expiresAt) > new Date() && gc.balance > 0
-            );
-            const historyGiftCards = giftCards.filter(gc => 
-              gc.status === 'used' || gc.balance <= 0 || new Date(gc.expiresAt) <= new Date()
-            );
-
-            return (
-              <div className="bg-white rounded-[2rem] shadow-sm p-8 border border-neutral-200 mb-8">
-                <h3 className="text-2xl font-extrabold text-foreground mb-6 flex items-center gap-3">
-                  <Gift className="w-6 h-6 text-amber-500" />
-                  Darčekové poukazy
-                </h3>
-
-                {activeGiftCards.length === 0 ? (
-                  <div className="text-center py-10 bg-neutral-50 rounded-2xl border border-dashed border-neutral-300">
-                    <Gift className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
-                    <p className="text-neutral-500 font-bold">Nemáte žiadne aktívne darčekové poukazy.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                    {activeGiftCards.map((gc, index) => (
-                      <div key={gc.id || index} className="bg-gradient-to-br from-amber-50 to-amber-100/60 border border-amber-200 rounded-2xl p-5">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="font-mono text-xs font-black tracking-widest text-amber-700 bg-white border border-amber-200 rounded-lg px-2 py-1">
-                            {gc.code}
-                          </span>
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-400 text-white">
-                            Aktívny
-                          </span>
-                        </div>
-                        <div className="space-y-1.5 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-neutral-500 font-medium">Využité:</span>
-                            <span className="font-bold text-foreground">
-                              {(parseFloat(gc.amount) - parseFloat(gc.balance)).toFixed(2)} €
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-neutral-500 font-medium">Zostatok:</span>
-                            <span className="font-black text-amber-700 text-base">
-                              {parseFloat(gc.balance).toFixed(2)} €
-                            </span>
-                          </div>
-                          <div className="flex justify-between pt-1.5 border-t border-amber-200 mt-1.5">
-                            <span className="text-neutral-400 font-medium text-xs">Platné do:</span>
-                            <span className="font-bold text-xs text-neutral-600">
-                              {new Date(gc.expiresAt).toLocaleDateString('sk-SK', { 
-                                day: '2-digit', month: '2-digit', year: 'numeric' 
-                              })}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {historyGiftCards.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-neutral-100">
-                    <button
-                      onClick={() => setShowGcHistory(!showGcHistory)}
-                      className="flex items-center gap-2 text-neutral-400 hover:text-primary font-bold text-sm transition-colors mb-4"
-                    >
-                      <History className="w-4 h-4" />
-                      {showGcHistory 
-                        ? 'Skryť archív poukazov' 
-                        : `Zobraziť vyčerpané / expirované poukazy (${historyGiftCards.length})`}
-                      <ChevronDown className={`w-4 h-4 transform transition-transform duration-300 ${showGcHistory ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    <AnimatePresence>
-                      {showGcHistory && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {historyGiftCards.map((gc, index) => (
-                              <div key={gc.id || index} className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 opacity-70">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="font-mono text-xs font-black tracking-widest text-neutral-500">
-                                    {gc.code}
-                                  </span>
-                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${
-                                    gc.balance <= 0 || gc.status === 'used'
-                                      ? 'bg-neutral-100 text-neutral-600 border-neutral-200'
-                                      : 'bg-red-50 text-red-600 border-red-100'
-                                  }`}>
-                                    {gc.balance <= 0 || gc.status === 'used' ? 'Vyčerpaný' : 'Expirovaný'}
-                                  </span>
-                                </div>
-                                <div className="text-xs text-neutral-500 font-medium">
-                                  Hodnota: {parseFloat(gc.amount).toFixed(2)} €
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
           {/* VAŠE REZERVOVANÉ RELÁCIE */}
           <div className="bg-white rounded-[2rem] shadow-sm p-8 border border-neutral-200 mb-8">
             <h3 className="text-2xl font-extrabold text-foreground mb-6 flex items-center gap-3">
@@ -1334,9 +1206,6 @@ const UserProfile = () => {
                     }
                     if (session.booking_type === 'season_ticket') {
                       return { type: 'season_ticket', label: t?.profile?.bookingMethods?.season_ticket || 'Permanentka', icon: <Ticket className="w-3.5 h-3.5"/>, badgeClass: 'bg-yellow-50 text-yellow-700 border-yellow-200' };
-                    }
-                    if (session.booking_type === 'gift_card') {
-                      return { type: 'gift_card', label: '🎁 Zaplatená', icon: null, badgeClass: 'bg-amber-50 text-amber-700 border-amber-200' };
                     }
                     if (session.booking_type === 'paid' && session.amount_paid && session.amount_paid > 0) {
                       return { type: 'paid', label: t?.profile?.bookingMethods?.paid || 'Zaplatené', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
@@ -1924,27 +1793,6 @@ const UserProfile = () => {
                     </div>
                   </label>
                 </>
-              )}
-
-              {/* ========== GIFT CARD OPTIONS ========== */}
-              {bookingType === 'gift_card' && (
-                <label className={`block flex items-start p-4 border rounded-2xl cursor-pointer transition-all ${cancellationType === 'return' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-neutral-200 hover:border-primary/40 hover:bg-neutral-50'}`}>
-                  <input
-                    type="radio"
-                    name="cancellationType"
-                    checked={cancellationType === 'return'}
-                    onChange={() => setCancellationType('return')}
-                    className="w-5 h-5 mt-0.5 text-primary border-neutral-300 focus:ring-primary"
-                  />
-                  <div className="ml-4 flex-1">
-                    <div className="font-bold text-foreground text-base">
-                      🎁 Vrátiť hodnotu na darčekový poukaz
-                    </div>
-                    <p className="text-sm font-medium text-neutral-500 mt-1">
-                      Suma rezervácie bude okamžite vrátená na zostatok vášho darčekového poukazu.
-                    </p>
-                  </div>
-                </label>
               )}
             </div>
 
