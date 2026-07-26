@@ -15,15 +15,24 @@ api.makeImageUrl = (path) => {
   return `${BASE_URL}${path}`;              // Ak je to lokálna cesta
 };
 
+// Endpointy kde 401 je očakávané a nemá spôsobiť redirect
+const NON_CRITICAL_ENDPOINTS = [
+  '/api/gift-cards/user/',
+];
+
 // ✅ INTERCEPTOR PRE 401 RESPONSE (SESSION EXPIRATION)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Session vypršala - redirect na login
-      console.log('[API Interceptor] Session expired, redirecting to login');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      const url = error.config?.url || '';
+      const isNonCritical = NON_CRITICAL_ENDPOINTS.some(endpoint => url.includes(endpoint));
+      
+      if (!isNonCritical) {
+        console.log('[API Interceptor] Session expired, redirecting to login');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

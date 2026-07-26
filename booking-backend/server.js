@@ -481,16 +481,18 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         // Update existing booking with payment details and activate it
         const paymentIntentId = session.payment_intent;
         const updateResult = await client.query(
-          `UPDATE bookings 
-           SET amount_paid = $1, 
+            `UPDATE bookings 
+             SET amount_paid = $1, 
                payment_time = $2, 
                payment_intent_id = $3, 
-               session_id = NULL,
+               session_id = $4,
                active = true
-           WHERE session_id = $4 
-           RETURNING *`,
-          [parseFloat(totalPrice), new Date(session.created * 1000), paymentIntentId, session.id]
+             WHERE session_id = $4 
+             RETURNING *`,
+            [parseFloat(totalPrice), new Date(session.created * 1000), paymentIntentId, session.id]
         );
+
+        console.log('[DEBUG] Webhook booking update session_id:', session.id, 'rows:', updateResult.rowCount);
 
         if (updateResult.rowCount === 0) {
           throw new Error('No booking found with the provided session ID');
@@ -572,7 +574,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
            SET amount_paid = $1,
                payment_time = $2,
                payment_intent_id = $3,
-               session_id = NULL,
+               session_id = $4,
                active = true,
                age_group = 'adult',
                number_of_adults = 1,
@@ -3361,6 +3363,7 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
     );
 
     let refundData = null;
+    let giftCardBalanceRestored = false;
 
     // --- A. SEASON TICKET RETURN ---
     if (usageResult.rows.length > 0) {
@@ -3434,6 +3437,8 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
                WHERE code = $3`,
               [restoredBalance, newStatus, giftCardCode]
             );
+
+            giftCardBalanceRestored = true;
 
             console.log(`[DEBUG] Gift card ${giftCardCode} balance restored: ${gc.balance} → ${restoredBalance}`);
           }
@@ -3528,6 +3533,8 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
       message: 'Booking canceled successfully',
       refundProcessed: !!refundData?.id || ['credit_returned', 'season_ticket_returned', 'credit_issued'].includes(refundData?.type),
       creditIssued: refundData?.type === 'credit_issued'
+      ,
+      giftCardBalanceRestored: giftCardBalanceRestored
     });
 
   } catch (error) {
@@ -3697,6 +3704,7 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
       SELECT 
         b.id AS booking_id, 
         b.user_id, 
+        b.session_id,
         b.amount_paid, 
         b.payment_intent_id,
         b.booking_type,
@@ -3773,16 +3781,54 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
         });
 
         // --- C: PLATBA KARTOU (ŠTANDARD) ---
-      } else {
-        // Títo ostávajú, kým si nevyberú možnosť
-        emailQueue.push({
-          type: 'card',
-          email: booking.email,
-          booking: booking,
-          reason: reason,
-          frontendUrl: FRONTEND_URL
-        });
-      }
+        } else if (booking.booking_type === 'gift_card' || (booking.session_id && booking.session_id.startsWith('GIFT_CARD_'))) {
+          // Restore gift card balance (but never exceed original amount) and remove booking
+          try {
+            const giftCardCode = booking.session_id ? booking.session_id.replace('GIFT_CARD_', '') : null;
+            if (giftCardCode) {
+              const gcRes = await client.query('SELECT * FROM gift_card WHERE code = $1', [giftCardCode]);
+              if (gcRes.rows.length > 0) {
+                const gc = gcRes.rows[0];
+                const priceResult = await client.query(
+                  `SELECT tp.price FROM training_prices tp
+                   JOIN training_availability ta ON ta.training_type_id = tp.training_type_id
+                   WHERE ta.id = $1 AND tp.child_count = $2`,
+                  [booking.training_id, booking.number_of_children]
+                );
+                const originalPrice = priceResult.rows[0] ? parseFloat(priceResult.rows[0].price) : 0;
+                if (originalPrice > 0) {
+                  const restoredBalance = parseFloat(Math.min(parseFloat(gc.balance) + originalPrice, parseFloat(gc.amount)).toFixed(2));
+                  const newStatus = restoredBalance > 0 ? 'active' : gc.status;
+                  await client.query(`UPDATE gift_card SET balance = $1, status = $2, "redeemedAt" = NULL WHERE code = $3`, [restoredBalance, newStatus, giftCardCode]);
+                  console.log(`[DEBUG] Gift card ${giftCardCode} balance restored by admin cancel: ${gc.balance} → ${restoredBalance}`);
+                }
+              }
+            }
+          } catch (e) {
+            console.error('[DEBUG] Error restoring gift card during admin cancel:', e.message);
+          }
+
+          // Remove booking to mark it inactive/archived
+          await client.query('DELETE FROM bookings WHERE id = $1', [booking.booking_id]);
+
+          // queue email similar to card cancellation
+          emailQueue.push({
+            type: 'card',
+            email: booking.email,
+            booking: booking,
+            reason: reason,
+            frontendUrl: FRONTEND_URL
+          });
+        } else {
+          // Títo ostávajú, kým si nevyberú možnosť
+          emailQueue.push({
+            type: 'card',
+            email: booking.email,
+            booking: booking,
+            reason: reason,
+            frontendUrl: FRONTEND_URL
+          });
+        }
     }
 
     // 5. ULOŽENIE ZMIEN DO DB
@@ -5811,6 +5857,37 @@ app.post('/api/redeem-gift-card', async (req, res) => {
   } catch (error) {
     console.error('[GiftCard] redeem error:', error.message);
     res.status(500).json({ error: 'Chyba pri uplatňovaní poukazu' });
+  }
+});
+
+// ENDPOINT 5: Fetch gift cards for a specific user
+app.get('/api/gift-cards/user/:userId', isAuthenticated, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Get user email to match gift cards (gift cards are linked by buyerEmail)
+    const userResult = await pool.query(
+      'SELECT email FROM users WHERE id = $1',
+      [userId]
+    );
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const userEmail = userResult.rows[0].email;
+
+    const result = await pool.query(
+      `SELECT id, code, amount, balance, status, "recipientName",
+              "expiresAt", "redeemedAt", "createdAt"
+       FROM gift_card
+       WHERE "buyerEmail" = $1
+       ORDER BY "createdAt" DESC`,
+      [userEmail]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('[GiftCard] fetch user gift cards error:', error.message);
+    res.status(500).json({ error: 'Chyba pri načítaní darčekových poukazov' });
   }
 });
 
