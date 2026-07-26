@@ -77,10 +77,21 @@ async function cleanupTestData() {
     // 5. Teraz môžeme zmazať training_availability (už nie sú závislé bookings)
     await client.query(`DELETE FROM training_availability WHERE training_type LIKE 'TEST_%'`);
     
-    // 6. Zmazať training_types
+    // 6. Zmazať gift_card (pred users, kôli FK) — len ak tabuľka existuje
+    const giftCardTableCheck = await client.query(
+      `SELECT EXISTS (
+         SELECT FROM information_schema.tables 
+         WHERE table_schema = 'public' AND table_name = 'gift_card'
+       ) AS exists`
+    );
+    if (giftCardTableCheck.rows[0].exists) {
+      await client.query(`DELETE FROM gift_card WHERE "buyerEmail" LIKE 'test_%' OR code LIKE 'TESTGC%'`);
+    }
+
+    // 7. Zmazať training_types
     await client.query(`DELETE FROM training_types WHERE name LIKE 'TEST_%'`);
     
-    // 7. Nakoniec zmazať users
+    // 8. Nakoniec zmazať users
     await client.query(`DELETE FROM users WHERE email LIKE 'test_%'`);
     
     await client.query('COMMIT');

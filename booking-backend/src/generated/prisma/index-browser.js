@@ -320,6 +320,23 @@ exports.Prisma.About_contentScalarFieldEnum = {
   updated_at: 'updated_at'
 };
 
+exports.Prisma.Gift_cardScalarFieldEnum = {
+  id: 'id',
+  code: 'code',
+  stripeSessionId: 'stripeSessionId',
+  amount: 'amount',
+  balance: 'balance',
+  status: 'status',
+  buyerEmail: 'buyerEmail',
+  recipientName: 'recipientName',
+  recipientEmail: 'recipientEmail',
+  message: 'message',
+  expiresAt: 'expiresAt',
+  redeemedAt: 'redeemedAt',
+  createdAt: 'createdAt',
+  bookingId: 'bookingId'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -364,7 +381,8 @@ exports.Prisma.ModelName = {
   blog_labels: 'blog_labels',
   blog_posts: 'blog_posts',
   google_ratings_config: 'google_ratings_config',
-  about_content: 'about_content'
+  about_content: 'about_content',
+  gift_card: 'gift_card'
 };
 
 /**

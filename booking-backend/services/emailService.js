@@ -134,9 +134,10 @@ const getAttendeesList = async (trainingId) => {
     let tableRows = '';
     attendees.forEach((row, index) => {
       const bookingTypeText =
-        row.booking_type === 'paid' ? 'Normálna rezervácia' :
-          row.booking_type === 'season_ticket' ? 'Permanentka' :
-            row.booking_type === 'credit' ? 'Kredit' : 'Neznámy typ';
+        row.booking_type === 'paid' ? 'Zaplatená' :
+          row.booking_type === 'gift_card' ? 'Zaplatená' :
+            row.booking_type === 'season_ticket' ? 'Permanentka' :
+              row.booking_type === 'credit' ? 'Kredit' : 'Neznámy typ';
 
       tableRows += `
         <tr style="border-bottom: 1px solid #e5e7eb;">
@@ -279,17 +280,19 @@ module.exports = {
     const SUBJECTS = {
       credit: 'Rezervácia – uhradená kreditom | Nitráčik',
       season_ticket: 'Rezervácia – uplatnený permanentný vstup | Nitráčik',
+      gift_card: 'Potvrdenie rezervácie – darčekový poukaz | Nitráčik',
       payment: 'Potvrdenie rezervácie | Nitráčik'
     };
     const PAYMENT_TEXT = {
       credit: 'rezervácia bola uhradená z vášho kreditu',
       season_ticket: 'rezervácia bola odpočítaná z permanentného vstupu',
+      gift_card: 'rezervácia bola úspešne uhradená darčekovým poukazom',
       payment: 'platba prebehla úspešne'
     };
 
-    const pType = sessionDetails.paymentType || 'paid';
-    const subject = SUBJECTS[pType] || SUBJECTS['paid'];
-    const paymentInfo = PAYMENT_TEXT[pType] || PAYMENT_TEXT['paid'];
+    const pType = sessionDetails.paymentType || 'payment';
+    const subject = SUBJECTS[pType] || SUBJECTS['payment'];
+    const paymentInfo = PAYMENT_TEXT[pType] || PAYMENT_TEXT['payment'];
     const creditCompatibilityNotice = pType === 'credit'
       ? getMiniMidiMaxiCreditNoticeHtml(sessionDetails.trainingType)
       : '';
@@ -305,6 +308,19 @@ module.exports = {
           <div class="highlight-item">Použité vstupy teraz: <strong>${sessionDetails.usedEntries}</strong></div>
           <div class="highlight-item">Zostávajúce vstupy: <strong>${sessionDetails.remainingEntries} / ${sessionDetails.totalEntries}</strong></div>
           <div class="highlight-item" style="font-size: 13px; color: #666;">Platnosť do: ${expiryFormatted}</div>
+        </div>
+      `;
+    }
+    // ================================
+
+    // === DARČEKOVÝ POUKAZ INFO ===
+    let giftCardRow = '';
+    if (pType === 'gift_card' && sessionDetails.giftCardBalance !== undefined) {
+      giftCardRow = `
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #f59e0b;">
+          <div style="color: #d97706; font-weight: bold; margin-bottom: 5px;">🎁 Darčekový poukaz:</div>
+          <div class="highlight-item">Uhradené poukazom: <strong>${sessionDetails.giftCardDiscount ? sessionDetails.giftCardDiscount.toFixed(2) : '0.00'} €</strong></div>
+          <div class="highlight-item">Zostatok na poukaze: <strong>${Number(sessionDetails.giftCardBalance).toFixed(2)} €</strong></div>
         </div>
       `;
     }
@@ -360,7 +376,8 @@ module.exports = {
                         Štefánikova trieda 148, Nitra</a>
                   </div>
                   
-                  ${seasonTicketRows} 
+                  ${seasonTicketRows}
+                  ${giftCardRow}
                   ${creditCompatibilityNotice}
                   
                 </div>
@@ -417,12 +434,14 @@ module.exports = {
     const SUBJECTS = {
       credit: 'Rezervácia – uhradená kreditom | Nitráčik',
       season_ticket: 'Rezervácia – uplatnený permanentný vstup | Nitráčik',
-      paid: 'Potvrdenie rezervácie | Nitráčik'
+      gift_card: 'Potvrdenie rezervácie – darčekový poukaz | Nitráčik',
+      payment: 'Potvrdenie rezervácie | Nitráčik'
     };
     const PAYMENT_TEXT = {
       credit: 'rezervácia bola uhradená z vášho kreditu',
       season_ticket: 'rezervácia bola odpočítaná z permanentného vstupu',
-      paid: 'platba prebehla úspešne'
+      gift_card: 'rezervácia bola úspešne uhradená darčekovým poukazom',
+      payment: 'platba prebehla úspešne'
     };
 
     const pType = sessionDetails.paymentType || 'payment';
@@ -445,6 +464,19 @@ module.exports = {
         </div>
       `;
     }
+
+    // === DARČEKOVÝ POUKAZ INFO ===
+    let giftCardRow = '';
+    if (pType === 'gift_card' && sessionDetails.giftCardBalance !== undefined) {
+      giftCardRow = `
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #f59e0b;">
+          <div style="color: #d97706; font-weight: bold; margin-bottom: 5px;">🎁 Darčekový poukaz:</div>
+          <div class="highlight-item">Uhradené poukazom: <strong>${sessionDetails.giftCardDiscount ? sessionDetails.giftCardDiscount.toFixed(2) : '0.00'} €</strong></div>
+          <div class="highlight-item">Zostatok na poukaze: <strong>${Number(sessionDetails.giftCardBalance).toFixed(2)} €</strong></div>
+        </div>
+      `;
+    }
+    // ================================
 
     // === TÉMA (len pre detské tréningy, pre dospelých nie) ===
     let themeRow = '';
@@ -496,7 +528,8 @@ module.exports = {
                         Štefánikova trieda 148, Nitra</a>
                   </div>
                   
-                  ${seasonTicketRows} 
+                  ${seasonTicketRows}
+                  ${giftCardRow}
                   ${creditCompatibilityNotice}
                   
                 </div>
@@ -987,7 +1020,9 @@ module.exports = {
     const mailOptions = {
       from: SENDER,
       to: adminEmail,
-      subject: 'Nová rezervácia - Nitráčik (Platba)',
+      subject: data.paymentType === 'gift_card' 
+        ? 'Nová rezervácia - Nitráčik (Darčekový poukaz 🎁)' 
+        : 'Nová rezervácia - Nitráčik (Platba)',
       html: injectImageUrls(`
         <!DOCTYPE html>
         <html>
@@ -1011,7 +1046,7 @@ module.exports = {
                  <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
               </div>
               <div class="content">
-                <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #16a34a;">🎉 Nová rezervácia (Platba kartou)!</p>
+                <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #16a34a;">${data.paymentType === 'gift_card' ? '🎁 Nová rezervácia (Darčekový poukaz)!' : '🎉 Nová rezervácia (Platba kartou)!'}</p>
                 
                 <div class="info-box">
                   <p style="font-size: 16px; font-weight: bold; margin-bottom: 15px; color: #2563eb;">Informácie o užívateľovi</p>
@@ -1041,9 +1076,17 @@ module.exports = {
                     <span class="info-label" style="font-size: 16px; color: #16a34a;">💰 Cena:</span> 
                     <span style="font-size: 16px; font-weight: bold; color: #16a34a;">${data.totalPrice} €</span>
                   </div>
-                  <div class="info-row">
-                    <span class="info-label">🔑 Payment Intent:</span> <span style="font-size: 12px; color: #6b7280;">${data.paymentIntentId}</span>
+                  ${data.paymentType === 'gift_card' ? `
+                  <div class="info-row" style="background-color: #fffbeb; padding: 10px; border-radius: 6px; border-left: 3px solid #f59e0b;">
+                    <span class="info-label">🎁 Spôsob platby:</span> Darčekový poukaz<br/>
+                    <span class="info-label">💳 Kód poukazu:</span> <span style="font-family: monospace; font-weight: bold;">${data.giftCardCode || ''}</span><br/>
+                    <span class="info-label">📊 Zostatok na poukaze:</span> ${data.giftCardBalance !== undefined ? Number(data.giftCardBalance).toFixed(2) + ' €' : 'N/A'}
                   </div>
+                  ` : `
+                  <div class="info-row">
+                    <span class="info-label">🔑 Payment Intent:</span> <span style="font-size: 12px; color: #6b7280;">${data.paymentIntentId || ''}</span>
+                  </div>
+                  `}
                   
                   <hr class="divider">
                   
@@ -2350,6 +2393,105 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
     });
 
     return Promise.allSettled(sendPromises);
-  }
+  },
+
+  // --- GIFT CARD EMAIL ---
+  sendGiftCardEmail: async (toEmail, { code, amount, balance, recipientName, message, expiresAt, isBuyer }) => {
+    const formattedExpiry = dayjs(expiresAt).tz('Europe/Bratislava').format('DD.MM.YYYY');
+    const subject = isBuyer
+      ? `🎁 Darčekový poukaz Nitráčik – ${amount}€ bol zakúpený`
+      : `🎁 Niekto ti posiela darček od Nitráčika!`;
+
+    const intro = isBuyer
+      ? `Ďakujeme za nákup darčekového poukazu! Nižšie nájdete vygenerovaný kód, ktorý môžete odovzdať obdarovanému.`
+      : `Niekto na vás myslel a zakúpil vám darčekový poukaz do Nitráčika. Nižšie nájdete váš jedinečný kód.`;
+
+    const mailOptions = {
+      from: SENDER,
+      to: toEmail,
+      subject,
+      html: injectImageUrls(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+            .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+            .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #f59e0b; }
+            .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
+            .voucher-box { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 2px solid #f59e0b; border-radius: 16px; padding: 30px; margin: 25px 0; text-align: center; }
+            .voucher-amount { font-size: 48px; font-weight: 900; color: #d97706; margin: 0 0 8px 0; }
+            .voucher-label { font-size: 14px; color: #92400e; margin: 0 0 20px 0; letter-spacing: 1px; text-transform: uppercase; }
+            .code-box { background-color: #ffffff; border: 2px dashed #f59e0b; border-radius: 10px; padding: 16px 24px; display: inline-block; margin: 10px 0; }
+            .code-text { font-family: 'Courier New', monospace; font-size: 28px; font-weight: 900; letter-spacing: 6px; color: #92400e; }
+            .code-label { font-size: 11px; color: #b45309; text-transform: uppercase; letter-spacing: 2px; margin-top: 6px; }
+            .highlight-box { background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 15px; margin: 20px 0; text-align: left; }
+            .highlight-item { margin-bottom: 6px; font-size: 15px; }
+            .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+            p { margin-bottom: 15px; }
+          </style>
+        </head>
+        <body>
+          <div style="background-color: #f4f4f4; padding: 40px 0;">
+            <div class="container">
+              <div class="header">
+                <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+              </div>
+              <div class="content">
+                <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">
+                  ${isBuyer ? 'Ďakujeme za nákup!' : `Darček pre ${recipientName}! 🎉`}
+                </p>
+                <p>${intro}</p>
+
+                <div class="voucher-box">
+                  <p class="voucher-label">Darčekový poukaz Nitráčik</p>
+                  <p class="voucher-amount">${amount}€</p>
+                  ${recipientName ? `<p style="font-size: 16px; color: #92400e; margin: 0 0 16px 0;">Pre: <strong>${recipientName}</strong></p>` : ''}
+                  ${message ? `<p style="font-size: 14px; color: #78350f; font-style: italic; margin: 0 0 20px 0; padding: 10px; background: rgba(255,255,255,0.6); border-radius: 8px;">"${message}"</p>` : ''}
+                  <div class="code-box">
+                    <div class="code-text">${code}</div>
+                    <div class="code-label">Váš jedinečný kód</div>
+                  </div>
+                </div>
+
+                <div class="highlight-box">
+                  <div class="highlight-item">💰 <strong>Hodnota poukazu:</strong> ${amount}€</div>
+                  <div class="highlight-item">💳 <strong>Zostatok:</strong> ${balance}€</div>
+                  <div class="highlight-item">📅 <strong>Platnosť do:</strong> ${formattedExpiry}</div>
+                  <div class="highlight-item" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #fcd34d; font-size: 14px; color: #92400e;">
+                    💡 Kód zadajte v rezervačnom formulári na <strong>nitracik.sk/booking</strong> v sekcii <em>"Máte darčekový poukaz?"</em>
+                  </div>
+                </div>
+
+                <p>Poukaz je možné využiť jednorazovo alebo čiastočne – zostatok zostáva k dispozícii na ďalšie rezervácie.</p>
+
+                <div style="margin-top: 30px;">
+                  <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
+                  <p style="font-size: 14px; margin: 0;"><strong>JUDr. Košičárová Alexandra</strong></p>
+                  <p style="font-size: 13px; color: #666; margin: 0;">Štatutárka a zakladateľka O.z. Nitráčik</p>
+                  <p style="font-size: 13px; color: #666; margin: 0;">+421 949 584 576</p>
+                </div>
+              </div>
+              <div class="footer">
+                <div style="margin-bottom: 15px;">
+                  <a href="https://www.instagram.com/nitracik/" style="text-decoration: none; margin: 0 10px;">
+                    <img src="cid:igIcon" alt="Instagram" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                  </a>
+                  <a href="https://www.facebook.com/p/Nitr%C3%A1%C4%8Dik-61558994166250/" style="text-decoration: none; margin: 0 10px;">
+                    <img src="cid:fbIcon" alt="Facebook" style="width: 28px; height: 28px; vertical-align: middle;"/>
+                  </a>
+                </div>
+                <p style="margin: 0;">© 2026 O.z. Nitráčik. Všetky práva vyhradené.</p>
+                <p style="margin: 5px 0 0 0;">info@nitracik.sk</p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `),
+      attachments: getCommonAttachments()
+    };
+    return transporter.sendMail(mailOptions);
+  },
 }; // Koniec module.exports
 

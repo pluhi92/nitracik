@@ -260,3 +260,20 @@ model about_content {
   description2 String    @db.Text
   updated_at   DateTime? @default(now()) @db.Timestamptz(6)
 }
+
+model gift_card {
+  id              Int       @id @default(autoincrement())
+  code            String    @unique
+  stripeSessionId String?   @unique
+  amount          Float
+  balance         Float
+  status          String    @default("active")
+  buyerEmail      String
+  recipientName   String
+  recipientEmail  String?
+  message         String?
+  expiresAt       DateTime
+  redeemedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  bookingId       Int?
+}

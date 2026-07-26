@@ -186,7 +186,13 @@ async function processImage(buffer, filename) {
   }
 }
 
+function generateGiftCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
 app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+
   if (DEBUG_LOGS) {
     console.log('� [STRIPE WEBHOOK] Received'); // Stripe webhook notification
   }
@@ -608,6 +614,9 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         };
 
         console.log('[DEBUG] Adult booking data stored, will send emails after transaction commits');
+      } else if (session.metadata.type === 'gift_card') {
+        console.log('[STRIPE WEBHOOK] Gift card payment confirmed, handled by polling endpoint. session_id:', session.id);
+        // No action needed — /api/gift-card-success handles creation with idempotency
       }
 
       await client.query('COMMIT');
@@ -617,6 +626,36 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
       console.error('[DEBUG] Error stack:', error.stack);
     } finally {
       client.release();
+    }
+
+    // --- Gift card redemption after successful Stripe payment ---
+    if (session.metadata?.giftCardCode) {
+      const discount = parseFloat(session.metadata.giftCardDiscount || '0');
+      if (discount > 0) {
+        const gcClient = await pool.connect();
+        try {
+          await gcClient.query('BEGIN');
+          const gcResult = await gcClient.query(
+            'SELECT * FROM gift_card WHERE code = $1 FOR UPDATE',
+            [session.metadata.giftCardCode]
+          );
+          if (gcResult.rows.length > 0) {
+            const gc = gcResult.rows[0];
+            const newBalance = parseFloat((parseFloat(gc.balance) - discount).toFixed(2));
+            const newStatus = newBalance <= 0 ? 'used' : 'active';
+            const updateQueryWh = newBalance <= 0
+              ? `UPDATE gift_card SET balance = $1, status = $2, "redeemedAt" = NOW() WHERE code = $3`
+              : `UPDATE gift_card SET balance = $1, status = $2 WHERE code = $3`;
+            await gcClient.query(updateQueryWh, [newBalance, newStatus, session.metadata.giftCardCode]);
+          }
+          await gcClient.query('COMMIT');
+        } catch (gcError) {
+          await gcClient.query('ROLLBACK');
+          console.error('[GiftCard] Webhook redemption error:', gcError.message);
+        } finally {
+          gcClient.release();
+        }
+      }
     }
   }
 
@@ -700,8 +739,8 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
 
     console.log('[DEBUG] Booking confirmation emails sent (after transaction)');
   }
-});
 
+});
 // Add webhook handler for refund updates
 app.post('/stripe-refund-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
@@ -2076,6 +2115,7 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
       note,
       accompanyingPerson,
       allowDuplicate,
+      giftCardCode,
     } = req.body;
 
     const allowDuplicateBooking = allowDuplicate === true || allowDuplicate === 'true';
@@ -2170,6 +2210,21 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         calculatedPrice += parseFloat(training.accompanying_person_price);
       }
 
+      // --- Gift card discount ---
+      let giftCardDiscountAmount = 0;
+      if (req.body.giftCardCode) {
+        const gcResult = await client.query(
+          'SELECT * FROM gift_card WHERE code = $1',
+          [req.body.giftCardCode.toUpperCase()]
+        );
+        const gc = gcResult.rows[0];
+        if (gc && gc.status === 'active' && new Date(gc.expiresAt) > new Date() && gc.balance > 0) {
+          giftCardDiscountAmount = Math.min(parseFloat(gc.balance), calculatedPrice);
+        }
+      }
+      const finalPrice = parseFloat(Math.max(0, calculatedPrice - giftCardDiscountAmount).toFixed(2));
+      // --- End gift card discount ---
+
       // Validácia kapacity (ostáva rovnaká)
       const bookingsResult = await client.query(
         `SELECT COALESCE(
@@ -2192,6 +2247,101 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
       }
 
       const sessionDate = new Date(training.training_date).toLocaleDateString('sk-SK');
+
+      // SPECIAL CASE: gift card covers 100% of the price
+      if (finalPrice === 0) {
+        // Create booking directly with gift card status
+        const bookingResult = await client.query(
+          `INSERT INTO bookings (
+            user_id, training_id, number_of_children, amount_paid, payment_time,
+            session_id, booked_at, children_ages, photo_consent, mobile, note, accompanying_person, active, booking_type
+          ) VALUES ($1, $2, $3, 0, NOW(), $4, NOW(), $5, $6, $7, $8, $9, true, 'gift_card')
+          RETURNING id`,
+          [
+            userId,
+            training.id,
+            childrenCount,
+            'GIFT_CARD_' + req.body.giftCardCode.toUpperCase(),
+            childrenAge || '',
+            photoConsent === true ? true : null,
+            mobile || '',
+            note || '',
+            accompanyingPerson || false,
+          ]
+        );
+
+        // Redeem gift card inline
+        const gcResult = await client.query(
+          'SELECT * FROM gift_card WHERE code = $1 FOR UPDATE',
+          [req.body.giftCardCode.toUpperCase()]
+        );
+        const gc = gcResult.rows[0];
+        const newBalance = parseFloat((parseFloat(gc.balance) - calculatedPrice).toFixed(2));
+        const newStatus = newBalance <= 0 ? 'used' : 'active';
+        const updateQueryFree = newBalance <= 0
+          ? `UPDATE gift_card SET balance = $1, status = $2, "redeemedAt" = NOW() WHERE code = $3`
+          : `UPDATE gift_card SET balance = $1, status = $2 WHERE code = $3`;
+        await client.query(updateQueryFree, [newBalance, newStatus, req.body.giftCardCode.toUpperCase()]);
+
+        const bookingId = bookingResult.rows[0].id;
+        await client.query('COMMIT');
+
+        // Send confirmation emails (same as webhook does for paid bookings)
+        try {
+          const userResult = await pool.query(
+            'SELECT * FROM users WHERE id = $1', [userId]
+          );
+          const user = userResult.rows[0];
+
+          const trainingDateObj = new Date(training.training_date);
+          // Fetch updated gift card balance after redemption
+          const gcAfter = await pool.query(
+            'SELECT balance FROM gift_card WHERE code = $1',
+            [req.body.giftCardCode.toUpperCase()]
+          );
+          const giftCardBalanceAfter = gcAfter.rows[0] ? parseFloat(gcAfter.rows[0].balance) : 0;
+
+          const sessionDetails = {
+            userName: `${user.first_name} ${user.last_name}`,
+            date: training.training_date,
+            start_time: trainingDateObj.toLocaleTimeString('sk-SK', { 
+              hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Bratislava' 
+            }),
+            trainingType: training.type_name,
+            paymentType: 'gift_card',
+            giftCardDiscount: giftCardDiscountAmount,
+            giftCardBalance: giftCardBalanceAfter,
+          };
+
+          await emailService.sendUserBookingEmail(user.email, sessionDetails);
+          await emailService.sendAdminNewBookingNotification(
+            process.env.ADMIN_EMAIL,
+            {
+              user,
+              trainingId: training.id,
+              childrenCount,
+              childrenAge: childrenAge || '',
+              trainingType: training.type_name,
+              selectedDate,
+              selectedTime,
+              photoConsent,
+              accompanyingPerson: accompanyingPerson || false,
+              mobile: mobile || '',
+              note: note || '',
+              totalPrice: 0,
+              paymentType: 'gift_card',
+              giftCardCode: req.body.giftCardCode.toUpperCase(),
+              giftCardBalance: giftCardBalanceAfter,
+              paymentIntentId: null,
+            }
+          );
+        } catch (emailError) {
+          console.error('[GiftCard] Email sending failed (booking confirmed):', emailError.message);
+          // Don't fail the response — booking is already saved
+        }
+
+        return res.json({ free: true, bookingId, message: 'Rezervácia uhradená darčekovým poukazom' });
+      }
 
       // 3. Vytvorenie DOČASNÉHO záznamu (amount_paid je NULL, active = false kým platba neprojde)
       const bookingResult = await client.query(
@@ -2224,7 +2374,7 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
               name: `${training.type_name} Tréning`,
               description: `Termín: ${sessionDate} | Počet detí: ${childrenCount}`
             },
-            unit_amount: Math.round(calculatedPrice * 100),
+            unit_amount: Math.round(finalPrice * 100),
           },
           quantity: 1,
         }],
@@ -2250,6 +2400,8 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
           note: note || '',
           accompanyingPerson: accompanyingPerson?.toString() || 'false',
           type: 'training_session',
+          giftCardCode: req.body.giftCardCode || '',
+          giftCardDiscount: String(giftCardDiscountAmount),
         },
       });
 
@@ -2948,7 +3100,7 @@ app.get('/api/bookings/:bookingId/type', isAuthenticated, async (req, res) => {
     try {
       // Verify booking exists and belongs to the user
       const bookingResult = await client.query(
-        'SELECT id, payment_intent_id, amount_paid, credit_id FROM bookings WHERE id = $1 AND user_id = $2',
+        'SELECT id, payment_intent_id, amount_paid, credit_id, booking_type, session_id FROM bookings WHERE id = $1 AND user_id = $2',
         [bookingId, userId]
       );
 
@@ -2966,6 +3118,11 @@ app.get('/api/bookings/:bookingId/type', isAuthenticated, async (req, res) => {
 
       if (usageResult.rows.length > 0) {
         return res.json({ bookingType: 'season_ticket' });
+      }
+
+      // Check if booking is a gift card booking
+      if (booking.booking_type === 'gift_card' || booking.session_id?.startsWith('GIFT_CARD_')) {
+        return res.json({ bookingType: 'gift_card' });
       }
 
       // Check if booking is a credit-based booking
@@ -3236,7 +3393,56 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
 
       refundData = { type: 'credit_returned' };
 
-      // --- C. PAID BOOKING: REFUND OR CREDIT ---
+      // --- C. GIFT CARD BOOKING: RESTORE BALANCE ---
+    } else if (booking.booking_type === 'gift_card' || 
+               (booking.session_id && booking.session_id.startsWith('GIFT_CARD_'))) {
+
+      const giftCardCode = booking.session_id?.replace('GIFT_CARD_', '');
+      console.log('[DEBUG] Restoring gift card balance for code:', giftCardCode);
+
+      if (giftCardCode) {
+        const gcResult = await client.query(
+          'SELECT * FROM gift_card WHERE code = $1',
+          [giftCardCode]
+        );
+
+        if (gcResult.rows.length > 0) {
+          const gc = gcResult.rows[0];
+
+          // Get the original booking price to know how much to restore
+          const priceResult = await client.query(
+            `SELECT tp.price FROM training_prices tp
+             JOIN training_availability ta ON ta.training_type_id = tp.training_type_id
+             WHERE ta.id = $1 AND tp.child_count = $2`,
+            [booking.training_id, booking.number_of_children]
+          );
+
+          const originalPrice = priceResult.rows[0]
+            ? parseFloat(priceResult.rows[0].price)
+            : 0;
+
+          if (originalPrice > 0) {
+            // Restore balance, but never exceed original card amount
+            const restoredBalance = parseFloat(
+              Math.min(parseFloat(gc.balance) + originalPrice, parseFloat(gc.amount)).toFixed(2)
+            );
+            const newStatus = restoredBalance > 0 ? 'active' : gc.status;
+
+            await client.query(
+              `UPDATE gift_card 
+               SET balance = $1, status = $2, "redeemedAt" = NULL 
+               WHERE code = $3`,
+              [restoredBalance, newStatus, giftCardCode]
+            );
+
+            console.log(`[DEBUG] Gift card ${giftCardCode} balance restored: ${gc.balance} → ${restoredBalance}`);
+          }
+        }
+      }
+
+      refundData = { type: 'gift_card_restored' };
+
+      // --- D. PAID BOOKING: REFUND OR CREDIT ---
     } else {
       // NEW: Check if user requested credit instead of refund
       if (requestCredit) {
@@ -4983,6 +5189,7 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
       note,
       allowDuplicate,
        photoConsent,
+      giftCardCode,
     } = req.body;
 
     const allowDuplicateBooking = allowDuplicate === true || allowDuplicate === 'true';
@@ -5012,6 +5219,21 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
       }
       const training = trainingResult.rows[0];
       const calculatedPrice = parseFloat(training.base_price);
+
+      // --- Gift card discount ---
+      let giftCardDiscountAmount = 0;
+      if (req.body.giftCardCode) {
+        const gcResult = await client.query(
+          'SELECT * FROM gift_card WHERE code = $1',
+          [req.body.giftCardCode.toUpperCase()]
+        );
+        const gc = gcResult.rows[0];
+        if (gc && gc.status === 'active' && new Date(gc.expiresAt) > new Date() && gc.balance > 0) {
+          giftCardDiscountAmount = Math.min(parseFloat(gc.balance), calculatedPrice);
+        }
+      }
+      const finalPrice = parseFloat(Math.max(0, calculatedPrice - giftCardDiscountAmount).toFixed(2));
+      // --- End gift card discount ---
 
       // Serializuje booking pokusy pre user+session, aby nevznikli race-condition duplikáty
       await client.query(
@@ -5088,6 +5310,98 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
 
       const sessionDate = new Date(training.training_date).toLocaleDateString('sk-SK');
 
+      // SPECIAL CASE: gift card covers 100% of the price
+      if (finalPrice === 0) {
+        // Create booking directly with gift card status
+        const bookingResult = await client.query(
+          `INSERT INTO bookings (
+            user_id, training_id, number_of_children, number_of_adults, amount_paid,
+            payment_time, session_id, booked_at, mobile, note, photo_consent, active, booking_type, age_group
+          ) VALUES ($1, $2, 0, 1, 0, NOW(), $3, NOW(), $4, $5, $6, true, 'gift_card', 'adult')
+          RETURNING id`,
+          [
+            userId,
+            training.id,
+            'GIFT_CARD_' + req.body.giftCardCode.toUpperCase(),
+            mobile || '',
+            note || '',
+            (photoConsent === true ? true : null),
+          ]
+        );
+
+        // Redeem gift card inline
+        const gcResult = await client.query(
+          'SELECT * FROM gift_card WHERE code = $1 FOR UPDATE',
+          [req.body.giftCardCode.toUpperCase()]
+        );
+        const gc = gcResult.rows[0];
+        const newBalance = parseFloat((parseFloat(gc.balance) - calculatedPrice).toFixed(2));
+        const newStatus = newBalance <= 0 ? 'used' : 'active';
+        const updateQueryFreeAdult = newBalance <= 0
+          ? `UPDATE gift_card SET balance = $1, status = $2, "redeemedAt" = NOW() WHERE code = $3`
+          : `UPDATE gift_card SET balance = $1, status = $2 WHERE code = $3`;
+        await client.query(updateQueryFreeAdult, [newBalance, newStatus, req.body.giftCardCode.toUpperCase()]);
+
+        const bookingId = bookingResult.rows[0].id;
+        await client.query('COMMIT');
+
+        // Send confirmation emails (same as webhook does for paid bookings)
+        try {
+          const userResult = await pool.query(
+            'SELECT * FROM users WHERE id = $1', [userId]
+          );
+          const user = userResult.rows[0];
+
+          const trainingDateObj = new Date(training.training_date);
+          // Fetch updated gift card balance after redemption
+          const gcAfter = await pool.query(
+            'SELECT balance FROM gift_card WHERE code = $1',
+            [req.body.giftCardCode.toUpperCase()]
+          );
+          const giftCardBalanceAfter = gcAfter.rows[0] ? parseFloat(gcAfter.rows[0].balance) : 0;
+
+          const sessionDetails = {
+            userName: `${user.first_name} ${user.last_name}`,
+            date: training.training_date,
+            start_time: trainingDateObj.toLocaleTimeString('sk-SK', { 
+              hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Bratislava' 
+            }),
+            trainingType: training.type_name,
+            paymentType: 'gift_card',
+            giftCardDiscount: giftCardDiscountAmount,
+            giftCardBalance: giftCardBalanceAfter,
+          };
+
+          await emailService.sendAdultBookingEmail(user.email, sessionDetails);
+          await emailService.sendAdminNewBookingNotification(
+            process.env.ADMIN_EMAIL,
+            {
+              user,
+              trainingId: training.id,
+              childrenCount: 1,
+              childrenAge: '',
+              trainingType: training.type_name,
+              selectedDate,
+              selectedTime,
+              photoConsent,
+              accompanyingPerson: false,
+              mobile: mobile || '',
+              note: note || '',
+              totalPrice: 0,
+              paymentType: 'gift_card',
+              giftCardCode: req.body.giftCardCode.toUpperCase(),
+              giftCardBalance: giftCardBalanceAfter,
+              paymentIntentId: null,
+            }
+          );
+        } catch (emailError) {
+          console.error('[GiftCard] Email sending failed (adult booking confirmed):', emailError.message);
+          // Don't fail the response — booking is already saved
+        }
+
+        return res.json({ free: true, bookingId, message: 'Rezervácia uhradená darčekovým poukazom' });
+      }
+
       // Dočasný booking záznam (active = false, kým platba neprejde)
       const bookingResult = await client.query(
         `INSERT INTO bookings (
@@ -5109,7 +5423,7 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
               name: `${training.type_name} Tréning (dospelí)`,
               description: `Termín: ${sessionDate}`,
             },
-            unit_amount: Math.round(calculatedPrice * 100),
+            unit_amount: Math.round(finalPrice * 100),
           },
           quantity: 1,
         }],
@@ -5130,6 +5444,8 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
           note: note || '',
           type: 'adult_training_session',
            photoConsent: photoConsent === true ? 'true' : 'null',
+          giftCardCode: req.body.giftCardCode || '',
+          giftCardDiscount: String(giftCardDiscountAmount),
         },
       });
 
@@ -5215,6 +5531,286 @@ app.post('/api/admin/send-bulk-email', isAdmin, async (req, res) => {
     res.status(500).json({ error: 'Chyba pri odosielaní emailov.' });
   } finally {
     if (client) client.release();
+  }
+});
+
+// --- GIFT CARD ENDPOINTS ---
+
+// ENDPOINT 1: Create Stripe checkout session for gift card
+app.post('/api/create-gift-card-session', async (req, res) => {
+  try {
+    const { amount, buyerEmail, recipientName, recipientEmail, message, honeypot } = req.body;
+
+    // Bot protection
+    if (honeypot) {
+      return res.status(400).json({ error: 'Invalid request' });
+    }
+
+    // Validate amount
+    const validAmounts = [15, 30, 50, 100];
+    const parsedAmount = parseInt(amount, 10);
+    if (!validAmounts.includes(parsedAmount)) {
+      return res.status(400).json({ error: 'Neplatná hodnota poukazu' });
+    }
+
+    if (!buyerEmail || !recipientName) {
+      return res.status(400).json({ error: 'Chýbajú povinné polia' });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: `Darčekový poukaz Nitráčik – ${parsedAmount}€`,
+            description: `Pre: ${recipientName}`
+          },
+          unit_amount: parsedAmount * 100,
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      customer_email: buyerEmail,
+      success_url: `${process.env.FRONTEND_URL}/gift-card/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/gift-card`,
+      metadata: {
+        type: 'gift_card',
+        amount: String(parsedAmount),
+        buyerEmail,
+        recipientName,
+        recipientEmail: recipientEmail || '',
+        message: message || '',
+      },
+    });
+
+    res.json({ sessionId: session.id });
+  } catch (error) {
+    console.error('[GiftCard] create-session error:', error.message);
+    res.status(500).json({ error: 'Chyba pri vytváraní platby' });
+  }
+});
+
+// ENDPOINT 2: Confirm gift card after successful Stripe payment
+app.get('/api/gift-card-success', async (req, res) => {
+  const { session_id } = req.query;
+  if (!session_id) return res.status(400).json({ error: 'Chýba session_id' });
+
+  const client = await pool.connect();
+  try {
+    // Retrieve Stripe session
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+    if (session.payment_status !== 'paid') {
+      return res.status(400).json({ error: 'Platba nebola úspešná' });
+    }
+
+    // Idempotency check — return existing if already created
+    const existing = await client.query(
+      'SELECT * FROM gift_card WHERE "stripeSessionId" = $1',
+      [session_id]
+    );
+    if (existing.rows.length > 0) {
+      const gc = existing.rows[0];
+      return res.json({
+        code: gc.code,
+        amount: gc.amount,
+        balance: gc.balance,
+        recipientName: gc.recipientName,
+        expiresAt: gc.expiresAt,
+      });
+    }
+
+    // Extract metadata
+    const { amount, buyerEmail, recipientName, recipientEmail, message } = session.metadata;
+    const parsedAmount = parseFloat(amount);
+
+    // Generate unique code with retry
+    let code;
+    let attempts = 0;
+    while (attempts < 10) {
+      const candidate = generateGiftCode();
+      const check = await client.query('SELECT id FROM gift_card WHERE code = $1', [candidate]);
+      if (check.rows.length === 0) {
+        code = candidate;
+        break;
+      }
+      attempts++;
+    }
+    if (!code) throw new Error('Nepodarilo sa vygenerovať unikátny kód');
+
+    const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+
+    // Insert gift card record
+    const insertResult = await client.query(
+      `INSERT INTO gift_card 
+        (code, amount, balance, status, "buyerEmail", "recipientName", "recipientEmail", message, "expiresAt", "stripeSessionId", "createdAt")
+       VALUES ($1, $2, $3, 'active', $4, $5, $6, $7, $8, $9, NOW())
+       RETURNING *`,
+      [
+        code,
+        parsedAmount,
+        parsedAmount,
+        buyerEmail,
+        recipientName,
+        recipientEmail || null,
+        message || null,
+        expiresAt,
+        session_id,
+      ]
+    );
+    const gc = insertResult.rows[0];
+
+    // Send email to buyer (wrapped in try/catch so email failure never causes 500)
+    try {
+      await emailService.sendGiftCardEmail(buyerEmail, {
+        code,
+        amount: parsedAmount,
+        balance: parsedAmount,
+        recipientName,
+        message: message || null,
+        expiresAt,
+        isBuyer: true,
+      });
+
+      // Send separate email to recipient if different email provided
+      if (recipientEmail && recipientEmail !== buyerEmail) {
+        await emailService.sendGiftCardEmail(recipientEmail, {
+          code,
+          amount: parsedAmount,
+          balance: parsedAmount,
+          recipientName,
+          message: message || null,
+          expiresAt,
+          isBuyer: false,
+        });
+      }
+    } catch (emailError) {
+      console.error('[GiftCard] Email sending failed (code already saved):', emailError.message);
+      // Do NOT re-throw — gift card was saved, user must get the code
+    }
+
+    res.json({
+      code: gc.code,
+      amount: gc.amount,
+      balance: gc.balance,
+      recipientName: gc.recipientName,
+      expiresAt: gc.expiresAt,
+    });
+
+  } catch (error) {
+    console.error('[GiftCard] gift-card-success error:', error.message);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ENDPOINT 3: Validate gift card code
+app.post('/api/validate-gift-card', async (req, res) => {
+  try {
+    const normalized = (req.body.code || '').trim().toUpperCase();
+    if (!normalized) return res.status(400).json({ error: 'Chýba kód' });
+
+    const result = await pool.query(
+      'SELECT * FROM gift_card WHERE code = $1',
+      [normalized]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Kód neexistuje' });
+    }
+
+    const gc = result.rows[0];
+
+    if (gc.status === 'expired' || new Date(gc.expiresAt) < new Date()) {
+      return res.status(400).json({ error: 'Poukaz expiroval' });
+    }
+
+    if (gc.status === 'used' || gc.balance <= 0) {
+      return res.status(400).json({ error: 'Poukaz bol už plne využitý' });
+    }
+
+    res.json({
+      valid: true,
+      balance: parseFloat(gc.balance),
+      amount: parseFloat(gc.amount),
+      recipientName: gc.recipientName,
+      expiresAt: gc.expiresAt,
+    });
+  } catch (error) {
+    console.error('[GiftCard] validate error:', error.message);
+    res.status(500).json({ error: 'Chyba pri overovaní kódu' });
+  }
+});
+
+// ENDPOINT 4: Redeem gift card (called after successful booking payment)
+app.post('/api/redeem-gift-card', async (req, res) => {
+  try {
+    const { code, amountToRedeem } = req.body;
+    const normalized = (code || '').trim().toUpperCase();
+    const redeem = parseFloat(amountToRedeem);
+
+    if (!normalized || isNaN(redeem) || redeem <= 0) {
+      return res.status(400).json({ error: 'Neplatné vstupné dáta' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const result = await client.query(
+        'SELECT * FROM gift_card WHERE code = $1 FOR UPDATE',
+        [normalized]
+      );
+
+      if (result.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Kód neexistuje' });
+      }
+
+      const gc = result.rows[0];
+
+      if (gc.status === 'expired' || new Date(gc.expiresAt) < new Date()) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Poukaz expiroval' });
+      }
+
+      if (gc.balance <= 0 || gc.status === 'used') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Poukaz bol už plne využitý' });
+      }
+
+      if (redeem > parseFloat(gc.balance)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Suma presahuje zostatok poukazu' });
+      }
+
+      const newBalance = parseFloat((parseFloat(gc.balance) - redeem).toFixed(2));
+      const newStatus = newBalance <= 0 ? 'used' : 'active';
+
+      const updateQuery = newBalance <= 0
+        ? `UPDATE gift_card SET balance = $1, status = $2, "redeemedAt" = NOW() WHERE code = $3`
+        : `UPDATE gift_card SET balance = $1, status = $2 WHERE code = $3`;
+
+      await client.query(updateQuery, [newBalance, newStatus, normalized]);
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        amountRedeemed: redeem,
+        newBalance,
+        newStatus,
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('[GiftCard] redeem error:', error.message);
+    res.status(500).json({ error: 'Chyba pri uplatňovaní poukazu' });
   }
 });
 

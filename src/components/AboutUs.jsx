@@ -20,7 +20,8 @@ import {
   Info, 
   ArrowRight,
   MessageCircle,
-  ExternalLink
+  ExternalLink,
+  Gift
 } from 'lucide-react';
 
 const getInitials = (name = '') => {
@@ -459,20 +460,10 @@ const AboutUs = () => {
         </div>
       </motion.section>
 
-      {/* Blog Section */}
-      <motion.section 
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
-        variants={fadeInUp}
-        className="section-wrapper container-custom"
-      >
-        <div className="card-glass border border-neutral-200 rounded-[2rem] shadow-sm p-8 sm:p-12">
-          <Blog limit={3} showViewAll={true} />
-        </div>
-      </motion.section>
-
       {/* Google Ratings Section - REFINED SPACING & STARS */}
+
+
+
       <motion.section 
         initial="hidden"
         whileInView="visible"
@@ -634,6 +625,67 @@ const AboutUs = () => {
             </motion.div>
           )}
           </div>
+        </div>
+      </motion.section>
+
+      {/* Gift Card Section */}
+      <motion.section 
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-100px" }}
+        variants={fadeInUp}
+        className="section-wrapper container-custom"
+      >
+        <div className="card-glass border border-neutral-200 rounded-[2rem] shadow-sm p-8 sm:p-12 relative overflow-hidden">
+          {/* Subtle decorative background */}
+          <div className="absolute -top-16 -right-16 w-48 h-48 bg-amber-100/40 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-amber-100/30 rounded-full blur-3xl pointer-events-none"></div>
+          
+          <div className="relative z-10 flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
+            <div className="flex-1 text-center lg:text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-extrabold tracking-widest uppercase mb-4">
+                <Gift className="w-3.5 h-3.5" />
+                Darčekový poukaz
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-extrabold mb-4 text-foreground">
+                Darujte zážitok na celý život 🎁
+              </h2>
+              <p className="text-neutral-600 text-base sm:text-lg leading-relaxed mb-6">
+                Premeníte obyčajný deň na nezabudnuteľné dobrodružstvo plné smiechu, 
+                objavovania a radosti. Darčekový poukaz do Nitráčika je vstupenkou do 
+                sveta kreatívneho hrania, kde deti môžu byť samy sebou – ufúľané, 
+                šťastné a slobodné.
+              </p>
+              <p className="text-neutral-500 text-sm sm:text-base leading-relaxed mb-8">
+                Či už je to narodeninový darček, odmena za vysvedčenie alebo prekvapenie 
+                bez dôvodu – poukaz poteší každé dieťa. Jednoduchý nákup online, 
+                doručenie emailom a platnosť až 12 mesiacov.
+              </p>
+              <Link
+                to="/gift-card"
+                className="inline-flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 text-white font-bold rounded-full px-8 py-3.5 shadow-sm transition-all hover:-translate-y-0.5"
+              >
+                <Gift className="w-5 h-5" />
+                Kúpiť darčekový poukaz
+              </Link>
+            </div>
+            <div className="flex-shrink-0 w-48 h-48 sm:w-56 sm:h-56 bg-amber-50 rounded-[2rem] border border-amber-200 flex items-center justify-center shadow-sm">
+              <Gift className="w-20 h-20 sm:w-24 sm:h-24 text-amber-400" />
+            </div>
+          </div>
+        </div>
+      </motion.section>
+
+      {/* Blog Section */}
+      <motion.section 
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-100px" }}
+        variants={fadeInUp}
+        className="section-wrapper container-custom"
+      >
+        <div className="card-glass border border-neutral-200 rounded-[2rem] shadow-sm p-8 sm:p-12">
+          <Blog limit={3} showViewAll={true} />
         </div>
       </motion.section>
 

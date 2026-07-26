@@ -26,7 +26,8 @@ import {
   Plus,
   Settings,
   X,
-  FileText
+  FileText,
+  Gift
 } from 'lucide-react';
 const fadeInUp = {
   hidden: { opacity: 0, y: 30 },
@@ -230,6 +231,11 @@ const Booking = () => {
   const [useSessionTheme, setUseSessionTheme] = useState(false);
   const [lockedReservation, setLockedReservation] = useState(null);
   const [isLockedSelectionApplied, setIsLockedSelectionApplied] = useState(false);
+  const [giftCardCode, setGiftCardCode] = useState('');
+  const [giftCardData, setGiftCardData] = useState(null);
+  const [giftCardError, setGiftCardError] = useState('');
+  const [giftCardLoading, setGiftCardLoading] = useState(false);
+  const [giftCardApplied, setGiftCardApplied] = useState(false);
 
   const calculateTotalPrice = () => {
     if (!selectedTypeObj) return 0;
@@ -915,7 +921,20 @@ const Booking = () => {
         note,
         allowDuplicate,
          photoConsent: photoConsent === true ? true : null,
+        giftCardCode: giftCardApplied ? giftCardCode.trim().toUpperCase() : null,
+        giftCardDiscount: giftCardApplied ? giftCardDiscount() : 0,
       });
+
+      // Handle free gift card booking
+      if (paymentSession.data.free) {
+        // Reset gift card state
+        setGiftCardApplied(false);
+        setGiftCardData(null);
+        setGiftCardCode('');
+        // Navigate to success page — same as after Stripe payment
+        navigate('/payment-success?gift_card=true&booking_id=' + (paymentSession.data.bookingId || ''));
+        return;
+      }
 
       const stripe = await stripePromise;
 
@@ -938,13 +957,26 @@ const Booking = () => {
       selectedTime,
       childrenCount,
       childrenAge: childrenAgeString,
-      totalPrice: calculateTotalPrice(),
+      totalPrice: calculateFinalPrice(),
       photoConsent: photoConsent === true ? true : null,
       mobile,
       note,
       accompanyingPerson,
       allowDuplicate,
+      giftCardCode: giftCardApplied ? giftCardCode.trim().toUpperCase() : null,
+      giftCardDiscount: giftCardApplied ? giftCardDiscount() : 0,
     });
+
+    // Handle free gift card booking
+    if (paymentSession.data.free) {
+      // Reset gift card state
+      setGiftCardApplied(false);
+      setGiftCardData(null);
+      setGiftCardCode('');
+      // Navigate to success page — same as after Stripe payment
+      navigate('/payment-success?gift_card=true&booking_id=' + (paymentSession.data.bookingId || ''));
+      return;
+    }
 
     const stripe = await stripePromise;
 
@@ -1415,6 +1447,32 @@ const Booking = () => {
     setShowServiceConsentModal(false);
   };
 
+  const handleValidateGiftCard = async () => {
+    if (!giftCardCode.trim()) return;
+    setGiftCardLoading(true);
+    setGiftCardError('');
+    setGiftCardData(null);
+    setGiftCardApplied(false);
+    try {
+      const res = await api.post('/api/validate-gift-card', { code: giftCardCode.trim().toUpperCase() });
+      setGiftCardData(res.data);
+      setGiftCardApplied(true);
+    } catch (err) {
+      setGiftCardError(err.response?.data?.error || 'Neplatný kód');
+    } finally {
+      setGiftCardLoading(false);
+    }
+  };
+
+  const giftCardDiscount = () => {
+    if (!giftCardApplied || !giftCardData) return 0;
+    return Math.min(giftCardData.balance, calculateTotalPrice());
+  };
+
+  const calculateFinalPrice = () => {
+    return Math.max(0, calculateTotalPrice() - giftCardDiscount());
+  };
+
   const COMPATIBLE_CHILD_CREDIT_TYPES = new Set(['MINI', 'MIDI', 'MAXI']);
   const normalizeTrainingTypeName = (value) => (value || '').toString().trim().toUpperCase();
 
@@ -1622,7 +1680,7 @@ const Booking = () => {
       )}
 
       
-      <div className="flex justify-center mb-4">
+      <div className="flex justify-center gap-3 mb-4">
         <button
           type="button"
           className="bg-primary hover:bg-primary-600 text-white px-6 py-3 rounded-full font-bold transition-all text-sm shadow-sm flex items-center justify-center gap-2"
@@ -1630,6 +1688,14 @@ const Booking = () => {
         >
           <Ticket className="w-4 h-4" />
           <span>{t?.booking?.seasonTickets || 'Zakúpiť permanentku'}</span>
+        </button>
+        <button
+          type="button"
+          className="bg-amber-400 hover:bg-amber-500 text-white px-6 py-3 rounded-full font-bold transition-all text-sm shadow-sm flex items-center justify-center gap-2"
+          onClick={() => navigate('/gift-card')}
+        >
+          <Gift className="w-4 h-4" />
+          <span>Darčekový poukaz 🎁</span>
         </button>
       </div>
 
@@ -2269,9 +2335,116 @@ const Booking = () => {
           </div>
         </motion.div>
 
-        {/* 5. Consents and Agreements */}
+        {/* Gift Card Section */}
         <motion.div
           custom={4}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-40px' }}
+          variants={cardVariants}
+          className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-amber-400 overflow-hidden"
+        >
+          <div className="bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-amber-400/10 flex items-center justify-center text-amber-500">
+              <Gift className="w-4 h-4" />
+            </div>
+            <h5 className="text-lg font-extrabold text-foreground m-0">Máte darčekový poukaz?</h5>
+          </div>
+          <div className="p-6 sm:p-8">
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={giftCardCode}
+                onChange={e => {
+                  setGiftCardCode(e.target.value.toUpperCase());
+                  setGiftCardApplied(false);
+                  setGiftCardData(null);
+                  setGiftCardError('');
+                }}
+                placeholder="Zadajte kód poukazu"
+                maxLength={12}
+                className="flex-1 px-4 py-3 border border-neutral-200 rounded-xl bg-neutral-50/50 text-sm font-mono font-bold tracking-widest uppercase focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all"
+                disabled={giftCardApplied}
+              />
+              {giftCardApplied ? (
+                <button
+                  type="button"
+                  onClick={() => { setGiftCardApplied(false); setGiftCardData(null); setGiftCardCode(''); setGiftCardError(''); }}
+                  className="px-5 py-3 rounded-xl border border-neutral-200 text-neutral-600 font-bold text-sm hover:bg-neutral-100 transition-all"
+                >
+                  Zrušiť
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleValidateGiftCard}
+                  disabled={!giftCardCode.trim() || giftCardLoading}
+                  className="px-5 py-3 rounded-xl bg-amber-400 text-white font-bold text-sm hover:bg-amber-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {giftCardLoading ? <Spinner animation="border" size="sm" /> : 'Uplatniť'}
+                </button>
+              )}
+            </div>
+
+            <AnimatePresence>
+              {giftCardError && (
+                <motion.div
+                  key="gc-error"
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="mt-3 text-sm text-red-600 font-bold flex items-center gap-2"
+                >
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  {giftCardError}
+                </motion.div>
+              )}
+              {giftCardApplied && giftCardData && (() => {
+                const discount = giftCardDiscount();
+                const totalPrice = calculateTotalPrice();
+                const remainingOnCard = parseFloat((giftCardData.balance - discount).toFixed(2));
+                const remainingToPay = parseFloat((totalPrice - discount).toFixed(2));
+                const coversAll = discount >= totalPrice;
+
+                return (
+                  <motion.div
+                    key="gc-success"
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800"
+                  >
+                    <div className="flex items-center gap-2 font-bold mb-2">
+                      <CheckCircle2 className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                      Poukaz uplatnený
+                    </div>
+                    <div className="flex flex-col gap-1 pl-6">
+                      <span>
+                        💳 Uhradené poukazom: <strong>{discount.toFixed(2)} €</strong>
+                      </span>
+                      {coversAll ? (
+                        <span className="text-green-700">
+                          ✅ Rezervácia plne uhradená · zostatok na poukaze: <strong>{remainingOnCard.toFixed(2)} €</strong>
+                          {remainingOnCard > 0 && (
+                            <span className="text-xs font-normal ml-1">(môžete uplatniť na ďalšiu rezerváciu)</span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-amber-700">
+                          💰 Zostáva doplatiť kartou: <strong>{remainingToPay.toFixed(2)} €</strong>
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })()}
+            </AnimatePresence>
+          </div>
+        </motion.div>
+
+        {/* 5. Consents and Agreements */}
+        <motion.div
+          custom={5}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: '-40px' }}
@@ -2361,6 +2534,7 @@ const Booking = () => {
         </motion.div>
 
         {/* 6. Pricing and Submission */}
+
         <motion.div
           custom={5}
           initial="hidden"
@@ -2380,10 +2554,19 @@ const Booking = () => {
           <div className="p-8 sm:p-10 text-center">
             {!useSeasonTicket && !isCreditMode && (
               <div className="mb-8">
-                <h4 className="text-3xl sm:text-4xl font-black text-foreground mb-2">
-                  {t?.booking?.totalPrice || 'Total Price'}:
-                  <span className="ml-3 text-primary">€{calculateTotalPrice().toFixed(2)}</span>
+                {giftCardApplied && giftCardDiscount() > 0 && (
+                  <div className="text-neutral-400 text-lg line-through mb-1">
+                    €{calculateTotalPrice().toFixed(2)}
+                  </div>
+                )}
+                <h4 className="text-3xl sm:text-4xl font-black text-foreground mb-1">
+                  Celková cena: <span className="text-primary">€{calculateFinalPrice().toFixed(2)}</span>
                 </h4>
+                {giftCardApplied && giftCardDiscount() > 0 && (
+                  <div className="text-amber-600 text-sm font-bold mt-1">
+                    Darčekový poukaz: −€{giftCardDiscount().toFixed(2)}
+                  </div>
+                )}
                 <div className="text-neutral-500 text-sm font-medium">
                   {ageGroup === 'adult'
                     ? (t?.booking?.adultParticipantShort || 'adult participant')

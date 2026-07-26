@@ -40,6 +40,7 @@ const Archive = lazy(() => import('./components/Archive'));
 const BlogPage = lazy(() => import('./components/BlogPage'));
 const BlogArticle = lazy(() => import('./components/BlogArticle'));
 const PhotoConsentInfo = lazy(() => import('./components/PhotoConsentInfo'));
+const GiftCard = lazy(() => import('./components/GiftCard'));
 const NotFound = lazy(() => import('./components/NotFound'));
 
 
@@ -108,6 +109,8 @@ const AppContent = () => {
             <Route path="/archive" element={<Archive />} />
             <Route path="/blog" element={<BlogPage />} />
             <Route path="/blog/:slug" element={<BlogArticle />} />
+            <Route path="/gift-card" element={<GiftCard />} />
+            <Route path="/gift-card/success" element={<GiftCard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

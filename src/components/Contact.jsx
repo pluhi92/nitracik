@@ -3,6 +3,7 @@ import { useTranslation } from "../contexts/LanguageContext";
 import api from '../api/api';
 import { motion } from 'framer-motion';
 import { Phone, MapPin, Mail, Send, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
+import mascotImage from '../assets/logo_bez.PNG';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 30 },
@@ -60,7 +61,14 @@ function Contact() {
         </div>
 
         {/* Main Card Container */}
-        <div className="bg-white border border-neutral-200 rounded-[2rem] shadow-sm p-6 sm:p-10 md:p-12 w-full">
+        <div className="relative bg-white border border-neutral-200 rounded-[2rem] shadow-sm p-6 sm:p-10 md:p-12 w-full">
+          {/* Mascot */}
+          <img
+            src={mascotImage}
+            alt=""
+            className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 sm:w-24 z-20 pointer-events-none"
+            style={{ filter: 'drop-shadow(2px 4px 12px rgba(0,0,0,0.12))' }}
+          />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14">
 
             {/* Left Column - Contact Info & Map */}
