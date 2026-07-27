@@ -1298,13 +1298,18 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
     // --- 1. LOGIKA TYPU STORNA ---
     const isPass = booking.booking_type === 'season_ticket'; 
     const isCredit = booking.booking_type === 'credit';
-    
-    // --- 2. Určenie textov pre ADMINA ---
+    const isGiftCard = booking.booking_type === 'gift_card' || 
+                       (booking.session_id && booking.session_id.startsWith('GIFT_CARD_')) ||
+                       (refundData && refundData.type === 'gift_card_restored');
+
     let cancellationType = 'NEURČENÉ';
     let typeColor = '#333';
-    
+
     if (refundData && refundData.id) {
-        cancellationType = 'REFUND (Vrátenie na kartu)';
+        const hasDp = parseFloat(booking.gift_card_amount || 0) > 0;
+        cancellationType = hasDp
+          ? `REFUND (${parseFloat(booking.amount_paid || 0).toFixed(2)}€ na kartu + ${parseFloat(booking.gift_card_amount).toFixed(2)}€ na DP ${booking.gift_card_code || ''})`
+          : 'REFUND (Vrátenie na kartu)';
         typeColor = '#dc2626';
     } else if (refundData && refundData.error) {
         cancellationType = 'CHYBA REFUNDU (Manuálna kontrola nutná)';
@@ -1313,11 +1318,17 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
         if (isPass) {
             cancellationType = 'PERMANENTKA (Vrátenie vstupu)';
             typeColor = '#d97706';
+        } else if (isGiftCard) {
+            cancellationType = 'INTERNÝ REFUND (Rezervácia → Darčekový poukaz)';
+            typeColor = '#d97706';
         } else if (isCredit) {
             cancellationType = 'KREDIT (Vrátenie na interný účet)';
             typeColor = '#2563eb';
+        } else if (refundData && refundData.type === 'credit_issued') {
+            cancellationType = 'KREDIT (User zvolil kredit namiesto refundu)';
+            typeColor = '#2563eb';
         } else {
-            cancellationType = 'INTERNÝ REFUND (Rezervvácia --> kredit)';
+            cancellationType = 'INTERNÝ REFUND (Rezervácia → kredit)';
             typeColor = '#2563eb';
         }
     }
@@ -1428,17 +1439,37 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
     } else {
         // C. INTERNÝ REFUND
         if (isPass) {
-             userRefundText = `
-                <strong>Vrátenie vstupu:</strong><br>
-                Váš vstup na permanentku bol úspešne vrátený. Môžete ho použiť na ďalšiu rezerváciu.
-             `;
-        } else {
-             const creditCompatibilityNotice = getMiniMidiMaxiCreditNoticeHtml(booking.training_type);
-             userRefundText = `
-                <strong>Vrátenie kreditu:</strong><br>
-                Kredit v hodnote tréningu bol vrátený na váš účet v Nitráčiku.
+            userRefundText = `
+               <strong>Vrátenie vstupu:</strong><br>
+               Váš vstup na permanentku bol úspešne vrátený. Môžete ho použiť na ďalšiu rezerváciu.
+            `;
+        } else if (isGiftCard) {
+            // Zistime sumu na vrátenie — z ceny tréningu (amount_paid = 0 pri gift_card bookingu)
+            // Suma je uložená v booking.gift_card_restored_amount ak ju posielame,
+            // inak zobrazíme generický text
+            userRefundText = `
+               <strong>Vrátenie darčekového poukazu:</strong><br><br>
+               Hodnota vašej zrušenej rezervácie bola vrátená späť na zostatok darčekového poukazu.
+               Poukaz môžete <strong>okamžite použiť</strong> na novú rezerváciu.<br><br>
+               <div style="margin-top: 10px; padding: 12px; background-color: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px;">
+                 🎁 <strong>Darčekový poukaz</strong> bol obnovený a je aktívny.<br>
+                 <span style="font-size: 13px; color: #92400e;">Zostatok si môžete skontrolovať vo svojom profile v sekcii <em>Darčekové poukazy</em>.</span>
+               </div>
+            `;
+        } else if (refundData && refundData.type === 'credit_issued') {
+            const creditCompatibilityNotice = getMiniMidiMaxiCreditNoticeHtml(booking.training_type);
+            userRefundText = `
+               <strong>Kredit bol vystavený:</strong><br>
+               Na Váš účet v Nitráčiku bol pridaný kredit v hodnote rezervácie. Môžete ho použiť na ďalší tréning.
                ${creditCompatibilityNotice}
-             `;
+            `;
+        } else {
+            const creditCompatibilityNotice = getMiniMidiMaxiCreditNoticeHtml(booking.training_type);
+            userRefundText = `
+               <strong>Vrátenie kreditu:</strong><br>
+               Kredit v hodnote tréningu bol vrátený na váš účet v Nitráčiku.
+               ${creditCompatibilityNotice}
+            `;
         }
     }
 
@@ -2516,6 +2547,55 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
                 <p style="margin: 0;">© 2026 O.z. Nitráčik. Všetky práva vyhradené.</p>
                 <p style="margin: 5px 0 0 0;">info@nitracik.sk</p>
               </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `),
+      attachments: getCommonAttachments()
+    };
+      return transporter.sendMail(mailOptions);
+  },
+
+  sendAdminGiftCardPurchaseNotification: async (adminEmail, data) => {
+    const formattedExpiry = dayjs(data.expiresAt).tz('Europe/Bratislava').format('DD.MM.YYYY');
+    const mailOptions = {
+      from: SENDER,
+      to: adminEmail,
+      subject: '🎁 Nový nákup darčekového poukazu – Nitráčik',
+      html: injectImageUrls(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+            .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; }
+            .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #f59e0b; }
+            .content { padding: 30px; color: #333333; line-height: 1.6; }
+            .info-box { background-color: #fffbeb; padding: 20px; border-radius: 6px; margin: 20px 0; border: 1px solid #fcd34d; }
+            .info-row { margin-bottom: 12px; font-size: 15px; }
+            .info-label { font-weight: bold; color: #1f2937; }
+            .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+          </style>
+        </head>
+        <body>
+          <div style="background-color: #f4f4f4; padding: 40px 0;">
+            <div class="container">
+              <div class="header">
+                <img src="cid:nitracikLogo" alt="Nitráčik Logo" style="width: 240px; height: auto; display: block; margin: 0 auto;"/>
+              </div>
+              <div class="content">
+                <p style="font-size: 18px; font-weight: bold; color: #d97706;">🎁 Bol zakúpený nový darčekový poukaz!</p>
+                <div class="info-box">
+                  <div class="info-row"><span class="info-label">💰 Hodnota poukazu:</span> ${data.amount} €</div>
+                  <div class="info-row"><span class="info-label">🔑 Kód poukazu:</span> <span style="font-family: monospace; font-weight: bold;">${data.code}</span></div>
+                  <div class="info-row"><span class="info-label">📧 Kupujúci:</span> ${data.buyerEmail}</div>
+                  <div class="info-row"><span class="info-label">🎀 Pre:</span> ${data.recipientName}${data.recipientEmail ? ` (${data.recipientEmail})` : ''}</div>
+                  ${data.message ? `<div class="info-row"><span class="info-label">💬 Správa:</span> ${data.message}</div>` : ''}
+                  <div class="info-row"><span class="info-label">📅 Platnosť do:</span> ${formattedExpiry}</div>
+                </div>
+              </div>
+              <div class="footer"><p>© 2026 O.z. Nitráčik.</p></div>
             </div>
           </div>
         </body>

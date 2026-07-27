@@ -2338,7 +2338,7 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
             }
           );
         } catch (emailError) {
-          console.error('[GiftCard] Email sending failed (booking confirmed):', emailError.message);
+          console.error('[GiftCard] Email sending failed (booking confirmed):', emailError.message, emailError.stack);
           // Don't fail the response — booking is already saved
         }
 
@@ -3431,16 +3431,25 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
           const gc = gcResult.rows[0];
 
           // Get the original booking price to know how much to restore
+          // Must include accompanying_person_price if applicable
           const priceResult = await client.query(
-            `SELECT tp.price FROM training_prices tp
+            `SELECT tp.price, tt.accompanying_person_price
+             FROM training_prices tp
              JOIN training_availability ta ON ta.training_type_id = tp.training_type_id
+             JOIN training_types tt ON tt.id = ta.training_type_id
              WHERE ta.id = $1 AND tp.child_count = $2`,
             [booking.training_id, booking.number_of_children]
           );
 
-          const originalPrice = priceResult.rows[0]
+          const basePrice = priceResult.rows[0]
             ? parseFloat(priceResult.rows[0].price)
             : 0;
+
+          const accompanyingPersonPrice = (booking.accompanying_person && priceResult.rows[0])
+            ? parseFloat(priceResult.rows[0].accompanying_person_price || 0)
+            : 0;
+
+          const originalPrice = parseFloat((basePrice + accompanyingPersonPrice).toFixed(2));
 
           if (originalPrice > 0) {
             // Restore balance, but never exceed original card amount
@@ -5580,7 +5589,7 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
             }
           );
         } catch (emailError) {
-          console.error('[GiftCard] Email sending failed (adult booking confirmed):', emailError.message);
+          console.error('[GiftCard] Email sending failed (adult booking confirmed):', emailError.message, emailError.stack);
           // Don't fail the response — booking is already saved
         }
 
@@ -5872,6 +5881,24 @@ app.get('/api/gift-card-success', async (req, res) => {
     } catch (emailError) {
       console.error('[GiftCard] Email sending failed (code already saved):', emailError.message);
       // Do NOT re-throw — gift card was saved, user must get the code
+    }
+
+    // Admin notifikácia o nákupe DP
+    try {
+      await emailService.sendAdminGiftCardPurchaseNotification(
+        process.env.ADMIN_EMAIL,
+        {
+          buyerEmail,
+          recipientName,
+          recipientEmail: recipientEmail || null,
+          amount: parsedAmount,
+          code,
+          message: message || null,
+          expiresAt,
+        }
+      );
+    } catch (adminEmailError) {
+      console.error('[GiftCard] Admin notification email failed:', adminEmailError.message);
     }
 
     res.json({
