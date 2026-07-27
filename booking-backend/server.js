@@ -485,7 +485,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
              SET amount_paid = $1, 
                payment_time = $2, 
                payment_intent_id = $3, 
-               session_id = $4,
+               session_id = NULL,
                active = true
              WHERE session_id = $4 
              RETURNING *`,
@@ -574,7 +574,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
            SET amount_paid = $1,
                payment_time = $2,
                payment_intent_id = $3,
-               session_id = $4,
+               session_id = NULL,
                active = true,
                age_group = 'adult',
                number_of_adults = 1,
@@ -3503,6 +3503,12 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
         // A. Stripe refund — len ak bolo niečo zaplatené kartou
         if (stripeAmount > 0 && booking.payment_intent_id) {
           try {
+            // Deterministic idempotency key so repeated cancels reuse the same key
+            // and Stripe won't process duplicate refunds when retried quickly.
+            const idempotencyKey = booking.payment_intent_id
+              ? `cancel-${bookingId}-${booking.payment_intent_id}`
+              : `cancel-${bookingId}`;
+            console.log('[DEBUG] Preparing Stripe refund for booking', bookingId, 'payment_intent:', booking.payment_intent_id, 'amount:', stripeAmount);
             const refund = await stripe.refunds.create({
               payment_intent: booking.payment_intent_id,
               amount: Math.round(stripeAmount * 100), // partial refund — len Stripe čiastka
@@ -3513,17 +3519,22 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
                 gift_card_code: dpCode || '',
                 gift_card_amount: dpAmount.toString()
               }
-            });
+            }, { idempotencyKey });
+            console.log('[DEBUG] Stripe refund response for booking', bookingId, 'refund:', refund && refund.id, 'status:', refund && refund.status);
             refundData = refund;
 
             const refundReason = dpAmount > 0
               ? `Cancellation by customer (mixed: ${stripeAmount}€ card + ${dpAmount}€ gift card ${dpCode})`
               : 'Cancellation by customer';
 
+            console.log('[DEBUG] Inserting refund record into DB for booking', bookingId, 'amount', stripeAmount, 'refundId', refund.id);
             await client.query(
-              'INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at) VALUES ($1, $2, $3, $4, $5, NOW())',
-              [bookingId, refund.id, stripeAmount, refund.status, refundReason]
+              `INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at)
+               VALUES ($1, $2, $3, $4, $5, NOW())
+               ON CONFLICT (refund_id) DO NOTHING`,
+              [parseInt(bookingId, 10), refund.id, parseFloat(stripeAmount.toFixed(2)), refund.status, refundReason]
             );
+            console.log('[DEBUG] Inserted refund record for booking', bookingId, 'refundId', refund.id);
           } catch (refundError) {
             console.error('[DEBUG] Stripe Refund error:', refundError.message);
             refundData = { error: 'Failed to process refund automatically.' };
@@ -3562,11 +3573,14 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
       }
     }
 
-    // 4. DELETE THE BOOKING (or mark inactive based on your logic)
-    await client.query(
-      'DELETE FROM bookings WHERE id = $1 AND user_id = $2',
+    // 4. SOFT-DELETE THE BOOKING: mark inactive instead of physical delete
+    const updateResult = await client.query(
+      'UPDATE bookings SET active = false WHERE id = $1 AND user_id = $2 AND active = true',
       [bookingId, req.session.userId]
     );
+    if (updateResult.rowCount === 0) {
+      throw new Error('Booking not found or already cancelled');
+    }
 
     await client.query('COMMIT');
 
@@ -5989,6 +6003,10 @@ app.post('/api/redeem-gift-card', async (req, res) => {
 app.get('/api/gift-cards/user/:userId', isAuthenticated, async (req, res) => {
   try {
     const { userId } = req.params;
+    // Only allow the user themselves or admins to fetch gift cards
+    if (parseInt(req.session.userId, 10) !== parseInt(userId, 10) && req.session.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
 
     // Get user email to match gift cards (gift cards are linked by buyerEmail)
     const userResult = await pool.query(

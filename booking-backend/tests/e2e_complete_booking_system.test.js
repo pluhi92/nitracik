@@ -875,8 +875,9 @@ describe('E2E – Kompletný booking systém', () => {
       expect(res.status).toBe(200);
       expect(mockStripe.refunds.create).toHaveBeenCalled();
 
-      const deleted = await pool.query('SELECT * FROM bookings WHERE id = $1', [booking.id]);
-      expect(deleted.rows.length).toBe(0);
+      const cancelled = await pool.query('SELECT active FROM bookings WHERE id = $1', [booking.id]);
+      expect(cancelled.rows.length).toBe(1);
+      expect(cancelled.rows[0].active).toBe(false);
     });
 
     test('6.2 Zrušenie platnej rezervácie s kreditom (requestCredit=true)', async () => {
@@ -894,8 +895,9 @@ describe('E2E – Kompletný booking systém', () => {
       expect(res.status).toBe(200);
       expect(mockStripe.refunds.create).not.toHaveBeenCalled();
 
-      const deleted = await pool.query('SELECT * FROM bookings WHERE id = $1', [booking.id]);
-      expect(deleted.rows.length).toBe(0);
+      const cancelled = await pool.query('SELECT active FROM bookings WHERE id = $1', [booking.id]);
+      expect(cancelled.rows.length).toBe(1);
+      expect(cancelled.rows[0].active).toBe(false);
 
       const credits = await pool.query(
         "SELECT * FROM credits WHERE user_id = $1 AND status = 'active'",
@@ -935,8 +937,9 @@ describe('E2E – Kompletný booking systém', () => {
       const updatedTicket = await pool.query('SELECT * FROM season_tickets WHERE id = $1', [ticket.id]);
       expect(updatedTicket.rows[0].entries_remaining).toBe(5);
 
-      const deleted = await pool.query('SELECT * FROM bookings WHERE id = $1', [booking.id]);
-      expect(deleted.rows.length).toBe(0);
+      const cancelled = await pool.query('SELECT active FROM bookings WHERE id = $1', [booking.id]);
+      expect(cancelled.rows.length).toBe(1);
+      expect(cancelled.rows[0].active).toBe(false);
     });
 
     test('6.4 Zrušenie kreditnej rezervácie – kredit sa reaktivuje', async () => {

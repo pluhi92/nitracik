@@ -1315,13 +1315,12 @@ describe('E2E - Gift Card Feature', () => {
     });
   });
 
-  describe('Gift card used in cancelled booking — balance NOT restored', () => {
+  describe('Gift card used in cancelled booking — balance restored', () => {
     beforeAll(() => {
       if (!giftCardTableExists) return;
     });
 
-    test('NEGATIVE: cancelling a gift-card-paid booking does NOT restore gift card balance', async () => {
-      // Gift cards are non-refundable by design — cancellation gives a credit, not gift card top-up
+    test('POSITIVE: cancelling a gift-card-paid booking restores gift card balance', async () => {
       if (!giftCardTableExists) return;
       const user = await createVerifiedUser('test_gc_cancel_001@example.com');
       const { type, training } = await createTrainingWithPrice({ name: 'TEST_GC_CANCEL_001', price: 15 });
@@ -1345,9 +1344,9 @@ describe('E2E - Gift Card Feature', () => {
       const cancelRes = await agent.delete(`/api/bookings/${bookingId}`);
       expect(cancelRes.status).toBe(200);
 
-      // Gift card balance must remain unchanged (not restored)
+      // Gift card balance is restored back to available amount.
       const gc = await getGiftCardByCode(gcCode);
-      expect(parseFloat(gc.balance)).toBe(15); // unchanged — NOT restored to 30
+      expect(parseFloat(gc.balance)).toBe(30);
     });
   });
 

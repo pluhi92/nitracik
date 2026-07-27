@@ -26,4 +26,6 @@ booking-backend/cred.env
 booking-backend/.env
 /src/generated/prisma
 booking-backend/CHANGES_SUMMARY.md
+booking-backend/latest-test-run.log
+booking-backend/jest-output.txt
 PAYMENT_FIX.md
