@@ -2847,6 +2847,7 @@ export namespace Prisma {
     amount_paid: Decimal | null
     credit_id: number | null
     number_of_adults: number | null
+    gift_card_amount: Decimal | null
   }
 
   export type BookingsSumAggregateOutputType = {
@@ -2857,6 +2858,7 @@ export namespace Prisma {
     amount_paid: Decimal | null
     credit_id: number | null
     number_of_adults: number | null
+    gift_card_amount: Decimal | null
   }
 
   export type BookingsMinAggregateOutputType = {
@@ -2883,6 +2885,8 @@ export namespace Prisma {
     age_group: string | null
     number_of_adults: number | null
     review_email_sent_at: Date | null
+    gift_card_code: string | null
+    gift_card_amount: Decimal | null
   }
 
   export type BookingsMaxAggregateOutputType = {
@@ -2909,6 +2913,8 @@ export namespace Prisma {
     age_group: string | null
     number_of_adults: number | null
     review_email_sent_at: Date | null
+    gift_card_code: string | null
+    gift_card_amount: Decimal | null
   }
 
   export type BookingsCountAggregateOutputType = {
@@ -2935,6 +2941,8 @@ export namespace Prisma {
     age_group: number
     number_of_adults: number
     review_email_sent_at: number
+    gift_card_code: number
+    gift_card_amount: number
     _all: number
   }
 
@@ -2947,6 +2955,7 @@ export namespace Prisma {
     amount_paid?: true
     credit_id?: true
     number_of_adults?: true
+    gift_card_amount?: true
   }
 
   export type BookingsSumAggregateInputType = {
@@ -2957,6 +2966,7 @@ export namespace Prisma {
     amount_paid?: true
     credit_id?: true
     number_of_adults?: true
+    gift_card_amount?: true
   }
 
   export type BookingsMinAggregateInputType = {
@@ -2983,6 +2993,8 @@ export namespace Prisma {
     age_group?: true
     number_of_adults?: true
     review_email_sent_at?: true
+    gift_card_code?: true
+    gift_card_amount?: true
   }
 
   export type BookingsMaxAggregateInputType = {
@@ -3009,6 +3021,8 @@ export namespace Prisma {
     age_group?: true
     number_of_adults?: true
     review_email_sent_at?: true
+    gift_card_code?: true
+    gift_card_amount?: true
   }
 
   export type BookingsCountAggregateInputType = {
@@ -3035,6 +3049,8 @@ export namespace Prisma {
     age_group?: true
     number_of_adults?: true
     review_email_sent_at?: true
+    gift_card_code?: true
+    gift_card_amount?: true
     _all?: true
   }
 
@@ -3148,6 +3164,8 @@ export namespace Prisma {
     age_group: string | null
     number_of_adults: number | null
     review_email_sent_at: Date | null
+    gift_card_code: string | null
+    gift_card_amount: Decimal | null
     _count: BookingsCountAggregateOutputType | null
     _avg: BookingsAvgAggregateOutputType | null
     _sum: BookingsSumAggregateOutputType | null
@@ -3193,6 +3211,8 @@ export namespace Prisma {
     age_group?: boolean
     number_of_adults?: boolean
     review_email_sent_at?: boolean
+    gift_card_code?: boolean
+    gift_card_amount?: boolean
     training_availability?: boolean | bookings$training_availabilityArgs<ExtArgs>
     users?: boolean | bookings$usersArgs<ExtArgs>
     credits?: boolean | bookings$creditsArgs<ExtArgs>
@@ -3225,6 +3245,8 @@ export namespace Prisma {
     age_group?: boolean
     number_of_adults?: boolean
     review_email_sent_at?: boolean
+    gift_card_code?: boolean
+    gift_card_amount?: boolean
     training_availability?: boolean | bookings$training_availabilityArgs<ExtArgs>
     users?: boolean | bookings$usersArgs<ExtArgs>
     credits?: boolean | bookings$creditsArgs<ExtArgs>
@@ -3254,6 +3276,8 @@ export namespace Prisma {
     age_group?: boolean
     number_of_adults?: boolean
     review_email_sent_at?: boolean
+    gift_card_code?: boolean
+    gift_card_amount?: boolean
     training_availability?: boolean | bookings$training_availabilityArgs<ExtArgs>
     users?: boolean | bookings$usersArgs<ExtArgs>
     credits?: boolean | bookings$creditsArgs<ExtArgs>
@@ -3283,9 +3307,11 @@ export namespace Prisma {
     age_group?: boolean
     number_of_adults?: boolean
     review_email_sent_at?: boolean
+    gift_card_code?: boolean
+    gift_card_amount?: boolean
   }
 
-  export type bookingsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "user_id" | "training_id" | "booked_at" | "number_of_children" | "amount_paid" | "payment_time" | "session_id" | "payment_intent_id" | "credit_id" | "children_ages" | "photo_consent" | "mobile" | "note" | "accompanying_person" | "active" | "booking_type" | "archived_training_date" | "archived_training_type" | "checked_in" | "age_group" | "number_of_adults" | "review_email_sent_at", ExtArgs["result"]["bookings"]>
+  export type bookingsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "user_id" | "training_id" | "booked_at" | "number_of_children" | "amount_paid" | "payment_time" | "session_id" | "payment_intent_id" | "credit_id" | "children_ages" | "photo_consent" | "mobile" | "note" | "accompanying_person" | "active" | "booking_type" | "archived_training_date" | "archived_training_type" | "checked_in" | "age_group" | "number_of_adults" | "review_email_sent_at" | "gift_card_code" | "gift_card_amount", ExtArgs["result"]["bookings"]>
   export type bookingsInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     training_availability?: boolean | bookings$training_availabilityArgs<ExtArgs>
     users?: boolean | bookings$usersArgs<ExtArgs>
@@ -3338,6 +3364,8 @@ export namespace Prisma {
       age_group: string | null
       number_of_adults: number | null
       review_email_sent_at: Date | null
+      gift_card_code: string | null
+      gift_card_amount: Prisma.Decimal | null
     }, ExtArgs["result"]["bookings"]>
     composites: {}
   }
@@ -3789,6 +3817,8 @@ export namespace Prisma {
     readonly age_group: FieldRef<"bookings", 'String'>
     readonly number_of_adults: FieldRef<"bookings", 'Int'>
     readonly review_email_sent_at: FieldRef<"bookings", 'DateTime'>
+    readonly gift_card_code: FieldRef<"bookings", 'String'>
+    readonly gift_card_amount: FieldRef<"bookings", 'Decimal'>
   }
     
 
@@ -24916,7 +24946,9 @@ export namespace Prisma {
     checked_in: 'checked_in',
     age_group: 'age_group',
     number_of_adults: 'number_of_adults',
-    review_email_sent_at: 'review_email_sent_at'
+    review_email_sent_at: 'review_email_sent_at',
+    gift_card_code: 'gift_card_code',
+    gift_card_amount: 'gift_card_amount'
   };
 
   export type BookingsScalarFieldEnum = (typeof BookingsScalarFieldEnum)[keyof typeof BookingsScalarFieldEnum]
@@ -25332,6 +25364,8 @@ export namespace Prisma {
     age_group?: StringNullableFilter<"bookings"> | string | null
     number_of_adults?: IntNullableFilter<"bookings"> | number | null
     review_email_sent_at?: DateTimeNullableFilter<"bookings"> | Date | string | null
+    gift_card_code?: StringNullableFilter<"bookings"> | string | null
+    gift_card_amount?: DecimalNullableFilter<"bookings"> | Decimal | DecimalJsLike | number | string | null
     training_availability?: XOR<Training_availabilityNullableScalarRelationFilter, training_availabilityWhereInput> | null
     users?: XOR<UsersNullableScalarRelationFilter, usersWhereInput> | null
     credits?: XOR<CreditsNullableScalarRelationFilter, creditsWhereInput> | null
@@ -25363,6 +25397,8 @@ export namespace Prisma {
     age_group?: SortOrderInput | SortOrder
     number_of_adults?: SortOrderInput | SortOrder
     review_email_sent_at?: SortOrderInput | SortOrder
+    gift_card_code?: SortOrderInput | SortOrder
+    gift_card_amount?: SortOrderInput | SortOrder
     training_availability?: training_availabilityOrderByWithRelationInput
     users?: usersOrderByWithRelationInput
     credits?: creditsOrderByWithRelationInput
@@ -25397,6 +25433,8 @@ export namespace Prisma {
     age_group?: StringNullableFilter<"bookings"> | string | null
     number_of_adults?: IntNullableFilter<"bookings"> | number | null
     review_email_sent_at?: DateTimeNullableFilter<"bookings"> | Date | string | null
+    gift_card_code?: StringNullableFilter<"bookings"> | string | null
+    gift_card_amount?: DecimalNullableFilter<"bookings"> | Decimal | DecimalJsLike | number | string | null
     training_availability?: XOR<Training_availabilityNullableScalarRelationFilter, training_availabilityWhereInput> | null
     users?: XOR<UsersNullableScalarRelationFilter, usersWhereInput> | null
     credits?: XOR<CreditsNullableScalarRelationFilter, creditsWhereInput> | null
@@ -25428,6 +25466,8 @@ export namespace Prisma {
     age_group?: SortOrderInput | SortOrder
     number_of_adults?: SortOrderInput | SortOrder
     review_email_sent_at?: SortOrderInput | SortOrder
+    gift_card_code?: SortOrderInput | SortOrder
+    gift_card_amount?: SortOrderInput | SortOrder
     _count?: bookingsCountOrderByAggregateInput
     _avg?: bookingsAvgOrderByAggregateInput
     _max?: bookingsMaxOrderByAggregateInput
@@ -25462,6 +25502,8 @@ export namespace Prisma {
     age_group?: StringNullableWithAggregatesFilter<"bookings"> | string | null
     number_of_adults?: IntNullableWithAggregatesFilter<"bookings"> | number | null
     review_email_sent_at?: DateTimeNullableWithAggregatesFilter<"bookings"> | Date | string | null
+    gift_card_code?: StringNullableWithAggregatesFilter<"bookings"> | string | null
+    gift_card_amount?: DecimalNullableWithAggregatesFilter<"bookings"> | Decimal | DecimalJsLike | number | string | null
   }
 
   export type creditsWhereInput = {
@@ -26774,6 +26816,8 @@ export namespace Prisma {
     age_group?: string | null
     number_of_adults?: number | null
     review_email_sent_at?: Date | string | null
+    gift_card_code?: string | null
+    gift_card_amount?: Decimal | DecimalJsLike | number | string | null
     training_availability?: training_availabilityCreateNestedOneWithoutBookingsInput
     users?: usersCreateNestedOneWithoutBookingsInput
     credits?: creditsCreateNestedOneWithoutBookingsInput
@@ -26805,6 +26849,8 @@ export namespace Prisma {
     age_group?: string | null
     number_of_adults?: number | null
     review_email_sent_at?: Date | string | null
+    gift_card_code?: string | null
+    gift_card_amount?: Decimal | DecimalJsLike | number | string | null
     refunds?: refundsUncheckedCreateNestedManyWithoutBookingsInput
     season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutBookingsInput
   }
@@ -26829,6 +26875,8 @@ export namespace Prisma {
     age_group?: NullableStringFieldUpdateOperationsInput | string | null
     number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     review_email_sent_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gift_card_code?: NullableStringFieldUpdateOperationsInput | string | null
+    gift_card_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     training_availability?: training_availabilityUpdateOneWithoutBookingsNestedInput
     users?: usersUpdateOneWithoutBookingsNestedInput
     credits?: creditsUpdateOneWithoutBookingsNestedInput
@@ -26860,6 +26908,8 @@ export namespace Prisma {
     age_group?: NullableStringFieldUpdateOperationsInput | string | null
     number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     review_email_sent_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gift_card_code?: NullableStringFieldUpdateOperationsInput | string | null
+    gift_card_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     refunds?: refundsUncheckedUpdateManyWithoutBookingsNestedInput
     season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutBookingsNestedInput
   }
@@ -26888,6 +26938,8 @@ export namespace Prisma {
     age_group?: string | null
     number_of_adults?: number | null
     review_email_sent_at?: Date | string | null
+    gift_card_code?: string | null
+    gift_card_amount?: Decimal | DecimalJsLike | number | string | null
   }
 
   export type bookingsUpdateManyMutationInput = {
@@ -26910,6 +26962,8 @@ export namespace Prisma {
     age_group?: NullableStringFieldUpdateOperationsInput | string | null
     number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     review_email_sent_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gift_card_code?: NullableStringFieldUpdateOperationsInput | string | null
+    gift_card_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
   }
 
   export type bookingsUncheckedUpdateManyInput = {
@@ -26936,6 +26990,8 @@ export namespace Prisma {
     age_group?: NullableStringFieldUpdateOperationsInput | string | null
     number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     review_email_sent_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gift_card_code?: NullableStringFieldUpdateOperationsInput | string | null
+    gift_card_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
   }
 
   export type creditsCreateInput = {
@@ -28406,6 +28462,8 @@ export namespace Prisma {
     age_group?: SortOrder
     number_of_adults?: SortOrder
     review_email_sent_at?: SortOrder
+    gift_card_code?: SortOrder
+    gift_card_amount?: SortOrder
   }
 
   export type bookingsAvgOrderByAggregateInput = {
@@ -28416,6 +28474,7 @@ export namespace Prisma {
     amount_paid?: SortOrder
     credit_id?: SortOrder
     number_of_adults?: SortOrder
+    gift_card_amount?: SortOrder
   }
 
   export type bookingsMaxOrderByAggregateInput = {
@@ -28442,6 +28501,8 @@ export namespace Prisma {
     age_group?: SortOrder
     number_of_adults?: SortOrder
     review_email_sent_at?: SortOrder
+    gift_card_code?: SortOrder
+    gift_card_amount?: SortOrder
   }
 
   export type bookingsMinOrderByAggregateInput = {
@@ -28468,6 +28529,8 @@ export namespace Prisma {
     age_group?: SortOrder
     number_of_adults?: SortOrder
     review_email_sent_at?: SortOrder
+    gift_card_code?: SortOrder
+    gift_card_amount?: SortOrder
   }
 
   export type bookingsSumOrderByAggregateInput = {
@@ -28478,6 +28541,7 @@ export namespace Prisma {
     amount_paid?: SortOrder
     credit_id?: SortOrder
     number_of_adults?: SortOrder
+    gift_card_amount?: SortOrder
   }
 
   export type IntWithAggregatesFilter<$PrismaModel = never> = {
@@ -31344,6 +31408,8 @@ export namespace Prisma {
     age_group?: string | null
     number_of_adults?: number | null
     review_email_sent_at?: Date | string | null
+    gift_card_code?: string | null
+    gift_card_amount?: Decimal | DecimalJsLike | number | string | null
     training_availability?: training_availabilityCreateNestedOneWithoutBookingsInput
     users?: usersCreateNestedOneWithoutBookingsInput
     refunds?: refundsCreateNestedManyWithoutBookingsInput
@@ -31373,6 +31439,8 @@ export namespace Prisma {
     age_group?: string | null
     number_of_adults?: number | null
     review_email_sent_at?: Date | string | null
+    gift_card_code?: string | null
+    gift_card_amount?: Decimal | DecimalJsLike | number | string | null
     refunds?: refundsUncheckedCreateNestedManyWithoutBookingsInput
     season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutBookingsInput
   }
@@ -31500,6 +31568,8 @@ export namespace Prisma {
     age_group?: StringNullableFilter<"bookings"> | string | null
     number_of_adults?: IntNullableFilter<"bookings"> | number | null
     review_email_sent_at?: DateTimeNullableFilter<"bookings"> | Date | string | null
+    gift_card_code?: StringNullableFilter<"bookings"> | string | null
+    gift_card_amount?: DecimalNullableFilter<"bookings"> | Decimal | DecimalJsLike | number | string | null
   }
 
   export type training_availabilityUpsertWithoutCreditsInput = {
@@ -31604,6 +31674,8 @@ export namespace Prisma {
     age_group?: string | null
     number_of_adults?: number | null
     review_email_sent_at?: Date | string | null
+    gift_card_code?: string | null
+    gift_card_amount?: Decimal | DecimalJsLike | number | string | null
     training_availability?: training_availabilityCreateNestedOneWithoutBookingsInput
     users?: usersCreateNestedOneWithoutBookingsInput
     credits?: creditsCreateNestedOneWithoutBookingsInput
@@ -31634,6 +31706,8 @@ export namespace Prisma {
     age_group?: string | null
     number_of_adults?: number | null
     review_email_sent_at?: Date | string | null
+    gift_card_code?: string | null
+    gift_card_amount?: Decimal | DecimalJsLike | number | string | null
     season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutBookingsInput
   }
 
@@ -31673,6 +31747,8 @@ export namespace Prisma {
     age_group?: NullableStringFieldUpdateOperationsInput | string | null
     number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     review_email_sent_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gift_card_code?: NullableStringFieldUpdateOperationsInput | string | null
+    gift_card_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     training_availability?: training_availabilityUpdateOneWithoutBookingsNestedInput
     users?: usersUpdateOneWithoutBookingsNestedInput
     credits?: creditsUpdateOneWithoutBookingsNestedInput
@@ -31703,6 +31779,8 @@ export namespace Prisma {
     age_group?: NullableStringFieldUpdateOperationsInput | string | null
     number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     review_email_sent_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gift_card_code?: NullableStringFieldUpdateOperationsInput | string | null
+    gift_card_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutBookingsNestedInput
   }
 
@@ -31726,6 +31804,8 @@ export namespace Prisma {
     age_group?: string | null
     number_of_adults?: number | null
     review_email_sent_at?: Date | string | null
+    gift_card_code?: string | null
+    gift_card_amount?: Decimal | DecimalJsLike | number | string | null
     training_availability?: training_availabilityCreateNestedOneWithoutBookingsInput
     users?: usersCreateNestedOneWithoutBookingsInput
     credits?: creditsCreateNestedOneWithoutBookingsInput
@@ -31756,6 +31836,8 @@ export namespace Prisma {
     age_group?: string | null
     number_of_adults?: number | null
     review_email_sent_at?: Date | string | null
+    gift_card_code?: string | null
+    gift_card_amount?: Decimal | DecimalJsLike | number | string | null
     refunds?: refundsUncheckedCreateNestedManyWithoutBookingsInput
   }
 
@@ -31863,6 +31945,8 @@ export namespace Prisma {
     age_group?: NullableStringFieldUpdateOperationsInput | string | null
     number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     review_email_sent_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gift_card_code?: NullableStringFieldUpdateOperationsInput | string | null
+    gift_card_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     training_availability?: training_availabilityUpdateOneWithoutBookingsNestedInput
     users?: usersUpdateOneWithoutBookingsNestedInput
     credits?: creditsUpdateOneWithoutBookingsNestedInput
@@ -31893,6 +31977,8 @@ export namespace Prisma {
     age_group?: NullableStringFieldUpdateOperationsInput | string | null
     number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     review_email_sent_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gift_card_code?: NullableStringFieldUpdateOperationsInput | string | null
+    gift_card_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     refunds?: refundsUncheckedUpdateManyWithoutBookingsNestedInput
   }
 
@@ -32546,6 +32632,8 @@ export namespace Prisma {
     age_group?: string | null
     number_of_adults?: number | null
     review_email_sent_at?: Date | string | null
+    gift_card_code?: string | null
+    gift_card_amount?: Decimal | DecimalJsLike | number | string | null
     users?: usersCreateNestedOneWithoutBookingsInput
     credits?: creditsCreateNestedOneWithoutBookingsInput
     refunds?: refundsCreateNestedManyWithoutBookingsInput
@@ -32575,6 +32663,8 @@ export namespace Prisma {
     age_group?: string | null
     number_of_adults?: number | null
     review_email_sent_at?: Date | string | null
+    gift_card_code?: string | null
+    gift_card_amount?: Decimal | DecimalJsLike | number | string | null
     refunds?: refundsUncheckedCreateNestedManyWithoutBookingsInput
     season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutBookingsInput
   }
@@ -33040,6 +33130,8 @@ export namespace Prisma {
     age_group?: string | null
     number_of_adults?: number | null
     review_email_sent_at?: Date | string | null
+    gift_card_code?: string | null
+    gift_card_amount?: Decimal | DecimalJsLike | number | string | null
     training_availability?: training_availabilityCreateNestedOneWithoutBookingsInput
     credits?: creditsCreateNestedOneWithoutBookingsInput
     refunds?: refundsCreateNestedManyWithoutBookingsInput
@@ -33069,6 +33161,8 @@ export namespace Prisma {
     age_group?: string | null
     number_of_adults?: number | null
     review_email_sent_at?: Date | string | null
+    gift_card_code?: string | null
+    gift_card_amount?: Decimal | DecimalJsLike | number | string | null
     refunds?: refundsUncheckedCreateNestedManyWithoutBookingsInput
     season_ticket_usage?: season_ticket_usageUncheckedCreateNestedManyWithoutBookingsInput
   }
@@ -33415,6 +33509,8 @@ export namespace Prisma {
     age_group?: string | null
     number_of_adults?: number | null
     review_email_sent_at?: Date | string | null
+    gift_card_code?: string | null
+    gift_card_amount?: Decimal | DecimalJsLike | number | string | null
   }
 
   export type bookingsUpdateWithoutCreditsInput = {
@@ -33437,6 +33533,8 @@ export namespace Prisma {
     age_group?: NullableStringFieldUpdateOperationsInput | string | null
     number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     review_email_sent_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gift_card_code?: NullableStringFieldUpdateOperationsInput | string | null
+    gift_card_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     training_availability?: training_availabilityUpdateOneWithoutBookingsNestedInput
     users?: usersUpdateOneWithoutBookingsNestedInput
     refunds?: refundsUpdateManyWithoutBookingsNestedInput
@@ -33466,6 +33564,8 @@ export namespace Prisma {
     age_group?: NullableStringFieldUpdateOperationsInput | string | null
     number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     review_email_sent_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gift_card_code?: NullableStringFieldUpdateOperationsInput | string | null
+    gift_card_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     refunds?: refundsUncheckedUpdateManyWithoutBookingsNestedInput
     season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutBookingsNestedInput
   }
@@ -33493,6 +33593,8 @@ export namespace Prisma {
     age_group?: NullableStringFieldUpdateOperationsInput | string | null
     number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     review_email_sent_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gift_card_code?: NullableStringFieldUpdateOperationsInput | string | null
+    gift_card_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
   }
 
   export type season_ticket_offersCreateManySeason_ticket_productsInput = {
@@ -33657,6 +33759,8 @@ export namespace Prisma {
     age_group?: string | null
     number_of_adults?: number | null
     review_email_sent_at?: Date | string | null
+    gift_card_code?: string | null
+    gift_card_amount?: Decimal | DecimalJsLike | number | string | null
   }
 
   export type creditsCreateManyTraining_availabilityInput = {
@@ -33696,6 +33800,8 @@ export namespace Prisma {
     age_group?: NullableStringFieldUpdateOperationsInput | string | null
     number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     review_email_sent_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gift_card_code?: NullableStringFieldUpdateOperationsInput | string | null
+    gift_card_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     users?: usersUpdateOneWithoutBookingsNestedInput
     credits?: creditsUpdateOneWithoutBookingsNestedInput
     refunds?: refundsUpdateManyWithoutBookingsNestedInput
@@ -33725,6 +33831,8 @@ export namespace Prisma {
     age_group?: NullableStringFieldUpdateOperationsInput | string | null
     number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     review_email_sent_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gift_card_code?: NullableStringFieldUpdateOperationsInput | string | null
+    gift_card_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     refunds?: refundsUncheckedUpdateManyWithoutBookingsNestedInput
     season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutBookingsNestedInput
   }
@@ -33752,6 +33860,8 @@ export namespace Prisma {
     age_group?: NullableStringFieldUpdateOperationsInput | string | null
     number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     review_email_sent_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gift_card_code?: NullableStringFieldUpdateOperationsInput | string | null
+    gift_card_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
   }
 
   export type creditsUpdateWithoutTraining_availabilityInput = {
@@ -33942,6 +34052,8 @@ export namespace Prisma {
     age_group?: string | null
     number_of_adults?: number | null
     review_email_sent_at?: Date | string | null
+    gift_card_code?: string | null
+    gift_card_amount?: Decimal | DecimalJsLike | number | string | null
   }
 
   export type creditsCreateManyUsersInput = {
@@ -33995,6 +34107,8 @@ export namespace Prisma {
     age_group?: NullableStringFieldUpdateOperationsInput | string | null
     number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     review_email_sent_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gift_card_code?: NullableStringFieldUpdateOperationsInput | string | null
+    gift_card_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     training_availability?: training_availabilityUpdateOneWithoutBookingsNestedInput
     credits?: creditsUpdateOneWithoutBookingsNestedInput
     refunds?: refundsUpdateManyWithoutBookingsNestedInput
@@ -34024,6 +34138,8 @@ export namespace Prisma {
     age_group?: NullableStringFieldUpdateOperationsInput | string | null
     number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     review_email_sent_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gift_card_code?: NullableStringFieldUpdateOperationsInput | string | null
+    gift_card_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     refunds?: refundsUncheckedUpdateManyWithoutBookingsNestedInput
     season_ticket_usage?: season_ticket_usageUncheckedUpdateManyWithoutBookingsNestedInput
   }
@@ -34051,6 +34167,8 @@ export namespace Prisma {
     age_group?: NullableStringFieldUpdateOperationsInput | string | null
     number_of_adults?: NullableIntFieldUpdateOperationsInput | number | null
     review_email_sent_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gift_card_code?: NullableStringFieldUpdateOperationsInput | string | null
+    gift_card_amount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
   }
 
   export type creditsUpdateWithoutUsersInput = {

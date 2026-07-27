@@ -144,7 +144,9 @@ exports.Prisma.BookingsScalarFieldEnum = {
   checked_in: 'checked_in',
   age_group: 'age_group',
   number_of_adults: 'number_of_adults',
-  review_email_sent_at: 'review_email_sent_at'
+  review_email_sent_at: 'review_email_sent_at',
+  gift_card_code: 'gift_card_code',
+  gift_card_amount: 'gift_card_amount'
 };
 
 exports.Prisma.CreditsScalarFieldEnum = {

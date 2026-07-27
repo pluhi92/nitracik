@@ -2444,11 +2444,28 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
 
       // Update booking with payment details ONLY if payment succeeded
       // Also activate it since payment is now confirmed
+      // Extrahuj gift card metadata zo Stripe session
+      const giftCardCode = session.metadata?.giftCardCode || null;
+      const giftCardAmount = parseFloat(session.metadata?.giftCardDiscount || '0');
+
       await client.query(
         `UPDATE bookings 
-         SET amount_paid = $1, payment_time = $2, session_id = NULL, active = true
+         SET amount_paid = $1, 
+             payment_time = $2, 
+             session_id = NULL, 
+             active = true,
+             payment_intent_id = $4,
+             gift_card_code = $5,
+             gift_card_amount = $6
          WHERE id = $3`,
-        [amountPaid, paymentTime, booking_id]
+        [
+          amountPaid, 
+          paymentTime, 
+          booking_id,
+          session.payment_intent || null,
+          (giftCardCode && giftCardCode.trim() !== '') ? giftCardCode.trim().toUpperCase() : null,
+          (giftCardAmount > 0) ? giftCardAmount : null
+        ]
       );
       await client.query('COMMIT');
       res.redirect('/user-profile');
@@ -3331,6 +3348,7 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
       `SELECT b.id, b.user_id, b.training_id, b.number_of_children, b.session_id, 
               b.amount_paid, b.payment_time, b.payment_intent_id, b.credit_id, b.booking_type,
               b.children_ages, b.photo_consent, b.mobile, b.note, b.accompanying_person,
+              b.gift_card_code, b.gift_card_amount,
               ta.training_date, ta.training_type,
               u.email, u.first_name, u.last_name
        FROM bookings b 
@@ -3477,31 +3495,68 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
         refundData = { type: 'credit_issued' };
 
       } else {
-        // Original REFUND logic
-        if (!booking.amount_paid || booking.amount_paid <= 0) {
-          refundData = { error: 'No payment associated with this booking' };
-        } else if (!booking.payment_intent_id) {
-          refundData = { error: 'No payment intent found' };
-        } else {
+        // REFUND LOGIC: Stripe partial refund + optional gift card balance restore
+        const stripeAmount = parseFloat(booking.amount_paid || 0);
+        const dpAmount = parseFloat(booking.gift_card_amount || 0);
+        const dpCode = booking.gift_card_code || null;
+
+        // A. Stripe refund — len ak bolo niečo zaplatené kartou
+        if (stripeAmount > 0 && booking.payment_intent_id) {
           try {
             const refund = await stripe.refunds.create({
               payment_intent: booking.payment_intent_id,
-              amount: Math.round(booking.amount_paid * 100),
+              amount: Math.round(stripeAmount * 100), // partial refund — len Stripe čiastka
               reason: 'requested_by_customer',
               metadata: {
                 booking_id: bookingId,
                 user_id: booking.user_id,
+                gift_card_code: dpCode || '',
+                gift_card_amount: dpAmount.toString()
               }
             });
             refundData = refund;
 
+            const refundReason = dpAmount > 0
+              ? `Cancellation by customer (mixed: ${stripeAmount}€ card + ${dpAmount}€ gift card ${dpCode})`
+              : 'Cancellation by customer';
+
             await client.query(
               'INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at) VALUES ($1, $2, $3, $4, $5, NOW())',
-              [bookingId, refund.id, booking.amount_paid, refund.status, 'Cancellation by customer']
+              [bookingId, refund.id, stripeAmount, refund.status, refundReason]
             );
           } catch (refundError) {
             console.error('[DEBUG] Stripe Refund error:', refundError.message);
             refundData = { error: 'Failed to process refund automatically.' };
+          }
+        } else if (stripeAmount <= 0 && dpAmount <= 0) {
+          refundData = { error: 'No payment associated with this booking' };
+        } else if (stripeAmount > 0 && !booking.payment_intent_id) {
+          refundData = { error: 'No payment intent found' };
+        }
+
+        // B. Gift card balance restore — len ak bol použitý DP (aj keď Stripe zlyhalo)
+        if (dpAmount > 0 && dpCode) {
+          try {
+            const gcResult = await client.query(
+              'SELECT * FROM gift_card WHERE code = $1 FOR UPDATE',
+              [dpCode.toUpperCase()]
+            );
+            if (gcResult.rows.length > 0) {
+              const gc = gcResult.rows[0];
+              const newBalance = parseFloat(
+                Math.min(parseFloat(gc.balance) + dpAmount, parseFloat(gc.amount)).toFixed(2)
+              );
+              const newStatus = newBalance > 0 ? 'active' : gc.status;
+              await client.query(
+                `UPDATE gift_card SET balance = $1, status = $2, "redeemedAt" = NULL WHERE code = $3`,
+                [newBalance, newStatus, dpCode.toUpperCase()]
+              );
+              giftCardBalanceRestored = true;
+              console.log(`[DEBUG] Gift card ${dpCode} balance restored on user cancel: ${gc.balance} → ${newBalance}`);
+            }
+          } catch (gcError) {
+            console.error('[DEBUG] Gift card restore error during user cancel:', gcError.message);
+            // Neblokujeme zrušenie — len logujeme
           }
         }
       }
@@ -3710,6 +3765,8 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
         b.booking_type,
         b.number_of_children,
         b.credit_id,            -- Dôležité pre vrátenie kreditu
+        b.gift_card_code,
+        b.gift_card_amount,
         stu.season_ticket_id,
         u.email, 
         u.first_name, 
@@ -3817,7 +3874,11 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
             email: booking.email,
             booking: booking,
             reason: reason,
-            frontendUrl: FRONTEND_URL
+            frontendUrl: FRONTEND_URL,
+            // Nové polia pre mixed-payment info v emaily
+            giftCardCode: booking.gift_card_code || null,
+            giftCardAmount: booking.gift_card_amount ? parseFloat(booking.gift_card_amount) : null,
+            stripeAmount: booking.amount_paid ? parseFloat(booking.amount_paid) : null
           });
         } else {
           // Títo ostávajú, kým si nevyberú možnosť
@@ -3826,7 +3887,11 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
             email: booking.email,
             booking: booking,
             reason: reason,
-            frontendUrl: FRONTEND_URL
+            frontendUrl: FRONTEND_URL,
+            // Nové polia pre mixed-payment info v emaily
+            giftCardCode: booking.gift_card_code || null,
+            giftCardAmount: booking.gift_card_amount ? parseFloat(booking.gift_card_amount) : null,
+            stripeAmount: booking.amount_paid ? parseFloat(booking.amount_paid) : null
           });
         }
     }
@@ -3844,7 +3909,17 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
       } else if (task.type === 'credit') {
         return emailService.sendMassCancellationCredit(task.email, task.firstName, task.trainingType, task.dateObj, task.reason);
       } else if (task.type === 'card') {
-        return emailService.sendMassCancellationEmail(task.email, task.booking, task.reason, task.frontendUrl);
+        return emailService.sendMassCancellationEmail(
+          task.email, 
+          task.booking, 
+          task.reason, 
+          task.frontendUrl,
+          {
+            giftCardCode: task.giftCardCode || null,
+            giftCardAmount: task.giftCardAmount || null,
+            stripeAmount: task.stripeAmount || null
+          }
+        );
       }
     });
 
@@ -3896,6 +3971,8 @@ app.get('/api/booking/refund', async (req, res) => {
         b.user_id,
         b.payment_intent_id,
         b.amount_paid,
+        b.gift_card_code,
+        b.gift_card_amount,
         u.email AS user_email,
         u.first_name AS user_first_name,
         ta.training_type,
@@ -3913,43 +3990,87 @@ app.get('/api/booking/refund', async (req, res) => {
       return res.status(404).json({ status: 'error', message: 'Booking not active or not found.' });
     }
 
-    const { user_id, payment_intent_id, amount_paid, user_email, user_first_name, training_type, training_date } = bookingRes.rows[0];
+    const { 
+      user_id, payment_intent_id, amount_paid, 
+      user_email, user_first_name, training_type, training_date,
+      gift_card_code, gift_card_amount 
+    } = bookingRes.rows[0];
+
+    const stripeRefundAmount = parseFloat(amount_paid || 0);
+    const dpRefundAmount = parseFloat(gift_card_amount || 0);
+    const dpRefundCode = gift_card_code || null;
 
     const idempotencyKey = `refund-${bookingId}-${payment_intent_id}`;
-    let refund;
+    let refund = null;
 
-    try {
-      refund = await stripe.refunds.create({ payment_intent: payment_intent_id }, { idempotencyKey });
-    } catch (stripeErr) {
-      console.error('Stripe refund create error:', stripeErr);
-
-      if (stripeErr.code === 'charge_already_refunded') {
-        const dbFind = await client.query(
-          'SELECT refund_id, status FROM refunds WHERE booking_id = $1',
-          [bookingId]
+    // A. Stripe refund — len ak bolo zaplatené kartou
+    if (stripeRefundAmount > 0 && payment_intent_id) {
+      try {
+        refund = await stripe.refunds.create(
+          { 
+            payment_intent: payment_intent_id,
+            amount: Math.round(stripeRefundAmount * 100)
+          },
+          { idempotencyKey }
         );
+      } catch (stripeErr) {
+        console.error('Stripe refund create error:', stripeErr);
 
-        if (dbFind.rows.length > 0) {
-          await client.query('COMMIT');
-          return res.json({
-            status: 'already',
-            message: 'Your refund has already been processed',
-            refundId: dbFind.rows[0].refund_id,
-          });
+        if (stripeErr.code === 'charge_already_refunded') {
+          const dbFind = await client.query(
+            'SELECT refund_id, status FROM refunds WHERE booking_id = $1',
+            [bookingId]
+          );
+          if (dbFind.rows.length > 0) {
+            await client.query('COMMIT');
+            return res.json({
+              status: 'already',
+              message: 'Your refund has already been processed',
+              refundId: dbFind.rows[0].refund_id,
+            });
+          }
+          await client.query('ROLLBACK');
+          return res.status(400).json({ status: 'error', message: 'Refund already refunded in Stripe but not in DB' });
         }
 
         await client.query('ROLLBACK');
-        return res.status(400).json({ status: 'error', message: 'Refund already refunded in Stripe but not in DB' });
+        return res.status(500).json({ status: 'error', message: 'Stripe error' });
       }
 
-      await client.query('ROLLBACK');
-      return res.status(500).json({ status: 'error', message: 'Stripe error' });
+      const refundReason = dpRefundAmount > 0
+        ? `User selected refund (mixed: ${stripeRefundAmount}€ card + ${dpRefundAmount}€ gift card ${dpRefundCode})`
+        : 'User selected refund';
+
+      await client.query(
+        'INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at) VALUES ($1,$2,$3,$4,$5,NOW())',
+        [bookingId, refund.id, stripeRefundAmount, refund.status, refundReason]
+      );
     }
 
-    await client.query(
-      'INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at) VALUES ($1,$2,$3,$4,$5,NOW())',
-      [bookingId, refund.id, amount_paid, refund.status, 'User selected refund']
-    );
+    // B. Gift card balance restore — len ak bol použitý DP
+    if (dpRefundAmount > 0 && dpRefundCode) {
+      try {
+        const gcRes = await client.query(
+          'SELECT * FROM gift_card WHERE code = $1 FOR UPDATE',
+          [dpRefundCode.toUpperCase()]
+        );
+        if (gcRes.rows.length > 0) {
+          const gc = gcRes.rows[0];
+          const newBalance = parseFloat(
+            Math.min(parseFloat(gc.balance) + dpRefundAmount, parseFloat(gc.amount)).toFixed(2)
+          );
+          const newGcStatus = newBalance > 0 ? 'active' : gc.status;
+          await client.query(
+            `UPDATE gift_card SET balance = $1, status = $2, "redeemedAt" = NULL WHERE code = $3`,
+            [newBalance, newGcStatus, dpRefundCode.toUpperCase()]
+          );
+          console.log(`[DEBUG] Gift card ${dpRefundCode} balance restored on refund: ${gc.balance} → ${newBalance}`);
+        }
+      } catch (gcErr) {
+        console.error('[DEBUG] Gift card restore error in /api/booking/refund:', gcErr.message);
+        // Logujeme ale neprerušíme — Stripe refund už prebehol
+      }
+    }
 
     await client.query('UPDATE bookings SET active = false WHERE id = $1 AND user_id = $2', [bookingId, user_id]);
     await client.query('COMMIT');
@@ -3958,8 +4079,10 @@ app.get('/api/booking/refund', async (req, res) => {
       try {
         await emailService.sendRefundConfirmationEmail(user_email, {
           userName: user_first_name,
-          refundId: refund.id,
-          amount: amount_paid,
+          refundId: refund ? refund.id : null,
+          amount: stripeRefundAmount,
+          giftCardAmount: dpRefundAmount > 0 ? dpRefundAmount : null,
+          giftCardCode: dpRefundCode || null,
           trainingType: training_type,
           trainingDate: training_date
         });
@@ -3971,7 +4094,9 @@ app.get('/api/booking/refund', async (req, res) => {
     return res.json({
       status: 'processed',
       message: 'Refund Processed Successfully!',
-      refundId: refund.id,
+      refundId: refund ? refund.id : null,
+      giftCardRestored: dpRefundAmount > 0,
+      giftCardAmount: dpRefundAmount > 0 ? dpRefundAmount : undefined,
     });
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch (e) { console.error('Rollback failed', e); }

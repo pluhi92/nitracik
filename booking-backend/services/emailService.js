@@ -1403,14 +1403,25 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
     let userRefundText = '';
     
     if (refundData && refundData.id) {
-        // A. REFUND NA KARTU
-        userRefundText = `
-            <strong>Informácia o vrátení platby:</strong><br><br>
-            - Suma: <strong>${booking.amount_paid} €</strong><br>
-            - Stav: Odoslané na spracovanie<br>
-            - ID Transakcie: <span style="font-family:monospace; color:#666;">${refundData.id}</span><br><br>
-            <span style="font-size:13px;">Peniaze by sa mali vrátiť na váš účet do 5-10 pracovných dní.</span>
-        `;
+      // A. REFUND NA KARTU (prípadne mixed: Stripe + DP)
+      const dpAmount = parseFloat(booking.gift_card_amount || 0);
+      const dpCode = booking.gift_card_code || null;
+        
+      const mixedGiftCardInfo = (dpAmount > 0 && dpCode) ? `
+        <br>
+        <div style="margin-top: 10px; padding: 10px; background-color: #fffbeb; border: 1px solid #f59e0b; border-radius: 4px;">
+          🎁 <strong>Darčekový poukaz ${dpCode}:</strong> Suma <strong>${dpAmount.toFixed(2)} €</strong> bola vrátená na zostatok poukazu. Môžete ho ihneď použiť na novú rezerváciu.
+        </div>
+      ` : '';
+        
+      userRefundText = `
+        <strong>Informácia o vrátení platby:</strong><br><br>
+        - Vrátená suma na kartu: <strong>${parseFloat(booking.amount_paid || 0).toFixed(2)} €</strong><br>
+        - Stav: Odoslané na spracovanie<br>
+        - ID Transakcie: <span style="font-family:monospace; color:#666;">${refundData.id}</span><br><br>
+        <span style="font-size:13px;">Peniaze by sa mali vrátiť na váš účet do 5-10 pracovných dní.</span>
+        ${mixedGiftCardInfo}
+      `;
     } else if (refundData && refundData.error) {
         // B. CHYBA
         userRefundText = `<strong>Stav vrátenia:</strong> Nepodarilo sa automaticky vrátiť platbu na kartu. Kontaktujte nás prosím, vyriešime to manuálne.`;
@@ -1491,7 +1502,7 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
 },
 
   // --- 9. MASS CANCELLATION (PLATBA KARTOU - VÝBER) ---
-  sendMassCancellationEmail: async (userEmail, booking, reason, frontendUrl) => {
+  sendMassCancellationEmail: async (userEmail, booking, reason, frontendUrl, mixedPaymentInfo = {}) => {
     // Dátum formátovanie
     const dateObj = new Date(booking.training_date || booking.trainingDate);
     // Formát dátumu podľa dizajnu rezervácie (napr. 30.01.2026 (piatok))
@@ -1574,10 +1585,13 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
                 <div class="option-box" style="border-left: 4px solid #ef4444; background-color: #fff;">
                   <span class="option-title" style="color: #dc2626;">💳 Vrátenie peňazí (Refund)</span>
                   <p style="font-size: 14px; margin: 0 0 10px 0;">
-                    Po kliknutí prebehne automatická požiadavka cez systém Stripe. Vrátenie peňazí na Váš bankový účet zvyčajne trvá <strong>5 až 10 pracovných dní</strong> v závislosti od banky.
+                    ${(mixedPaymentInfo.giftCardAmount > 0 && mixedPaymentInfo.giftCardCode)
+                      ? `Vaša platba bola kombinovaná: <strong>${mixedPaymentInfo.stripeAmount ? mixedPaymentInfo.stripeAmount.toFixed(2) : '?'} €</strong> kartou a <strong>${mixedPaymentInfo.giftCardAmount.toFixed(2)} €</strong> darčekovým poukazom. Po kliknutí sa automaticky vráti <strong>${mixedPaymentInfo.stripeAmount ? mixedPaymentInfo.stripeAmount.toFixed(2) : '?'} € na kartu</strong> (5–10 pracovných dní) a <strong>${mixedPaymentInfo.giftCardAmount.toFixed(2)} € na zostatok poukazu ${mixedPaymentInfo.giftCardCode}</strong>.`
+                      : `Po kliknutí prebehne automatická požiadavka cez systém Stripe. Vrátenie peňazí na Váš bankový účet zvyčajne trvá <strong>5 až 10 pracovných dní</strong> v závislosti od banky.`
+                    }
                   </p>
                   <div style="text-align: right;">
-                    <a href="${refundUrl}" class="btn" style="background-color: #ef4444; color: white;">Vrátiť peniaze na kartu</a>
+                    <a href="${refundUrl}" class="btn" style="background-color: #ef4444; color: white;">Vrátiť peniaze${(mixedPaymentInfo.giftCardAmount > 0) ? ' + obnoviť poukaz' : ' na kartu'}</a>
                   </div>
                 </div>
               </div>
@@ -1945,7 +1959,7 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
   },
 
   // --- 10a. REFUND CONFIRMATION (USER) ---
-  sendRefundConfirmationEmail: async (userEmail, { userName, refundId, amount, trainingType, trainingDate }) => {
+  sendRefundConfirmationEmail: async (userEmail, { userName, refundId, amount, giftCardAmount, giftCardCode, trainingType, trainingDate }) => {
     const formattedDate = trainingDate ? dayjs(trainingDate).tz('Europe/Bratislava').format('DD.MM.YYYY') : null;
     const subject = 'Potvrdenie refundu | Nitráčik';
 
@@ -1975,12 +1989,30 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
               <p>Potvrdzujeme prijatie a spracovanie Vašej žiadosti o refund.</p>
 
               <div class="info-box">
-                <div class="info-row"><strong>Refund ID:</strong> ${refundId}</div>
-                <div class="info-row"><strong>Suma:</strong> ${amount} €</div>
+                ${refundId ? `<div class="info-row"><strong>Refund ID:</strong> ${refundId}</div>` : ''}
+                <div class="highlight-item">💳 <strong>Vrátená suma na kartu:</strong> ${Number(amount).toFixed(2)} €</div>
+                ${(giftCardAmount && giftCardAmount > 0)
+                  ? `<div class="highlight-item">🎁 <strong>Vrátené na darčekový poukaz:</strong> ${Number(giftCardAmount).toFixed(2)} €</div>`
+                  : ''
+                }
                 ${trainingType ? `<div class="info-row"><strong>Tréning:</strong> ${trainingType}</div>` : ''}
                 ${formattedDate ? `<div class="info-row"><strong>Dátum:</strong> ${formattedDate}</div>` : ''}
                 <div class="info-row" style="font-size: 13px; color: #666; margin-top: 10px;">Peniaze by sa mali vrátiť na Váš účet do 5–10 pracovných dní.</div>
               </div>
+
+              ${(giftCardAmount && giftCardAmount > 0 && giftCardCode)
+                ? `
+                <div style="margin-top: 15px; padding: 12px; background-color: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px;">
+                  <div style="color: #92400e; font-weight: bold; margin-bottom: 5px;">🎁 Darčekový poukaz obnovený:</div>
+                  <div style="font-size: 14px; color: #78350f;">
+                    Suma <strong>${Number(giftCardAmount).toFixed(2)} €</strong> bola vrátená na zostatok darčekového poukazu 
+                    <strong style="font-family: monospace;">${giftCardCode}</strong>. 
+                    Poukaz môžete okamžite použiť na novú rezerváciu.
+                  </div>
+                </div>
+                `
+                : ''
+              }
 
               <p>Ak by ste mali otázky, stačí odpovedať na tento email.</p>
 
