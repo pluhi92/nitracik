@@ -1365,13 +1365,13 @@ const UserProfile = () => {
                   return (
                     <div
                       key={`${session.booking_id || 'booking'}-${session.training_date || ''}-${index}`}
-                      className={`flex flex-col md:flex-row md:items-center justify-between p-5 rounded-2xl border ${isCancelled
+                      className={`flex flex-col items-center md:flex-row md:items-center justify-between p-5 rounded-2xl border ${isCancelled
                         ? 'bg-neutral-50 border-neutral-200'
                         : 'bg-white border-neutral-200 shadow-sm hover:border-primary/30 transition-colors'
                         }`}
                     >
-                      <div className="flex-1 mb-4 md:mb-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
+                      <div className="flex-1 flex flex-col items-center text-center mb-4 md:mb-0 md:text-left md:items-start">
+                        <div className="flex flex-col items-center sm:flex-row sm:items-center justify-center gap-2 sm:gap-4 mb-2">
                           <strong className={`text-lg font-black uppercase ${isCancelled ? 'text-neutral-400' : 'text-foreground'}`}>
                             {session.training_type}
                           </strong>
@@ -1391,7 +1391,7 @@ const UserProfile = () => {
                         )}
                       </div>
                       
-                      <div
+                        <div
                         data-tooltip-id="cancel-tooltip"
                         data-tooltip-content={
                           isCancelled
@@ -1400,17 +1400,17 @@ const UserProfile = () => {
                               ? t?.profile?.cancel?.tooltip || 'Zrušenie už nie je možné, do relácie zostáva menej ako 10 hodín.'
                               : ''
                         }
-                        className="flex-shrink-0 w-full md:w-auto"
+                        className="flex-shrink-0 w-full md:w-auto flex justify-center md:block"
                       >
                         <button
                           className={`w-full md:w-auto px-5 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${isCancelled || !canCancel
                             ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed border border-neutral-200'
-                            : 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600'
+                            : 'bg-red-600 text-black hover:bg-red-700'
                             }`}
                           onClick={() => handleCancelSession(session.booking_id, session.training_date, session.training_type)}
                           disabled={isCancelled || !canCancel}
                         >
-                          <XCircle className="w-4 h-4" />
+                          <XCircle className="w-5 h-5" />
                           {isCancelled ? t?.profile?.cancelled || 'Zrušené' : t?.profile?.cancel?.button || 'Zrušiť reláciu'}
                         </button>
                       </div>
