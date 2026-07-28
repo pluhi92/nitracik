@@ -3104,13 +3104,23 @@ app.get('/api/bookings/user/:userId', isAuthenticated, async (req, res) => {
     const result = await pool.query(`
       SELECT 
         b.id AS booking_id, 
-        b.credit_id,           -- ✅ Pridané pre starší kód
-        b.booking_type,        -- ✅ TOTO JE KĽÚČOVÉ - musí sa vrátiť
-        b.amount_paid,         -- ✅ Pre rozlíšenie paid
+        b.credit_id,
+        b.booking_type,
+        b.amount_paid,
+        b.booked_at,
+        b.number_of_children,
+        b.number_of_adults,
+        b.accompanying_person,
+        b.children_ages,
+        b.photo_consent,
+        b.mobile,
+        b.note,
+        b.age_group,
         t.training_type, 
         t.training_date,
         t.cancelled,
         t.theme,
+        t.max_participants,
         b.active
       FROM bookings b
       JOIN training_availability t ON b.training_id = t.id

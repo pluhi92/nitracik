@@ -9,7 +9,7 @@ import {
   MapPin, Phone, ShieldAlert, FileText, 
   Ticket, CalendarDays, History, Archive,
   AlertTriangle, ChevronDown, CheckCircle, CreditCard, RefreshCw, ChevronUp, Gift,
-  Mail
+  Mail, ExternalLink
 } from 'lucide-react';
 import api from '../api/api';
 
@@ -72,6 +72,8 @@ const UserProfile = () => {
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [giftCards, setGiftCards] = useState([]);
   const [showGcHistory, setShowGcHistory] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedSessionDetail, setSelectedSessionDetail] = useState(null);
 
   // --- SMART ADRESA LOGIKA ---
   const [addrCity, setAddrCity] = useState('');
@@ -1389,6 +1391,13 @@ const UserProfile = () => {
                             </span>
                           </div>
                         )}
+                        <button
+                          onClick={() => { setSelectedSessionDetail(session); setShowDetailModal(true); }}
+                          className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-neutral-100 hover:bg-primary/10 text-neutral-600 hover:text-primary font-bold text-xs rounded-xl transition-all border border-neutral-200 hover:border-primary/30"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          Podrobnosti rezervácie
+                        </button>
                       </div>
                       
                         <div
@@ -1403,14 +1412,14 @@ const UserProfile = () => {
                         className="flex-shrink-0 w-full md:w-auto flex justify-center md:block"
                       >
                         <button
-                          className={`w-full md:w-auto px-5 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${isCancelled || !canCancel
+                          className={`w-full md:w-auto px-5 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${isCancelled || !canCancel
                             ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed border border-neutral-200'
-                            : 'bg-red-600 text-black hover:bg-red-700'
+                            : 'bg-white text-red-600 border-2 border-red-500 hover:bg-red-50'
                             }`}
                           onClick={() => handleCancelSession(session.booking_id, session.training_date, session.training_type)}
                           disabled={isCancelled || !canCancel}
                         >
-                          <XCircle className="w-5 h-5" />
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-600 text-white text-[10px] font-black leading-none shrink-0">✕</span>
                           {isCancelled ? t?.profile?.cancelled || 'Zrušené' : t?.profile?.cancel?.button || 'Zrušiť reláciu'}
                         </button>
                       </div>
@@ -2215,6 +2224,170 @@ const UserProfile = () => {
                 ? <><SpinnerIcon className="w-4 h-4" /> Odosielam...</>
                 : <><Mail className="w-4 h-4" /> Áno, odoslať</>
               }
+            </button>
+          </Modal.Footer>
+        </div>
+      </Modal>
+
+      {/* Detail Rezervácie Modal */}
+      <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} centered>
+        <div className="bg-white rounded-[2rem] shadow-2xl border-0 overflow-hidden">
+          <Modal.Header closeButton className="border-b border-neutral-100 p-5 pb-3">
+            <Modal.Title className="text-lg font-black text-foreground">
+              Podrobnosti rezervácie
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="p-5">
+            {selectedSessionDetail && (
+              <div className="space-y-4">
+                {/* Hlavička */}
+                <div className="bg-neutral-50 rounded-xl p-4 border border-neutral-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20">
+                      {selectedSessionDetail.training_type}
+                    </span>
+                    {selectedSessionDetail.cancelled && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-600 border border-red-100">
+                        <XCircle className="w-3 h-3 mr-1" /> Zrušené
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-base font-black text-foreground">
+                    {formatSlovakDate(selectedSessionDetail.training_date)}
+                  </div>
+                  {selectedSessionDetail.theme && (
+                    <div className="mt-2 inline-flex items-center px-2.5 py-0.5 bg-neutral-200/60 rounded-md">
+                      <span className="text-neutral-700 font-bold text-[11px] uppercase tracking-wider">
+                        Téma: {selectedSessionDetail.theme}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Miesto konania */}
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                  <span className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5" /> Miesto konania
+                  </span>
+                  <p className="text-sm font-bold text-foreground mt-1">Štefánikova trieda 148, 949 01 Nitra</p>
+                  <a
+                    href="https://maps.google.com/?q=Štefánikova+trieda+148+Nitra"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-primary hover:underline"
+                  >
+                    <ExternalLink className="w-3 h-3" /> Otvoriť v Google Maps
+                  </a>
+                </div>
+
+                {/* Detailné info grid - 2 stĺpce */}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Dátum vytvorenia */}
+                  <div className="bg-neutral-50 rounded-lg p-3 border border-neutral-100">
+                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Dátum vytvorenia</span>
+                    <p className="text-sm font-bold text-foreground mt-0.5">
+                      {selectedSessionDetail.booked_at
+                        ? formatSlovakDate(selectedSessionDetail.booked_at)
+                        : '—'}
+                    </p>
+                  </div>
+
+                  {/* Spôsob platby */}
+                  <div className="bg-neutral-50 rounded-lg p-3 border border-neutral-100">
+                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Spôsob platby</span>
+                    <p className="text-sm font-bold text-foreground mt-0.5">
+                      {(() => {
+                        if (selectedSessionDetail.booking_type === 'credit') return <span className="text-blue-700">Kredit</span>;
+                        if (selectedSessionDetail.booking_type === 'season_ticket') return <span className="text-yellow-700">Permanentka</span>;
+                        if (selectedSessionDetail.booking_type === 'gift_card') return <span className="text-amber-700">🎁 Darčekový poukaz</span>;
+                        if (selectedSessionDetail.booking_type === 'paid' && selectedSessionDetail.amount_paid && selectedSessionDetail.amount_paid > 0) return <span className="text-emerald-700">Zaplatená</span>;
+                        if (selectedSessionDetail.booking_type === 'paid' && (!selectedSessionDetail.amount_paid || selectedSessionDetail.amount_paid === 0)) return <span className="text-orange-700">Čaká na platbu</span>;
+                        return <span className="text-neutral-600">Rezervácia</span>;
+                      })()}
+                    </p>
+                  </div>
+
+                  {/* Suma */}
+                  <div className="bg-neutral-50 rounded-lg p-3 border border-neutral-100">
+                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Zaplatená suma</span>
+                    <p className="text-sm font-bold text-foreground mt-0.5">
+                      {selectedSessionDetail.amount_paid && selectedSessionDetail.amount_paid > 0
+                        ? `€${parseFloat(selectedSessionDetail.amount_paid).toFixed(2)}`
+                        : '—'}
+                    </p>
+                  </div>
+
+                  {/* Typ tréningu */}
+                  <div className="bg-neutral-50 rounded-lg p-3 border border-neutral-100">
+                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Typ tréningu</span>
+                    <p className="text-sm font-bold text-foreground mt-0.5">
+                      {selectedSessionDetail.age_group === 'adult' ? 'Dospelý' : 'Detský'}
+                    </p>
+                  </div>
+
+                  {/* Počet účastníkov */}
+                  <div className="bg-neutral-50 rounded-lg p-3 border border-neutral-100">
+                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
+                      {selectedSessionDetail.age_group === 'adult' ? 'Počet dospelých' : 'Počet detí'}
+                    </span>
+                    <p className="text-sm font-bold text-foreground mt-0.5">
+                      {selectedSessionDetail.age_group === 'adult'
+                        ? (selectedSessionDetail.number_of_adults || 1)
+                        : (selectedSessionDetail.number_of_children || 0)}
+                    </p>
+                  </div>
+
+                  {/* Sprevádzajúca osoba */}
+                  <div className="bg-neutral-50 rounded-lg p-3 border border-neutral-100">
+                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Sprevádzajúca osoba</span>
+                    <p className="text-sm font-bold text-foreground mt-0.5">
+                      {selectedSessionDetail.accompanying_person ? '✅ Áno' : '❌ Nie'}
+                    </p>
+                  </div>
+
+                  {/* Vek detí */}
+                  {selectedSessionDetail.children_ages && (
+                    <div className="bg-neutral-50 rounded-lg p-3 border border-neutral-100">
+                      <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Vek detí</span>
+                      <p className="text-sm font-bold text-foreground mt-0.5">{selectedSessionDetail.children_ages}</p>
+                    </div>
+                  )}
+
+                  {/* Foto súhlas */}
+                  <div className="bg-neutral-50 rounded-lg p-3 border border-neutral-100">
+                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Foto súhlas</span>
+                    <p className="text-sm font-bold text-foreground mt-0.5">
+                      {selectedSessionDetail.photo_consent ? '✅ Udelený' : '❌ Neudelený'}
+                    </p>
+                  </div>
+
+                  {/* Telefón */}
+                  {selectedSessionDetail.mobile && (
+                    <div className="bg-neutral-50 rounded-lg p-3 border border-neutral-100">
+                      <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Telefón</span>
+                      <p className="text-sm font-bold text-foreground mt-0.5">{selectedSessionDetail.mobile}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Poznámka */}
+                {(selectedSessionDetail.note && selectedSessionDetail.note.trim()) && (
+                  <div className="bg-amber-50 rounded-xl p-3 border border-amber-200">
+                    <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">📝 Poznámka</span>
+                    <p className="text-xs font-medium text-amber-900 mt-1 whitespace-pre-wrap">
+                      {selectedSessionDetail.note}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </Modal.Body>
+          <Modal.Footer className="border-t border-neutral-100 p-4 pt-3">
+            <button
+              className="px-5 py-2 rounded-xl font-bold text-white bg-primary hover:bg-primary-600 transition-all hover:shadow-md w-full text-sm"
+              onClick={() => setShowDetailModal(false)}
+            >
+              Zavrieť
             </button>
           </Modal.Footer>
         </div>
