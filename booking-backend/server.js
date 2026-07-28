@@ -479,17 +479,35 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
         }
 
         // Update existing booking with payment details and activate it
+        // Skutočná suma zaplatená kartou = Stripe session.amount_total (nie totalPrice z metadata)
+        // totalPrice v metadata = pôvodná cena tréningu; pri mixed platbe je Stripe suma nižšia
+        const stripeAmountPaid = session.amount_total / 100; // session.amount_total = čo Stripe skutočne účtoval
         const paymentIntentId = session.payment_intent;
+
+        const gcCodeWebhook = (session.metadata?.giftCardCode && session.metadata.giftCardCode.trim() !== '')
+          ? session.metadata.giftCardCode.trim().toUpperCase()
+          : null;
+        const gcAmountWebhook = parseFloat(session.metadata?.giftCardDiscount || '0');
+
         const updateResult = await client.query(
             `UPDATE bookings 
              SET amount_paid = $1, 
                payment_time = $2, 
                payment_intent_id = $3, 
                session_id = NULL,
-               active = true
+               active = true,
+               gift_card_code = $5,
+               gift_card_amount = $6
              WHERE session_id = $4 
              RETURNING *`,
-            [parseFloat(totalPrice), new Date(session.created * 1000), paymentIntentId, session.id]
+            [
+              stripeAmountPaid,
+              new Date(session.created * 1000),
+              paymentIntentId,
+              session.id,
+              gcCodeWebhook,
+              (gcAmountWebhook > 0) ? gcAmountWebhook : null,
+            ]
         );
 
         console.log('[DEBUG] Webhook booking update session_id:', session.id, 'rows:', updateResult.rowCount);
@@ -568,7 +586,15 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           if (!displayTime) displayTime = trainingLocal.format('HH:mm');
         }
 
+        // Skutočná suma zaplatená kartou = Stripe session.amount_total (nie totalPrice z metadata)
+        const stripeAmountPaidAdult = session.amount_total / 100;
         const paymentIntentId = session.payment_intent;
+
+        const gcCodeAdult = (session.metadata?.giftCardCode && session.metadata.giftCardCode.trim() !== '')
+          ? session.metadata.giftCardCode.trim().toUpperCase()
+          : null;
+        const gcAmountAdult = parseFloat(session.metadata?.giftCardDiscount || '0');
+
         const updateResult = await client.query(
           `UPDATE bookings
            SET amount_paid = $1,
@@ -578,11 +604,21 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
                active = true,
                age_group = 'adult',
                number_of_adults = 1,
-                number_of_children = 0,
-                photo_consent = $5
+               number_of_children = 0,
+               photo_consent = $5,
+               gift_card_code = $6,
+               gift_card_amount = $7
            WHERE session_id = $4
            RETURNING *`,
-           [parseFloat(totalPrice), new Date(session.created * 1000), paymentIntentId, session.id, (photoConsent === 'true' ? true : null)]
+           [
+             stripeAmountPaidAdult,
+             new Date(session.created * 1000),
+             paymentIntentId,
+             session.id,
+             (photoConsent === 'true' ? true : null),
+             gcCodeAdult,
+             (gcAmountAdult > 0) ? gcAmountAdult : null,
+           ]
         );
 
         if (updateResult.rowCount === 0) {
