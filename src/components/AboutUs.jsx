@@ -669,12 +669,12 @@ const AboutUs = () => {
                 Kúpiť darčekový poukaz
               </Link>
             </div>
-            <div className="flex-shrink-0 w-full sm:w-[340px]">
+            <div className="flex-shrink-0 w-full sm:w-[520px]">
               <GiftCertificate
                 mode="preview"
                 amount={50}
-                recipientName="Maťko"
-                buyerEmail="mama@nitracik.sk"
+                recipientName="Maťka"
+                buyerEmail="Barborky"
                 message="Užite si krásny zážitok! 🎉"
                 expiresAt={new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()}
                 code={null}

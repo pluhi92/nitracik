@@ -1,4 +1,5 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useLayoutEffect } from 'react';
+import nitracikLogo from '../assets/nitracik_svg2.svg';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return "—";
@@ -79,18 +80,12 @@ const GiftCertificate = ({
         className={`relative z-10 flex flex-col ${isCompact ? "p-4 sm:p-5 gap-2" : "p-6 sm:p-8 gap-3"}`}
       >
         {/* Header row */}
-        <div className={`flex items-center justify-center ${isCompact ? "gap-2" : "gap-3"}`}>
-          <div
-            className={`${isCompact ? "w-12 h-12" : "w-14 h-14"} bg-amber-50 border border-amber-200 rounded-full flex items-center justify-center flex-shrink-0`}
-          >
-            <span className={`font-black ${isCompact ? "text-lg" : "text-xl"} text-amber-600`}>N</span>
-          </div>
-          <div>
-            <div className={`font-black ${isCompact ? "text-xl" : "text-2xl"} text-[#3D3D4E] leading-tight`}>Nitráčik</div>
-            <div className={`${isCompact ? "text-[9px]" : "text-[10px]"} tracking-[0.2em] text-[#7A7A8C] uppercase leading-tight`}>
-              MESSY SENSORY PLAY
-            </div>
-          </div>
+        <div className={`flex items-center justify-center ${isCompact ? "mb-1" : "mb-2"}`}>
+          <img
+            src={nitracikLogo}
+            alt="Nitráčik MESSY SENSORY PLAY"
+            className={`${isCompact ? "h-16" : "h-24"} w-auto object-contain`}
+          />
         </div>
 
         {/* Title */}
@@ -176,9 +171,9 @@ const GiftCertificate = ({
   // Wrapper that scales the card down to fit on smaller screens
   const ScaledWrapper = ({ children }) => {
     const containerRef = useRef(null);
-    const [scale, setScale] = useState(1);
+    const [scale, setScale] = useState(null);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
       const updateScale = () => {
         if (containerRef.current) {
           const containerWidth = containerRef.current.parentElement?.clientWidth || containerRef.current.clientWidth;
@@ -196,16 +191,32 @@ const GiftCertificate = ({
             }
           }
 
-          const newScale = Math.min(widthScale, heightScale);
-          setScale(newScale);
+          const newScale = Math.max(0.01, Math.min(widthScale, heightScale));
+          setScale((prev) => {
+            if (prev !== null && Math.abs(prev - newScale) < 0.002) {
+              return prev;
+            }
+            return newScale;
+          });
         }
       };
+
       updateScale();
       window.addEventListener('resize', updateScale);
-      return () => window.removeEventListener('resize', updateScale);
+
+      const ro = new ResizeObserver(() => updateScale());
+      if (containerRef.current?.parentElement) {
+        ro.observe(containerRef.current.parentElement);
+      }
+
+      return () => {
+        window.removeEventListener('resize', updateScale);
+        ro.disconnect();
+      };
     }, []);
 
-    const scaledHeight = CARD_HEIGHT * scale;
+    const effectiveScale = scale ?? 1;
+    const scaledHeight = CARD_HEIGHT * effectiveScale;
 
     return (
       <div
@@ -221,9 +232,10 @@ const GiftCertificate = ({
             position: 'absolute',
             top: 0,
             left: '50%',
-            transform: `translateX(-50%) scale(${scale})`,
+            transform: `translateX(-50%) scale(${effectiveScale})`,
             transformOrigin: 'top center',
             width: `${CARD_WIDTH}px`,
+            opacity: scale === null ? 0 : 1,
           }}
         >
           {children}
@@ -234,7 +246,7 @@ const GiftCertificate = ({
 
   if (isPreview) {
     return (
-      <div className="w-full px-1 sm:px-2">
+      <div className="w-full max-w-[520px] mx-auto px-1 sm:px-2">
         <ScaledWrapper>{cardElement}</ScaledWrapper>
       </div>
     );
