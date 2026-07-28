@@ -23,7 +23,7 @@ import {
   ExternalLink,
   Gift
 } from 'lucide-react';
-
+import GiftCertificate from './GiftCertificate';
 const getInitials = (name = '') => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '•';
@@ -669,8 +669,16 @@ const AboutUs = () => {
                 Kúpiť darčekový poukaz
               </Link>
             </div>
-            <div className="flex-shrink-0 w-48 h-48 sm:w-56 sm:h-56 bg-amber-50 rounded-[2rem] border border-amber-200 flex items-center justify-center shadow-sm">
-              <Gift className="w-20 h-20 sm:w-24 sm:h-24 text-amber-400" />
+            <div className="flex-shrink-0 w-full sm:w-[340px]">
+              <GiftCertificate
+                mode="preview"
+                amount={50}
+                recipientName="Maťko"
+                buyerEmail="mama@nitracik.sk"
+                message="Užite si krásny zážitok! 🎉"
+                expiresAt={new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()}
+                code={null}
+              />
             </div>
           </div>
         </div>

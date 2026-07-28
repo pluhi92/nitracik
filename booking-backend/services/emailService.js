@@ -2459,7 +2459,7 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
   },
 
   // --- GIFT CARD EMAIL ---
-  sendGiftCardEmail: async (toEmail, { code, amount, balance, recipientName, message, expiresAt, isBuyer }) => {
+  sendGiftCardEmail: async (toEmail, { code, amount, balance, recipientName, buyerEmail, message, expiresAt, isBuyer, pdfBuffer }) => {
     const formattedExpiry = dayjs(expiresAt).tz('Europe/Bratislava').format('DD.MM.YYYY');
     const subject = isBuyer
       ? `🎁 Darčekový poukaz Nitráčik – ${amount}€ bol zakúpený`
@@ -2552,7 +2552,16 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
         </body>
         </html>
       `),
-      attachments: getCommonAttachments()
+      attachments: [
+        ...getCommonAttachments(),
+        ...(pdfBuffer
+          ? [{
+              filename: 'darcekovy-poukaz-nitracik.pdf',
+              content: pdfBuffer,
+              contentType: 'application/pdf',
+            }]
+          : []),
+      ]
     };
       return transporter.sendMail(mailOptions);
   },

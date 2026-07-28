@@ -13,9 +13,12 @@ import {
   ChevronDown,
   AlertCircle,
   ArrowLeft,
-  Calendar
+  Calendar,
+  Eye,
+  X
 } from 'lucide-react';
 import api from '../api/api';
+import GiftCertificate from '../components/GiftCertificate';
 
 const cardVariants = {
   hidden: { opacity: 0, y: 24 },
@@ -48,6 +51,7 @@ const GiftCard = () => {
   const [recipientName, setRecipientName] = useState('');
   const [message, setMessage] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
+  const [buyerName, setBuyerName] = useState('');
   const [buyerEmail, setBuyerEmail] = useState('');
   const [tocAccepted, setTocAccepted] = useState(false);
   const [honeypot, setHoneypot] = useState('');
@@ -61,6 +65,7 @@ const GiftCard = () => {
   const [successLoading, setSuccessLoading] = useState(true);
   const [successError, setSuccessError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const isSuccessRoute = location.pathname === '/gift-card/success';
 
@@ -76,6 +81,7 @@ const GiftCard = () => {
           const response = await api.get(`/api/users/${userId}`);
           setUserData(response.data);
           setBuyerEmail(response.data.email || '');
+          setBuyerName(`${response.data.first_name || ''} ${response.data.last_name || ''}`.trim());
         } catch (err) {
           console.error('Error fetching user data:', err);
         }
@@ -151,6 +157,7 @@ const GiftCard = () => {
       const response = await api.post('/api/create-gift-card-session', {
         amount: selectedAmount,
         buyerEmail,
+        buyerName: buyerName.trim(),
         recipientName: recipientName.trim(),
         recipientEmail: recipientEmail.trim() || undefined,
         message: message.trim() || undefined,
@@ -187,7 +194,7 @@ const GiftCard = () => {
   };
 
   // ── Submit disabled condition ──
-  const isSubmitDisabled = !selectedAmount || !recipientName.trim() || !buyerEmail.trim() || !tocAccepted || loading;
+  const isSubmitDisabled = !selectedAmount || !recipientName.trim() || !buyerEmail.trim() || !buyerName.trim() || !tocAccepted || loading;
 
   // ── Render: Success screen ──
   if (isSuccessRoute) {
@@ -221,76 +228,78 @@ const GiftCard = () => {
         )}
 
         {!successLoading && !successError && successData && (
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={fadeInUp}
-            className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 p-8 sm:p-12 text-center"
-          >
-            {/* Success icon */}
-            <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <CheckCircle2 className="w-8 h-8" />
+          <motion.div initial="hidden" animate="visible" variants={fadeInUp}
+            className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 p-6 sm:p-10 text-center">
+            
+            {/* Success header */}
+            <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center
+              justify-center mx-auto mb-4">
+              <CheckCircle2 className="w-7 h-7" />
             </div>
-
-            {/* Heading */}
-            <h2 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight mb-4">
-              Darčekový poukaz bol odoslaný! 🎉
-            </h2>
-            <p className="text-neutral-600 font-medium text-base sm:text-lg mb-8 leading-relaxed">
-              Poukaz sme poslali na email. Použite kód nižšie pri rezervácii.
+            <h2 className="text-2xl font-black text-foreground mb-1">Poukaz bol vytvorený! 🎉</h2>
+            <p className="text-neutral-500 text-sm mb-6">
+              Potvrdenie sme odoslali na váš email spolu s PDF prílohou.
             </p>
 
-            {/* Code display */}
-            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl px-8 py-6 mb-4">
-              <div className="font-mono text-2xl sm:text-3xl tracking-widest font-black text-amber-800 select-all">
+            {/* Full certificate visual */}
+            <div className="mb-6">
+              <GiftCertificate
+                mode="full"
+                code={successData.code}
+                amount={successData.amount}
+                recipientName={successData.recipientName}
+                buyerEmail=""
+                message=""
+                expiresAt={successData.expiresAt}
+              />
+            </div>
+
+            {/* Copy code row */}
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <span className="font-mono font-black text-lg text-[#3D3D4E] tracking-widest bg-[#FFFBEB]
+                border border-[#F59E0B] rounded-xl px-4 py-2">
                 {successData.code}
+              </span>
+              <button
+                onClick={handleCopyCode}
+                className="flex items-center gap-1.5 text-sm font-bold text-amber-600 hover:text-amber-700
+                  bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 transition-colors"
+              >
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copied ? 'Skopírované' : 'Kopírovať'}
+              </button>
+            </div>
+
+            {/* Info box */}
+            <div className="bg-amber-50 rounded-2xl p-4 text-sm text-left mb-6 space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-neutral-500">Hodnota poukazu</span>
+                <span className="font-bold text-foreground">{successData.amount}€</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-500">Platný do</span>
+                <span className="font-bold text-foreground">{formatDate(successData.expiresAt)}</span>
+              </div>
+              <div className="border-t border-amber-200/60 pt-2 mt-2 text-xs text-amber-800">
+                💡 Kód zadajte pri rezervácii na <strong>nitracik.sk/booking</strong>
               </div>
             </div>
 
-            {/* Copy button */}
-            <button
-              onClick={handleCopyCode}
-              className="inline-flex items-center gap-2 text-sm font-semibold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl px-5 py-2.5 transition-colors mb-8"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-4 h-4" />
-                  Skopírované ✓
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4" />
-                  Kopírovať
-                </>
-              )}
-            </button>
-
-            {/* Info row */}
-            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-neutral-600 mb-8">
-              <span className="font-semibold">{successData.amount}€</span>
-              <span className="text-neutral-300">|</span>
-              <span>{successData.recipientName}</span>
-              <span className="text-neutral-300">|</span>
-              <span className="inline-flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5" />
-                Platný do {formatDate(successData.expiresAt)}
-              </span>
-            </div>
-
             {/* Action buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => navigate('/')}
-                className="inline-flex items-center justify-center gap-2 border-2 border-neutral-200 hover:border-neutral-300 text-neutral-700 font-bold rounded-2xl px-6 py-3 transition-colors"
+                className="flex-1 border-2 border-neutral-200 text-foreground font-bold rounded-2xl
+                  px-6 py-3 hover:bg-neutral-50 transition-colors flex items-center justify-center gap-2"
               >
-                <ArrowLeft className="w-4 h-4" />
-                Späť na hlavnú
+                <ArrowLeft className="w-4 h-4" /> Späť na hlavnú
               </button>
               <button
                 onClick={() => navigate('/booking')}
-                className="bg-amber-400 hover:bg-amber-500 text-white font-bold rounded-2xl px-6 py-3 transition-colors"
+                className="flex-1 bg-amber-400 hover:bg-amber-500 text-white font-bold rounded-2xl
+                  px-6 py-3 transition-colors flex items-center justify-center gap-2"
               >
-                Rezervovať teraz
+                <Calendar className="w-4 h-4" /> Rezervovať teraz
               </button>
             </div>
           </motion.div>
@@ -454,6 +463,21 @@ const GiftCard = () => {
             </h2>
           </div>
 
+          {/* Buyer name */}
+          <div className="mb-4">
+            <label className="block text-sm font-bold text-neutral-700 mb-1.5">
+              Vaše meno <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={buyerName}
+              onChange={(e) => setBuyerName(e.target.value)}
+              placeholder="Vaše meno a priezvisko"
+              required
+              className="w-full rounded-2xl border-2 border-neutral-200 px-4 py-3 text-sm font-medium text-foreground placeholder-neutral-400 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all"
+            />
+          </div>
+
           {/* Logged in: readonly email */}
           {isLoggedIn && userData ? (
             <div className="mb-4">
@@ -483,6 +507,18 @@ const GiftCard = () => {
               />
             </div>
           )}
+
+          {/* Preview button */}
+          <div className="mb-4">
+            <button
+              type="button"
+              onClick={() => setShowPreviewModal(true)}
+              className="w-full flex items-center justify-center gap-2 border-2 border-amber-300 text-amber-700 font-bold rounded-2xl px-6 py-3 hover:bg-amber-50 transition-colors"
+            >
+              <Eye className="w-5 h-5" />
+              Pozrieť náhľad
+            </button>
+          </div>
 
           {/* VOP checkbox */}
           <div className="mb-6">
@@ -558,6 +594,42 @@ const GiftCard = () => {
           </button>
         </motion.div>
       </form>
+
+      {/* ── Preview Modal ── */}
+      {showPreviewModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2"
+          onClick={() => setShowPreviewModal(false)}
+        >
+          <div
+            className="relative bg-white rounded-[2rem] shadow-2xl max-w-4xl w-full p-3 sm:p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setShowPreviewModal(false)}
+              className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-700 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-lg font-black text-foreground mb-6 text-center">
+              Náhľad darčekového poukazu
+            </h3>
+
+            <GiftCertificate
+              mode="preview"
+              amount={selectedAmount}
+              recipientName={recipientName}
+              buyerEmail={buyerName}
+              message={message}
+              expiresAt={null}
+              code={null}
+            />
+          </div>
+        </div>
+      )}
     </section>
   );
 };

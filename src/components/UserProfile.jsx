@@ -12,6 +12,7 @@ import {
   Mail, ExternalLink, Clock
 } from 'lucide-react';
 import api from '../api/api';
+import GiftCertificate from './GiftCertificate';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -74,6 +75,7 @@ const UserProfile = () => {
   const [showGcHistory, setShowGcHistory] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedSessionDetail, setSelectedSessionDetail] = useState(null);
+  const [selectedGiftCard, setSelectedGiftCard] = useState(null);
 
   // --- SMART ADRESA LOGIKA ---
   const [addrCity, setAddrCity] = useState('');
@@ -1236,7 +1238,11 @@ const UserProfile = () => {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                     {activeGiftCards.map((gc, index) => (
-                      <div key={gc.id || index} className="bg-gradient-to-br from-amber-50 to-amber-100/60 border border-amber-200 rounded-2xl p-5">
+                      <div
+                        key={gc.id || index}
+                        onClick={() => setSelectedGiftCard(gc)}
+                        className="bg-gradient-to-br from-amber-50 to-amber-100/60 border border-amber-200 rounded-2xl p-5 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all"
+                      >
                         <div className="flex items-center justify-between mb-3">
                           <span className="font-mono text-xs font-black tracking-widest text-amber-700 bg-white border border-amber-200 rounded-lg px-2 py-1">
                             {gc.code}
@@ -1295,7 +1301,11 @@ const UserProfile = () => {
                         >
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {historyGiftCards.map((gc, index) => (
-                              <div key={gc.id || index} className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 opacity-70">
+                              <div
+                                key={gc.id || index}
+                                onClick={() => setSelectedGiftCard(gc)}
+                                className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 opacity-70 cursor-pointer hover:opacity-100 hover:shadow-sm transition-all"
+                              >
                                 <div className="flex items-center justify-between mb-2">
                                   <span className="font-mono text-xs font-black tracking-widest text-neutral-500">
                                     {gc.code}
@@ -1322,6 +1332,41 @@ const UserProfile = () => {
               </div>
             );
           })()}
+
+          {/* GIFT CARD DETAIL MODAL */}
+          {selectedGiftCard && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+              onClick={() => setSelectedGiftCard(null)}
+            >
+              <div
+                className="w-full max-w-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="mb-3 flex justify-end">
+                  <button
+                    onClick={() => setSelectedGiftCard(null)}
+                    className="text-white/80 hover:text-white text-sm font-medium"
+                  >
+                    ✕ Zavrieť
+                  </button>
+                </div>
+                <GiftCertificate
+                  mode="full"
+                  code={selectedGiftCard.code}
+                  amount={selectedGiftCard.amount}
+                  recipientName={selectedGiftCard.recipientName || ''}
+                  buyerEmail=""
+                  message=""
+                  expiresAt={selectedGiftCard.expiresAt}
+                />
+                <div className="mt-3 text-center text-xs text-white/60">
+                  Zostatok: <strong className="text-white">{selectedGiftCard.balance}€</strong>
+                  {' '}· Status: <strong className="text-white">{selectedGiftCard.status}</strong>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* VAŠE REZERVOVANÉ RELÁCIE */}
           <div className="bg-white rounded-[2rem] shadow-sm p-8 border border-neutral-200 mb-8">

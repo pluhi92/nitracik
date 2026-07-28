@@ -41,6 +41,8 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.locale('sk');
 
+const { generateGiftCardPDF } = require('./utils/pdfGenerator');
+
 const APP_TIMEZONE = 'Europe/Bratislava';
 const DEBUG_LOGS = process.env.DEBUG_LOGS === 'true';
 
@@ -5865,6 +5867,7 @@ app.get('/api/gift-card-success', async (req, res) => {
         balance: gc.balance,
         recipientName: gc.recipientName,
         expiresAt: gc.expiresAt,
+        hasPdf: false,
       });
     }
 
@@ -5908,28 +5911,46 @@ app.get('/api/gift-card-success', async (req, res) => {
     );
     const gc = insertResult.rows[0];
 
-    // Send email to buyer (wrapped in try/catch so email failure never causes 500)
+    // Generate PDF once, reuse for both emails
+    let pdfBuffer = null;
+    try {
+      pdfBuffer = await generateGiftCardPDF({
+        code,
+        amount: parsedAmount,
+        recipientName,
+        buyerEmail,
+        message: message || null,
+        expiresAt,
+      });
+    } catch (pdfError) {
+      console.error('[GiftCard] PDF generation failed (non-fatal):', pdfError.message);
+      // pdfBuffer stays null — emails will be sent without attachment
+    }
+
     try {
       await emailService.sendGiftCardEmail(buyerEmail, {
         code,
         amount: parsedAmount,
         balance: parsedAmount,
         recipientName,
+        buyerEmail,
         message: message || null,
         expiresAt,
         isBuyer: true,
+        pdfBuffer,
       });
 
-      // Send separate email to recipient if different email provided
       if (recipientEmail && recipientEmail !== buyerEmail) {
         await emailService.sendGiftCardEmail(recipientEmail, {
           code,
           amount: parsedAmount,
           balance: parsedAmount,
           recipientName,
+          buyerEmail,
           message: message || null,
           expiresAt,
           isBuyer: false,
+          pdfBuffer,
         });
       }
     } catch (emailError) {
@@ -5961,6 +5982,7 @@ app.get('/api/gift-card-success', async (req, res) => {
       balance: gc.balance,
       recipientName: gc.recipientName,
       expiresAt: gc.expiresAt,
+      hasPdf: pdfBuffer !== null,
     });
 
   } catch (error) {
