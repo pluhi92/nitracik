@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useLayoutEffect } from 'react';
+import React, { useRef, useState, useLayoutEffect } from 'react';
 import nitracikLogo from '../assets/nitracik_svg2.svg';
 
 const formatDate = (dateStr) => {
@@ -36,6 +36,81 @@ const Blob = ({ color, className }) => (
     />
   </svg>
 );
+
+const ScaledCertificateWrapper = ({ children, cardWidth, cardHeight, isPreview }) => {
+  const containerRef = useRef(null);
+  const [scale, setScale] = useState(null);
+
+  useLayoutEffect(() => {
+    const updateScale = () => {
+      if (!containerRef.current) return;
+
+      const containerWidth =
+        containerRef.current.parentElement?.clientWidth || containerRef.current.clientWidth;
+      const widthScale = Math.min(1, containerWidth / cardWidth);
+
+      let heightScale = 1;
+      if (isPreview) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const viewportHeight = window.innerHeight || 0;
+        const bottomSafeSpace = 24;
+        const availableHeight = viewportHeight - rect.top - bottomSafeSpace;
+        if (availableHeight > 0) {
+          heightScale = Math.min(1, availableHeight / cardHeight);
+        }
+      }
+
+      const newScale = Math.max(0.01, Math.min(widthScale, heightScale));
+      setScale((prev) => {
+        if (prev !== null && Math.abs(prev - newScale) < 0.002) {
+          return prev;
+        }
+        return newScale;
+      });
+    };
+
+    updateScale();
+    window.addEventListener('resize', updateScale);
+
+    const ro = new ResizeObserver(() => updateScale());
+    if (containerRef.current?.parentElement) {
+      ro.observe(containerRef.current.parentElement);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateScale);
+      ro.disconnect();
+    };
+  }, [cardWidth, cardHeight, isPreview]);
+
+  const effectiveScale = scale ?? 1;
+  const scaledHeight = cardHeight * effectiveScale;
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        width: '100%',
+        height: `${scaledHeight}px`,
+        position: 'relative',
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: '50%',
+          transform: `translateX(-50%) scale(${effectiveScale})`,
+          transformOrigin: 'top center',
+          width: `${cardWidth}px`,
+          opacity: scale === null ? 0 : 1,
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
 
 const GiftCertificate = ({
   mode = "full",
@@ -168,91 +243,25 @@ const GiftCertificate = ({
   // Determine final render based on container width vs card base width
   const cardElement = card;
 
-  // Wrapper that scales the card down to fit on smaller screens
-  const ScaledWrapper = ({ children }) => {
-    const containerRef = useRef(null);
-    const [scale, setScale] = useState(null);
-
-    useLayoutEffect(() => {
-      const updateScale = () => {
-        if (containerRef.current) {
-          const containerWidth = containerRef.current.parentElement?.clientWidth || containerRef.current.clientWidth;
-          const widthScale = Math.min(1, containerWidth / CARD_WIDTH);
-
-          // In modal preview we also respect available viewport height.
-          let heightScale = 1;
-          if (isPreview) {
-            const rect = containerRef.current.getBoundingClientRect();
-            const viewportHeight = window.innerHeight || 0;
-            const bottomSafeSpace = 24;
-            const availableHeight = viewportHeight - rect.top - bottomSafeSpace;
-            if (availableHeight > 0) {
-              heightScale = Math.min(1, availableHeight / CARD_HEIGHT);
-            }
-          }
-
-          const newScale = Math.max(0.01, Math.min(widthScale, heightScale));
-          setScale((prev) => {
-            if (prev !== null && Math.abs(prev - newScale) < 0.002) {
-              return prev;
-            }
-            return newScale;
-          });
-        }
-      };
-
-      updateScale();
-      window.addEventListener('resize', updateScale);
-
-      const ro = new ResizeObserver(() => updateScale());
-      if (containerRef.current?.parentElement) {
-        ro.observe(containerRef.current.parentElement);
-      }
-
-      return () => {
-        window.removeEventListener('resize', updateScale);
-        ro.disconnect();
-      };
-    }, []);
-
-    const effectiveScale = scale ?? 1;
-    const scaledHeight = CARD_HEIGHT * effectiveScale;
-
-    return (
-      <div
-        ref={containerRef}
-        style={{
-          width: '100%',
-          height: `${scaledHeight}px`,
-          position: 'relative',
-        }}
-      >
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: '50%',
-            transform: `translateX(-50%) scale(${effectiveScale})`,
-            transformOrigin: 'top center',
-            width: `${CARD_WIDTH}px`,
-            opacity: scale === null ? 0 : 1,
-          }}
-        >
-          {children}
-        </div>
-      </div>
-    );
-  };
-
   if (isPreview) {
     return (
       <div className="w-full max-w-[520px] mx-auto px-1 sm:px-2">
-        <ScaledWrapper>{cardElement}</ScaledWrapper>
+        <ScaledCertificateWrapper
+          cardWidth={CARD_WIDTH}
+          cardHeight={CARD_HEIGHT}
+          isPreview={isPreview}
+        >
+          {cardElement}
+        </ScaledCertificateWrapper>
       </div>
     );
   }
 
-  return <ScaledWrapper>{cardElement}</ScaledWrapper>;
+  return (
+    <ScaledCertificateWrapper cardWidth={CARD_WIDTH} cardHeight={CARD_HEIGHT} isPreview={isPreview}>
+      {cardElement}
+    </ScaledCertificateWrapper>
+  );
 };
 
 export default GiftCertificate;
