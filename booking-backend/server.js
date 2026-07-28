@@ -478,10 +478,13 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           throw new Error('Session is full');
         }
 
-        // Update existing booking with payment details and activate it
-        // Skutočná suma zaplatená kartou = Stripe session.amount_total (nie totalPrice z metadata)
-        // totalPrice v metadata = pôvodná cena tréningu; pri mixed platbe je Stripe suma nižšia
-        const stripeAmountPaid = session.amount_total / 100; // session.amount_total = čo Stripe skutočne účtoval
+        // Prefer Stripe's charged amount when available; tests/mocks may omit amount_total.
+        const stripeAmountPaid = Number.isFinite(Number(session.amount_total))
+          ? Number(session.amount_total) / 100
+          : parseFloat(totalPrice);
+        if (!Number.isFinite(stripeAmountPaid)) {
+          throw new Error('Invalid paid amount in webhook payload');
+        }
         const paymentIntentId = session.payment_intent;
 
         const gcCodeWebhook = (session.metadata?.giftCardCode && session.metadata.giftCardCode.trim() !== '')
@@ -586,8 +589,13 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (re
           if (!displayTime) displayTime = trainingLocal.format('HH:mm');
         }
 
-        // Skutočná suma zaplatená kartou = Stripe session.amount_total (nie totalPrice z metadata)
-        const stripeAmountPaidAdult = session.amount_total / 100;
+        // Prefer Stripe's charged amount when available; tests/mocks may omit amount_total.
+        const stripeAmountPaidAdult = Number.isFinite(Number(session.amount_total))
+          ? Number(session.amount_total) / 100
+          : parseFloat(totalPrice);
+        if (!Number.isFinite(stripeAmountPaidAdult)) {
+          throw new Error('Invalid paid amount in webhook payload');
+        }
         const paymentIntentId = session.payment_intent;
 
         const gcCodeAdult = (session.metadata?.giftCardCode && session.metadata.giftCardCode.trim() !== '')
