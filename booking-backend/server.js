@@ -5789,7 +5789,7 @@ app.post('/api/admin/send-bulk-email', isAdmin, async (req, res) => {
 // ENDPOINT 1: Create Stripe checkout session for gift card
 app.post('/api/create-gift-card-session', async (req, res) => {
   try {
-    const { amount, buyerEmail, recipientName, recipientEmail, message, honeypot } = req.body;
+    const { amount, buyerEmail, buyerName, recipientName, recipientEmail, message, honeypot } = req.body;
 
     // Bot protection
     if (honeypot) {
@@ -5828,6 +5828,7 @@ app.post('/api/create-gift-card-session', async (req, res) => {
         type: 'gift_card',
         amount: String(parsedAmount),
         buyerEmail,
+        buyerName: (buyerName || '').trim(),
         recipientName,
         recipientEmail: recipientEmail || '',
         message: message || '',
@@ -5865,6 +5866,8 @@ app.get('/api/gift-card-success', async (req, res) => {
         code: gc.code,
         amount: gc.amount,
         balance: gc.balance,
+        buyerEmail: gc.buyerEmail,
+        buyerName: session.metadata?.buyerName || '',
         recipientName: gc.recipientName,
         expiresAt: gc.expiresAt,
         hasPdf: false,
@@ -5872,7 +5875,7 @@ app.get('/api/gift-card-success', async (req, res) => {
     }
 
     // Extract metadata
-    const { amount, buyerEmail, recipientName, recipientEmail, message } = session.metadata;
+    const { amount, buyerEmail, buyerName, recipientName, recipientEmail, message } = session.metadata;
     const parsedAmount = parseFloat(amount);
 
     // Generate unique code with retry
@@ -5919,6 +5922,7 @@ app.get('/api/gift-card-success', async (req, res) => {
         amount: parsedAmount,
         recipientName,
         buyerEmail,
+        buyerName: buyerName || '',
         message: message || null,
         expiresAt,
       });
@@ -5980,6 +5984,8 @@ app.get('/api/gift-card-success', async (req, res) => {
       code: gc.code,
       amount: gc.amount,
       balance: gc.balance,
+      buyerEmail: gc.buyerEmail,
+      buyerName: buyerName || '',
       recipientName: gc.recipientName,
       expiresAt: gc.expiresAt,
       hasPdf: pdfBuffer !== null,
@@ -6134,6 +6140,69 @@ app.get('/api/gift-cards/user/:userId', isAuthenticated, async (req, res) => {
   } catch (error) {
     console.error('[GiftCard] fetch user gift cards error:', error.message);
     res.status(500).json({ error: 'Chyba pri načítaní darčekových poukazov' });
+  }
+});
+
+// ENDPOINT 6: Download gift card PDF by code
+app.get('/api/gift-cards/:code/pdf', async (req, res) => {
+  const { code } = req.params;
+  if (!code || code.trim().length === 0) {
+    return res.status(400).json({ error: 'Chýba kód poukazu' });
+  }
+
+  // Normalize: remove dashes, uppercase — handles both formats
+  // e.g. "QCPK-ZX3F-QBGW" and "QCPKZX3FQBGW" both work
+  const normalizedCode = code.trim().toUpperCase().replace(/-/g, '');
+
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      'SELECT * FROM gift_card WHERE REPLACE(code, \'-\', \'\') = $1',
+      [normalizedCode]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Poukaz nebol nájdený' });
+    }
+
+    const gc = result.rows[0];
+
+    // buyerName is not stored in gift_card table — fetch from Stripe session metadata
+    // if stripeSessionId is available, otherwise fall back to buyerEmail
+    let buyerName = gc.buyerEmail || '';
+    if (gc.stripeSessionId) {
+      try {
+        const stripeSession = await stripe.checkout.sessions.retrieve(gc.stripeSessionId);
+        buyerName = stripeSession.metadata?.buyerName || gc.buyerEmail || '';
+      } catch (stripeErr) {
+        console.warn('[GiftCard PDF] Could not fetch Stripe session for buyerName:', stripeErr.message);
+        buyerName = gc.buyerEmail || '';
+      }
+    }
+
+    const pdfBuffer = await generateGiftCardPDF({
+      code: gc.code,
+      amount: gc.amount,
+      recipientName: gc.recipientName,
+      buyerEmail: gc.buyerEmail,
+      buyerName,
+      message: gc.message || null,
+      expiresAt: gc.expiresAt,
+    });
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="darcekovy-poukaz-nitracik.pdf"`,
+      'Content-Length': pdfBuffer.length,
+    });
+
+    return res.send(pdfBuffer);
+
+  } catch (error) {
+    console.error('[GiftCard PDF] Error generating PDF:', error.message);
+    return res.status(500).json({ error: 'Nepodarilo sa vygenerovať PDF' });
+  } finally {
+    client.release();
   }
 });
 

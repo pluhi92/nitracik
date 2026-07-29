@@ -15,7 +15,8 @@ import {
   ArrowLeft,
   Calendar,
   Eye,
-  X
+  X,
+  Download
 } from 'lucide-react';
 import api from '../api/api';
 import GiftCertificate from '../components/GiftCertificate';
@@ -66,6 +67,7 @@ const GiftCard = () => {
   const [successError, setSuccessError] = useState('');
   const [copied, setCopied] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const isSuccessRoute = location.pathname === '/gift-card/success';
 
@@ -193,6 +195,46 @@ const GiftCard = () => {
       .finally(() => setSuccessLoading(false));
   };
 
+  // ── Download PDF handler ──
+  const handleDownloadPdf = async () => {
+    if (!successData?.code || pdfLoading) return;
+    setPdfLoading(true);
+    try {
+      // Use native fetch to bypass axios interceptor (avoids spurious 401 redirects)
+      const apiBase = import.meta.env.VITE_API_URL || '';
+      const res = await fetch(
+        `${apiBase}/api/gift-cards/${successData.code}/pdf`,
+        {
+          method: 'GET',
+          credentials: 'include', // send session cookie if logged in
+        }
+      );
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `HTTP ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      if (blob.size === 0) throw new Error('Prázdny PDF súbor');
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'darcekovy-poukaz-nitracik.pdf';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('PDF download failed:', err.message);
+      // Show a user-friendly error — add a small error state
+      alert('Nepodarilo sa stiahnuť PDF. Skúste to znova alebo použite PDF z emailu.');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   // ── Submit disabled condition ──
   const isSubmitDisabled = !selectedAmount || !recipientName.trim() || !buyerEmail.trim() || !buyerName.trim() || !tocAccepted || loading;
 
@@ -242,15 +284,15 @@ const GiftCard = () => {
             </p>
 
             {/* Full certificate visual */}
-            <div className="mb-6">
+            <div className="flex-shrink-0 w-full sm:w-[520px] mx-auto mb-6">
               <GiftCertificate
-                mode="full"
-                code={successData.code}
+                mode="preview"
                 amount={successData.amount}
                 recipientName={successData.recipientName}
-                buyerEmail=""
+                buyerEmail={successData.buyerName || successData.buyerEmail || ''}
                 message=""
                 expiresAt={successData.expiresAt}
+                code={null}
               />
             </div>
 
@@ -267,6 +309,23 @@ const GiftCard = () => {
               >
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 {copied ? 'Skopírované' : 'Kopírovať'}
+              </button>
+            </div>
+
+            {/* Download PDF button */}
+            <div className="flex justify-center mb-4">
+              <button
+                onClick={handleDownloadPdf}
+                disabled={pdfLoading}
+                className={`flex items-center gap-2 text-sm font-bold rounded-2xl px-5 py-2.5
+                  border-2 border-[#F4A5A5] text-[#3D3D4E] hover:bg-[#FDECEA] transition-colors
+                  ${pdfLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+              >
+                {pdfLoading
+                  ? <Spinner animation="border" size="sm" />
+                  : <Download className="w-4 h-4 text-[#F4A5A5]" />
+                }
+                {pdfLoading ? 'Generujem PDF...' : 'Stiahnuť poukaz ako PDF'}
               </button>
             </div>
 
