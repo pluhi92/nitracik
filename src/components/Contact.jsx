@@ -88,7 +88,12 @@ function Contact() {
                     <h4 className="text-base font-bold text-foreground mb-1">
                       {t?.contact?.phone || 'Telefón'}
                     </h4>
-                    <p className="text-neutral-600 text-base font-medium">+421 949 584 576</p>
+                    <a
+                      href="tel:+421949584576"
+                      className="text-neutral-600 text-base font-medium hover:text-primary transition-colors"
+                    >
+                      +421 949 584 576
+                    </a>
                   </div>
                 </div>
 
@@ -115,7 +120,12 @@ function Contact() {
                     <h4 className="text-base font-bold text-foreground mb-1">
                       {t?.contact?.email || 'Email'}
                     </h4>
-                    <p className="text-neutral-600 text-base font-medium">info@nitracik.sk</p>
+                    <a
+                      href="mailto:info@nitracik.sk"
+                      className="text-neutral-600 text-base font-medium hover:text-primary transition-colors"
+                    >
+                      info@nitracik.sk
+                    </a>
                   </div>
                 </div>
               </div>

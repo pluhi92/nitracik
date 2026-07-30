@@ -509,8 +509,8 @@ const AboutUs = () => {
               </a>
             </div>
 
-            <p className="flex items-center justify-center gap-2 text-sm text-neutral-500 font-medium">
-              <img src={googleIcon} alt="Google" className="w-4 h-4" />
+            <p className="flex items-center justify-center gap-2 text-sm text-neutral-500 font-bold">
+              <img src={googleIcon} alt="Google" className="w-6 h-6" />
               Overené recenzie z Google
             </p>
           </motion.div>

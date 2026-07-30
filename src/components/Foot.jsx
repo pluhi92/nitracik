@@ -117,7 +117,12 @@ const Foot = () => {
             />
           </Link>
           <p className="mb-2 text-neutral-600 font-medium text-sm">Tešíme sa na Vás! 🤍</p>
-          <span className="text-foreground font-bold mb-1 text-sm">+421 949 584 576</span>
+          <a
+            href="tel:+421949584576"
+            className="text-foreground font-bold mb-1 text-sm hover:text-primary transition-colors"
+          >
+            +421 949 584 576
+          </a>
           <a
             href="mailto:info@nitracik.sk"
             className="text-neutral-600 mb-2 font-semibold text-sm hover:text-primary transition-colors"
