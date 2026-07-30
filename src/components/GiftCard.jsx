@@ -252,7 +252,7 @@ const GiftCard = () => {
   // ── Render: Success screen ──
   if (isSuccessRoute) {
     return (
-      <section className="py-12 md:py-20 container-custom max-w-xl mx-auto px-4 sm:px-6 relative">
+      <section className="py-12 md:py-20 container-custom max-w-4xl mx-auto px-4 sm:px-6 relative">
         {successLoading && (
           <div className="flex items-center justify-center min-h-[300px]">
             <Spinner animation="border" variant="warning" />
@@ -295,15 +295,16 @@ const GiftCard = () => {
             </p>
 
             {/* Full certificate visual */}
-            <div className="flex-shrink-0 w-full sm:w-[520px] mx-auto mb-6">
+            <div className="flex-shrink-0 w-full max-w-[760px] mx-auto mb-6">
               <GiftCertificate
                 mode="preview"
                 amount={successData.amount}
                 recipientName={successData.recipientName}
                 buyerEmail={successData.buyerName || successData.buyerEmail || ''}
-                message=""
+                message={successData.message || ''}
                 expiresAt={successData.expiresAt}
-                code={null}
+                code={successData.code}
+                previewClassName="max-w-[760px]"
               />
             </div>
 
@@ -700,6 +701,7 @@ const GiftCard = () => {
               message={message}
               expiresAt={null}
               code={null}
+              previewClassName="max-w-[760px]"
             />
           </div>
         </div>

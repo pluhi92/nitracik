@@ -1359,6 +1359,7 @@ const UserProfile = () => {
                   buyerEmail=""
                   message=""
                   expiresAt={selectedGiftCard.expiresAt}
+                  previewClassName="max-w-[760px]"
                 />
                 <div className="mt-3 text-center text-xs text-white/60">
                   Zostatok: <strong className="text-white">{selectedGiftCard.balance}€</strong>

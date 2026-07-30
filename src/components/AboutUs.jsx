@@ -636,50 +636,54 @@ const AboutUs = () => {
         variants={fadeInUp}
         className="section-wrapper container-custom"
       >
-        <div className="card-glass border border-neutral-200 rounded-[2rem] shadow-sm p-8 sm:p-12 relative overflow-hidden">
+        <div className="card-glass border border-neutral-200 rounded-[2rem] shadow-sm p-6 sm:p-8 relative overflow-hidden">
           {/* Subtle decorative background */}
           <div className="absolute -top-16 -right-16 w-48 h-48 bg-amber-100/40 rounded-full blur-3xl pointer-events-none"></div>
           <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-amber-100/30 rounded-full blur-3xl pointer-events-none"></div>
           
-          <div className="relative z-10 flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
-            <div className="flex-1 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-extrabold tracking-widest uppercase mb-4">
-                <Gift className="w-3.5 h-3.5" />
-                Darčekový poukaz
+          <div className="relative z-10 flex flex-col items-center">
+            <div className="flex flex-col lg:flex-row items-center gap-4 lg:gap-6 w-full">
+              <div className="flex-1 text-center lg:text-left">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-extrabold tracking-widest uppercase mb-4">
+                  <Gift className="w-3.5 h-3.5" />
+                  Darčekový poukaz
+                </div>
+                <h2 className="text-3xl sm:text-4xl font-extrabold mb-4 text-foreground">
+                  Darujte zážitok na celý život 🎁
+                </h2>
+                <p className="text-neutral-600 text-base sm:text-lg leading-relaxed mb-6">
+                  Premeníte obyčajný deň na nezabudnuteľné dobrodružstvo plné smiechu, 
+                  objavovania a radosti. Darčekový poukaz do Nitráčika je vstupenkou do 
+                  sveta kreatívneho hrania, kde deti môžu byť samy sebou – ufúľané, 
+                  šťastné a slobodné.
+                </p>
+                <p className="text-neutral-500 text-sm sm:text-base leading-relaxed">
+                  Či už je to narodeninový darček, odmena za vysvedčenie alebo prekvapenie 
+                  bez dôvodu – poukaz poteší každé dieťa. Jednoduchý nákup online, 
+                  doručenie emailom a platnosť až 12 mesiacov.
+                </p>
               </div>
-              <h2 className="text-3xl sm:text-4xl font-extrabold mb-4 text-foreground">
-                Darujte zážitok na celý život 🎁
-              </h2>
-              <p className="text-neutral-600 text-base sm:text-lg leading-relaxed mb-6">
-                Premeníte obyčajný deň na nezabudnuteľné dobrodružstvo plné smiechu, 
-                objavovania a radosti. Darčekový poukaz do Nitráčika je vstupenkou do 
-                sveta kreatívneho hrania, kde deti môžu byť samy sebou – ufúľané, 
-                šťastné a slobodné.
-              </p>
-              <p className="text-neutral-500 text-sm sm:text-base leading-relaxed mb-8">
-                Či už je to narodeninový darček, odmena za vysvedčenie alebo prekvapenie 
-                bez dôvodu – poukaz poteší každé dieťa. Jednoduchý nákup online, 
-                doručenie emailom a platnosť až 12 mesiacov.
-              </p>
-              <Link
-                to="/gift-card"
-                className="inline-flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 text-white font-bold rounded-full px-8 py-3.5 shadow-sm transition-all hover:-translate-y-0.5"
-              >
-                <Gift className="w-5 h-5" />
-                Kúpiť darčekový poukaz
-              </Link>
+              <div className="flex-shrink-0 w-full max-w-[820px] mx-auto lg:mx-0 lg:flex-[0_0_700px]">
+                <GiftCertificate
+                  mode="preview"
+                  amount={50}
+                  recipientName="Maťka"
+                  buyerEmail="Barborka"
+                  message="Užite si krásny zážitok!"
+                  expiresAt={new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()}
+                  code="VASKODNTRCK"
+                  previewClassName="max-w-[820px]"
+                  cardWidth={700}
+                />
+              </div>
             </div>
-            <div className="flex-shrink-0 w-full sm:w-[520px]">
-              <GiftCertificate
-                mode="preview"
-                amount={50}
-                recipientName="Maťka"
-                buyerEmail="Barborky"
-                message="Užite si krásny zážitok! 🎉"
-                expiresAt={new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()}
-                code={null}
-              />
-            </div>
+            <Link
+              to="/gift-card"
+              className="inline-flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 text-white font-bold rounded-full px-8 py-3.5 shadow-sm transition-all hover:-translate-y-0.5"
+            >
+              <Gift className="w-5 h-5" />
+              Kúpiť darčekový poukaz
+            </Link>
           </div>
         </div>
       </motion.section>

@@ -46,6 +46,13 @@ jest.mock('../services/emailService', () => ({
   sendReviewRequestEmail: jest.fn().mockResolvedValue(true),
   sendBulkAdminEmail: jest.fn().mockResolvedValue(true),
   sendGiftCardEmail: jest.fn().mockResolvedValue(true),
+  sendAdminGiftCardPurchaseNotification: jest.fn().mockResolvedValue(true),
+}));
+
+jest.mock('../utils/pdfGenerator', () => ({
+  generateGiftCardPDF: jest.fn().mockResolvedValue(
+    Uint8Array.from(Buffer.from('%PDF-1.4\nmock gift card pdf', 'ascii'))
+  ),
 }));
 
 const { app, pool: serverPool } = require('../server');
@@ -102,6 +109,17 @@ async function createGiftCardInDb({
 async function getGiftCardByCode(code) {
   const result = await pool.query('SELECT * FROM gift_card WHERE code = $1', [code]);
   return result.rows[0] || null;
+}
+
+function binaryParser(res, callback) {
+  res.setEncoding('binary');
+  let data = '';
+  res.on('data', (chunk) => {
+    data += chunk;
+  });
+  res.on('end', () => {
+    callback(null, Buffer.from(data, 'binary'));
+  });
 }
 
 function testGcCode(suffix) {
@@ -541,6 +559,32 @@ describe('E2E - Gift Card Feature', () => {
       mockStripe.checkout.sessions.retrieve.mockRejectedValue(new Error('Stripe network error'));
       const res = await request(app).get(`/api/gift-card-success?session_id=test_gc_err_stripe`);
       expect(res.status).toBe(500);
+    });
+  });
+
+  describe('GET /api/gift-cards/:code/pdf — PDF download', () => {
+    test('POSITIVE: returns a valid PDF binary, not JSON-serialized bytes', async () => {
+      if (!giftCardTableExists) return;
+
+      const code = testGcCode('PDF01');
+      await createGiftCardInDb({
+        code,
+        amount: 30,
+        balance: 30,
+        buyerEmail: 'test_gc_pdf@example.com',
+        recipientName: 'PDF Test',
+        message: 'Vela radosti',
+      });
+
+      const res = await request(app)
+        .get(`/api/gift-cards/${code}/pdf`)
+        .buffer(true)
+        .parse(binaryParser);
+
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toContain('application/pdf');
+      expect(Buffer.isBuffer(res.body)).toBe(true);
+      expect(res.body.subarray(0, 4).toString('ascii')).toBe('%PDF');
     });
   });
 

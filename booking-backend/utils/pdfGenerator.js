@@ -344,13 +344,15 @@ async function generateGiftCardPDF({ code, amount, recipientName, buyerEmail, bu
       timeout: 15000,
     });
 
-    const pdfBuffer = await page.pdf({
+    const pdfBytes = await page.pdf({
       width: '842px',
       height: '595px',
       printBackground: true,
       margin: { top: 0, right: 0, bottom: 0, left: 0 },
       preferCSSPageSize: true,
     });
+
+    const pdfBuffer = Buffer.isBuffer(pdfBytes) ? pdfBytes : Buffer.from(pdfBytes);
 
     // Diagnostic safeguard: a correctly generated single-page certificate
     // should be well under 1MB. If it's larger, the print engine likely

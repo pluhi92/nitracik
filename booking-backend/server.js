@@ -5869,6 +5869,7 @@ app.get('/api/gift-card-success', async (req, res) => {
         buyerEmail: gc.buyerEmail,
         buyerName: session.metadata?.buyerName || '',
         recipientName: gc.recipientName,
+        message: gc.message || '',
         expiresAt: gc.expiresAt,
         hasPdf: false,
       });
@@ -5987,6 +5988,7 @@ app.get('/api/gift-card-success', async (req, res) => {
       buyerEmail: gc.buyerEmail,
       buyerName: buyerName || '',
       recipientName: gc.recipientName,
+      message: gc.message || '',
       expiresAt: gc.expiresAt,
       hasPdf: pdfBuffer !== null,
     });
@@ -6177,7 +6179,7 @@ app.get('/api/gift-cards/:code/pdf', async (req, res) => {
       }
     }
 
-    const pdfBuffer = await generateGiftCardPDF({
+    const pdfBytes = await generateGiftCardPDF({
       code: gc.code,
       amount: gc.amount,
       recipientName: gc.recipientName,
@@ -6186,6 +6188,8 @@ app.get('/api/gift-cards/:code/pdf', async (req, res) => {
       message: gc.message || null,
       expiresAt: gc.expiresAt,
     });
+
+    const pdfBuffer = Buffer.isBuffer(pdfBytes) ? pdfBytes : Buffer.from(pdfBytes);
 
     res.set({
       'Content-Type': 'application/pdf',
