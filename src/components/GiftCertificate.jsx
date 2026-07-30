@@ -164,7 +164,7 @@ const GiftCertificate = ({
         <Blob color="#EFE4C8" className="h-full w-full" />
       </div>
 
-      <div className="relative z-10 flex h-full flex-col items-center px-10 pb-4 pt-3">
+      <div className="relative z-10 flex h-full flex-col items-center px-10 pb-2 pt-3">
         <div className="mb-1 flex h-28 w-full flex-shrink-0 items-center justify-center">
           <img
             src={nitracikLogo}
@@ -234,7 +234,7 @@ const GiftCertificate = ({
           * Poukaz je platný na všetky aktivity dostupné na nitracik.sk a nie je možné ho vymeniť za hotovosť.
         </div>
 
-        <div className="mt-auto pt-2 text-center text-[8px] text-[#C4C4CC]">
+        <div className="mt-auto pt-1 text-center text-[8px] text-[#C4C4CC]">
           © Nitráčik – Messy Sensory Play | nitracik.sk
         </div>
       </div>

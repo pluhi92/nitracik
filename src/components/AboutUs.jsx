@@ -679,7 +679,7 @@ const AboutUs = () => {
             </div>
             <Link
               to="/gift-card"
-              className="inline-flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 text-white font-bold rounded-full px-8 py-3.5 shadow-sm transition-all hover:-translate-y-0.5"
+              className="inline-flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-500 text-white font-bold rounded-full px-8 py-3.5 shadow-sm transition-all hover:-translate-y-0.5 mt-4 lg:-mt-6"
             >
               <Gift className="w-5 h-5" />
               Kúpiť darčekový poukaz
