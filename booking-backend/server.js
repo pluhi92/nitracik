@@ -6167,16 +6167,13 @@ app.get('/api/gift-cards/:code/pdf', async (req, res) => {
 
     const gc = result.rows[0];
 
-    // buyerName is not stored in gift_card table — fetch from Stripe session metadata
-    // if stripeSessionId is available, otherwise fall back to buyerEmail
     let buyerName = gc.buyerEmail || '';
     if (gc.stripeSessionId) {
       try {
         const stripeSession = await stripe.checkout.sessions.retrieve(gc.stripeSessionId);
         buyerName = stripeSession.metadata?.buyerName || gc.buyerEmail || '';
       } catch (stripeErr) {
-        console.warn('[GiftCard PDF] Could not fetch Stripe session for buyerName:', stripeErr.message);
-        buyerName = gc.buyerEmail || '';
+        console.warn('[GiftCard PDF] Could not fetch Stripe session:', stripeErr.message);
       }
     }
 

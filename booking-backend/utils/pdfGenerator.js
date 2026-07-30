@@ -64,6 +64,11 @@ function buildHTML({ code, amount, recipientName, buyerEmail, buyerName, message
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+    @page {
+      size: 842px 595px;
+      margin: 0;
+    }
+
     html, body {
       width: 842px;
       height: 595px;
@@ -82,7 +87,7 @@ function buildHTML({ code, amount, recipientName, buyerEmail, buyerName, message
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 28px 52px 20px 52px;
+      padding: 16px 52px 16px 52px;
       gap: 0px;
     }
 
@@ -93,8 +98,24 @@ function buildHTML({ code, amount, recipientName, buyerEmail, buyerName, message
     .blob-bottom-right { bottom: -70px; right: -70px; width: 280px; }
 
     /* ── Logo ── */
-    .header { display: flex; justify-content: center; z-index: 1; margin-bottom: 8px; }
-    .logo-img { height: 110px; width: auto; object-fit: contain; display: block; }
+    .header {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1;
+      width: 100%;
+      height: 160px;
+      margin-bottom: 4px;
+      flex-shrink: 0;
+    }
+    .logo-img {
+      height: 160px;
+      width: auto;
+      max-width: 340px;
+      object-fit: contain;
+      display: block;
+      mix-blend-mode: multiply;
+    }
 
     /* ── Title ── */
     .title {
@@ -105,7 +126,7 @@ function buildHTML({ code, amount, recipientName, buyerEmail, buyerName, message
       letter-spacing: 0.04em;
       z-index: 1;
       line-height: 1;
-      margin-bottom: 16px;
+      margin-bottom: 8px;
     }
 
     /* ── Divider ── */
@@ -328,7 +349,19 @@ async function generateGiftCardPDF({ code, amount, recipientName, buyerEmail, bu
       height: '595px',
       printBackground: true,
       margin: { top: 0, right: 0, bottom: 0, left: 0 },
+      preferCSSPageSize: true,
     });
+
+    // Diagnostic safeguard: a correctly generated single-page certificate
+    // should be well under 1MB. If it's larger, the print engine likely
+    // added extra pages due to content overflow — log it so we notice
+    // this again if it recurs, especially once deployed to the VPS.
+    if (pdfBuffer.length > 1_000_000) {
+      console.warn(
+        `[pdfGenerator] Unexpectedly large PDF: ${(pdfBuffer.length / 1024 / 1024).toFixed(2)} MB ` +
+        `for code=${code}. Likely multi-page overflow — check for unusually long message text.`
+      );
+    }
 
     return pdfBuffer;
   } finally {

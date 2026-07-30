@@ -202,25 +202,34 @@ const GiftCard = () => {
     setPdfLoading(true);
     setPdfError('');
     try {
-      // Use native fetch to bypass axios interceptor (avoids spurious 401 redirects)
-      const apiBase = import.meta.env.VITE_API_URL || '';
-      const res = await fetch(
-        `${apiBase}/api/gift-cards/${successData.code}/pdf`,
+      // Use axios with responseType blob — baseURL is already correctly set in api.js
+      const response = await api.get(
+        `/api/gift-cards/${successData.code}/pdf`,
         {
-          method: 'GET',
-          credentials: 'include', // send session cookie if logged in
+          responseType: 'blob',
+          // Override response interceptor for this request to not redirect on error
+          validateStatus: (status) => status < 500,
         }
       );
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.error || `HTTP ${res.status}`);
+      // Check if response is actually a PDF or an error JSON
+      const contentType = response.headers['content-type'] || '';
+      console.log('[PDF] Response status:', response.status, 'Content-Type:', contentType, 'Size:', response.data?.size);
+      if (!contentType.includes('application/pdf')) {
+        // Server returned an error as JSON blob — read it
+        const text = await response.data.text();
+        let errMsg = `HTTP ${response.status}`;
+        try { errMsg = JSON.parse(text).error || errMsg; } catch {}
+        throw new Error(errMsg);
       }
 
-      const blob = await res.blob();
-      if (blob.size === 0) throw new Error('Prázdny PDF súbor');
+      if (!response.data || response.data.size === 0) {
+        throw new Error('Prázdny PDF súbor');
+      }
 
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(
+        new Blob([response.data], { type: 'application/pdf' })
+      );
       const link = document.createElement('a');
       link.href = url;
       link.download = 'darcekovy-poukaz-nitracik.pdf';
@@ -228,6 +237,7 @@ const GiftCard = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+
     } catch (err) {
       console.error('PDF download failed:', err.message);
       setPdfError('Nepodarilo sa stiahnuť PDF: ' + err.message);
@@ -328,11 +338,11 @@ const GiftCard = () => {
                 }
                 {pdfLoading ? 'Generujem PDF...' : 'Stiahnuť poukaz ako PDF'}
               </button>
-
-              {pdfError && (
-                <p className="text-xs text-red-500 text-center mt-2">{pdfError}</p>
-              )}
             </div>
+
+            {pdfError && (
+              <p className="text-xs text-red-500 text-center mt-1 mb-3">{pdfError}</p>
+            )}
 
             {/* Info box */}
             <div className="bg-amber-50 rounded-2xl p-4 text-sm text-left mb-6 space-y-1.5">
