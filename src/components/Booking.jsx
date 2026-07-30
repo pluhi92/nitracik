@@ -2351,7 +2351,7 @@ const Booking = () => {
             <h5 className="text-lg font-extrabold text-foreground m-0">Máte darčekový poukaz?</h5>
           </div>
           <div className="p-6 sm:p-8">
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <input
                 type="text"
                 value={giftCardCode}
@@ -2363,14 +2363,14 @@ const Booking = () => {
                 }}
                 placeholder="Zadajte kód poukazu"
                 maxLength={12}
-                className="flex-1 px-4 py-3 border border-neutral-200 rounded-xl bg-neutral-50/50 text-sm font-mono font-bold tracking-widest uppercase focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all"
+                className="w-full sm:flex-1 px-4 py-3 border border-neutral-200 rounded-xl bg-neutral-50/50 text-sm font-mono font-bold tracking-widest uppercase focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all"
                 disabled={giftCardApplied}
               />
               {giftCardApplied ? (
                 <button
                   type="button"
                   onClick={() => { setGiftCardApplied(false); setGiftCardData(null); setGiftCardCode(''); setGiftCardError(''); }}
-                  className="px-5 py-3 rounded-xl border border-neutral-200 text-neutral-600 font-bold text-sm hover:bg-neutral-100 transition-all"
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl border border-neutral-200 text-neutral-600 font-bold text-sm hover:bg-neutral-100 transition-all"
                 >
                   Zrušiť
                 </button>
@@ -2379,7 +2379,7 @@ const Booking = () => {
                   type="button"
                   onClick={handleValidateGiftCard}
                   disabled={!giftCardCode.trim() || giftCardLoading}
-                  className="px-5 py-3 rounded-xl bg-amber-400 text-white font-bold text-sm hover:bg-amber-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-amber-400 text-white font-bold text-sm hover:bg-amber-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {giftCardLoading ? <Spinner animation="border" size="sm" /> : 'Uplatniť'}
                 </button>

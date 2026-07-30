@@ -1233,7 +1233,7 @@ const UserProfile = () => {
             </p>
 
             {/* Input row */}
-            <div className="flex gap-3 mb-2">
+            <div className="flex flex-col sm:flex-row gap-3 mb-2">
               <input
                 type="text"
                 value={gcInputCode}
@@ -1242,13 +1242,13 @@ const UserProfile = () => {
                   setGcLookupError('');
                 }}
                 onKeyDown={(e) => e.key === 'Enter' && handleGiftCardLookup()}
-                placeholder="Zadajte kód poukazu (napr. ABCD1234EFGH)"
-                className="flex-1 rounded-2xl border-2 border-neutral-200 px-4 py-3 text-sm font-mono font-bold text-foreground placeholder-neutral-400 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all tracking-widest uppercase"
+                placeholder="Zadajte kód poukazu"
+                className="w-full sm:flex-1 rounded-2xl border-2 border-neutral-200 px-4 py-3 text-sm font-mono font-bold text-foreground placeholder-neutral-400 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all tracking-widest uppercase"
               />
               <button
                 onClick={handleGiftCardLookup}
                 disabled={gcLookupLoading || !gcInputCode.trim()}
-                className="bg-amber-400 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl px-5 py-3 transition-colors flex items-center gap-2 flex-shrink-0"
+                className="w-full sm:w-auto bg-amber-400 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl px-5 py-3 transition-colors flex items-center justify-center gap-2"
               >
                 {gcLookupLoading
                   ? <SpinnerIcon className="w-4 h-4 text-white" />
