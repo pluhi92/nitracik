@@ -68,6 +68,7 @@ const GiftCard = () => {
   const [copied, setCopied] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState('');
 
   const isSuccessRoute = location.pathname === '/gift-card/success';
 
@@ -199,6 +200,7 @@ const GiftCard = () => {
   const handleDownloadPdf = async () => {
     if (!successData?.code || pdfLoading) return;
     setPdfLoading(true);
+    setPdfError('');
     try {
       // Use native fetch to bypass axios interceptor (avoids spurious 401 redirects)
       const apiBase = import.meta.env.VITE_API_URL || '';
@@ -228,8 +230,7 @@ const GiftCard = () => {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('PDF download failed:', err.message);
-      // Show a user-friendly error — add a small error state
-      alert('Nepodarilo sa stiahnuť PDF. Skúste to znova alebo použite PDF z emailu.');
+      setPdfError('Nepodarilo sa stiahnuť PDF: ' + err.message);
     } finally {
       setPdfLoading(false);
     }
@@ -327,6 +328,10 @@ const GiftCard = () => {
                 }
                 {pdfLoading ? 'Generujem PDF...' : 'Stiahnuť poukaz ako PDF'}
               </button>
+
+              {pdfError && (
+                <p className="text-xs text-red-500 text-center mt-2">{pdfError}</p>
+              )}
             </div>
 
             {/* Info box */}

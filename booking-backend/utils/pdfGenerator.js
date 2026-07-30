@@ -1,6 +1,5 @@
 'use strict';
 
-const puppeteer = require('puppeteer');
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
@@ -95,7 +94,7 @@ function buildHTML({ code, amount, recipientName, buyerEmail, buyerName, message
 
     /* ── Logo ── */
     .header { display: flex; justify-content: center; z-index: 1; margin-bottom: 8px; }
-    .logo-img { height: 80px; width: auto; object-fit: contain; display: block; }
+    .logo-img { height: 110px; width: auto; object-fit: contain; display: block; }
 
     /* ── Title ── */
     .title {
@@ -160,7 +159,7 @@ function buildHTML({ code, amount, recipientName, buyerEmail, buyerName, message
     /* ── Amount ── */
     .amount {
       text-align: center;
-      font-size: 68px;
+      font-size: 52px;
       font-weight: 900;
       color: #3D3D4E;
       z-index: 1;
@@ -299,6 +298,8 @@ function escapeHtml(str) {
 }
 
 async function generateGiftCardPDF({ code, amount, recipientName, buyerEmail, buyerName, message, expiresAt }) {
+  // Lazy-load puppeteer so Jest can import server modules without parsing ESM-only internals.
+  const puppeteer = require('puppeteer');
   const html = buildHTML({ code, amount, recipientName, buyerEmail, buyerName, message, expiresAt });
 
   const browser = await puppeteer.launch({
