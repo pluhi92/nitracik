@@ -6145,6 +6145,52 @@ app.get('/api/gift-cards/user/:userId', isAuthenticated, async (req, res) => {
   }
 });
 
+// ENDPOINT 5.5: Look up a gift card by code (no auth required – the code itself is the secret)
+app.post('/api/gift-cards/lookup', async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code || typeof code !== 'string') {
+      return res.status(400).json({ error: 'Chýba kód poukazu' });
+    }
+
+    const normalized = code.trim().toUpperCase().replace(/\s/g, '');
+    if (normalized.length === 0) {
+      return res.status(400).json({ error: 'Neplatný kód poukazu' });
+    }
+
+    const result = await pool.query(
+      `SELECT id, code, amount, balance, status, "recipientName",
+              "expiresAt", "redeemedAt", "createdAt"
+       FROM gift_card
+       WHERE UPPER(REPLACE(code, '-', '')) = $1`,
+      [normalized.replace(/-/g, '')]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Darčekový poukaz s týmto kódom neexistuje.' });
+    }
+
+    const gc = result.rows[0];
+
+    // Return full details regardless of status — user can see expired/used too
+    return res.json({
+      id: gc.id,
+      code: gc.code,
+      amount: parseFloat(gc.amount),
+      balance: parseFloat(gc.balance),
+      status: gc.status,
+      recipientName: gc.recipientName || '',
+      expiresAt: gc.expiresAt,
+      redeemedAt: gc.redeemedAt,
+      createdAt: gc.createdAt,
+    });
+
+  } catch (error) {
+    console.error('[GiftCard] lookup error:', error.message);
+    return res.status(500).json({ error: 'Chyba pri hľadaní poukazu' });
+  }
+});
+
 // ENDPOINT 6: Download gift card PDF by code
 app.get('/api/gift-cards/:code/pdf', async (req, res) => {
   const { code } = req.params;

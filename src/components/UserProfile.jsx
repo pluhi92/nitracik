@@ -76,6 +76,9 @@ const UserProfile = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedSessionDetail, setSelectedSessionDetail] = useState(null);
   const [selectedGiftCard, setSelectedGiftCard] = useState(null);
+  const [gcInputCode, setGcInputCode] = useState('');
+  const [gcLookupLoading, setGcLookupLoading] = useState(false);
+  const [gcLookupError, setGcLookupError] = useState('');
 
   // --- SMART ADRESA LOGIKA ---
   const [addrCity, setAddrCity] = useState('');
@@ -106,6 +109,33 @@ const UserProfile = () => {
     setAlertMessage(message);
     setAlertVariant(variant);
     setTimeout(() => setAlertMessage(''), 5000);
+  };
+
+  const handleGiftCardLookup = async () => {
+    if (!gcInputCode.trim()) return;
+    setGcLookupLoading(true);
+    setGcLookupError('');
+    try {
+      const response = await api.post('/api/gift-cards/lookup', {
+        code: gcInputCode.trim(),
+      });
+      const gc = response.data;
+      // Add to list if not already present
+      setGiftCards(prev => {
+        const exists = prev.some(existing => existing.code === gc.code);
+        if (exists) {
+          // Update existing entry with fresh data
+          return prev.map(existing => existing.code === gc.code ? gc : existing);
+        }
+        return [gc, ...prev];
+      });
+      setGcInputCode('');
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Poukaz sa nepodarilo nájsť.';
+      setGcLookupError(msg);
+    } finally {
+      setGcLookupLoading(false);
+    }
   };
 
   const scrollToTop = () => {
@@ -153,21 +183,9 @@ const UserProfile = () => {
       }
     };
 
-    const fetchGiftCards = async () => {
-      try {
-        const response = await api.get(`/api/gift-cards/user/${userId}`);
-        setGiftCards(Array.isArray(response.data) ? response.data : []);
-      } catch (error) {
-        // Silent fail — gift cards are optional, don't break the page
-        console.error('Error fetching gift cards:', error);
-        setGiftCards([]);
-      }
-    };
-
     if (userId) {
       checkAdmin();
       fetchSeasonTickets();
-      fetchGiftCards();
       if (isAdmin) fetchAdminSeasonTickets();
     }
   }, [userId, isAdmin]);
@@ -185,20 +203,6 @@ const UserProfile = () => {
 
     if (userId) fetchBookings();
   }, [userId, isAdmin]);
-
-  useEffect(() => {
-    if (!userId) return;
-    const fetchGiftCards = async () => {
-      try {
-        const response = await api.get(`/api/gift-cards/user/${userId}`);
-        setGiftCards(Array.isArray(response.data) ? response.data : []);
-      } catch (error) {
-        console.error('Error fetching gift cards (non-critical):', error);
-        setGiftCards([]);
-      }
-    };
-    fetchGiftCards();
-  }, [userId]);
 
   useEffect(() => {
     const currentDate = new Date().toISOString().split('T')[0];
@@ -1215,123 +1219,172 @@ const UserProfile = () => {
             )}
           </div>
 
-          {giftCards.length > 0 && (() => {
-            const activeGiftCards = giftCards.filter(gc =>
-              gc.status === 'active' && new Date(gc.expiresAt) > new Date() && gc.balance > 0
-            );
-            const historyGiftCards = giftCards.filter(gc =>
-              gc.status === 'used' || gc.balance <= 0 || new Date(gc.expiresAt) <= new Date()
-            );
+          {/* ── DARČEKOVÉ POUKAZY ── */}
+          <div className="bg-white rounded-[2rem] shadow-sm p-8 border border-neutral-200 mb-8">
+            
+            {/* Header */}
+            <h3 className="text-2xl font-extrabold text-foreground mb-2 flex items-center gap-3">
+              <Gift className="w-6 h-6 text-amber-500" />
+              Darčekové poukazy
+            </h3>
+            <p className="text-sm font-medium text-neutral-500 mb-6">
+              Máte darčekový poukaz na Nitráčik? Zadajte jeho kód a sledujte zostatok
+              a platnosť priamo tu vo svojom profile.
+            </p>
 
-            return (
-              <div className="bg-white rounded-[2rem] shadow-sm p-8 border border-neutral-200 mb-8">
-                <h3 className="text-2xl font-extrabold text-foreground mb-6 flex items-center gap-3">
-                  <Gift className="w-6 h-6 text-amber-500" />
-                  Darčekové poukazy
-                </h3>
+            {/* Input row */}
+            <div className="flex gap-3 mb-2">
+              <input
+                type="text"
+                value={gcInputCode}
+                onChange={(e) => {
+                  setGcInputCode(e.target.value.toUpperCase());
+                  setGcLookupError('');
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && handleGiftCardLookup()}
+                placeholder="Zadajte kód poukazu (napr. ABCD1234EFGH)"
+                className="flex-1 rounded-2xl border-2 border-neutral-200 px-4 py-3 text-sm font-mono font-bold text-foreground placeholder-neutral-400 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all tracking-widest uppercase"
+              />
+              <button
+                onClick={handleGiftCardLookup}
+                disabled={gcLookupLoading || !gcInputCode.trim()}
+                className="bg-amber-400 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl px-5 py-3 transition-colors flex items-center gap-2 flex-shrink-0"
+              >
+                {gcLookupLoading
+                  ? <SpinnerIcon className="w-4 h-4 text-white" />
+                  : <Gift className="w-4 h-4" />
+                }
+                {gcLookupLoading ? 'Hľadám...' : 'Pridať'}
+              </button>
+            </div>
 
-                {activeGiftCards.length === 0 ? (
-                  <div className="text-center py-10 bg-neutral-50 rounded-2xl border border-dashed border-neutral-300">
-                    <Gift className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
-                    <p className="text-neutral-500 font-bold">Nemáte žiadne aktívne darčekové poukazy.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                    {activeGiftCards.map((gc, index) => (
-                      <div
-                        key={gc.id || index}
-                        onClick={() => setSelectedGiftCard(gc)}
-                        className="bg-gradient-to-br from-amber-50 to-amber-100/60 border border-amber-200 rounded-2xl p-5 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all"
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="font-mono text-xs font-black tracking-widest text-amber-700 bg-white border border-amber-200 rounded-lg px-2 py-1">
-                            {gc.code}
-                          </span>
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-400 text-white">
-                            Aktívny
-                          </span>
-                        </div>
-                        <div className="space-y-1.5 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-neutral-500 font-medium">Využité:</span>
-                            <span className="font-bold text-foreground">
-                              {(parseFloat(gc.amount) - parseFloat(gc.balance)).toFixed(2)} €
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-neutral-500 font-medium">Zostatok:</span>
-                            <span className="font-black text-amber-700 text-base">
-                              {parseFloat(gc.balance).toFixed(2)} €
-                            </span>
-                          </div>
-                          <div className="flex justify-between pt-1.5 border-t border-amber-200 mt-1.5">
-                            <span className="text-neutral-400 font-medium text-xs">Platné do:</span>
-                            <span className="font-bold text-xs text-neutral-600">
-                              {new Date(gc.expiresAt).toLocaleDateString('sk-SK', {
-                                day: '2-digit', month: '2-digit', year: 'numeric'
-                              })}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+            {/* Error message */}
+            {gcLookupError && (
+              <p className="text-sm font-bold text-red-500 mb-4 flex items-center gap-1.5">
+                <XCircle className="w-4 h-4 flex-shrink-0" />
+                {gcLookupError}
+              </p>
+            )}
 
-                {historyGiftCards.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-neutral-100">
-                    <button
-                      onClick={() => setShowGcHistory(!showGcHistory)}
-                      className="flex items-center gap-2 text-neutral-400 hover:text-primary font-bold text-sm transition-colors mb-4"
-                    >
-                      <History className="w-4 h-4" />
-                      {showGcHistory
-                        ? 'Skryť archív poukazov'
-                        : `Zobraziť vyčerpané / expirované poukazy (${historyGiftCards.length})`}
-                      <ChevronDown className={`w-4 h-4 transform transition-transform duration-300 ${showGcHistory ? 'rotate-180' : ''}`} />
-                    </button>
+            {/* Gift card list */}
+            {giftCards.length > 0 && (() => {
+              const activeGiftCards = giftCards.filter(gc =>
+                gc.status === 'active' && new Date(gc.expiresAt) > new Date() && gc.balance > 0
+              );
+              const historyGiftCards = giftCards.filter(gc =>
+                gc.status === 'used' || gc.balance <= 0 || new Date(gc.expiresAt) <= new Date()
+              );
 
-                    <AnimatePresence>
-                      {showGcHistory && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden"
+              return (
+                <>
+                  {activeGiftCards.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+                      {activeGiftCards.map((gc, index) => (
+                        <div
+                          key={gc.id || index}
+                          onClick={() => setSelectedGiftCard(gc)}
+                          className="bg-gradient-to-br from-amber-50 to-amber-100/60 border border-amber-200 rounded-2xl p-5 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all"
                         >
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {historyGiftCards.map((gc, index) => (
-                              <div
-                                key={gc.id || index}
-                                onClick={() => setSelectedGiftCard(gc)}
-                                className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 opacity-70 cursor-pointer hover:opacity-100 hover:shadow-sm transition-all"
-                              >
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="font-mono text-xs font-black tracking-widest text-neutral-500">
-                                    {gc.code}
-                                  </span>
-                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${
-                                    gc.balance <= 0 || gc.status === 'used'
-                                      ? 'bg-neutral-100 text-neutral-600 border-neutral-200'
-                                      : 'bg-red-50 text-red-600 border-red-100'
-                                  }`}>
-                                    {gc.balance <= 0 || gc.status === 'used' ? 'Vyčerpaný' : 'Expirovaný'}
-                                  </span>
-                                </div>
-                                <div className="text-xs text-neutral-500 font-medium">
-                                  Hodnota: {parseFloat(gc.amount).toFixed(2)} €
-                                </div>
-                              </div>
-                            ))}
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="font-mono text-xs font-black tracking-widest text-amber-700 bg-white border border-amber-200 rounded-lg px-2 py-1">
+                              {gc.code}
+                            </span>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-400 text-white">
+                              Aktívny
+                            </span>
                           </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                )}
+                          <div className="space-y-1.5 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-neutral-500 font-medium">Využité:</span>
+                              <span className="font-bold text-foreground">
+                                {(parseFloat(gc.amount) - parseFloat(gc.balance)).toFixed(2)} €
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-neutral-500 font-medium">Zostatok:</span>
+                              <span className="font-black text-amber-700 text-base">
+                                {parseFloat(gc.balance).toFixed(2)} €
+                              </span>
+                            </div>
+                            <div className="flex justify-between pt-1.5 border-t border-amber-200 mt-1.5">
+                              <span className="text-neutral-400 font-medium text-xs">Platné do:</span>
+                              <span className="font-bold text-xs text-neutral-600">
+                                {new Date(gc.expiresAt).toLocaleDateString('sk-SK', {
+                                  day: '2-digit', month: '2-digit', year: 'numeric'
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {historyGiftCards.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-neutral-100">
+                      <button
+                        onClick={() => setShowGcHistory(!showGcHistory)}
+                        className="flex items-center gap-2 text-neutral-400 hover:text-primary font-bold text-sm transition-colors mb-4"
+                      >
+                        <History className="w-4 h-4" />
+                        {showGcHistory
+                          ? 'Skryť archív poukazov'
+                          : `Zobraziť vyčerpané / expirované poukazy (${historyGiftCards.length})`}
+                        <ChevronDown className={`w-4 h-4 transform transition-transform duration-300 ${showGcHistory ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      <AnimatePresence>
+                        {showGcHistory && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {historyGiftCards.map((gc, index) => (
+                                <div
+                                  key={gc.id || index}
+                                  onClick={() => setSelectedGiftCard(gc)}
+                                  className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4 opacity-70 cursor-pointer hover:opacity-100 hover:shadow-sm transition-all"
+                                >
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="font-mono text-xs font-black tracking-widest text-neutral-500">
+                                      {gc.code}
+                                    </span>
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                                      gc.balance <= 0 || gc.status === 'used'
+                                        ? 'bg-neutral-100 text-neutral-600 border-neutral-200'
+                                        : 'bg-red-50 text-red-600 border-red-100'
+                                    }`}>
+                                      {gc.balance <= 0 || gc.status === 'used' ? 'Vyčerpaný' : 'Expirovaný'}
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-neutral-500 font-medium">
+                                    Hodnota: {parseFloat(gc.amount).toFixed(2)} €
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
+            {/* Empty state — shown only when no cards added yet */}
+            {giftCards.length === 0 && (
+              <div className="text-center py-8 bg-neutral-50 rounded-2xl border border-dashed border-neutral-200 mt-4">
+                <Gift className="w-9 h-9 text-neutral-300 mx-auto mb-2" />
+                <p className="text-neutral-400 font-medium text-sm">
+                  Zatiaľ ste nepridali žiadny darčekový poukaz.
+                </p>
               </div>
-            );
-          })()}
+            )}
+          </div>
 
           {/* GIFT CARD DETAIL MODAL */}
           {selectedGiftCard && (
