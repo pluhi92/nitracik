@@ -94,7 +94,7 @@ const ScaledCertificateWrapper = ({ children, cardWidth, cardHeight, isPreview }
   }, [cardWidth, cardHeight, isPreview]);
 
   const effectiveScale = scale ?? 1;
-  const scaledHeight = cardHeight * effectiveScale;
+  const scaledHeight = cardHeight * effectiveScale + 4; // +4px buffer to prevent sub-pixel clipping
 
   return (
     <div
@@ -103,6 +103,7 @@ const ScaledCertificateWrapper = ({ children, cardWidth, cardHeight, isPreview }
         width: '100%',
         height: `${scaledHeight}px`,
         position: 'relative',
+        overflow: 'visible',
       }}
     >
       <div
@@ -164,7 +165,7 @@ const GiftCertificate = ({
         <Blob color="#EFE4C8" className="h-full w-full" />
       </div>
 
-      <div className="relative z-10 flex h-full flex-col items-center px-10 pb-2 pt-3">
+      <div className="relative z-10 flex h-full flex-col items-center px-10 pb-4 pt-3">
         <div className="mb-1 flex h-28 w-full flex-shrink-0 items-center justify-center">
           <img
             src={nitracikLogo}

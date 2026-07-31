@@ -275,6 +275,7 @@ model gift_card {
   balance         Float
   status          String    @default("active")
   buyerEmail      String
+  buyerName       String?
   recipientName   String
   recipientEmail  String?
   message         String?

@@ -1569,7 +1569,7 @@ const UserProfile = () => {
                   code={selectedGiftCard.code}
                   amount={selectedGiftCard.amount}
                   recipientName={selectedGiftCard.recipientName || ''}
-                  buyerEmail=""
+                  buyerEmail={selectedGiftCard.buyerName || ''}
                   message=""
                   expiresAt={selectedGiftCard.expiresAt}
                   previewClassName="max-w-[760px]"

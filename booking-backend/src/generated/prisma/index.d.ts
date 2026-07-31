@@ -23913,6 +23913,7 @@ export namespace Prisma {
     balance: number | null
     status: string | null
     buyerEmail: string | null
+    buyerName: string | null
     recipientName: string | null
     recipientEmail: string | null
     message: string | null
@@ -23930,6 +23931,7 @@ export namespace Prisma {
     balance: number | null
     status: string | null
     buyerEmail: string | null
+    buyerName: string | null
     recipientName: string | null
     recipientEmail: string | null
     message: string | null
@@ -23947,6 +23949,7 @@ export namespace Prisma {
     balance: number
     status: number
     buyerEmail: number
+    buyerName: number
     recipientName: number
     recipientEmail: number
     message: number
@@ -23980,6 +23983,7 @@ export namespace Prisma {
     balance?: true
     status?: true
     buyerEmail?: true
+    buyerName?: true
     recipientName?: true
     recipientEmail?: true
     message?: true
@@ -23997,6 +24001,7 @@ export namespace Prisma {
     balance?: true
     status?: true
     buyerEmail?: true
+    buyerName?: true
     recipientName?: true
     recipientEmail?: true
     message?: true
@@ -24014,6 +24019,7 @@ export namespace Prisma {
     balance?: true
     status?: true
     buyerEmail?: true
+    buyerName?: true
     recipientName?: true
     recipientEmail?: true
     message?: true
@@ -24118,6 +24124,7 @@ export namespace Prisma {
     balance: number
     status: string
     buyerEmail: string
+    buyerName: string | null
     recipientName: string
     recipientEmail: string | null
     message: string | null
@@ -24154,6 +24161,7 @@ export namespace Prisma {
     balance?: boolean
     status?: boolean
     buyerEmail?: boolean
+    buyerName?: boolean
     recipientName?: boolean
     recipientEmail?: boolean
     message?: boolean
@@ -24172,6 +24180,7 @@ export namespace Prisma {
     balance?: boolean
     status?: boolean
     buyerEmail?: boolean
+    buyerName?: boolean
     recipientName?: boolean
     recipientEmail?: boolean
     message?: boolean
@@ -24189,6 +24198,7 @@ export namespace Prisma {
     balance?: boolean
     status?: boolean
     buyerEmail?: boolean
+    buyerName?: boolean
     recipientName?: boolean
     recipientEmail?: boolean
     message?: boolean
@@ -24206,6 +24216,7 @@ export namespace Prisma {
     balance?: boolean
     status?: boolean
     buyerEmail?: boolean
+    buyerName?: boolean
     recipientName?: boolean
     recipientEmail?: boolean
     message?: boolean
@@ -24215,7 +24226,7 @@ export namespace Prisma {
     bookingId?: boolean
   }
 
-  export type gift_cardOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "code" | "stripeSessionId" | "amount" | "balance" | "status" | "buyerEmail" | "recipientName" | "recipientEmail" | "message" | "expiresAt" | "redeemedAt" | "createdAt" | "bookingId", ExtArgs["result"]["gift_card"]>
+  export type gift_cardOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "code" | "stripeSessionId" | "amount" | "balance" | "status" | "buyerEmail" | "buyerName" | "recipientName" | "recipientEmail" | "message" | "expiresAt" | "redeemedAt" | "createdAt" | "bookingId", ExtArgs["result"]["gift_card"]>
   export type gift_cardInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     saved_by?: boolean | gift_card$saved_byArgs<ExtArgs>
   }
@@ -24235,6 +24246,7 @@ export namespace Prisma {
       balance: number
       status: string
       buyerEmail: string
+      buyerName: string | null
       recipientName: string
       recipientEmail: string | null
       message: string | null
@@ -24673,6 +24685,7 @@ export namespace Prisma {
     readonly balance: FieldRef<"gift_card", 'Float'>
     readonly status: FieldRef<"gift_card", 'String'>
     readonly buyerEmail: FieldRef<"gift_card", 'String'>
+    readonly buyerName: FieldRef<"gift_card", 'String'>
     readonly recipientName: FieldRef<"gift_card", 'String'>
     readonly recipientEmail: FieldRef<"gift_card", 'String'>
     readonly message: FieldRef<"gift_card", 'String'>
@@ -26477,6 +26490,7 @@ export namespace Prisma {
     balance: 'balance',
     status: 'status',
     buyerEmail: 'buyerEmail',
+    buyerName: 'buyerName',
     recipientName: 'recipientName',
     recipientEmail: 'recipientEmail',
     message: 'message',
@@ -28012,6 +28026,7 @@ export namespace Prisma {
     balance?: FloatFilter<"gift_card"> | number
     status?: StringFilter<"gift_card"> | string
     buyerEmail?: StringFilter<"gift_card"> | string
+    buyerName?: StringNullableFilter<"gift_card"> | string | null
     recipientName?: StringFilter<"gift_card"> | string
     recipientEmail?: StringNullableFilter<"gift_card"> | string | null
     message?: StringNullableFilter<"gift_card"> | string | null
@@ -28030,6 +28045,7 @@ export namespace Prisma {
     balance?: SortOrder
     status?: SortOrder
     buyerEmail?: SortOrder
+    buyerName?: SortOrderInput | SortOrder
     recipientName?: SortOrder
     recipientEmail?: SortOrderInput | SortOrder
     message?: SortOrderInput | SortOrder
@@ -28051,6 +28067,7 @@ export namespace Prisma {
     balance?: FloatFilter<"gift_card"> | number
     status?: StringFilter<"gift_card"> | string
     buyerEmail?: StringFilter<"gift_card"> | string
+    buyerName?: StringNullableFilter<"gift_card"> | string | null
     recipientName?: StringFilter<"gift_card"> | string
     recipientEmail?: StringNullableFilter<"gift_card"> | string | null
     message?: StringNullableFilter<"gift_card"> | string | null
@@ -28069,6 +28086,7 @@ export namespace Prisma {
     balance?: SortOrder
     status?: SortOrder
     buyerEmail?: SortOrder
+    buyerName?: SortOrderInput | SortOrder
     recipientName?: SortOrder
     recipientEmail?: SortOrderInput | SortOrder
     message?: SortOrderInput | SortOrder
@@ -28094,6 +28112,7 @@ export namespace Prisma {
     balance?: FloatWithAggregatesFilter<"gift_card"> | number
     status?: StringWithAggregatesFilter<"gift_card"> | string
     buyerEmail?: StringWithAggregatesFilter<"gift_card"> | string
+    buyerName?: StringNullableWithAggregatesFilter<"gift_card"> | string | null
     recipientName?: StringWithAggregatesFilter<"gift_card"> | string
     recipientEmail?: StringNullableWithAggregatesFilter<"gift_card"> | string | null
     message?: StringNullableWithAggregatesFilter<"gift_card"> | string | null
@@ -29586,6 +29605,7 @@ export namespace Prisma {
     balance: number
     status?: string
     buyerEmail: string
+    buyerName?: string | null
     recipientName: string
     recipientEmail?: string | null
     message?: string | null
@@ -29604,6 +29624,7 @@ export namespace Prisma {
     balance: number
     status?: string
     buyerEmail: string
+    buyerName?: string | null
     recipientName: string
     recipientEmail?: string | null
     message?: string | null
@@ -29621,6 +29642,7 @@ export namespace Prisma {
     balance?: FloatFieldUpdateOperationsInput | number
     status?: StringFieldUpdateOperationsInput | string
     buyerEmail?: StringFieldUpdateOperationsInput | string
+    buyerName?: NullableStringFieldUpdateOperationsInput | string | null
     recipientName?: StringFieldUpdateOperationsInput | string
     recipientEmail?: NullableStringFieldUpdateOperationsInput | string | null
     message?: NullableStringFieldUpdateOperationsInput | string | null
@@ -29639,6 +29661,7 @@ export namespace Prisma {
     balance?: FloatFieldUpdateOperationsInput | number
     status?: StringFieldUpdateOperationsInput | string
     buyerEmail?: StringFieldUpdateOperationsInput | string
+    buyerName?: NullableStringFieldUpdateOperationsInput | string | null
     recipientName?: StringFieldUpdateOperationsInput | string
     recipientEmail?: NullableStringFieldUpdateOperationsInput | string | null
     message?: NullableStringFieldUpdateOperationsInput | string | null
@@ -29657,6 +29680,7 @@ export namespace Prisma {
     balance: number
     status?: string
     buyerEmail: string
+    buyerName?: string | null
     recipientName: string
     recipientEmail?: string | null
     message?: string | null
@@ -29673,6 +29697,7 @@ export namespace Prisma {
     balance?: FloatFieldUpdateOperationsInput | number
     status?: StringFieldUpdateOperationsInput | string
     buyerEmail?: StringFieldUpdateOperationsInput | string
+    buyerName?: NullableStringFieldUpdateOperationsInput | string | null
     recipientName?: StringFieldUpdateOperationsInput | string
     recipientEmail?: NullableStringFieldUpdateOperationsInput | string | null
     message?: NullableStringFieldUpdateOperationsInput | string | null
@@ -29690,6 +29715,7 @@ export namespace Prisma {
     balance?: FloatFieldUpdateOperationsInput | number
     status?: StringFieldUpdateOperationsInput | string
     buyerEmail?: StringFieldUpdateOperationsInput | string
+    buyerName?: NullableStringFieldUpdateOperationsInput | string | null
     recipientName?: StringFieldUpdateOperationsInput | string
     recipientEmail?: NullableStringFieldUpdateOperationsInput | string | null
     message?: NullableStringFieldUpdateOperationsInput | string | null
@@ -31049,6 +31075,7 @@ export namespace Prisma {
     balance?: SortOrder
     status?: SortOrder
     buyerEmail?: SortOrder
+    buyerName?: SortOrder
     recipientName?: SortOrder
     recipientEmail?: SortOrder
     message?: SortOrder
@@ -31073,6 +31100,7 @@ export namespace Prisma {
     balance?: SortOrder
     status?: SortOrder
     buyerEmail?: SortOrder
+    buyerName?: SortOrder
     recipientName?: SortOrder
     recipientEmail?: SortOrder
     message?: SortOrder
@@ -31090,6 +31118,7 @@ export namespace Prisma {
     balance?: SortOrder
     status?: SortOrder
     buyerEmail?: SortOrder
+    buyerName?: SortOrder
     recipientName?: SortOrder
     recipientEmail?: SortOrder
     message?: SortOrder
@@ -35133,6 +35162,7 @@ export namespace Prisma {
     balance: number
     status?: string
     buyerEmail: string
+    buyerName?: string | null
     recipientName: string
     recipientEmail?: string | null
     message?: string | null
@@ -35150,6 +35180,7 @@ export namespace Prisma {
     balance: number
     status?: string
     buyerEmail: string
+    buyerName?: string | null
     recipientName: string
     recipientEmail?: string | null
     message?: string | null
@@ -35232,6 +35263,7 @@ export namespace Prisma {
     balance?: FloatFieldUpdateOperationsInput | number
     status?: StringFieldUpdateOperationsInput | string
     buyerEmail?: StringFieldUpdateOperationsInput | string
+    buyerName?: NullableStringFieldUpdateOperationsInput | string | null
     recipientName?: StringFieldUpdateOperationsInput | string
     recipientEmail?: NullableStringFieldUpdateOperationsInput | string | null
     message?: NullableStringFieldUpdateOperationsInput | string | null
@@ -35249,6 +35281,7 @@ export namespace Prisma {
     balance?: FloatFieldUpdateOperationsInput | number
     status?: StringFieldUpdateOperationsInput | string
     buyerEmail?: StringFieldUpdateOperationsInput | string
+    buyerName?: NullableStringFieldUpdateOperationsInput | string | null
     recipientName?: StringFieldUpdateOperationsInput | string
     recipientEmail?: NullableStringFieldUpdateOperationsInput | string | null
     message?: NullableStringFieldUpdateOperationsInput | string | null

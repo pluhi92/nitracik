@@ -330,6 +330,7 @@ exports.Prisma.Gift_cardScalarFieldEnum = {
   balance: 'balance',
   status: 'status',
   buyerEmail: 'buyerEmail',
+  buyerName: 'buyerName',
   recipientName: 'recipientName',
   recipientEmail: 'recipientEmail',
   message: 'message',

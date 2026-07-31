@@ -858,4 +858,368 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
       expect(gcResB.body.length).toBe(0);
     });
   });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // ČASŤ 6: buyerName — perzistencia, endpointy, edge cases
+  // ───────────────────────────────────────────────────────────────────────────
+
+  describe('Časť 6 – buyerName perzistencia a endpointy', () => {
+
+    // 6.1 ── buyerName sa uloží do DB pri nákupe ──
+    test('POSITIVE: buyerName sa uloží do DB pri guest nákupe DP', async () => {
+      if (!giftCardTableExists) return;
+      const buyerEmail = 'test_gc_bn_db@example.com';
+      const buyerName  = 'Mária Nováková';
+
+      const { successRes } = await guestPurchaseGiftCard({
+        amount: 50,
+        buyerEmail,
+        recipientName: 'Janko Test',
+        buyerName,
+      });
+
+      expect(successRes.status).toBe(200);
+
+      const gc = await getGiftCardByCode(successRes.body.code);
+      expect(gc).not.toBeNull();
+      expect(gc.buyerName).toBe(buyerName);
+    });
+
+    // 6.2 ── buyerName je v response success endpointu ──
+    test('POSITIVE: /api/gift-card-success vracia buyerName v response', async () => {
+      if (!giftCardTableExists) return;
+      const buyerName  = 'Peter Veľký';
+
+      const { successRes } = await guestPurchaseGiftCard({
+        amount: 30,
+        buyerEmail: 'test_gc_bn_success@example.com',
+        recipientName: 'Obdarovaný',
+        buyerName,
+      });
+
+      expect(successRes.status).toBe(200);
+      expect(successRes.body.buyerName).toBe(buyerName);
+    });
+
+    // 6.3 ── buyerName v /api/gift-cards/user/:userId ──
+    test('POSITIVE: /api/gift-cards/user/:userId vracia buyerName', async () => {
+      if (!giftCardTableExists) return;
+      const buyerEmail = 'test_gc_bn_profile@example.com';
+      const buyerName  = 'Zuzana Testovacia';
+      const password   = 'TestPass123!';
+
+      const { successRes } = await guestPurchaseGiftCard({
+        amount: 15,
+        buyerEmail,
+        recipientName: 'Darček Pre',
+        buyerName,
+      });
+      expect(successRes.status).toBe(200);
+      const gcCode = successRes.body.code;
+
+      // Registrácia a prihlásenie
+      const hash = await bcrypt.hash(password, 10);
+      const userRes = await pool.query(
+        `INSERT INTO users (first_name, last_name, email, password, address, verified, role)
+         VALUES ('Test','BNProfile',$1,$2,'Testova 1, Nitra',true,'user')
+         ON CONFLICT (email) DO UPDATE SET password=$2, verified=true
+         RETURNING *`,
+        [buyerEmail, hash]
+      );
+      const user = userRes.rows[0];
+      const agent = await loginAs(buyerEmail, password);
+
+      // Uloženie poukazu do profilu
+      const saveRes = await agent.post('/api/gift-cards/save').send({ code: gcCode });
+      expect(saveRes.status).toBe(200);
+
+      // GET vráti buyerName
+      const gcRes = await agent.get(`/api/gift-cards/user/${user.id}`);
+      expect(gcRes.status).toBe(200);
+      expect(gcRes.body.length).toBe(1);
+      expect(gcRes.body[0].buyerName).toBe(buyerName);
+    });
+
+    // 6.4 ── buyerName v /api/gift-cards/lookup ──
+    test('POSITIVE: /api/gift-cards/lookup vracia buyerName', async () => {
+      if (!giftCardTableExists) return;
+      const buyerName  = 'Lookup Tester';
+
+      const { successRes } = await guestPurchaseGiftCard({
+        amount: 100,
+        buyerEmail: 'test_gc_bn_lookup@example.com',
+        recipientName: 'Lookup Recipient',
+        buyerName,
+      });
+      expect(successRes.status).toBe(200);
+      const gcCode = successRes.body.code;
+
+      const lookupRes = await request(app)
+        .post('/api/gift-cards/lookup')
+        .send({ code: gcCode });
+
+      expect(lookupRes.status).toBe(200);
+      expect(lookupRes.body.buyerName).toBe(buyerName);
+    });
+
+    // 6.5 ── buyerName v /api/gift-cards/save — nový save ──
+    test('POSITIVE: /api/gift-cards/save (nový) vracia buyerName', async () => {
+      if (!giftCardTableExists) return;
+      const buyerEmail = 'test_gc_bn_save_new@example.com';
+      const buyerName  = 'Save New Tester';
+      const password   = 'TestPass123!';
+
+      const { successRes } = await guestPurchaseGiftCard({
+        amount: 30,
+        buyerEmail,
+        recipientName: 'Save Recipient',
+        buyerName,
+      });
+      expect(successRes.status).toBe(200);
+      const gcCode = successRes.body.code;
+
+      const hash = await bcrypt.hash(password, 10);
+      await pool.query(
+        `INSERT INTO users (first_name, last_name, email, password, address, verified, role)
+         VALUES ('Test','SaveNew',$1,$2,'Testova 1, Nitra',true,'user')
+         ON CONFLICT (email) DO UPDATE SET password=$2, verified=true`,
+        [buyerEmail, hash]
+      );
+      const agent = await loginAs(buyerEmail, password);
+
+      const saveRes = await agent.post('/api/gift-cards/save').send({ code: gcCode });
+      expect(saveRes.status).toBe(200);
+      expect(saveRes.body.alreadySaved).toBe(false);
+      expect(saveRes.body.buyerName).toBe(buyerName);
+    });
+
+    // 6.6 ── buyerName v /api/gift-cards/save — idempotentný save ──
+    test('POSITIVE: /api/gift-cards/save (alreadySaved) vracia buyerName', async () => {
+      if (!giftCardTableExists) return;
+      const buyerEmail = 'test_gc_bn_save_idem@example.com';
+      const buyerName  = 'Idempotent Name';
+      const password   = 'TestPass123!';
+
+      const { successRes } = await guestPurchaseGiftCard({
+        amount: 30,
+        buyerEmail,
+        recipientName: 'Idem Recipient',
+        buyerName,
+      });
+      expect(successRes.status).toBe(200);
+      const gcCode = successRes.body.code;
+
+      const hash = await bcrypt.hash(password, 10);
+      await pool.query(
+        `INSERT INTO users (first_name, last_name, email, password, address, verified, role)
+         VALUES ('Test','SaveIdem',$1,$2,'Testova 1, Nitra',true,'user')
+         ON CONFLICT (email) DO UPDATE SET password=$2, verified=true`,
+        [buyerEmail, hash]
+      );
+      const agent = await loginAs(buyerEmail, password);
+
+      // Prvý save
+      await agent.post('/api/gift-cards/save').send({ code: gcCode });
+
+      // Druhý save — alreadySaved=true
+      const save2 = await agent.post('/api/gift-cards/save').send({ code: gcCode });
+      expect(save2.status).toBe(200);
+      expect(save2.body.alreadySaved).toBe(true);
+      expect(save2.body.buyerName).toBe(buyerName);
+    });
+
+    // 6.7 ── buyerName je odovzdaný do PDF generátora ──
+    test('POSITIVE: generateGiftCardPDF je volaný s buyerName z DB (nie zo Stripe)', async () => {
+      if (!giftCardTableExists) return;
+      const pdfGenerator = require('../utils/pdfGenerator');
+      const buyerName  = 'PDF Buyer Name';
+
+      const { successRes } = await guestPurchaseGiftCard({
+        amount: 50,
+        buyerEmail: 'test_gc_bn_pdf@example.com',
+        recipientName: 'PDF Recipient',
+        buyerName,
+      });
+      expect(successRes.status).toBe(200);
+
+      // generateGiftCardPDF bol volaný s buyerName
+      expect(pdfGenerator.generateGiftCardPDF).toHaveBeenCalledWith(
+        expect.objectContaining({
+          buyerName,
+        })
+      );
+    });
+
+    // 6.8 ── Idempotentný success vracia buyerName z DB ──
+    test('POSITIVE: idempotentné /api/gift-card-success vracia buyerName z DB', async () => {
+      if (!giftCardTableExists) return;
+      const sessionId  = `test_gc_bn_idemp_${Date.now()}`;
+      const buyerEmail = 'test_gc_bn_idemp2@example.com';
+      const buyerName  = 'Idempotent Buyer DB';
+
+      // Prvý retrieve — vytvorí záznam v DB
+      mockStripe.checkout.sessions.retrieve
+        .mockResolvedValueOnce({
+          id: sessionId,
+          payment_status: 'paid',
+          metadata: {
+            type: 'gift_card', amount: '30',
+            buyerEmail, buyerName,
+            recipientName: 'Idemp Rec', recipientEmail: '', message: '',
+          },
+        });
+
+      const res1 = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+      expect(res1.status).toBe(200);
+      expect(res1.body.buyerName).toBe(buyerName);
+
+      // Druhý retrieve (idempotentný) — tentokrát metadata NEMAJÚ buyerName
+      // (simuluje, že Stripe metadata sa môžu líšiť, alebo už nie sú dostupné)
+      mockStripe.checkout.sessions.retrieve
+        .mockResolvedValueOnce({
+          id: sessionId,
+          payment_status: 'paid',
+          metadata: {
+            type: 'gift_card', amount: '30',
+            buyerEmail,
+            // buyerName chýba v metadata!
+            recipientName: 'Idemp Rec', recipientEmail: '', message: '',
+          },
+        });
+
+      const res2 = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+      expect(res2.status).toBe(200);
+      // Aj keď Stripe metadata nemajú buyerName, DB ho má — musí sa vrátiť z DB
+      expect(res2.body.buyerName).toBe(buyerName);
+    });
+
+    // 6.9 ── buyerName prázdny (NULL) ──
+    test('POSITIVE: prázdny buyerName → DB má NULL, endpointy vracajú ""', async () => {
+      if (!giftCardTableExists) return;
+
+      const { successRes } = await guestPurchaseGiftCard({
+        amount: 15,
+        buyerEmail: 'test_gc_bn_empty@example.com',
+        recipientName: 'Empty BuyerName',
+        buyerName: '', // prázdny
+      });
+
+      expect(successRes.status).toBe(200);
+      expect(successRes.body.buyerName).toBe('');
+
+      const gc = await getGiftCardByCode(successRes.body.code);
+      expect(gc).not.toBeNull();
+      // V DB je buyerName NULL
+      expect(gc.buyerName).toBeNull();
+    });
+
+    // 6.10 ── buyerName v /lookup pre starý záznam bez buyerName ──
+    test('NEGATIVE: /lookup vráti buyerName="" pre poukaz bez buyerName v DB', async () => {
+      if (!giftCardTableExists) return;
+      const oldCode = `TESTGC_OLD_${Date.now()}`.slice(0, 16);
+
+      // Vytvoríme poukaz bez buyerName (starý záznam)
+      await pool.query(
+        `INSERT INTO gift_card (code, amount, balance, status, "buyerEmail", "recipientName", "expiresAt", "createdAt")
+         VALUES ($1, 30, 30, 'active', 'test_gc_old_bn@example.com', 'Old Recipient', NOW() + INTERVAL '30 days', NOW())`,
+        [oldCode]
+      );
+
+      const lookupRes = await request(app)
+        .post('/api/gift-cards/lookup')
+        .send({ code: oldCode });
+
+      expect(lookupRes.status).toBe(200);
+      // Pre starý záznam bez buyerName sa vracia prázdny string
+      expect(lookupRes.body.buyerName).toBe('');
+    });
+
+    // 6.11 ── buyerName s diakritikou a špeciálnymi znakmi ──
+    test('POSITIVE: buyerName s diakritikou a špeciálnymi znakmi sa správne uloží a vráti', async () => {
+      if (!giftCardTableExists) return;
+      const buyerName = 'Ľubomír Šťastný – Nitráčik & Syn';
+
+      const { successRes } = await guestPurchaseGiftCard({
+        amount: 30,
+        buyerEmail: 'test_gc_bn_diak@example.com',
+        recipientName: 'Diakritika Test',
+        buyerName,
+      });
+
+      expect(successRes.status).toBe(200);
+      expect(successRes.body.buyerName).toBe(buyerName);
+
+      const gc = await getGiftCardByCode(successRes.body.code);
+      expect(gc.buyerName).toBe(buyerName);
+    });
+
+    // 6.12 ── buyName sa posiela do Stripe metadata pri create-session ──
+    test('POSITIVE: /api/create-gift-card-session posiela buyerName do Stripe metadata', async () => {
+      if (!giftCardTableExists) return;
+      const buyerName = 'Stripe Metadata Test';
+
+      mockStripe.checkout.sessions.create.mockResolvedValueOnce({
+        id: `test_gc_stripe_md_${Date.now()}`,
+        payment_status: 'unpaid',
+        metadata: {},
+      });
+
+      await request(app)
+        .post('/api/create-gift-card-session')
+        .send({
+          amount: 30,
+          buyerEmail: 'test_gc_stripe_md@example.com',
+          buyerName,
+          recipientName: 'Stripe Recipient',
+          honeypot: '',
+        });
+
+      expect(mockStripe.checkout.sessions.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            buyerName,
+          }),
+        })
+      );
+    });
+
+    // 6.13 ── buyerName v /user/:id pre viacero poukazov ──
+    test('POSITIVE: /api/gift-cards/user/:userId vracia buyerName pre viacero poukazov', async () => {
+      if (!giftCardTableExists) return;
+      const buyerEmail = 'test_gc_bn_multi@example.com';
+      const buyerName  = 'Multi Card Buyer';
+      const password   = 'TestPass123!';
+
+      // Nakúp 2 poukazy
+      const { successRes: res1 } = await guestPurchaseGiftCard({
+        amount: 15, buyerEmail, recipientName: 'Multi 1', buyerName,
+      });
+      const { successRes: res2 } = await guestPurchaseGiftCard({
+        amount: 30, buyerEmail, recipientName: 'Multi 2', buyerName,
+      });
+
+      const hash = await bcrypt.hash(password, 10);
+      const userRes = await pool.query(
+        `INSERT INTO users (first_name, last_name, email, password, address, verified, role)
+         VALUES ('Test','Multi',$1,$2,'Testova 1, Nitra',true,'user')
+         ON CONFLICT (email) DO UPDATE SET password=$2, verified=true
+         RETURNING *`,
+        [buyerEmail, hash]
+      );
+      const user = userRes.rows[0];
+      const agent = await loginAs(buyerEmail, password);
+
+      // Ulož oba
+      await agent.post('/api/gift-cards/save').send({ code: res1.body.code });
+      await agent.post('/api/gift-cards/save').send({ code: res2.body.code });
+
+      const gcRes = await agent.get(`/api/gift-cards/user/${user.id}`);
+      expect(gcRes.status).toBe(200);
+      expect(gcRes.body.length).toBe(2);
+      // Oba poukazy majú správny buyerName
+      gcRes.body.forEach(gc => {
+        expect(gc.buyerName).toBe(buyerName);
+      });
+    });
+  });
 });

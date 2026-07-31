@@ -5867,7 +5867,7 @@ app.get('/api/gift-card-success', async (req, res) => {
         amount: gc.amount,
         balance: gc.balance,
         buyerEmail: gc.buyerEmail,
-        buyerName: session.metadata?.buyerName || '',
+        buyerName: gc.buyerName || '',
         recipientName: gc.recipientName,
         message: gc.message || '',
         expiresAt: gc.expiresAt,
@@ -5898,14 +5898,15 @@ app.get('/api/gift-card-success', async (req, res) => {
     // Insert gift card record
     const insertResult = await client.query(
       `INSERT INTO gift_card 
-        (code, amount, balance, status, "buyerEmail", "recipientName", "recipientEmail", message, "expiresAt", "stripeSessionId", "createdAt")
-       VALUES ($1, $2, $3, 'active', $4, $5, $6, $7, $8, $9, NOW())
+        (code, amount, balance, status, "buyerEmail", "buyerName", "recipientName", "recipientEmail", message, "expiresAt", "stripeSessionId", "createdAt")
+       VALUES ($1, $2, $3, 'active', $4, $5, $6, $7, $8, $9, $10, NOW())
        RETURNING *`,
       [
         code,
         parsedAmount,
         parsedAmount,
         buyerEmail,
+        buyerName || null,
         recipientName,
         recipientEmail || null,
         message || null,
@@ -5986,7 +5987,7 @@ app.get('/api/gift-card-success', async (req, res) => {
       amount: gc.amount,
       balance: gc.balance,
       buyerEmail: gc.buyerEmail,
-      buyerName: buyerName || '',
+      buyerName: gc.buyerName || '',
       recipientName: gc.recipientName,
       message: gc.message || '',
       expiresAt: gc.expiresAt,
@@ -6123,7 +6124,7 @@ app.get('/api/gift-cards/user/:userId', isAuthenticated, async (req, res) => {
     // Filtruje vyčerpané a expirované — tie sa v profile nezobrazujú
     const result = await pool.query(
       `SELECT gc.id, gc.code, gc.amount, gc.balance, gc.status,
-              gc."recipientName", gc."expiresAt", gc."redeemedAt", gc."createdAt"
+              gc."recipientName", gc."buyerName", gc."expiresAt", gc."redeemedAt", gc."createdAt"
        FROM gift_card gc
        INNER JOIN user_saved_gift_cards usgc ON usgc.gift_card_id = gc.id
        WHERE usgc.user_id = $1
@@ -6155,7 +6156,7 @@ app.post('/api/gift-cards/lookup', async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT id, code, amount, balance, status, "recipientName",
+      `SELECT id, code, amount, balance, status, "recipientName", "buyerName",
               "expiresAt", "redeemedAt", "createdAt"
        FROM gift_card
        WHERE UPPER(REPLACE(code, '-', '')) = $1`,
@@ -6176,6 +6177,7 @@ app.post('/api/gift-cards/lookup', async (req, res) => {
       balance: parseFloat(gc.balance),
       status: gc.status,
       recipientName: gc.recipientName || '',
+      buyerName: gc.buyerName || '',
       expiresAt: gc.expiresAt,
       redeemedAt: gc.redeemedAt,
       createdAt: gc.createdAt,
@@ -6244,6 +6246,7 @@ app.post('/api/gift-cards/save', isAuthenticated, async (req, res) => {
           balance: parseFloat(gc.balance),
           status: gc.status,
           recipientName: gc.recipientName || '',
+          buyerName: gc.buyerName || '',
           expiresAt: gc.expiresAt,
           createdAt: gc.createdAt,
           alreadySaved: true,
@@ -6269,6 +6272,7 @@ app.post('/api/gift-cards/save', isAuthenticated, async (req, res) => {
       balance: parseFloat(gc.balance),
       status: gc.status,
       recipientName: gc.recipientName || '',
+      buyerName: gc.buyerName || '',
       expiresAt: gc.expiresAt,
       createdAt: gc.createdAt,
       alreadySaved: false,
@@ -6306,22 +6310,12 @@ app.get('/api/gift-cards/:code/pdf', async (req, res) => {
 
     const gc = result.rows[0];
 
-    let buyerName = gc.buyerEmail || '';
-    if (gc.stripeSessionId) {
-      try {
-        const stripeSession = await stripe.checkout.sessions.retrieve(gc.stripeSessionId);
-        buyerName = stripeSession.metadata?.buyerName || gc.buyerEmail || '';
-      } catch (stripeErr) {
-        console.warn('[GiftCard PDF] Could not fetch Stripe session:', stripeErr.message);
-      }
-    }
-
     const pdfBytes = await generateGiftCardPDF({
       code: gc.code,
       amount: gc.amount,
       recipientName: gc.recipientName,
       buyerEmail: gc.buyerEmail,
-      buyerName,
+      buyerName: gc.buyerName || gc.buyerEmail || '',
       message: gc.message || null,
       expiresAt: gc.expiresAt,
     });
