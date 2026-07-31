@@ -5,7 +5,7 @@ import { useTranslation } from '../contexts/LanguageContext';
 import { Tooltip } from 'react-tooltip';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  ClipboardCheck, XCircle, Zap, Trash2, 
+  ClipboardCheck, XCircle, Zap, Trash2, Copy, Check, 
   MapPin, Phone, ShieldAlert, FileText, 
   Ticket, CalendarDays, History, Archive,
   AlertTriangle, ChevronDown, CheckCircle, CreditCard, RefreshCw, ChevronUp, Gift,
@@ -75,6 +75,7 @@ const UserProfile = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedSessionDetail, setSelectedSessionDetail] = useState(null);
   const [selectedGiftCard, setSelectedGiftCard] = useState(null);
+  const [copiedCode, setCopiedCode] = useState(null);
   const [gcInputCode, setGcInputCode] = useState('');
   const [gcLookupLoading, setGcLookupLoading] = useState(false);
   const [gcLookupError, setGcLookupError] = useState('');
@@ -142,6 +143,23 @@ const UserProfile = () => {
     }
   };
 
+  const handleCopyCode = async (code) => {
+    try {
+      await navigator.clipboard.writeText(code);
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = code;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
+
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -160,6 +178,16 @@ const UserProfile = () => {
     };
     fetchSavedGiftCards();
   }, [userId]);
+
+  // ESC key zatvorí modál náhľadu darčekového poukazu
+  useEffect(() => {
+    if (!selectedGiftCard) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setSelectedGiftCard(null);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedGiftCard]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -1125,7 +1153,49 @@ const UserProfile = () => {
                 </button>
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-neutral-200 shadow-sm mb-4">
+              <>
+                {/* Mobile: stacked cards */}
+                <div className="md:hidden space-y-3 mb-4">
+                  {activeTickets.map((ticket, index) => (
+                    <div
+                      key={`${ticket.id || 'ticket'}-${ticket.purchase_date || ''}-${index}`}
+                      className="bg-white border border-neutral-200 rounded-2xl p-4 space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Typ</span>
+                        <span className="font-bold text-foreground text-sm text-right">
+                          {ticket.product_name || ticket.product_code || ticket.training_type_name || ticket.training_type || '-'}
+                        </span>
+                      </div>
+                      {ticket.training_types && ticket.training_types.length > 0 && (
+                        <div className="text-xs font-medium text-neutral-400 text-right">
+                          {ticket.training_types.map((type) => type.name).join(', ')}
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Vstupy</span>
+                        <span className="font-bold text-neutral-500 text-sm">{ticket.entries_total}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Zostatok</span>
+                        <span className="bg-emerald-50 text-emerald-600 border border-emerald-100 py-1 px-3 rounded-full text-xs font-bold">
+                          {ticket.entries_remaining}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Kúpené</span>
+                        <span className="text-sm font-medium text-neutral-500">{formatSlovakDate(ticket.purchase_date).split(' - ')[0]}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Platnosť do</span>
+                        <span className="text-sm font-medium text-neutral-500">{formatSlovakDate(ticket.expiry_date).split(' - ')[0]}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop: table */}
+                <div className="hidden md:block overflow-x-auto rounded-xl border border-neutral-200 shadow-sm mb-4">
                 <table className="min-w-full divide-y divide-neutral-200">
                   <thead className="bg-neutral-50">
                     <tr>
@@ -1167,7 +1237,8 @@ const UserProfile = () => {
                     ))}
                   </tbody>
                 </table>
-              </div>
+                </div>
+              </>
             )}
 
             {/* 2. HISTÓRIA / VYČERPANÉ */}
@@ -1190,7 +1261,46 @@ const UserProfile = () => {
                       exit={{ height: 0, opacity: 0 }}
                       className="overflow-hidden"
                     >
-                      <div className="overflow-x-auto rounded-xl border border-neutral-200">
+                      {/* Mobile: stacked cards */}
+                      <div className="md:hidden space-y-3">
+                        {historyTickets.map((ticket, index) => (
+                          <div
+                            key={`${ticket.id || 'ticket'}-${ticket.purchase_date || ''}-${index}`}
+                            className="bg-white border border-neutral-200 rounded-2xl p-4 space-y-2.5 opacity-75"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Typ</span>
+                              <span className="font-bold text-neutral-600 text-sm text-right">
+                                {ticket.product_name || ticket.product_code || ticket.training_type_name || ticket.training_type || '-'}
+                              </span>
+                            </div>
+                            {ticket.training_types && ticket.training_types.length > 0 && (
+                              <div className="text-xs font-medium text-neutral-400 text-right">
+                                {ticket.training_types.map((type) => type.name).join(', ')}
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Status</span>
+                              {ticket.entries_remaining === 0 ? (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-neutral-100 text-neutral-600 border border-neutral-200">
+                                  Vyčerpaná
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-red-50 text-red-600 border border-red-100">
+                                  Expirovaná
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Dátum nákupu</span>
+                              <span className="text-sm font-medium text-neutral-500">{formatSlovakDate(ticket.purchase_date).split(' - ')[0]}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Desktop: table */}
+                      <div className="hidden md:block overflow-x-auto rounded-xl border border-neutral-200">
                         <table className="min-w-full divide-y divide-neutral-200">
                           <thead className="bg-neutral-50">
                             <tr>
@@ -1287,46 +1397,142 @@ const UserProfile = () => {
 
             {/* Gift card list */}
             {giftCards.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
-                {giftCards.map((gc, index) => (
-                  <div
-                    key={gc.id || index}
-                    onClick={() => setSelectedGiftCard(gc)}
-                    className="bg-gradient-to-br from-amber-50 to-amber-100/60 border border-amber-200 rounded-2xl p-5 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="font-mono text-xs font-black tracking-widest text-amber-700 bg-white border border-amber-200 rounded-lg px-2 py-1">
-                        {gc.code}
-                      </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-400 text-white">
-                        Aktívny
-                      </span>
-                    </div>
-                    <div className="space-y-1.5 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-neutral-500 font-medium">Využité:</span>
-                        <span className="font-bold text-foreground">
-                          {(parseFloat(gc.amount) - parseFloat(gc.balance)).toFixed(2)} €
-                        </span>
+              <>
+                {/* Mobile: stacked cards */}
+                <div className="md:hidden space-y-3 mt-6">
+                  {giftCards.map((gc, index) => {
+                    const used = (parseFloat(gc.amount) - parseFloat(gc.balance)).toFixed(2);
+                    const isValid = gc.status === 'active';
+                    return (
+                      <div
+                        key={gc.id || index}
+                        className="bg-white border border-neutral-200 rounded-2xl p-4 space-y-2.5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Hodnota</span>
+                          <span className="font-bold text-foreground text-sm">{parseFloat(gc.amount).toFixed(2)} €</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Využité</span>
+                          <span className="text-neutral-600 text-sm">{used} €</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Zostatok</span>
+                          <span className="font-black text-amber-700 text-sm">{parseFloat(gc.balance).toFixed(2)} €</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Platné</span>
+                          <span className="text-neutral-600 text-xs">
+                            {new Date(gc.expiresAt).toLocaleDateString('sk-SK', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">Aktívny</span>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${isValid ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'}`}>
+                            {isValid ? 'Aktívny' : (gc.status || 'Neaktívny')}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-neutral-100">
+                          <button
+                            onClick={() => handleCopyCode(gc.code)}
+                            className="group flex items-center gap-1.5 font-mono text-xs font-bold tracking-wider text-neutral-600 active:text-amber-600 transition-colors"
+                          >
+                            {copiedCode === gc.code ? (
+                              <><Check className="w-3.5 h-3.5 text-green-500" /><span className="text-green-600 text-[11px]">Skopírované!</span></>
+                            ) : (
+                              <><Copy className="w-3.5 h-3.5 text-neutral-400" />{gc.code}</>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setSelectedGiftCard(gc)}
+                            className="text-neutral-400 active:text-amber-500 transition-colors p-1"
+                            title="Zobraziť náhľad poukazu"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-neutral-500 font-medium">Zostatok:</span>
-                        <span className="font-black text-amber-700 text-base">
-                          {parseFloat(gc.balance).toFixed(2)} €
-                        </span>
-                      </div>
-                      <div className="flex justify-between pt-1.5 border-t border-amber-200 mt-1.5">
-                        <span className="text-neutral-400 font-medium text-xs">Platné do:</span>
-                        <span className="font-bold text-xs text-neutral-600">
-                          {new Date(gc.expiresAt).toLocaleDateString('sk-SK', {
-                            day: '2-digit', month: '2-digit', year: 'numeric'
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop: table */}
+                <div className="hidden md:block mt-6 overflow-x-auto rounded-2xl border border-neutral-200">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-neutral-50 text-neutral-500 font-semibold text-xs uppercase tracking-wider">
+                        <th className="text-left py-3 px-4 whitespace-nowrap">Hodnota</th>
+                        <th className="text-left py-3 px-4 whitespace-nowrap">Využité</th>
+                        <th className="text-left py-3 px-4 whitespace-nowrap">Zostatok</th>
+                        <th className="text-left py-3 px-4 whitespace-nowrap">Platné</th>
+                        <th className="text-left py-3 px-4 whitespace-nowrap">Aktívny</th>
+                        <th className="text-left py-3 px-4 whitespace-nowrap">Kód</th>
+                        <th className="text-center py-3 px-4 whitespace-nowrap w-10">#</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-100">
+                      {giftCards.map((gc, index) => {
+                        const used = (parseFloat(gc.amount) - parseFloat(gc.balance)).toFixed(2);
+                        const isValid = gc.status === 'active';
+                        return (
+                          <tr
+                            key={gc.id || index}
+                            className="hover:bg-neutral-50/50 transition-colors"
+                          >
+                            <td className="py-3 px-4 font-bold text-foreground whitespace-nowrap">
+                              {parseFloat(gc.amount).toFixed(2)} €
+                            </td>
+                            <td className="py-3 px-4 text-neutral-600 whitespace-nowrap">
+                              {used} €
+                            </td>
+                            <td className="py-3 px-4 font-black text-amber-700 whitespace-nowrap">
+                              {parseFloat(gc.balance).toFixed(2)} €
+                            </td>
+                            <td className="py-3 px-4 text-neutral-600 whitespace-nowrap text-xs">
+                              {new Date(gc.expiresAt).toLocaleDateString('sk-SK', {
+                                day: '2-digit', month: '2-digit', year: 'numeric'
+                              })}
+                            </td>
+                            <td className="py-3 px-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${isValid ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'}`}>
+                                {isValid ? 'Aktívny' : (gc.status || 'Neaktívny')}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 whitespace-nowrap">
+                              <button
+                                onClick={() => handleCopyCode(gc.code)}
+                                className="group flex items-center gap-1.5 font-mono text-xs font-bold tracking-wider text-neutral-600 hover:text-amber-600 transition-colors cursor-pointer"
+                                title="Kliknutím skopírujete kód"
+                              >
+                                {copiedCode === gc.code ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5 text-green-500" />
+                                    <span className="text-green-600">Skopírované!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3.5 h-3.5 text-neutral-400 group-hover:text-amber-500 transition-colors" />
+                                    {gc.code}
+                                  </>
+                                )}
+                              </button>
+                            </td>
+                            <td className="py-3 px-4 text-center whitespace-nowrap">
+                              <button
+                                onClick={() => setSelectedGiftCard(gc)}
+                                className="text-neutral-400 hover:text-amber-500 transition-colors p-1"
+                                title="Zobraziť náhľad poukazu"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
 
             {/* Empty state — shown only when no cards added yet */}
