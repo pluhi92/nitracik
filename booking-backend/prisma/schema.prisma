@@ -224,6 +224,7 @@ model users {
   bookings           bookings[]
   credits            credits[]
   season_tickets     season_tickets[]
+  saved_gift_cards   user_saved_gift_cards[]
 }
 
 model blog_labels {
@@ -281,4 +282,16 @@ model gift_card {
   redeemedAt      DateTime?
   createdAt       DateTime  @default(now())
   bookingId       Int?
+  saved_by        user_saved_gift_cards?
+}
+
+model user_saved_gift_cards {
+  id           Int       @id @default(autoincrement())
+  user_id      Int
+  gift_card_id Int       @unique
+  saved_at     DateTime  @default(now())
+  users        users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  gift_card    gift_card @relation(fields: [gift_card_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
 }

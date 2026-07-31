@@ -339,6 +339,13 @@ exports.Prisma.Gift_cardScalarFieldEnum = {
   bookingId: 'bookingId'
 };
 
+exports.Prisma.User_saved_gift_cardsScalarFieldEnum = {
+  id: 'id',
+  user_id: 'user_id',
+  gift_card_id: 'gift_card_id',
+  saved_at: 'saved_at'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -384,7 +391,8 @@ exports.Prisma.ModelName = {
   blog_posts: 'blog_posts',
   google_ratings_config: 'google_ratings_config',
   about_content: 'about_content',
-  gift_card: 'gift_card'
+  gift_card: 'gift_card',
+  user_saved_gift_cards: 'user_saved_gift_cards'
 };
 
 /**

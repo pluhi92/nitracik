@@ -207,23 +207,24 @@ model user_sessions {
 }
 
 model users {
-  id                 Int              @id @default(autoincrement())
-  first_name         String           @db.VarChar(100)
-  last_name          String           @db.VarChar(100)
-  email              String           @unique @db.VarChar(100)
-  password           String           @db.VarChar(100)
+  id                 Int                     @id @default(autoincrement())
+  first_name         String                  @db.VarChar(100)
+  last_name          String                  @db.VarChar(100)
+  email              String                  @unique @db.VarChar(100)
+  password           String                  @db.VarChar(100)
   address            String
   verification_token String?
-  verified           Boolean?         @default(false)
+  verified           Boolean?                @default(false)
   reset_token        String?
-  role               String?          @default("user") @db.VarChar(20)
-  created_at         DateTime?        @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime?        @default(now()) @db.Timestamptz(6)
-  mobile             String?          @db.VarChar(20)
+  role               String?                 @default("user") @db.VarChar(20)
+  created_at         DateTime?               @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime?               @default(now()) @db.Timestamptz(6)
+  mobile             String?                 @db.VarChar(20)
   marketing_consent  Boolean?
   bookings           bookings[]
   credits            credits[]
   season_tickets     season_tickets[]
+  saved_gift_cards   user_saved_gift_cards[]
 }
 
 model blog_labels {
@@ -266,18 +267,30 @@ model about_content {
 }
 
 model gift_card {
-  id              Int       @id @default(autoincrement())
-  code            String    @unique
-  stripeSessionId String?   @unique
+  id              Int                    @id @default(autoincrement())
+  code            String                 @unique
+  stripeSessionId String?                @unique
   amount          Float
   balance         Float
-  status          String    @default("active")
+  status          String                 @default("active")
   buyerEmail      String
   recipientName   String
   recipientEmail  String?
   message         String?
   expiresAt       DateTime
   redeemedAt      DateTime?
-  createdAt       DateTime  @default(now())
+  createdAt       DateTime               @default(now())
   bookingId       Int?
+  saved_by        user_saved_gift_cards?
+}
+
+model user_saved_gift_cards {
+  id           Int       @id @default(autoincrement())
+  user_id      Int
+  gift_card_id Int       @unique
+  saved_at     DateTime  @default(now())
+  users        users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  gift_card    gift_card @relation(fields: [gift_card_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
 }

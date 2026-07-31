@@ -6119,23 +6119,19 @@ app.get('/api/gift-cards/user/:userId', isAuthenticated, async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    // Get user email to match gift cards (gift cards are linked by buyerEmail)
-    const userResult = await pool.query(
-      'SELECT email FROM users WHERE id = $1',
-      [userId]
-    );
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    const userEmail = userResult.rows[0].email;
-
+    // Vracia len manuálne uložené poukazy (nie automaticky podľa buyerEmail)
+    // Filtruje vyčerpané a expirované — tie sa v profile nezobrazujú
     const result = await pool.query(
-      `SELECT id, code, amount, balance, status, "recipientName",
-              "expiresAt", "redeemedAt", "createdAt"
-       FROM gift_card
-       WHERE "buyerEmail" = $1
-       ORDER BY "createdAt" DESC`,
-      [userEmail]
+      `SELECT gc.id, gc.code, gc.amount, gc.balance, gc.status,
+              gc."recipientName", gc."expiresAt", gc."redeemedAt", gc."createdAt"
+       FROM gift_card gc
+       INNER JOIN user_saved_gift_cards usgc ON usgc.gift_card_id = gc.id
+       WHERE usgc.user_id = $1
+         AND gc.status = 'active'
+         AND gc.balance > 0
+         AND gc."expiresAt" > NOW()
+       ORDER BY usgc.saved_at DESC`,
+      [userId]
     );
 
     res.json(result.rows);
@@ -6188,6 +6184,101 @@ app.post('/api/gift-cards/lookup', async (req, res) => {
   } catch (error) {
     console.error('[GiftCard] lookup error:', error.message);
     return res.status(500).json({ error: 'Chyba pri hľadaní poukazu' });
+  }
+});
+
+// ENDPOINT 5.6: Save a gift card to user's profile
+app.post('/api/gift-cards/save', isAuthenticated, async (req, res) => {
+  const userId = req.session.userId;
+  const { code } = req.body;
+
+  if (!code || typeof code !== 'string' || !code.trim()) {
+    return res.status(400).json({ error: 'Chýba kód poukazu' });
+  }
+
+  const normalized = code.trim().toUpperCase().replace(/-/g, '').replace(/\s/g, '');
+
+  const client = await pool.connect();
+  try {
+    // 1. Nájdi poukaz
+    const gcResult = await client.query(
+      `SELECT * FROM gift_card WHERE UPPER(REPLACE(code, '-', '')) = $1`,
+      [normalized]
+    );
+
+    if (gcResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Darčekový poukaz s týmto kódom neexistuje.' });
+    }
+
+    const gc = gcResult.rows[0];
+
+    // 2. Skontroluj či je poukaz vyčerpaný
+    if (gc.status === 'used' || parseFloat(gc.balance) <= 0) {
+      return res.status(400).json({
+        error: 'Tento darčekový poukaz je už plne vyčerpaný a nedá sa pridať do profilu.',
+        status: 'used',
+      });
+    }
+
+    // 3. Skontroluj či je poukaz expirovaný
+    if (new Date(gc.expiresAt) < new Date()) {
+      return res.status(400).json({
+        error: 'Platnosť tohto darčekového poukazu vypršala.',
+        status: 'expired',
+      });
+    }
+
+    // 4. Skontroluj či poukaz nie je uložený u iného usera
+    const existingLink = await client.query(
+      `SELECT * FROM user_saved_gift_cards WHERE gift_card_id = $1`,
+      [gc.id]
+    );
+
+    if (existingLink.rows.length > 0) {
+      if (existingLink.rows[0].user_id === userId) {
+        // Idempotencia — poukaz už má tento user, vrátime aktuálne dáta
+        return res.json({
+          id: gc.id,
+          code: gc.code,
+          amount: parseFloat(gc.amount),
+          balance: parseFloat(gc.balance),
+          status: gc.status,
+          recipientName: gc.recipientName || '',
+          expiresAt: gc.expiresAt,
+          createdAt: gc.createdAt,
+          alreadySaved: true,
+        });
+      }
+      // Iný user ho má uložený
+      return res.status(409).json({
+        error: 'Tento darčekový poukaz je už priradený k inému používateľskému účtu.',
+      });
+    }
+
+    // 5. Ulož väzbu
+    await client.query(
+      `INSERT INTO user_saved_gift_cards (user_id, gift_card_id, saved_at)
+       VALUES ($1, $2, NOW())`,
+      [userId, gc.id]
+    );
+
+    return res.json({
+      id: gc.id,
+      code: gc.code,
+      amount: parseFloat(gc.amount),
+      balance: parseFloat(gc.balance),
+      status: gc.status,
+      recipientName: gc.recipientName || '',
+      expiresAt: gc.expiresAt,
+      createdAt: gc.createdAt,
+      alreadySaved: false,
+    });
+
+  } catch (error) {
+    console.error('[GiftCard] save error:', error.message);
+    return res.status(500).json({ error: 'Chyba pri ukladaní poukazu' });
+  } finally {
+    client.release();
   }
 });
 

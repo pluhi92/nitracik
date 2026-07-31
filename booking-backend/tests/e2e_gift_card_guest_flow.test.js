@@ -412,6 +412,7 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
 
   // ───────────────────────────────────────────────────────────────────────────
   // ČASŤ 3: Guest sa zaregistruje → nevidí DP automaticky v profile
+  //          (GET /api/gift-cards/user/:id vracia len manuálne uložené poukazy)
   // ───────────────────────────────────────────────────────────────────────────
 
   describe('Časť 3 – Registrácia s rovnakým emailom → DP nie je automaticky v profile', () => {
@@ -445,22 +446,14 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
       // Krok 3: prihlási sa
       const agent = await loginAs(buyerEmail, password);
 
-      // Krok 4: zavolá endpoint ktorý používal starý fetchGiftCards
+      // Krok 4: GET /api/gift-cards/user/:id — vracia len manuálne uložené poukazy
       const gcRes = await agent.get(`/api/gift-cards/user/${user.id}`);
 
-      // Musí vrátiť prázdne pole — DP nie je automaticky priradený
-      // (endpoint vracia poukazy kde buyerEmail = email usera,
-      //  ale toto je správanie ktoré sme zmenili — user musí pridať DP manuálne)
-      // Endpoint môže vrátiť 200 s prázdnym poľom ALEBO poukazy podľa buyerEmail
-      // Dôležité: UI nezobrazia automaticky DP — to rieši frontend (fetchGiftCards odstránený)
-      expect([200, 403]).toContain(gcRes.status);
-      if (gcRes.status === 200) {
-        // Ak endpoint stále vracia podľa buyerEmail, overíme aspoň že
-        // frontend (UserProfile) tieto dáta už nezobrazuje automaticky —
-        // toto je správanie na úrovni UI (fetchGiftCards removal)
-        // Backend endpoint ostáva pre prípad budúceho použitia
-        expect(Array.isArray(gcRes.body)).toBe(true);
-      }
+      // Musí vrátiť prázdne pole — DP nie je automaticky priradený,
+      // pretože endpoint používa INNER JOIN na user_saved_gift_cards
+      expect(gcRes.status).toBe(200);
+      expect(Array.isArray(gcRes.body)).toBe(true);
+      expect(gcRes.body.length).toBe(0);
 
       // Kód poukazu existuje v DB (nebol vymazaný)
       const gc = await getGiftCardByCode(gcCode);
@@ -468,7 +461,7 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
       expect(gc.status).toBe('active');
     });
 
-    test('POSITIVE: registrovaný user nemá v profile žiadne DP ak žiadne nepridá manuálne', async () => {
+    test('POSITIVE: registrovaný user nemá v profile žiadne DP ak žiadne nepridal manuálne', async () => {
       if (!giftCardTableExists) return;
       const email    = 'test_gc_newreg_nocard@example.com';
       const password = 'TestPass123!';
@@ -485,29 +478,21 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
       const user = userRes.rows[0];
       const agent = await loginAs(email, password);
 
-      // Lookup bez kódu → 400 (nič nepridal)
-      const lookupRes = await agent
-        .post('/api/gift-cards/lookup')
-        .send({ code: '' });
-
-      expect(lookupRes.status).toBe(400);
-
-      // GET user gift cards → prázdne alebo 403
+      // GET user gift cards → prázdne pole
       const gcRes = await agent.get(`/api/gift-cards/user/${user.id}`);
-      expect([200, 403]).toContain(gcRes.status);
-      if (gcRes.status === 200) {
-        expect(gcRes.body.length).toBe(0);
-      }
+      expect(gcRes.status).toBe(200);
+      expect(Array.isArray(gcRes.body)).toBe(true);
+      expect(gcRes.body.length).toBe(0);
     });
   });
 
   // ───────────────────────────────────────────────────────────────────────────
-  // ČASŤ 4: User pridá DP manuálne → vidí ho v profile
+  // ČASŤ 4: User uloží DP manuálne cez /save → vidí ho v profile
   // ───────────────────────────────────────────────────────────────────────────
 
-  describe('Časť 4 – Manuálne pridanie DP do profilu cez lookup', () => {
+  describe('Časť 4 – Manuálne uloženie DP do profilu cez /save', () => {
 
-    test('POSITIVE: kompletný flow — guest kúpi DP → zaregistruje sa → pridá kód → vidí DP', async () => {
+    test('POSITIVE: kompletný flow — guest kúpi DP → zaregistruje sa → uloží kód → vidí DP v profile', async () => {
       if (!giftCardTableExists) return;
       const buyerEmail = 'test_gc_fullflow001@example.com';
       const password   = 'TestPass123!';
@@ -525,36 +510,42 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
 
       // Krok 2: zaregistruje sa s rovnakým emailom
       const hash = await bcrypt.hash(password, 10);
-      await pool.query(
+      const userRes = await pool.query(
         `INSERT INTO users (first_name, last_name, email, password, address, verified, role)
          VALUES ('Full','Flow',$1,$2,'Testova 1, Nitra',true,'user')
          ON CONFLICT (email) DO UPDATE SET password=$2, verified=true
          RETURNING *`,
         [buyerEmail, hash]
       );
+      const user = userRes.rows[0];
 
       // Krok 3: prihlási sa
       const agent = await loginAs(buyerEmail, password);
 
-      // Krok 4: pridá DP kód cez lookup endpoint
-      const lookupRes = await agent
-        .post('/api/gift-cards/lookup')
+      // Krok 4: uloží DP kód cez /save endpoint
+      const saveRes = await agent
+        .post('/api/gift-cards/save')
         .send({ code: gcCode });
 
-      // Musí nájsť poukaz
-      expect(lookupRes.status).toBe(200);
-      expect(lookupRes.body.code).toBe(gcCode);
-      expect(parseFloat(lookupRes.body.amount)).toBe(50);
-      expect(parseFloat(lookupRes.body.balance)).toBe(50);
-      expect(lookupRes.body.status).toBe('active');
-      expect(lookupRes.body.expiresAt).toBeDefined();
+      expect(saveRes.status).toBe(200);
+      expect(saveRes.body.code).toBe(gcCode);
+      expect(parseFloat(saveRes.body.amount)).toBe(50);
+      expect(parseFloat(saveRes.body.balance)).toBe(50);
+      expect(saveRes.body.status).toBe('active');
+      expect(saveRes.body.alreadySaved).toBe(false);
+      expect(saveRes.body.expiresAt).toBeDefined();
+      expect(saveRes.body.recipientName).toBe('Full Flow Test');
 
-      // Krok 5: overenie že lookup vrátil správne dáta pre zobrazenie v profile
-      expect(lookupRes.body.recipientName).toBe('Full Flow Test');
-      expect(new Date(lookupRes.body.expiresAt).getTime()).toBeGreaterThan(Date.now());
+      // Krok 5: GET /api/gift-cards/user/:id — vráti uložený poukaz
+      const gcRes = await agent.get(`/api/gift-cards/user/${user.id}`);
+      expect(gcRes.status).toBe(200);
+      expect(Array.isArray(gcRes.body)).toBe(true);
+      expect(gcRes.body.length).toBe(1);
+      expect(gcRes.body[0].code).toBe(gcCode);
+      expect(parseFloat(gcRes.body[0].balance)).toBe(50);
     });
 
-    test('POSITIVE: user pridá DP kód s pomlčkami (z emailu) → lookup uspeje', async () => {
+    test('POSITIVE: user uloží DP kód s pomlčkami (z emailu) → /save uspeje', async () => {
       if (!giftCardTableExists) return;
       const buyerEmail = 'test_gc_fullflow002@example.com';
       const password   = 'TestPass123!';
@@ -567,32 +558,40 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
         buyerName: 'Buyer Dashed',
       });
       expect(successRes.status).toBe(200);
-      const rawCode = successRes.body.code; // napr. ABCD1234EFGH
+      const rawCode = successRes.body.code;
 
       // Simuluje formát kódu z emailu (s pomlčkami)
-      const dashedCode = rawCode.replace(/(.{4})/g, '$1-').replace(/-$/, ''); // ABCD-1234-EFGH
+      const dashedCode = rawCode.replace(/(.{4})/g, '$1-').replace(/-$/, '');
 
       // Krok 2: registruj a prihlás
       const hash = await bcrypt.hash(password, 10);
-      await pool.query(
+      const userRes = await pool.query(
         `INSERT INTO users (first_name, last_name, email, password, address, verified, role)
          VALUES ('Test','Dashed',$1,$2,'Testova 1, Nitra',true,'user')
-         ON CONFLICT (email) DO UPDATE SET password=$2, verified=true`,
+         ON CONFLICT (email) DO UPDATE SET password=$2, verified=true
+         RETURNING *`,
         [buyerEmail, hash]
       );
+      const user = userRes.rows[0];
       const agent = await loginAs(buyerEmail, password);
 
-      // Krok 3: pridá kód s pomlčkami
-      const lookupRes = await agent
-        .post('/api/gift-cards/lookup')
+      // Krok 3: uloží kód s pomlčkami cez /save
+      const saveRes = await agent
+        .post('/api/gift-cards/save')
         .send({ code: dashedCode });
 
-      expect(lookupRes.status).toBe(200);
-      expect(lookupRes.body.code).toBe(rawCode); // vráti kód bez pomlčiek (DB formát)
-      expect(parseFloat(lookupRes.body.balance)).toBe(30);
+      expect(saveRes.status).toBe(200);
+      expect(saveRes.body.code).toBe(rawCode);
+      expect(parseFloat(saveRes.body.balance)).toBe(30);
+      expect(saveRes.body.alreadySaved).toBe(false);
+
+      // Overenie cez GET
+      const gcRes = await agent.get(`/api/gift-cards/user/${user.id}`);
+      expect(gcRes.body.length).toBe(1);
+      expect(gcRes.body[0].code).toBe(rawCode);
     });
 
-    test('POSITIVE: user pridá DP dvakrát → druhý lookup aktualizuje dáta (nie duplikát)', async () => {
+    test('POSITIVE: user uloží DP dvakrát → druhý /save vráti alreadySaved=true (idempotencia)', async () => {
       if (!giftCardTableExists) return;
       const buyerEmail = 'test_gc_fullflow003@example.com';
       const password   = 'TestPass123!';
@@ -600,31 +599,47 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
       const { successRes } = await guestPurchaseGiftCard({
         amount: 15,
         buyerEmail,
-        recipientName: 'Double Lookup Test',
+        recipientName: 'Double Save Test',
         buyerName: 'Buyer Double',
       });
       const gcCode = successRes.body.code;
 
       const hash = await bcrypt.hash(password, 10);
-      await pool.query(
+      const userRes = await pool.query(
         `INSERT INTO users (first_name, last_name, email, password, address, verified, role)
          VALUES ('Test','Double',$1,$2,'Testova 1, Nitra',true,'user')
-         ON CONFLICT (email) DO UPDATE SET password=$2, verified=true`,
+         ON CONFLICT (email) DO UPDATE SET password=$2, verified=true
+         RETURNING *`,
         [buyerEmail, hash]
       );
+      const user = userRes.rows[0];
       const agent = await loginAs(buyerEmail, password);
 
-      const lookup1 = await agent.post('/api/gift-cards/lookup').send({ code: gcCode });
-      const lookup2 = await agent.post('/api/gift-cards/lookup').send({ code: gcCode });
+      // Prvý save
+      const save1 = await agent.post('/api/gift-cards/save').send({ code: gcCode });
+      expect(save1.status).toBe(200);
+      expect(save1.body.alreadySaved).toBe(false);
 
-      expect(lookup1.status).toBe(200);
-      expect(lookup2.status).toBe(200);
-      // Oboje vrátia rovnaké dáta
-      expect(lookup1.body.code).toBe(lookup2.body.code);
-      expect(lookup1.body.balance).toBe(lookup2.body.balance);
+      // Druhý save — idempotentný
+      const save2 = await agent.post('/api/gift-cards/save').send({ code: gcCode });
+      expect(save2.status).toBe(200);
+      expect(save2.body.alreadySaved).toBe(true);
+      expect(save2.body.code).toBe(save1.body.code);
+      expect(save2.body.balance).toBe(save1.body.balance);
+
+      // V user_saved_gift_cards je len 1 záznam
+      const countRes = await pool.query(
+        'SELECT COUNT(*) as count FROM user_saved_gift_cards WHERE user_id = $1 AND gift_card_id = $2',
+        [user.id, save1.body.id]
+      );
+      expect(parseInt(countRes.rows[0].count)).toBe(1);
+
+      // GET vráti len 1 poukaz (nie duplicitne)
+      const gcRes = await agent.get(`/api/gift-cards/user/${user.id}`);
+      expect(gcRes.body.length).toBe(1);
     });
 
-    test('POSITIVE: user pridá cudzie DP (obdarovaný) → vidí ho v profile', async () => {
+    test('POSITIVE: user (obdarovaný) uloží DP ktorý mu kúpil niekto iný → vidí ho v profile', async () => {
       if (!giftCardTableExists) return;
       const recipientEmail = 'test_gc_recipient_reg@example.com';
       const password       = 'TestPass123!';
@@ -642,29 +657,37 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
 
       // Obdarovaný sa zaregistruje
       const hash = await bcrypt.hash(password, 10);
-      await pool.query(
+      const userRes = await pool.query(
         `INSERT INTO users (first_name, last_name, email, password, address, verified, role)
          VALUES ('Recipient','Registered',$1,$2,'Testova 1, Nitra',true,'user')
-         ON CONFLICT (email) DO UPDATE SET password=$2, verified=true`,
+         ON CONFLICT (email) DO UPDATE SET password=$2, verified=true
+         RETURNING *`,
         [recipientEmail, hash]
       );
+      const user = userRes.rows[0];
       const agent = await loginAs(recipientEmail, password);
 
-      // Obdarovaný pridá kód ktorý dostal v emaili
-      const lookupRes = await agent
-        .post('/api/gift-cards/lookup')
+      // Obdarovaný uloží kód ktorý dostal v emaili
+      const saveRes = await agent
+        .post('/api/gift-cards/save')
         .send({ code: gcCode });
 
-      expect(lookupRes.status).toBe(200);
-      expect(lookupRes.body.code).toBe(gcCode);
-      expect(parseFloat(lookupRes.body.amount)).toBe(100);
-      expect(parseFloat(lookupRes.body.balance)).toBe(100);
-      expect(lookupRes.body.status).toBe('active');
+      expect(saveRes.status).toBe(200);
+      expect(saveRes.body.code).toBe(gcCode);
+      expect(parseFloat(saveRes.body.amount)).toBe(100);
+      expect(parseFloat(saveRes.body.balance)).toBe(100);
+      expect(saveRes.body.status).toBe('active');
+      expect(saveRes.body.alreadySaved).toBe(false);
+
+      // Overenie cez GET
+      const gcRes = await agent.get(`/api/gift-cards/user/${user.id}`);
+      expect(gcRes.body.length).toBe(1);
+      expect(gcRes.body[0].code).toBe(gcCode);
     });
 
-    test('NEGATIVE: user zadá neplatný kód → lookup vráti 404, nič sa nepridá', async () => {
+    test('NEGATIVE: user zadá neplatný kód → /save vráti 404', async () => {
       if (!giftCardTableExists) return;
-      const email    = 'test_gc_invalid_lookup@example.com';
+      const email    = 'test_gc_invalid_save@example.com';
       const password = 'TestPass123!';
 
       const hash = await bcrypt.hash(password, 10);
@@ -676,17 +699,17 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
       );
       const agent = await loginAs(email, password);
 
-      const lookupRes = await agent
-        .post('/api/gift-cards/lookup')
+      const saveRes = await agent
+        .post('/api/gift-cards/save')
         .send({ code: 'UPLNEZIAKOD123' });
 
-      expect(lookupRes.status).toBe(404);
-      expect(lookupRes.body.error).toBeDefined();
+      expect(saveRes.status).toBe(404);
+      expect(saveRes.body.error).toBeDefined();
     });
 
-    test('NEGATIVE: user zadá prázdny kód → lookup vráti 400', async () => {
+    test('NEGATIVE: user zadá prázdny kód → /save vráti 400', async () => {
       if (!giftCardTableExists) return;
-      const email    = 'test_gc_empty_lookup@example.com';
+      const email    = 'test_gc_empty_save@example.com';
       const password = 'TestPass123!';
 
       const hash = await bcrypt.hash(password, 10);
@@ -698,11 +721,141 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
       );
       const agent = await loginAs(email, password);
 
-      const lookupRes = await agent
-        .post('/api/gift-cards/lookup')
+      const saveRes = await agent
+        .post('/api/gift-cards/save')
         .send({ code: '' });
 
-      expect(lookupRes.status).toBe(400);
+      expect(saveRes.status).toBe(400);
+    });
+
+    test('NEGATIVE: neautentifikovaný user nemôže použiť /save → 401', async () => {
+      if (!giftCardTableExists) return;
+      const saveRes = await request(app)
+        .post('/api/gift-cards/save')
+        .send({ code: 'NEJAKYKOD123' });
+
+      expect(saveRes.status).toBe(401);
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // ČASŤ 5: /save edge cases — vyčerpaný, expirovaný, konflikt s iným userom
+  // ───────────────────────────────────────────────────────────────────────────
+
+  describe('Časť 5 – /save edge cases', () => {
+
+    test('NEGATIVE: user sa pokúsi uložiť vyčerpaný poukaz (balance=0) → 400', async () => {
+      if (!giftCardTableExists) return;
+      const email    = 'test_gc_save_used@example.com';
+      const password = 'TestPass123!';
+
+      // Vytvoríme poukaz s balance=0 priamo v DB
+      const usedCode = `TESTGC_USED_${Date.now()}`.slice(0, 16);
+      await pool.query(
+        `INSERT INTO gift_card (code, amount, balance, status, "buyerEmail", "recipientName", "expiresAt", "createdAt")
+         VALUES ($1, 50, 0, 'used', 'test_gc_save_used_buyer@example.com', 'Used Card', NOW() + INTERVAL '30 days', NOW())`,
+        [usedCode]
+      );
+
+      const hash = await bcrypt.hash(password, 10);
+      await pool.query(
+        `INSERT INTO users (first_name, last_name, email, password, address, verified, role)
+         VALUES ('Test','UsedSave',$1,$2,'Testova 1, Nitra',true,'user')
+         ON CONFLICT (email) DO UPDATE SET password=$2, verified=true`,
+        [email, hash]
+      );
+      const agent = await loginAs(email, password);
+
+      const saveRes = await agent
+        .post('/api/gift-cards/save')
+        .send({ code: usedCode });
+
+      expect(saveRes.status).toBe(400);
+      expect(saveRes.body.error).toBeDefined();
+      expect(saveRes.body.status).toBe('used');
+    });
+
+    test('NEGATIVE: user sa pokúsi uložiť expirovaný poukaz → 400', async () => {
+      if (!giftCardTableExists) return;
+      const email    = 'test_gc_save_expired@example.com';
+      const password = 'TestPass123!';
+
+      // Vytvoríme expirovaný poukaz priamo v DB
+      const expiredCode = `TESTGC_EXP_${Date.now()}`.slice(0, 16);
+      await pool.query(
+        `INSERT INTO gift_card (code, amount, balance, status, "buyerEmail", "recipientName", "expiresAt", "createdAt")
+         VALUES ($1, 30, 30, 'active', 'test_gc_save_exp_buyer@example.com', 'Expired Card', NOW() - INTERVAL '1 day', NOW() - INTERVAL '31 days')`,
+        [expiredCode]
+      );
+
+      const hash = await bcrypt.hash(password, 10);
+      await pool.query(
+        `INSERT INTO users (first_name, last_name, email, password, address, verified, role)
+         VALUES ('Test','ExpSave',$1,$2,'Testova 1, Nitra',true,'user')
+         ON CONFLICT (email) DO UPDATE SET password=$2, verified=true`,
+        [email, hash]
+      );
+      const agent = await loginAs(email, password);
+
+      const saveRes = await agent
+        .post('/api/gift-cards/save')
+        .send({ code: expiredCode });
+
+      expect(saveRes.status).toBe(400);
+      expect(saveRes.body.error).toBeDefined();
+      expect(saveRes.body.status).toBe('expired');
+    });
+
+    test('NEGATIVE: user A uloží poukaz → user B sa pokúsi uložiť ten istý → 409', async () => {
+      if (!giftCardTableExists) return;
+      const emailA    = 'test_gc_save_conflict_a@example.com';
+      const emailB    = 'test_gc_save_conflict_b@example.com';
+      const password  = 'TestPass123!';
+
+      // Krok 1: guest nakúpi DP
+      const { successRes } = await guestPurchaseGiftCard({
+        amount: 30,
+        buyerEmail: 'test_gc_save_conflict_buyer@example.com',
+        recipientName: 'Conflict Test',
+        buyerName: 'Buyer',
+      });
+      expect(successRes.status).toBe(200);
+      const gcCode = successRes.body.code;
+
+      // Krok 2: vytvoríme userov A a B
+      const hash = await bcrypt.hash(password, 10);
+      await pool.query(
+        `INSERT INTO users (first_name, last_name, email, password, address, verified, role)
+         VALUES ('User','A',$1,$2,'Testova 1, Nitra',true,'user')
+         ON CONFLICT (email) DO UPDATE SET password=$2, verified=true`,
+        [emailA, hash]
+      );
+      await pool.query(
+        `INSERT INTO users (first_name, last_name, email, password, address, verified, role)
+         VALUES ('User','B',$1,$2,'Testova 1, Nitra',true,'user')
+         ON CONFLICT (email) DO UPDATE SET password=$2, verified=true`,
+        [emailB, hash]
+      );
+
+      // Krok 3: user A úspešne uloží poukaz
+      const agentA = await loginAs(emailA, password);
+      const saveA = await agentA.post('/api/gift-cards/save').send({ code: gcCode });
+      expect(saveA.status).toBe(200);
+      expect(saveA.body.alreadySaved).toBe(false);
+
+      // Krok 4: user B sa pokúsi uložiť ten istý poukaz → 409
+      const agentB = await loginAs(emailB, password);
+      const saveB = await agentB.post('/api/gift-cards/save').send({ code: gcCode });
+      expect(saveB.status).toBe(409);
+      expect(saveB.body.error).toBeDefined();
+
+      // Krok 5: user A stále vidí poukaz vo svojom profile
+      const gcResA = await agentA.get(`/api/gift-cards/user/${(await pool.query('SELECT id FROM users WHERE email = $1', [emailA])).rows[0].id}`);
+      expect(gcResA.body.length).toBe(1);
+
+      // Krok 6: user B nemá poukaz v profile
+      const gcResB = await agentB.get(`/api/gift-cards/user/${(await pool.query('SELECT id FROM users WHERE email = $1', [emailB])).rows[0].id}`);
+      expect(gcResB.body.length).toBe(0);
     });
   });
 });

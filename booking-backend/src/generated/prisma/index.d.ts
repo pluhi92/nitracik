@@ -108,6 +108,11 @@ export type about_content = $Result.DefaultSelection<Prisma.$about_contentPayloa
  * 
  */
 export type gift_card = $Result.DefaultSelection<Prisma.$gift_cardPayload>
+/**
+ * Model user_saved_gift_cards
+ * 
+ */
+export type user_saved_gift_cards = $Result.DefaultSelection<Prisma.$user_saved_gift_cardsPayload>
 
 /**
  * ##  Prisma Client ʲˢ
@@ -416,6 +421,16 @@ export class PrismaClient<
     * ```
     */
   get gift_card(): Prisma.gift_cardDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.user_saved_gift_cards`: Exposes CRUD operations for the **user_saved_gift_cards** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more User_saved_gift_cards
+    * const user_saved_gift_cards = await prisma.user_saved_gift_cards.findMany()
+    * ```
+    */
+  get user_saved_gift_cards(): Prisma.user_saved_gift_cardsDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -875,7 +890,8 @@ export namespace Prisma {
     blog_posts: 'blog_posts',
     google_ratings_config: 'google_ratings_config',
     about_content: 'about_content',
-    gift_card: 'gift_card'
+    gift_card: 'gift_card',
+    user_saved_gift_cards: 'user_saved_gift_cards'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -894,7 +910,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "bookings" | "credits" | "faqs" | "refunds" | "season_ticket_usage" | "season_ticket_products" | "season_ticket_product_training_types" | "season_tickets" | "season_ticket_offers" | "training_availability" | "training_prices" | "training_types" | "user_sessions" | "users" | "blog_labels" | "blog_posts" | "google_ratings_config" | "about_content" | "gift_card"
+      modelProps: "bookings" | "credits" | "faqs" | "refunds" | "season_ticket_usage" | "season_ticket_products" | "season_ticket_product_training_types" | "season_tickets" | "season_ticket_offers" | "training_availability" | "training_prices" | "training_types" | "user_sessions" | "users" | "blog_labels" | "blog_posts" | "google_ratings_config" | "about_content" | "gift_card" | "user_saved_gift_cards"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2304,6 +2320,80 @@ export namespace Prisma {
           }
         }
       }
+      user_saved_gift_cards: {
+        payload: Prisma.$user_saved_gift_cardsPayload<ExtArgs>
+        fields: Prisma.user_saved_gift_cardsFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.user_saved_gift_cardsFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$user_saved_gift_cardsPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.user_saved_gift_cardsFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$user_saved_gift_cardsPayload>
+          }
+          findFirst: {
+            args: Prisma.user_saved_gift_cardsFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$user_saved_gift_cardsPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.user_saved_gift_cardsFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$user_saved_gift_cardsPayload>
+          }
+          findMany: {
+            args: Prisma.user_saved_gift_cardsFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$user_saved_gift_cardsPayload>[]
+          }
+          create: {
+            args: Prisma.user_saved_gift_cardsCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$user_saved_gift_cardsPayload>
+          }
+          createMany: {
+            args: Prisma.user_saved_gift_cardsCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.user_saved_gift_cardsCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$user_saved_gift_cardsPayload>[]
+          }
+          delete: {
+            args: Prisma.user_saved_gift_cardsDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$user_saved_gift_cardsPayload>
+          }
+          update: {
+            args: Prisma.user_saved_gift_cardsUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$user_saved_gift_cardsPayload>
+          }
+          deleteMany: {
+            args: Prisma.user_saved_gift_cardsDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.user_saved_gift_cardsUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.user_saved_gift_cardsUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$user_saved_gift_cardsPayload>[]
+          }
+          upsert: {
+            args: Prisma.user_saved_gift_cardsUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$user_saved_gift_cardsPayload>
+          }
+          aggregate: {
+            args: Prisma.User_saved_gift_cardsAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateUser_saved_gift_cards>
+          }
+          groupBy: {
+            args: Prisma.user_saved_gift_cardsGroupByArgs<ExtArgs>
+            result: $Utils.Optional<User_saved_gift_cardsGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.user_saved_gift_cardsCountArgs<ExtArgs>
+            result: $Utils.Optional<User_saved_gift_cardsCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -2419,6 +2509,7 @@ export namespace Prisma {
     google_ratings_config?: google_ratings_configOmit
     about_content?: about_contentOmit
     gift_card?: gift_cardOmit
+    user_saved_gift_cards?: user_saved_gift_cardsOmit
   }
 
   /* Types for Logging */
@@ -2751,12 +2842,14 @@ export namespace Prisma {
     bookings: number
     credits: number
     season_tickets: number
+    saved_gift_cards: number
   }
 
   export type UsersCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     bookings?: boolean | UsersCountOutputTypeCountBookingsArgs
     credits?: boolean | UsersCountOutputTypeCountCreditsArgs
     season_tickets?: boolean | UsersCountOutputTypeCountSeason_ticketsArgs
+    saved_gift_cards?: boolean | UsersCountOutputTypeCountSaved_gift_cardsArgs
   }
 
   // Custom InputTypes
@@ -2789,6 +2882,13 @@ export namespace Prisma {
    */
   export type UsersCountOutputTypeCountSeason_ticketsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: season_ticketsWhereInput
+  }
+
+  /**
+   * UsersCountOutputType without action
+   */
+  export type UsersCountOutputTypeCountSaved_gift_cardsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: user_saved_gift_cardsWhereInput
   }
 
 
@@ -18431,6 +18531,7 @@ export namespace Prisma {
     bookings?: boolean | users$bookingsArgs<ExtArgs>
     credits?: boolean | users$creditsArgs<ExtArgs>
     season_tickets?: boolean | users$season_ticketsArgs<ExtArgs>
+    saved_gift_cards?: boolean | users$saved_gift_cardsArgs<ExtArgs>
     _count?: boolean | UsersCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["users"]>
 
@@ -18490,6 +18591,7 @@ export namespace Prisma {
     bookings?: boolean | users$bookingsArgs<ExtArgs>
     credits?: boolean | users$creditsArgs<ExtArgs>
     season_tickets?: boolean | users$season_ticketsArgs<ExtArgs>
+    saved_gift_cards?: boolean | users$saved_gift_cardsArgs<ExtArgs>
     _count?: boolean | UsersCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type usersIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -18501,6 +18603,7 @@ export namespace Prisma {
       bookings: Prisma.$bookingsPayload<ExtArgs>[]
       credits: Prisma.$creditsPayload<ExtArgs>[]
       season_tickets: Prisma.$season_ticketsPayload<ExtArgs>[]
+      saved_gift_cards: Prisma.$user_saved_gift_cardsPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: number
@@ -18914,6 +19017,7 @@ export namespace Prisma {
     bookings<T extends users$bookingsArgs<ExtArgs> = {}>(args?: Subset<T, users$bookingsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$bookingsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     credits<T extends users$creditsArgs<ExtArgs> = {}>(args?: Subset<T, users$creditsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$creditsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     season_tickets<T extends users$season_ticketsArgs<ExtArgs> = {}>(args?: Subset<T, users$season_ticketsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$season_ticketsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    saved_gift_cards<T extends users$saved_gift_cardsArgs<ExtArgs> = {}>(args?: Subset<T, users$saved_gift_cardsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$user_saved_gift_cardsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -19414,6 +19518,30 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: Season_ticketsScalarFieldEnum | Season_ticketsScalarFieldEnum[]
+  }
+
+  /**
+   * users.saved_gift_cards
+   */
+  export type users$saved_gift_cardsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the user_saved_gift_cards
+     */
+    select?: user_saved_gift_cardsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the user_saved_gift_cards
+     */
+    omit?: user_saved_gift_cardsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: user_saved_gift_cardsInclude<ExtArgs> | null
+    where?: user_saved_gift_cardsWhereInput
+    orderBy?: user_saved_gift_cardsOrderByWithRelationInput | user_saved_gift_cardsOrderByWithRelationInput[]
+    cursor?: user_saved_gift_cardsWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: User_saved_gift_cardsScalarFieldEnum | User_saved_gift_cardsScalarFieldEnum[]
   }
 
   /**
@@ -24033,6 +24161,7 @@ export namespace Prisma {
     redeemedAt?: boolean
     createdAt?: boolean
     bookingId?: boolean
+    saved_by?: boolean | gift_card$saved_byArgs<ExtArgs>
   }, ExtArgs["result"]["gift_card"]>
 
   export type gift_cardSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -24087,10 +24216,17 @@ export namespace Prisma {
   }
 
   export type gift_cardOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "code" | "stripeSessionId" | "amount" | "balance" | "status" | "buyerEmail" | "recipientName" | "recipientEmail" | "message" | "expiresAt" | "redeemedAt" | "createdAt" | "bookingId", ExtArgs["result"]["gift_card"]>
+  export type gift_cardInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    saved_by?: boolean | gift_card$saved_byArgs<ExtArgs>
+  }
+  export type gift_cardIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type gift_cardIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
 
   export type $gift_cardPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "gift_card"
-    objects: {}
+    objects: {
+      saved_by: Prisma.$user_saved_gift_cardsPayload<ExtArgs> | null
+    }
     scalars: $Extensions.GetPayloadResult<{
       id: number
       code: string
@@ -24500,6 +24636,7 @@ export namespace Prisma {
    */
   export interface Prisma__gift_cardClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    saved_by<T extends gift_card$saved_byArgs<ExtArgs> = {}>(args?: Subset<T, gift_card$saved_byArgs<ExtArgs>>): Prisma__user_saved_gift_cardsClient<$Result.GetResult<Prisma.$user_saved_gift_cardsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -24560,6 +24697,10 @@ export namespace Prisma {
      */
     omit?: gift_cardOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: gift_cardInclude<ExtArgs> | null
+    /**
      * Filter, which gift_card to fetch.
      */
     where: gift_cardWhereUniqueInput
@@ -24578,6 +24719,10 @@ export namespace Prisma {
      */
     omit?: gift_cardOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: gift_cardInclude<ExtArgs> | null
+    /**
      * Filter, which gift_card to fetch.
      */
     where: gift_cardWhereUniqueInput
@@ -24595,6 +24740,10 @@ export namespace Prisma {
      * Omit specific fields from the gift_card
      */
     omit?: gift_cardOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: gift_cardInclude<ExtArgs> | null
     /**
      * Filter, which gift_card to fetch.
      */
@@ -24644,6 +24793,10 @@ export namespace Prisma {
      */
     omit?: gift_cardOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: gift_cardInclude<ExtArgs> | null
+    /**
      * Filter, which gift_card to fetch.
      */
     where?: gift_cardWhereInput
@@ -24692,6 +24845,10 @@ export namespace Prisma {
      */
     omit?: gift_cardOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: gift_cardInclude<ExtArgs> | null
+    /**
      * Filter, which gift_cards to fetch.
      */
     where?: gift_cardWhereInput
@@ -24734,6 +24891,10 @@ export namespace Prisma {
      * Omit specific fields from the gift_card
      */
     omit?: gift_cardOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: gift_cardInclude<ExtArgs> | null
     /**
      * The data needed to create a gift_card.
      */
@@ -24782,6 +24943,10 @@ export namespace Prisma {
      * Omit specific fields from the gift_card
      */
     omit?: gift_cardOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: gift_cardInclude<ExtArgs> | null
     /**
      * The data needed to update a gift_card.
      */
@@ -24849,6 +25014,10 @@ export namespace Prisma {
      */
     omit?: gift_cardOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: gift_cardInclude<ExtArgs> | null
+    /**
      * The filter to search for the gift_card to update in case it exists.
      */
     where: gift_cardWhereUniqueInput
@@ -24875,6 +25044,10 @@ export namespace Prisma {
      */
     omit?: gift_cardOmit<ExtArgs> | null
     /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: gift_cardInclude<ExtArgs> | null
+    /**
      * Filter which gift_card to delete.
      */
     where: gift_cardWhereUniqueInput
@@ -24895,6 +25068,25 @@ export namespace Prisma {
   }
 
   /**
+   * gift_card.saved_by
+   */
+  export type gift_card$saved_byArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the user_saved_gift_cards
+     */
+    select?: user_saved_gift_cardsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the user_saved_gift_cards
+     */
+    omit?: user_saved_gift_cardsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: user_saved_gift_cardsInclude<ExtArgs> | null
+    where?: user_saved_gift_cardsWhereInput
+  }
+
+  /**
    * gift_card without action
    */
   export type gift_cardDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -24906,6 +25098,1105 @@ export namespace Prisma {
      * Omit specific fields from the gift_card
      */
     omit?: gift_cardOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: gift_cardInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model user_saved_gift_cards
+   */
+
+  export type AggregateUser_saved_gift_cards = {
+    _count: User_saved_gift_cardsCountAggregateOutputType | null
+    _avg: User_saved_gift_cardsAvgAggregateOutputType | null
+    _sum: User_saved_gift_cardsSumAggregateOutputType | null
+    _min: User_saved_gift_cardsMinAggregateOutputType | null
+    _max: User_saved_gift_cardsMaxAggregateOutputType | null
+  }
+
+  export type User_saved_gift_cardsAvgAggregateOutputType = {
+    id: number | null
+    user_id: number | null
+    gift_card_id: number | null
+  }
+
+  export type User_saved_gift_cardsSumAggregateOutputType = {
+    id: number | null
+    user_id: number | null
+    gift_card_id: number | null
+  }
+
+  export type User_saved_gift_cardsMinAggregateOutputType = {
+    id: number | null
+    user_id: number | null
+    gift_card_id: number | null
+    saved_at: Date | null
+  }
+
+  export type User_saved_gift_cardsMaxAggregateOutputType = {
+    id: number | null
+    user_id: number | null
+    gift_card_id: number | null
+    saved_at: Date | null
+  }
+
+  export type User_saved_gift_cardsCountAggregateOutputType = {
+    id: number
+    user_id: number
+    gift_card_id: number
+    saved_at: number
+    _all: number
+  }
+
+
+  export type User_saved_gift_cardsAvgAggregateInputType = {
+    id?: true
+    user_id?: true
+    gift_card_id?: true
+  }
+
+  export type User_saved_gift_cardsSumAggregateInputType = {
+    id?: true
+    user_id?: true
+    gift_card_id?: true
+  }
+
+  export type User_saved_gift_cardsMinAggregateInputType = {
+    id?: true
+    user_id?: true
+    gift_card_id?: true
+    saved_at?: true
+  }
+
+  export type User_saved_gift_cardsMaxAggregateInputType = {
+    id?: true
+    user_id?: true
+    gift_card_id?: true
+    saved_at?: true
+  }
+
+  export type User_saved_gift_cardsCountAggregateInputType = {
+    id?: true
+    user_id?: true
+    gift_card_id?: true
+    saved_at?: true
+    _all?: true
+  }
+
+  export type User_saved_gift_cardsAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which user_saved_gift_cards to aggregate.
+     */
+    where?: user_saved_gift_cardsWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of user_saved_gift_cards to fetch.
+     */
+    orderBy?: user_saved_gift_cardsOrderByWithRelationInput | user_saved_gift_cardsOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: user_saved_gift_cardsWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` user_saved_gift_cards from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` user_saved_gift_cards.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned user_saved_gift_cards
+    **/
+    _count?: true | User_saved_gift_cardsCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: User_saved_gift_cardsAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: User_saved_gift_cardsSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: User_saved_gift_cardsMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: User_saved_gift_cardsMaxAggregateInputType
+  }
+
+  export type GetUser_saved_gift_cardsAggregateType<T extends User_saved_gift_cardsAggregateArgs> = {
+        [P in keyof T & keyof AggregateUser_saved_gift_cards]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateUser_saved_gift_cards[P]>
+      : GetScalarType<T[P], AggregateUser_saved_gift_cards[P]>
+  }
+
+
+
+
+  export type user_saved_gift_cardsGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: user_saved_gift_cardsWhereInput
+    orderBy?: user_saved_gift_cardsOrderByWithAggregationInput | user_saved_gift_cardsOrderByWithAggregationInput[]
+    by: User_saved_gift_cardsScalarFieldEnum[] | User_saved_gift_cardsScalarFieldEnum
+    having?: user_saved_gift_cardsScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: User_saved_gift_cardsCountAggregateInputType | true
+    _avg?: User_saved_gift_cardsAvgAggregateInputType
+    _sum?: User_saved_gift_cardsSumAggregateInputType
+    _min?: User_saved_gift_cardsMinAggregateInputType
+    _max?: User_saved_gift_cardsMaxAggregateInputType
+  }
+
+  export type User_saved_gift_cardsGroupByOutputType = {
+    id: number
+    user_id: number
+    gift_card_id: number
+    saved_at: Date
+    _count: User_saved_gift_cardsCountAggregateOutputType | null
+    _avg: User_saved_gift_cardsAvgAggregateOutputType | null
+    _sum: User_saved_gift_cardsSumAggregateOutputType | null
+    _min: User_saved_gift_cardsMinAggregateOutputType | null
+    _max: User_saved_gift_cardsMaxAggregateOutputType | null
+  }
+
+  type GetUser_saved_gift_cardsGroupByPayload<T extends user_saved_gift_cardsGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<User_saved_gift_cardsGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof User_saved_gift_cardsGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], User_saved_gift_cardsGroupByOutputType[P]>
+            : GetScalarType<T[P], User_saved_gift_cardsGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type user_saved_gift_cardsSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    user_id?: boolean
+    gift_card_id?: boolean
+    saved_at?: boolean
+    users?: boolean | usersDefaultArgs<ExtArgs>
+    gift_card?: boolean | gift_cardDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["user_saved_gift_cards"]>
+
+  export type user_saved_gift_cardsSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    user_id?: boolean
+    gift_card_id?: boolean
+    saved_at?: boolean
+    users?: boolean | usersDefaultArgs<ExtArgs>
+    gift_card?: boolean | gift_cardDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["user_saved_gift_cards"]>
+
+  export type user_saved_gift_cardsSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    user_id?: boolean
+    gift_card_id?: boolean
+    saved_at?: boolean
+    users?: boolean | usersDefaultArgs<ExtArgs>
+    gift_card?: boolean | gift_cardDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["user_saved_gift_cards"]>
+
+  export type user_saved_gift_cardsSelectScalar = {
+    id?: boolean
+    user_id?: boolean
+    gift_card_id?: boolean
+    saved_at?: boolean
+  }
+
+  export type user_saved_gift_cardsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "user_id" | "gift_card_id" | "saved_at", ExtArgs["result"]["user_saved_gift_cards"]>
+  export type user_saved_gift_cardsInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    users?: boolean | usersDefaultArgs<ExtArgs>
+    gift_card?: boolean | gift_cardDefaultArgs<ExtArgs>
+  }
+  export type user_saved_gift_cardsIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    users?: boolean | usersDefaultArgs<ExtArgs>
+    gift_card?: boolean | gift_cardDefaultArgs<ExtArgs>
+  }
+  export type user_saved_gift_cardsIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    users?: boolean | usersDefaultArgs<ExtArgs>
+    gift_card?: boolean | gift_cardDefaultArgs<ExtArgs>
+  }
+
+  export type $user_saved_gift_cardsPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "user_saved_gift_cards"
+    objects: {
+      users: Prisma.$usersPayload<ExtArgs>
+      gift_card: Prisma.$gift_cardPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      user_id: number
+      gift_card_id: number
+      saved_at: Date
+    }, ExtArgs["result"]["user_saved_gift_cards"]>
+    composites: {}
+  }
+
+  type user_saved_gift_cardsGetPayload<S extends boolean | null | undefined | user_saved_gift_cardsDefaultArgs> = $Result.GetResult<Prisma.$user_saved_gift_cardsPayload, S>
+
+  type user_saved_gift_cardsCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<user_saved_gift_cardsFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: User_saved_gift_cardsCountAggregateInputType | true
+    }
+
+  export interface user_saved_gift_cardsDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['user_saved_gift_cards'], meta: { name: 'user_saved_gift_cards' } }
+    /**
+     * Find zero or one User_saved_gift_cards that matches the filter.
+     * @param {user_saved_gift_cardsFindUniqueArgs} args - Arguments to find a User_saved_gift_cards
+     * @example
+     * // Get one User_saved_gift_cards
+     * const user_saved_gift_cards = await prisma.user_saved_gift_cards.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends user_saved_gift_cardsFindUniqueArgs>(args: SelectSubset<T, user_saved_gift_cardsFindUniqueArgs<ExtArgs>>): Prisma__user_saved_gift_cardsClient<$Result.GetResult<Prisma.$user_saved_gift_cardsPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one User_saved_gift_cards that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {user_saved_gift_cardsFindUniqueOrThrowArgs} args - Arguments to find a User_saved_gift_cards
+     * @example
+     * // Get one User_saved_gift_cards
+     * const user_saved_gift_cards = await prisma.user_saved_gift_cards.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends user_saved_gift_cardsFindUniqueOrThrowArgs>(args: SelectSubset<T, user_saved_gift_cardsFindUniqueOrThrowArgs<ExtArgs>>): Prisma__user_saved_gift_cardsClient<$Result.GetResult<Prisma.$user_saved_gift_cardsPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first User_saved_gift_cards that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {user_saved_gift_cardsFindFirstArgs} args - Arguments to find a User_saved_gift_cards
+     * @example
+     * // Get one User_saved_gift_cards
+     * const user_saved_gift_cards = await prisma.user_saved_gift_cards.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends user_saved_gift_cardsFindFirstArgs>(args?: SelectSubset<T, user_saved_gift_cardsFindFirstArgs<ExtArgs>>): Prisma__user_saved_gift_cardsClient<$Result.GetResult<Prisma.$user_saved_gift_cardsPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first User_saved_gift_cards that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {user_saved_gift_cardsFindFirstOrThrowArgs} args - Arguments to find a User_saved_gift_cards
+     * @example
+     * // Get one User_saved_gift_cards
+     * const user_saved_gift_cards = await prisma.user_saved_gift_cards.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends user_saved_gift_cardsFindFirstOrThrowArgs>(args?: SelectSubset<T, user_saved_gift_cardsFindFirstOrThrowArgs<ExtArgs>>): Prisma__user_saved_gift_cardsClient<$Result.GetResult<Prisma.$user_saved_gift_cardsPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more User_saved_gift_cards that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {user_saved_gift_cardsFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all User_saved_gift_cards
+     * const user_saved_gift_cards = await prisma.user_saved_gift_cards.findMany()
+     * 
+     * // Get first 10 User_saved_gift_cards
+     * const user_saved_gift_cards = await prisma.user_saved_gift_cards.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const user_saved_gift_cardsWithIdOnly = await prisma.user_saved_gift_cards.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends user_saved_gift_cardsFindManyArgs>(args?: SelectSubset<T, user_saved_gift_cardsFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$user_saved_gift_cardsPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a User_saved_gift_cards.
+     * @param {user_saved_gift_cardsCreateArgs} args - Arguments to create a User_saved_gift_cards.
+     * @example
+     * // Create one User_saved_gift_cards
+     * const User_saved_gift_cards = await prisma.user_saved_gift_cards.create({
+     *   data: {
+     *     // ... data to create a User_saved_gift_cards
+     *   }
+     * })
+     * 
+     */
+    create<T extends user_saved_gift_cardsCreateArgs>(args: SelectSubset<T, user_saved_gift_cardsCreateArgs<ExtArgs>>): Prisma__user_saved_gift_cardsClient<$Result.GetResult<Prisma.$user_saved_gift_cardsPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many User_saved_gift_cards.
+     * @param {user_saved_gift_cardsCreateManyArgs} args - Arguments to create many User_saved_gift_cards.
+     * @example
+     * // Create many User_saved_gift_cards
+     * const user_saved_gift_cards = await prisma.user_saved_gift_cards.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends user_saved_gift_cardsCreateManyArgs>(args?: SelectSubset<T, user_saved_gift_cardsCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many User_saved_gift_cards and returns the data saved in the database.
+     * @param {user_saved_gift_cardsCreateManyAndReturnArgs} args - Arguments to create many User_saved_gift_cards.
+     * @example
+     * // Create many User_saved_gift_cards
+     * const user_saved_gift_cards = await prisma.user_saved_gift_cards.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many User_saved_gift_cards and only return the `id`
+     * const user_saved_gift_cardsWithIdOnly = await prisma.user_saved_gift_cards.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends user_saved_gift_cardsCreateManyAndReturnArgs>(args?: SelectSubset<T, user_saved_gift_cardsCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$user_saved_gift_cardsPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a User_saved_gift_cards.
+     * @param {user_saved_gift_cardsDeleteArgs} args - Arguments to delete one User_saved_gift_cards.
+     * @example
+     * // Delete one User_saved_gift_cards
+     * const User_saved_gift_cards = await prisma.user_saved_gift_cards.delete({
+     *   where: {
+     *     // ... filter to delete one User_saved_gift_cards
+     *   }
+     * })
+     * 
+     */
+    delete<T extends user_saved_gift_cardsDeleteArgs>(args: SelectSubset<T, user_saved_gift_cardsDeleteArgs<ExtArgs>>): Prisma__user_saved_gift_cardsClient<$Result.GetResult<Prisma.$user_saved_gift_cardsPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one User_saved_gift_cards.
+     * @param {user_saved_gift_cardsUpdateArgs} args - Arguments to update one User_saved_gift_cards.
+     * @example
+     * // Update one User_saved_gift_cards
+     * const user_saved_gift_cards = await prisma.user_saved_gift_cards.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends user_saved_gift_cardsUpdateArgs>(args: SelectSubset<T, user_saved_gift_cardsUpdateArgs<ExtArgs>>): Prisma__user_saved_gift_cardsClient<$Result.GetResult<Prisma.$user_saved_gift_cardsPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more User_saved_gift_cards.
+     * @param {user_saved_gift_cardsDeleteManyArgs} args - Arguments to filter User_saved_gift_cards to delete.
+     * @example
+     * // Delete a few User_saved_gift_cards
+     * const { count } = await prisma.user_saved_gift_cards.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends user_saved_gift_cardsDeleteManyArgs>(args?: SelectSubset<T, user_saved_gift_cardsDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more User_saved_gift_cards.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {user_saved_gift_cardsUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many User_saved_gift_cards
+     * const user_saved_gift_cards = await prisma.user_saved_gift_cards.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends user_saved_gift_cardsUpdateManyArgs>(args: SelectSubset<T, user_saved_gift_cardsUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more User_saved_gift_cards and returns the data updated in the database.
+     * @param {user_saved_gift_cardsUpdateManyAndReturnArgs} args - Arguments to update many User_saved_gift_cards.
+     * @example
+     * // Update many User_saved_gift_cards
+     * const user_saved_gift_cards = await prisma.user_saved_gift_cards.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more User_saved_gift_cards and only return the `id`
+     * const user_saved_gift_cardsWithIdOnly = await prisma.user_saved_gift_cards.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends user_saved_gift_cardsUpdateManyAndReturnArgs>(args: SelectSubset<T, user_saved_gift_cardsUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$user_saved_gift_cardsPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one User_saved_gift_cards.
+     * @param {user_saved_gift_cardsUpsertArgs} args - Arguments to update or create a User_saved_gift_cards.
+     * @example
+     * // Update or create a User_saved_gift_cards
+     * const user_saved_gift_cards = await prisma.user_saved_gift_cards.upsert({
+     *   create: {
+     *     // ... data to create a User_saved_gift_cards
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the User_saved_gift_cards we want to update
+     *   }
+     * })
+     */
+    upsert<T extends user_saved_gift_cardsUpsertArgs>(args: SelectSubset<T, user_saved_gift_cardsUpsertArgs<ExtArgs>>): Prisma__user_saved_gift_cardsClient<$Result.GetResult<Prisma.$user_saved_gift_cardsPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of User_saved_gift_cards.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {user_saved_gift_cardsCountArgs} args - Arguments to filter User_saved_gift_cards to count.
+     * @example
+     * // Count the number of User_saved_gift_cards
+     * const count = await prisma.user_saved_gift_cards.count({
+     *   where: {
+     *     // ... the filter for the User_saved_gift_cards we want to count
+     *   }
+     * })
+    **/
+    count<T extends user_saved_gift_cardsCountArgs>(
+      args?: Subset<T, user_saved_gift_cardsCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], User_saved_gift_cardsCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a User_saved_gift_cards.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {User_saved_gift_cardsAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends User_saved_gift_cardsAggregateArgs>(args: Subset<T, User_saved_gift_cardsAggregateArgs>): Prisma.PrismaPromise<GetUser_saved_gift_cardsAggregateType<T>>
+
+    /**
+     * Group by User_saved_gift_cards.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {user_saved_gift_cardsGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends user_saved_gift_cardsGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: user_saved_gift_cardsGroupByArgs['orderBy'] }
+        : { orderBy?: user_saved_gift_cardsGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, user_saved_gift_cardsGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetUser_saved_gift_cardsGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the user_saved_gift_cards model
+   */
+  readonly fields: user_saved_gift_cardsFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for user_saved_gift_cards.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__user_saved_gift_cardsClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    users<T extends usersDefaultArgs<ExtArgs> = {}>(args?: Subset<T, usersDefaultArgs<ExtArgs>>): Prisma__usersClient<$Result.GetResult<Prisma.$usersPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    gift_card<T extends gift_cardDefaultArgs<ExtArgs> = {}>(args?: Subset<T, gift_cardDefaultArgs<ExtArgs>>): Prisma__gift_cardClient<$Result.GetResult<Prisma.$gift_cardPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the user_saved_gift_cards model
+   */
+  interface user_saved_gift_cardsFieldRefs {
+    readonly id: FieldRef<"user_saved_gift_cards", 'Int'>
+    readonly user_id: FieldRef<"user_saved_gift_cards", 'Int'>
+    readonly gift_card_id: FieldRef<"user_saved_gift_cards", 'Int'>
+    readonly saved_at: FieldRef<"user_saved_gift_cards", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * user_saved_gift_cards findUnique
+   */
+  export type user_saved_gift_cardsFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the user_saved_gift_cards
+     */
+    select?: user_saved_gift_cardsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the user_saved_gift_cards
+     */
+    omit?: user_saved_gift_cardsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: user_saved_gift_cardsInclude<ExtArgs> | null
+    /**
+     * Filter, which user_saved_gift_cards to fetch.
+     */
+    where: user_saved_gift_cardsWhereUniqueInput
+  }
+
+  /**
+   * user_saved_gift_cards findUniqueOrThrow
+   */
+  export type user_saved_gift_cardsFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the user_saved_gift_cards
+     */
+    select?: user_saved_gift_cardsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the user_saved_gift_cards
+     */
+    omit?: user_saved_gift_cardsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: user_saved_gift_cardsInclude<ExtArgs> | null
+    /**
+     * Filter, which user_saved_gift_cards to fetch.
+     */
+    where: user_saved_gift_cardsWhereUniqueInput
+  }
+
+  /**
+   * user_saved_gift_cards findFirst
+   */
+  export type user_saved_gift_cardsFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the user_saved_gift_cards
+     */
+    select?: user_saved_gift_cardsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the user_saved_gift_cards
+     */
+    omit?: user_saved_gift_cardsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: user_saved_gift_cardsInclude<ExtArgs> | null
+    /**
+     * Filter, which user_saved_gift_cards to fetch.
+     */
+    where?: user_saved_gift_cardsWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of user_saved_gift_cards to fetch.
+     */
+    orderBy?: user_saved_gift_cardsOrderByWithRelationInput | user_saved_gift_cardsOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for user_saved_gift_cards.
+     */
+    cursor?: user_saved_gift_cardsWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` user_saved_gift_cards from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` user_saved_gift_cards.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of user_saved_gift_cards.
+     */
+    distinct?: User_saved_gift_cardsScalarFieldEnum | User_saved_gift_cardsScalarFieldEnum[]
+  }
+
+  /**
+   * user_saved_gift_cards findFirstOrThrow
+   */
+  export type user_saved_gift_cardsFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the user_saved_gift_cards
+     */
+    select?: user_saved_gift_cardsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the user_saved_gift_cards
+     */
+    omit?: user_saved_gift_cardsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: user_saved_gift_cardsInclude<ExtArgs> | null
+    /**
+     * Filter, which user_saved_gift_cards to fetch.
+     */
+    where?: user_saved_gift_cardsWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of user_saved_gift_cards to fetch.
+     */
+    orderBy?: user_saved_gift_cardsOrderByWithRelationInput | user_saved_gift_cardsOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for user_saved_gift_cards.
+     */
+    cursor?: user_saved_gift_cardsWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` user_saved_gift_cards from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` user_saved_gift_cards.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of user_saved_gift_cards.
+     */
+    distinct?: User_saved_gift_cardsScalarFieldEnum | User_saved_gift_cardsScalarFieldEnum[]
+  }
+
+  /**
+   * user_saved_gift_cards findMany
+   */
+  export type user_saved_gift_cardsFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the user_saved_gift_cards
+     */
+    select?: user_saved_gift_cardsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the user_saved_gift_cards
+     */
+    omit?: user_saved_gift_cardsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: user_saved_gift_cardsInclude<ExtArgs> | null
+    /**
+     * Filter, which user_saved_gift_cards to fetch.
+     */
+    where?: user_saved_gift_cardsWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of user_saved_gift_cards to fetch.
+     */
+    orderBy?: user_saved_gift_cardsOrderByWithRelationInput | user_saved_gift_cardsOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing user_saved_gift_cards.
+     */
+    cursor?: user_saved_gift_cardsWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` user_saved_gift_cards from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` user_saved_gift_cards.
+     */
+    skip?: number
+    distinct?: User_saved_gift_cardsScalarFieldEnum | User_saved_gift_cardsScalarFieldEnum[]
+  }
+
+  /**
+   * user_saved_gift_cards create
+   */
+  export type user_saved_gift_cardsCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the user_saved_gift_cards
+     */
+    select?: user_saved_gift_cardsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the user_saved_gift_cards
+     */
+    omit?: user_saved_gift_cardsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: user_saved_gift_cardsInclude<ExtArgs> | null
+    /**
+     * The data needed to create a user_saved_gift_cards.
+     */
+    data: XOR<user_saved_gift_cardsCreateInput, user_saved_gift_cardsUncheckedCreateInput>
+  }
+
+  /**
+   * user_saved_gift_cards createMany
+   */
+  export type user_saved_gift_cardsCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many user_saved_gift_cards.
+     */
+    data: user_saved_gift_cardsCreateManyInput | user_saved_gift_cardsCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * user_saved_gift_cards createManyAndReturn
+   */
+  export type user_saved_gift_cardsCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the user_saved_gift_cards
+     */
+    select?: user_saved_gift_cardsSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the user_saved_gift_cards
+     */
+    omit?: user_saved_gift_cardsOmit<ExtArgs> | null
+    /**
+     * The data used to create many user_saved_gift_cards.
+     */
+    data: user_saved_gift_cardsCreateManyInput | user_saved_gift_cardsCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: user_saved_gift_cardsIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * user_saved_gift_cards update
+   */
+  export type user_saved_gift_cardsUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the user_saved_gift_cards
+     */
+    select?: user_saved_gift_cardsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the user_saved_gift_cards
+     */
+    omit?: user_saved_gift_cardsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: user_saved_gift_cardsInclude<ExtArgs> | null
+    /**
+     * The data needed to update a user_saved_gift_cards.
+     */
+    data: XOR<user_saved_gift_cardsUpdateInput, user_saved_gift_cardsUncheckedUpdateInput>
+    /**
+     * Choose, which user_saved_gift_cards to update.
+     */
+    where: user_saved_gift_cardsWhereUniqueInput
+  }
+
+  /**
+   * user_saved_gift_cards updateMany
+   */
+  export type user_saved_gift_cardsUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update user_saved_gift_cards.
+     */
+    data: XOR<user_saved_gift_cardsUpdateManyMutationInput, user_saved_gift_cardsUncheckedUpdateManyInput>
+    /**
+     * Filter which user_saved_gift_cards to update
+     */
+    where?: user_saved_gift_cardsWhereInput
+    /**
+     * Limit how many user_saved_gift_cards to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * user_saved_gift_cards updateManyAndReturn
+   */
+  export type user_saved_gift_cardsUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the user_saved_gift_cards
+     */
+    select?: user_saved_gift_cardsSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the user_saved_gift_cards
+     */
+    omit?: user_saved_gift_cardsOmit<ExtArgs> | null
+    /**
+     * The data used to update user_saved_gift_cards.
+     */
+    data: XOR<user_saved_gift_cardsUpdateManyMutationInput, user_saved_gift_cardsUncheckedUpdateManyInput>
+    /**
+     * Filter which user_saved_gift_cards to update
+     */
+    where?: user_saved_gift_cardsWhereInput
+    /**
+     * Limit how many user_saved_gift_cards to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: user_saved_gift_cardsIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * user_saved_gift_cards upsert
+   */
+  export type user_saved_gift_cardsUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the user_saved_gift_cards
+     */
+    select?: user_saved_gift_cardsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the user_saved_gift_cards
+     */
+    omit?: user_saved_gift_cardsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: user_saved_gift_cardsInclude<ExtArgs> | null
+    /**
+     * The filter to search for the user_saved_gift_cards to update in case it exists.
+     */
+    where: user_saved_gift_cardsWhereUniqueInput
+    /**
+     * In case the user_saved_gift_cards found by the `where` argument doesn't exist, create a new user_saved_gift_cards with this data.
+     */
+    create: XOR<user_saved_gift_cardsCreateInput, user_saved_gift_cardsUncheckedCreateInput>
+    /**
+     * In case the user_saved_gift_cards was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<user_saved_gift_cardsUpdateInput, user_saved_gift_cardsUncheckedUpdateInput>
+  }
+
+  /**
+   * user_saved_gift_cards delete
+   */
+  export type user_saved_gift_cardsDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the user_saved_gift_cards
+     */
+    select?: user_saved_gift_cardsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the user_saved_gift_cards
+     */
+    omit?: user_saved_gift_cardsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: user_saved_gift_cardsInclude<ExtArgs> | null
+    /**
+     * Filter which user_saved_gift_cards to delete.
+     */
+    where: user_saved_gift_cardsWhereUniqueInput
+  }
+
+  /**
+   * user_saved_gift_cards deleteMany
+   */
+  export type user_saved_gift_cardsDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which user_saved_gift_cards to delete
+     */
+    where?: user_saved_gift_cardsWhereInput
+    /**
+     * Limit how many user_saved_gift_cards to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * user_saved_gift_cards without action
+   */
+  export type user_saved_gift_cardsDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the user_saved_gift_cards
+     */
+    select?: user_saved_gift_cardsSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the user_saved_gift_cards
+     */
+    omit?: user_saved_gift_cardsOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: user_saved_gift_cardsInclude<ExtArgs> | null
   }
 
 
@@ -25196,6 +26487,16 @@ export namespace Prisma {
   };
 
   export type Gift_cardScalarFieldEnum = (typeof Gift_cardScalarFieldEnum)[keyof typeof Gift_cardScalarFieldEnum]
+
+
+  export const User_saved_gift_cardsScalarFieldEnum: {
+    id: 'id',
+    user_id: 'user_id',
+    gift_card_id: 'gift_card_id',
+    saved_at: 'saved_at'
+  };
+
+  export type User_saved_gift_cardsScalarFieldEnum = (typeof User_saved_gift_cardsScalarFieldEnum)[keyof typeof User_saved_gift_cardsScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -26373,6 +27674,7 @@ export namespace Prisma {
     bookings?: BookingsListRelationFilter
     credits?: CreditsListRelationFilter
     season_tickets?: Season_ticketsListRelationFilter
+    saved_gift_cards?: User_saved_gift_cardsListRelationFilter
   }
 
   export type usersOrderByWithRelationInput = {
@@ -26393,6 +27695,7 @@ export namespace Prisma {
     bookings?: bookingsOrderByRelationAggregateInput
     credits?: creditsOrderByRelationAggregateInput
     season_tickets?: season_ticketsOrderByRelationAggregateInput
+    saved_gift_cards?: user_saved_gift_cardsOrderByRelationAggregateInput
   }
 
   export type usersWhereUniqueInput = Prisma.AtLeast<{
@@ -26416,6 +27719,7 @@ export namespace Prisma {
     bookings?: BookingsListRelationFilter
     credits?: CreditsListRelationFilter
     season_tickets?: Season_ticketsListRelationFilter
+    saved_gift_cards?: User_saved_gift_cardsListRelationFilter
   }, "id" | "email">
 
   export type usersOrderByWithAggregationInput = {
@@ -26715,6 +28019,7 @@ export namespace Prisma {
     redeemedAt?: DateTimeNullableFilter<"gift_card"> | Date | string | null
     createdAt?: DateTimeFilter<"gift_card"> | Date | string
     bookingId?: IntNullableFilter<"gift_card"> | number | null
+    saved_by?: XOR<User_saved_gift_cardsNullableScalarRelationFilter, user_saved_gift_cardsWhereInput> | null
   }
 
   export type gift_cardOrderByWithRelationInput = {
@@ -26732,6 +28037,7 @@ export namespace Prisma {
     redeemedAt?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     bookingId?: SortOrderInput | SortOrder
+    saved_by?: user_saved_gift_cardsOrderByWithRelationInput
   }
 
   export type gift_cardWhereUniqueInput = Prisma.AtLeast<{
@@ -26752,6 +28058,7 @@ export namespace Prisma {
     redeemedAt?: DateTimeNullableFilter<"gift_card"> | Date | string | null
     createdAt?: DateTimeFilter<"gift_card"> | Date | string
     bookingId?: IntNullableFilter<"gift_card"> | number | null
+    saved_by?: XOR<User_saved_gift_cardsNullableScalarRelationFilter, user_saved_gift_cardsWhereInput> | null
   }, "id" | "code" | "stripeSessionId">
 
   export type gift_cardOrderByWithAggregationInput = {
@@ -26794,6 +28101,61 @@ export namespace Prisma {
     redeemedAt?: DateTimeNullableWithAggregatesFilter<"gift_card"> | Date | string | null
     createdAt?: DateTimeWithAggregatesFilter<"gift_card"> | Date | string
     bookingId?: IntNullableWithAggregatesFilter<"gift_card"> | number | null
+  }
+
+  export type user_saved_gift_cardsWhereInput = {
+    AND?: user_saved_gift_cardsWhereInput | user_saved_gift_cardsWhereInput[]
+    OR?: user_saved_gift_cardsWhereInput[]
+    NOT?: user_saved_gift_cardsWhereInput | user_saved_gift_cardsWhereInput[]
+    id?: IntFilter<"user_saved_gift_cards"> | number
+    user_id?: IntFilter<"user_saved_gift_cards"> | number
+    gift_card_id?: IntFilter<"user_saved_gift_cards"> | number
+    saved_at?: DateTimeFilter<"user_saved_gift_cards"> | Date | string
+    users?: XOR<UsersScalarRelationFilter, usersWhereInput>
+    gift_card?: XOR<Gift_cardScalarRelationFilter, gift_cardWhereInput>
+  }
+
+  export type user_saved_gift_cardsOrderByWithRelationInput = {
+    id?: SortOrder
+    user_id?: SortOrder
+    gift_card_id?: SortOrder
+    saved_at?: SortOrder
+    users?: usersOrderByWithRelationInput
+    gift_card?: gift_cardOrderByWithRelationInput
+  }
+
+  export type user_saved_gift_cardsWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    gift_card_id?: number
+    AND?: user_saved_gift_cardsWhereInput | user_saved_gift_cardsWhereInput[]
+    OR?: user_saved_gift_cardsWhereInput[]
+    NOT?: user_saved_gift_cardsWhereInput | user_saved_gift_cardsWhereInput[]
+    user_id?: IntFilter<"user_saved_gift_cards"> | number
+    saved_at?: DateTimeFilter<"user_saved_gift_cards"> | Date | string
+    users?: XOR<UsersScalarRelationFilter, usersWhereInput>
+    gift_card?: XOR<Gift_cardScalarRelationFilter, gift_cardWhereInput>
+  }, "id" | "gift_card_id">
+
+  export type user_saved_gift_cardsOrderByWithAggregationInput = {
+    id?: SortOrder
+    user_id?: SortOrder
+    gift_card_id?: SortOrder
+    saved_at?: SortOrder
+    _count?: user_saved_gift_cardsCountOrderByAggregateInput
+    _avg?: user_saved_gift_cardsAvgOrderByAggregateInput
+    _max?: user_saved_gift_cardsMaxOrderByAggregateInput
+    _min?: user_saved_gift_cardsMinOrderByAggregateInput
+    _sum?: user_saved_gift_cardsSumOrderByAggregateInput
+  }
+
+  export type user_saved_gift_cardsScalarWhereWithAggregatesInput = {
+    AND?: user_saved_gift_cardsScalarWhereWithAggregatesInput | user_saved_gift_cardsScalarWhereWithAggregatesInput[]
+    OR?: user_saved_gift_cardsScalarWhereWithAggregatesInput[]
+    NOT?: user_saved_gift_cardsScalarWhereWithAggregatesInput | user_saved_gift_cardsScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"user_saved_gift_cards"> | number
+    user_id?: IntWithAggregatesFilter<"user_saved_gift_cards"> | number
+    gift_card_id?: IntWithAggregatesFilter<"user_saved_gift_cards"> | number
+    saved_at?: DateTimeWithAggregatesFilter<"user_saved_gift_cards"> | Date | string
   }
 
   export type bookingsCreateInput = {
@@ -27860,6 +29222,7 @@ export namespace Prisma {
     bookings?: bookingsCreateNestedManyWithoutUsersInput
     credits?: creditsCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsCreateNestedManyWithoutUsersInput
+    saved_gift_cards?: user_saved_gift_cardsCreateNestedManyWithoutUsersInput
   }
 
   export type usersUncheckedCreateInput = {
@@ -27880,6 +29243,7 @@ export namespace Prisma {
     bookings?: bookingsUncheckedCreateNestedManyWithoutUsersInput
     credits?: creditsUncheckedCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsUncheckedCreateNestedManyWithoutUsersInput
+    saved_gift_cards?: user_saved_gift_cardsUncheckedCreateNestedManyWithoutUsersInput
   }
 
   export type usersUpdateInput = {
@@ -27899,6 +29263,7 @@ export namespace Prisma {
     bookings?: bookingsUpdateManyWithoutUsersNestedInput
     credits?: creditsUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUpdateManyWithoutUsersNestedInput
+    saved_gift_cards?: user_saved_gift_cardsUpdateManyWithoutUsersNestedInput
   }
 
   export type usersUncheckedUpdateInput = {
@@ -27919,6 +29284,7 @@ export namespace Prisma {
     bookings?: bookingsUncheckedUpdateManyWithoutUsersNestedInput
     credits?: creditsUncheckedUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUncheckedUpdateManyWithoutUsersNestedInput
+    saved_gift_cards?: user_saved_gift_cardsUncheckedUpdateManyWithoutUsersNestedInput
   }
 
   export type usersCreateManyInput = {
@@ -28227,6 +29593,7 @@ export namespace Prisma {
     redeemedAt?: Date | string | null
     createdAt?: Date | string
     bookingId?: number | null
+    saved_by?: user_saved_gift_cardsCreateNestedOneWithoutGift_cardInput
   }
 
   export type gift_cardUncheckedCreateInput = {
@@ -28244,6 +29611,7 @@ export namespace Prisma {
     redeemedAt?: Date | string | null
     createdAt?: Date | string
     bookingId?: number | null
+    saved_by?: user_saved_gift_cardsUncheckedCreateNestedOneWithoutGift_cardInput
   }
 
   export type gift_cardUpdateInput = {
@@ -28260,6 +29628,7 @@ export namespace Prisma {
     redeemedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     bookingId?: NullableIntFieldUpdateOperationsInput | number | null
+    saved_by?: user_saved_gift_cardsUpdateOneWithoutGift_cardNestedInput
   }
 
   export type gift_cardUncheckedUpdateInput = {
@@ -28277,6 +29646,7 @@ export namespace Prisma {
     redeemedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     bookingId?: NullableIntFieldUpdateOperationsInput | number | null
+    saved_by?: user_saved_gift_cardsUncheckedUpdateOneWithoutGift_cardNestedInput
   }
 
   export type gift_cardCreateManyInput = {
@@ -28327,6 +29697,50 @@ export namespace Prisma {
     redeemedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     bookingId?: NullableIntFieldUpdateOperationsInput | number | null
+  }
+
+  export type user_saved_gift_cardsCreateInput = {
+    saved_at?: Date | string
+    users: usersCreateNestedOneWithoutSaved_gift_cardsInput
+    gift_card: gift_cardCreateNestedOneWithoutSaved_byInput
+  }
+
+  export type user_saved_gift_cardsUncheckedCreateInput = {
+    id?: number
+    user_id: number
+    gift_card_id: number
+    saved_at?: Date | string
+  }
+
+  export type user_saved_gift_cardsUpdateInput = {
+    saved_at?: DateTimeFieldUpdateOperationsInput | Date | string
+    users?: usersUpdateOneRequiredWithoutSaved_gift_cardsNestedInput
+    gift_card?: gift_cardUpdateOneRequiredWithoutSaved_byNestedInput
+  }
+
+  export type user_saved_gift_cardsUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    user_id?: IntFieldUpdateOperationsInput | number
+    gift_card_id?: IntFieldUpdateOperationsInput | number
+    saved_at?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type user_saved_gift_cardsCreateManyInput = {
+    id?: number
+    user_id: number
+    gift_card_id: number
+    saved_at?: Date | string
+  }
+
+  export type user_saved_gift_cardsUpdateManyMutationInput = {
+    saved_at?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type user_saved_gift_cardsUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    user_id?: IntFieldUpdateOperationsInput | number
+    gift_card_id?: IntFieldUpdateOperationsInput | number
+    saved_at?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type IntFilter<$PrismaModel = never> = {
@@ -29388,6 +30802,16 @@ export namespace Prisma {
     _max?: NestedJsonFilter<$PrismaModel>
   }
 
+  export type User_saved_gift_cardsListRelationFilter = {
+    every?: user_saved_gift_cardsWhereInput
+    some?: user_saved_gift_cardsWhereInput
+    none?: user_saved_gift_cardsWhereInput
+  }
+
+  export type user_saved_gift_cardsOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
   export type usersCountOrderByAggregateInput = {
     id?: SortOrder
     first_name?: SortOrder
@@ -29612,6 +31036,11 @@ export namespace Prisma {
     not?: NestedFloatFilter<$PrismaModel> | number
   }
 
+  export type User_saved_gift_cardsNullableScalarRelationFilter = {
+    is?: user_saved_gift_cardsWhereInput | null
+    isNot?: user_saved_gift_cardsWhereInput | null
+  }
+
   export type gift_cardCountOrderByAggregateInput = {
     id?: SortOrder
     code?: SortOrder
@@ -29691,6 +31120,44 @@ export namespace Prisma {
     _sum?: NestedFloatFilter<$PrismaModel>
     _min?: NestedFloatFilter<$PrismaModel>
     _max?: NestedFloatFilter<$PrismaModel>
+  }
+
+  export type Gift_cardScalarRelationFilter = {
+    is?: gift_cardWhereInput
+    isNot?: gift_cardWhereInput
+  }
+
+  export type user_saved_gift_cardsCountOrderByAggregateInput = {
+    id?: SortOrder
+    user_id?: SortOrder
+    gift_card_id?: SortOrder
+    saved_at?: SortOrder
+  }
+
+  export type user_saved_gift_cardsAvgOrderByAggregateInput = {
+    id?: SortOrder
+    user_id?: SortOrder
+    gift_card_id?: SortOrder
+  }
+
+  export type user_saved_gift_cardsMaxOrderByAggregateInput = {
+    id?: SortOrder
+    user_id?: SortOrder
+    gift_card_id?: SortOrder
+    saved_at?: SortOrder
+  }
+
+  export type user_saved_gift_cardsMinOrderByAggregateInput = {
+    id?: SortOrder
+    user_id?: SortOrder
+    gift_card_id?: SortOrder
+    saved_at?: SortOrder
+  }
+
+  export type user_saved_gift_cardsSumOrderByAggregateInput = {
+    id?: SortOrder
+    user_id?: SortOrder
+    gift_card_id?: SortOrder
   }
 
   export type training_availabilityCreateNestedOneWithoutBookingsInput = {
@@ -30560,6 +32027,13 @@ export namespace Prisma {
     connect?: season_ticketsWhereUniqueInput | season_ticketsWhereUniqueInput[]
   }
 
+  export type user_saved_gift_cardsCreateNestedManyWithoutUsersInput = {
+    create?: XOR<user_saved_gift_cardsCreateWithoutUsersInput, user_saved_gift_cardsUncheckedCreateWithoutUsersInput> | user_saved_gift_cardsCreateWithoutUsersInput[] | user_saved_gift_cardsUncheckedCreateWithoutUsersInput[]
+    connectOrCreate?: user_saved_gift_cardsCreateOrConnectWithoutUsersInput | user_saved_gift_cardsCreateOrConnectWithoutUsersInput[]
+    createMany?: user_saved_gift_cardsCreateManyUsersInputEnvelope
+    connect?: user_saved_gift_cardsWhereUniqueInput | user_saved_gift_cardsWhereUniqueInput[]
+  }
+
   export type bookingsUncheckedCreateNestedManyWithoutUsersInput = {
     create?: XOR<bookingsCreateWithoutUsersInput, bookingsUncheckedCreateWithoutUsersInput> | bookingsCreateWithoutUsersInput[] | bookingsUncheckedCreateWithoutUsersInput[]
     connectOrCreate?: bookingsCreateOrConnectWithoutUsersInput | bookingsCreateOrConnectWithoutUsersInput[]
@@ -30579,6 +32053,13 @@ export namespace Prisma {
     connectOrCreate?: season_ticketsCreateOrConnectWithoutUsersInput | season_ticketsCreateOrConnectWithoutUsersInput[]
     createMany?: season_ticketsCreateManyUsersInputEnvelope
     connect?: season_ticketsWhereUniqueInput | season_ticketsWhereUniqueInput[]
+  }
+
+  export type user_saved_gift_cardsUncheckedCreateNestedManyWithoutUsersInput = {
+    create?: XOR<user_saved_gift_cardsCreateWithoutUsersInput, user_saved_gift_cardsUncheckedCreateWithoutUsersInput> | user_saved_gift_cardsCreateWithoutUsersInput[] | user_saved_gift_cardsUncheckedCreateWithoutUsersInput[]
+    connectOrCreate?: user_saved_gift_cardsCreateOrConnectWithoutUsersInput | user_saved_gift_cardsCreateOrConnectWithoutUsersInput[]
+    createMany?: user_saved_gift_cardsCreateManyUsersInputEnvelope
+    connect?: user_saved_gift_cardsWhereUniqueInput | user_saved_gift_cardsWhereUniqueInput[]
   }
 
   export type bookingsUpdateManyWithoutUsersNestedInput = {
@@ -30623,6 +32104,20 @@ export namespace Prisma {
     deleteMany?: season_ticketsScalarWhereInput | season_ticketsScalarWhereInput[]
   }
 
+  export type user_saved_gift_cardsUpdateManyWithoutUsersNestedInput = {
+    create?: XOR<user_saved_gift_cardsCreateWithoutUsersInput, user_saved_gift_cardsUncheckedCreateWithoutUsersInput> | user_saved_gift_cardsCreateWithoutUsersInput[] | user_saved_gift_cardsUncheckedCreateWithoutUsersInput[]
+    connectOrCreate?: user_saved_gift_cardsCreateOrConnectWithoutUsersInput | user_saved_gift_cardsCreateOrConnectWithoutUsersInput[]
+    upsert?: user_saved_gift_cardsUpsertWithWhereUniqueWithoutUsersInput | user_saved_gift_cardsUpsertWithWhereUniqueWithoutUsersInput[]
+    createMany?: user_saved_gift_cardsCreateManyUsersInputEnvelope
+    set?: user_saved_gift_cardsWhereUniqueInput | user_saved_gift_cardsWhereUniqueInput[]
+    disconnect?: user_saved_gift_cardsWhereUniqueInput | user_saved_gift_cardsWhereUniqueInput[]
+    delete?: user_saved_gift_cardsWhereUniqueInput | user_saved_gift_cardsWhereUniqueInput[]
+    connect?: user_saved_gift_cardsWhereUniqueInput | user_saved_gift_cardsWhereUniqueInput[]
+    update?: user_saved_gift_cardsUpdateWithWhereUniqueWithoutUsersInput | user_saved_gift_cardsUpdateWithWhereUniqueWithoutUsersInput[]
+    updateMany?: user_saved_gift_cardsUpdateManyWithWhereWithoutUsersInput | user_saved_gift_cardsUpdateManyWithWhereWithoutUsersInput[]
+    deleteMany?: user_saved_gift_cardsScalarWhereInput | user_saved_gift_cardsScalarWhereInput[]
+  }
+
   export type bookingsUncheckedUpdateManyWithoutUsersNestedInput = {
     create?: XOR<bookingsCreateWithoutUsersInput, bookingsUncheckedCreateWithoutUsersInput> | bookingsCreateWithoutUsersInput[] | bookingsUncheckedCreateWithoutUsersInput[]
     connectOrCreate?: bookingsCreateOrConnectWithoutUsersInput | bookingsCreateOrConnectWithoutUsersInput[]
@@ -30663,6 +32158,20 @@ export namespace Prisma {
     update?: season_ticketsUpdateWithWhereUniqueWithoutUsersInput | season_ticketsUpdateWithWhereUniqueWithoutUsersInput[]
     updateMany?: season_ticketsUpdateManyWithWhereWithoutUsersInput | season_ticketsUpdateManyWithWhereWithoutUsersInput[]
     deleteMany?: season_ticketsScalarWhereInput | season_ticketsScalarWhereInput[]
+  }
+
+  export type user_saved_gift_cardsUncheckedUpdateManyWithoutUsersNestedInput = {
+    create?: XOR<user_saved_gift_cardsCreateWithoutUsersInput, user_saved_gift_cardsUncheckedCreateWithoutUsersInput> | user_saved_gift_cardsCreateWithoutUsersInput[] | user_saved_gift_cardsUncheckedCreateWithoutUsersInput[]
+    connectOrCreate?: user_saved_gift_cardsCreateOrConnectWithoutUsersInput | user_saved_gift_cardsCreateOrConnectWithoutUsersInput[]
+    upsert?: user_saved_gift_cardsUpsertWithWhereUniqueWithoutUsersInput | user_saved_gift_cardsUpsertWithWhereUniqueWithoutUsersInput[]
+    createMany?: user_saved_gift_cardsCreateManyUsersInputEnvelope
+    set?: user_saved_gift_cardsWhereUniqueInput | user_saved_gift_cardsWhereUniqueInput[]
+    disconnect?: user_saved_gift_cardsWhereUniqueInput | user_saved_gift_cardsWhereUniqueInput[]
+    delete?: user_saved_gift_cardsWhereUniqueInput | user_saved_gift_cardsWhereUniqueInput[]
+    connect?: user_saved_gift_cardsWhereUniqueInput | user_saved_gift_cardsWhereUniqueInput[]
+    update?: user_saved_gift_cardsUpdateWithWhereUniqueWithoutUsersInput | user_saved_gift_cardsUpdateWithWhereUniqueWithoutUsersInput[]
+    updateMany?: user_saved_gift_cardsUpdateManyWithWhereWithoutUsersInput | user_saved_gift_cardsUpdateManyWithWhereWithoutUsersInput[]
+    deleteMany?: user_saved_gift_cardsScalarWhereInput | user_saved_gift_cardsScalarWhereInput[]
   }
 
   export type blog_postsCreateNestedManyWithoutLabelInput = {
@@ -30723,12 +32232,72 @@ export namespace Prisma {
     update?: XOR<XOR<blog_labelsUpdateToOneWithWhereWithoutBlog_postsInput, blog_labelsUpdateWithoutBlog_postsInput>, blog_labelsUncheckedUpdateWithoutBlog_postsInput>
   }
 
+  export type user_saved_gift_cardsCreateNestedOneWithoutGift_cardInput = {
+    create?: XOR<user_saved_gift_cardsCreateWithoutGift_cardInput, user_saved_gift_cardsUncheckedCreateWithoutGift_cardInput>
+    connectOrCreate?: user_saved_gift_cardsCreateOrConnectWithoutGift_cardInput
+    connect?: user_saved_gift_cardsWhereUniqueInput
+  }
+
+  export type user_saved_gift_cardsUncheckedCreateNestedOneWithoutGift_cardInput = {
+    create?: XOR<user_saved_gift_cardsCreateWithoutGift_cardInput, user_saved_gift_cardsUncheckedCreateWithoutGift_cardInput>
+    connectOrCreate?: user_saved_gift_cardsCreateOrConnectWithoutGift_cardInput
+    connect?: user_saved_gift_cardsWhereUniqueInput
+  }
+
   export type FloatFieldUpdateOperationsInput = {
     set?: number
     increment?: number
     decrement?: number
     multiply?: number
     divide?: number
+  }
+
+  export type user_saved_gift_cardsUpdateOneWithoutGift_cardNestedInput = {
+    create?: XOR<user_saved_gift_cardsCreateWithoutGift_cardInput, user_saved_gift_cardsUncheckedCreateWithoutGift_cardInput>
+    connectOrCreate?: user_saved_gift_cardsCreateOrConnectWithoutGift_cardInput
+    upsert?: user_saved_gift_cardsUpsertWithoutGift_cardInput
+    disconnect?: user_saved_gift_cardsWhereInput | boolean
+    delete?: user_saved_gift_cardsWhereInput | boolean
+    connect?: user_saved_gift_cardsWhereUniqueInput
+    update?: XOR<XOR<user_saved_gift_cardsUpdateToOneWithWhereWithoutGift_cardInput, user_saved_gift_cardsUpdateWithoutGift_cardInput>, user_saved_gift_cardsUncheckedUpdateWithoutGift_cardInput>
+  }
+
+  export type user_saved_gift_cardsUncheckedUpdateOneWithoutGift_cardNestedInput = {
+    create?: XOR<user_saved_gift_cardsCreateWithoutGift_cardInput, user_saved_gift_cardsUncheckedCreateWithoutGift_cardInput>
+    connectOrCreate?: user_saved_gift_cardsCreateOrConnectWithoutGift_cardInput
+    upsert?: user_saved_gift_cardsUpsertWithoutGift_cardInput
+    disconnect?: user_saved_gift_cardsWhereInput | boolean
+    delete?: user_saved_gift_cardsWhereInput | boolean
+    connect?: user_saved_gift_cardsWhereUniqueInput
+    update?: XOR<XOR<user_saved_gift_cardsUpdateToOneWithWhereWithoutGift_cardInput, user_saved_gift_cardsUpdateWithoutGift_cardInput>, user_saved_gift_cardsUncheckedUpdateWithoutGift_cardInput>
+  }
+
+  export type usersCreateNestedOneWithoutSaved_gift_cardsInput = {
+    create?: XOR<usersCreateWithoutSaved_gift_cardsInput, usersUncheckedCreateWithoutSaved_gift_cardsInput>
+    connectOrCreate?: usersCreateOrConnectWithoutSaved_gift_cardsInput
+    connect?: usersWhereUniqueInput
+  }
+
+  export type gift_cardCreateNestedOneWithoutSaved_byInput = {
+    create?: XOR<gift_cardCreateWithoutSaved_byInput, gift_cardUncheckedCreateWithoutSaved_byInput>
+    connectOrCreate?: gift_cardCreateOrConnectWithoutSaved_byInput
+    connect?: gift_cardWhereUniqueInput
+  }
+
+  export type usersUpdateOneRequiredWithoutSaved_gift_cardsNestedInput = {
+    create?: XOR<usersCreateWithoutSaved_gift_cardsInput, usersUncheckedCreateWithoutSaved_gift_cardsInput>
+    connectOrCreate?: usersCreateOrConnectWithoutSaved_gift_cardsInput
+    upsert?: usersUpsertWithoutSaved_gift_cardsInput
+    connect?: usersWhereUniqueInput
+    update?: XOR<XOR<usersUpdateToOneWithWhereWithoutSaved_gift_cardsInput, usersUpdateWithoutSaved_gift_cardsInput>, usersUncheckedUpdateWithoutSaved_gift_cardsInput>
+  }
+
+  export type gift_cardUpdateOneRequiredWithoutSaved_byNestedInput = {
+    create?: XOR<gift_cardCreateWithoutSaved_byInput, gift_cardUncheckedCreateWithoutSaved_byInput>
+    connectOrCreate?: gift_cardCreateOrConnectWithoutSaved_byInput
+    upsert?: gift_cardUpsertWithoutSaved_byInput
+    connect?: gift_cardWhereUniqueInput
+    update?: XOR<XOR<gift_cardUpdateToOneWithWhereWithoutSaved_byInput, gift_cardUpdateWithoutSaved_byInput>, gift_cardUncheckedUpdateWithoutSaved_byInput>
   }
 
   export type NestedIntFilter<$PrismaModel = never> = {
@@ -31082,6 +32651,7 @@ export namespace Prisma {
     marketing_consent?: boolean | null
     credits?: creditsCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsCreateNestedManyWithoutUsersInput
+    saved_gift_cards?: user_saved_gift_cardsCreateNestedManyWithoutUsersInput
   }
 
   export type usersUncheckedCreateWithoutBookingsInput = {
@@ -31101,6 +32671,7 @@ export namespace Prisma {
     marketing_consent?: boolean | null
     credits?: creditsUncheckedCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsUncheckedCreateNestedManyWithoutUsersInput
+    saved_gift_cards?: user_saved_gift_cardsUncheckedCreateNestedManyWithoutUsersInput
   }
 
   export type usersCreateOrConnectWithoutBookingsInput = {
@@ -31263,6 +32834,7 @@ export namespace Prisma {
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
     credits?: creditsUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUpdateManyWithoutUsersNestedInput
+    saved_gift_cards?: user_saved_gift_cardsUpdateManyWithoutUsersNestedInput
   }
 
   export type usersUncheckedUpdateWithoutBookingsInput = {
@@ -31282,6 +32854,7 @@ export namespace Prisma {
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
     credits?: creditsUncheckedUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUncheckedUpdateManyWithoutUsersNestedInput
+    saved_gift_cards?: user_saved_gift_cardsUncheckedUpdateManyWithoutUsersNestedInput
   }
 
   export type creditsUpsertWithoutBookingsInput = {
@@ -31499,6 +33072,7 @@ export namespace Prisma {
     marketing_consent?: boolean | null
     bookings?: bookingsCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsCreateNestedManyWithoutUsersInput
+    saved_gift_cards?: user_saved_gift_cardsCreateNestedManyWithoutUsersInput
   }
 
   export type usersUncheckedCreateWithoutCreditsInput = {
@@ -31518,6 +33092,7 @@ export namespace Prisma {
     marketing_consent?: boolean | null
     bookings?: bookingsUncheckedCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsUncheckedCreateNestedManyWithoutUsersInput
+    saved_gift_cards?: user_saved_gift_cardsUncheckedCreateNestedManyWithoutUsersInput
   }
 
   export type usersCreateOrConnectWithoutCreditsInput = {
@@ -31633,6 +33208,7 @@ export namespace Prisma {
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
     bookings?: bookingsUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUpdateManyWithoutUsersNestedInput
+    saved_gift_cards?: user_saved_gift_cardsUpdateManyWithoutUsersNestedInput
   }
 
   export type usersUncheckedUpdateWithoutCreditsInput = {
@@ -31652,6 +33228,7 @@ export namespace Prisma {
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
     bookings?: bookingsUncheckedUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUncheckedUpdateManyWithoutUsersNestedInput
+    saved_gift_cards?: user_saved_gift_cardsUncheckedUpdateManyWithoutUsersNestedInput
   }
 
   export type bookingsCreateWithoutRefundsInput = {
@@ -32406,6 +33983,7 @@ export namespace Prisma {
     marketing_consent?: boolean | null
     bookings?: bookingsCreateNestedManyWithoutUsersInput
     credits?: creditsCreateNestedManyWithoutUsersInput
+    saved_gift_cards?: user_saved_gift_cardsCreateNestedManyWithoutUsersInput
   }
 
   export type usersUncheckedCreateWithoutSeason_ticketsInput = {
@@ -32425,6 +34003,7 @@ export namespace Prisma {
     marketing_consent?: boolean | null
     bookings?: bookingsUncheckedCreateNestedManyWithoutUsersInput
     credits?: creditsUncheckedCreateNestedManyWithoutUsersInput
+    saved_gift_cards?: user_saved_gift_cardsUncheckedCreateNestedManyWithoutUsersInput
   }
 
   export type usersCreateOrConnectWithoutSeason_ticketsInput = {
@@ -32501,6 +34080,7 @@ export namespace Prisma {
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
     bookings?: bookingsUpdateManyWithoutUsersNestedInput
     credits?: creditsUpdateManyWithoutUsersNestedInput
+    saved_gift_cards?: user_saved_gift_cardsUpdateManyWithoutUsersNestedInput
   }
 
   export type usersUncheckedUpdateWithoutSeason_ticketsInput = {
@@ -32520,6 +34100,7 @@ export namespace Prisma {
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
     bookings?: bookingsUncheckedUpdateManyWithoutUsersNestedInput
     credits?: creditsUncheckedUpdateManyWithoutUsersNestedInput
+    saved_gift_cards?: user_saved_gift_cardsUncheckedUpdateManyWithoutUsersNestedInput
   }
 
   export type season_ticket_productsUpsertWithoutSeason_ticketsInput = {
@@ -33261,6 +34842,27 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type user_saved_gift_cardsCreateWithoutUsersInput = {
+    saved_at?: Date | string
+    gift_card: gift_cardCreateNestedOneWithoutSaved_byInput
+  }
+
+  export type user_saved_gift_cardsUncheckedCreateWithoutUsersInput = {
+    id?: number
+    gift_card_id: number
+    saved_at?: Date | string
+  }
+
+  export type user_saved_gift_cardsCreateOrConnectWithoutUsersInput = {
+    where: user_saved_gift_cardsWhereUniqueInput
+    create: XOR<user_saved_gift_cardsCreateWithoutUsersInput, user_saved_gift_cardsUncheckedCreateWithoutUsersInput>
+  }
+
+  export type user_saved_gift_cardsCreateManyUsersInputEnvelope = {
+    data: user_saved_gift_cardsCreateManyUsersInput | user_saved_gift_cardsCreateManyUsersInput[]
+    skipDuplicates?: boolean
+  }
+
   export type bookingsUpsertWithWhereUniqueWithoutUsersInput = {
     where: bookingsWhereUniqueInput
     update: XOR<bookingsUpdateWithoutUsersInput, bookingsUncheckedUpdateWithoutUsersInput>
@@ -33307,6 +34909,32 @@ export namespace Prisma {
   export type season_ticketsUpdateManyWithWhereWithoutUsersInput = {
     where: season_ticketsScalarWhereInput
     data: XOR<season_ticketsUpdateManyMutationInput, season_ticketsUncheckedUpdateManyWithoutUsersInput>
+  }
+
+  export type user_saved_gift_cardsUpsertWithWhereUniqueWithoutUsersInput = {
+    where: user_saved_gift_cardsWhereUniqueInput
+    update: XOR<user_saved_gift_cardsUpdateWithoutUsersInput, user_saved_gift_cardsUncheckedUpdateWithoutUsersInput>
+    create: XOR<user_saved_gift_cardsCreateWithoutUsersInput, user_saved_gift_cardsUncheckedCreateWithoutUsersInput>
+  }
+
+  export type user_saved_gift_cardsUpdateWithWhereUniqueWithoutUsersInput = {
+    where: user_saved_gift_cardsWhereUniqueInput
+    data: XOR<user_saved_gift_cardsUpdateWithoutUsersInput, user_saved_gift_cardsUncheckedUpdateWithoutUsersInput>
+  }
+
+  export type user_saved_gift_cardsUpdateManyWithWhereWithoutUsersInput = {
+    where: user_saved_gift_cardsScalarWhereInput
+    data: XOR<user_saved_gift_cardsUpdateManyMutationInput, user_saved_gift_cardsUncheckedUpdateManyWithoutUsersInput>
+  }
+
+  export type user_saved_gift_cardsScalarWhereInput = {
+    AND?: user_saved_gift_cardsScalarWhereInput | user_saved_gift_cardsScalarWhereInput[]
+    OR?: user_saved_gift_cardsScalarWhereInput[]
+    NOT?: user_saved_gift_cardsScalarWhereInput | user_saved_gift_cardsScalarWhereInput[]
+    id?: IntFilter<"user_saved_gift_cards"> | number
+    user_id?: IntFilter<"user_saved_gift_cards"> | number
+    gift_card_id?: IntFilter<"user_saved_gift_cards"> | number
+    saved_at?: DateTimeFilter<"user_saved_gift_cards"> | Date | string
   }
 
   export type blog_postsCreateWithoutLabelInput = {
@@ -33414,6 +35042,220 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     color?: StringFieldUpdateOperationsInput | string
     created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type user_saved_gift_cardsCreateWithoutGift_cardInput = {
+    saved_at?: Date | string
+    users: usersCreateNestedOneWithoutSaved_gift_cardsInput
+  }
+
+  export type user_saved_gift_cardsUncheckedCreateWithoutGift_cardInput = {
+    id?: number
+    user_id: number
+    saved_at?: Date | string
+  }
+
+  export type user_saved_gift_cardsCreateOrConnectWithoutGift_cardInput = {
+    where: user_saved_gift_cardsWhereUniqueInput
+    create: XOR<user_saved_gift_cardsCreateWithoutGift_cardInput, user_saved_gift_cardsUncheckedCreateWithoutGift_cardInput>
+  }
+
+  export type user_saved_gift_cardsUpsertWithoutGift_cardInput = {
+    update: XOR<user_saved_gift_cardsUpdateWithoutGift_cardInput, user_saved_gift_cardsUncheckedUpdateWithoutGift_cardInput>
+    create: XOR<user_saved_gift_cardsCreateWithoutGift_cardInput, user_saved_gift_cardsUncheckedCreateWithoutGift_cardInput>
+    where?: user_saved_gift_cardsWhereInput
+  }
+
+  export type user_saved_gift_cardsUpdateToOneWithWhereWithoutGift_cardInput = {
+    where?: user_saved_gift_cardsWhereInput
+    data: XOR<user_saved_gift_cardsUpdateWithoutGift_cardInput, user_saved_gift_cardsUncheckedUpdateWithoutGift_cardInput>
+  }
+
+  export type user_saved_gift_cardsUpdateWithoutGift_cardInput = {
+    saved_at?: DateTimeFieldUpdateOperationsInput | Date | string
+    users?: usersUpdateOneRequiredWithoutSaved_gift_cardsNestedInput
+  }
+
+  export type user_saved_gift_cardsUncheckedUpdateWithoutGift_cardInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    user_id?: IntFieldUpdateOperationsInput | number
+    saved_at?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type usersCreateWithoutSaved_gift_cardsInput = {
+    first_name: string
+    last_name: string
+    email: string
+    password: string
+    address: string
+    verification_token?: string | null
+    verified?: boolean | null
+    reset_token?: string | null
+    role?: string | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+    mobile?: string | null
+    marketing_consent?: boolean | null
+    bookings?: bookingsCreateNestedManyWithoutUsersInput
+    credits?: creditsCreateNestedManyWithoutUsersInput
+    season_tickets?: season_ticketsCreateNestedManyWithoutUsersInput
+  }
+
+  export type usersUncheckedCreateWithoutSaved_gift_cardsInput = {
+    id?: number
+    first_name: string
+    last_name: string
+    email: string
+    password: string
+    address: string
+    verification_token?: string | null
+    verified?: boolean | null
+    reset_token?: string | null
+    role?: string | null
+    created_at?: Date | string | null
+    updated_at?: Date | string | null
+    mobile?: string | null
+    marketing_consent?: boolean | null
+    bookings?: bookingsUncheckedCreateNestedManyWithoutUsersInput
+    credits?: creditsUncheckedCreateNestedManyWithoutUsersInput
+    season_tickets?: season_ticketsUncheckedCreateNestedManyWithoutUsersInput
+  }
+
+  export type usersCreateOrConnectWithoutSaved_gift_cardsInput = {
+    where: usersWhereUniqueInput
+    create: XOR<usersCreateWithoutSaved_gift_cardsInput, usersUncheckedCreateWithoutSaved_gift_cardsInput>
+  }
+
+  export type gift_cardCreateWithoutSaved_byInput = {
+    code: string
+    stripeSessionId?: string | null
+    amount: number
+    balance: number
+    status?: string
+    buyerEmail: string
+    recipientName: string
+    recipientEmail?: string | null
+    message?: string | null
+    expiresAt: Date | string
+    redeemedAt?: Date | string | null
+    createdAt?: Date | string
+    bookingId?: number | null
+  }
+
+  export type gift_cardUncheckedCreateWithoutSaved_byInput = {
+    id?: number
+    code: string
+    stripeSessionId?: string | null
+    amount: number
+    balance: number
+    status?: string
+    buyerEmail: string
+    recipientName: string
+    recipientEmail?: string | null
+    message?: string | null
+    expiresAt: Date | string
+    redeemedAt?: Date | string | null
+    createdAt?: Date | string
+    bookingId?: number | null
+  }
+
+  export type gift_cardCreateOrConnectWithoutSaved_byInput = {
+    where: gift_cardWhereUniqueInput
+    create: XOR<gift_cardCreateWithoutSaved_byInput, gift_cardUncheckedCreateWithoutSaved_byInput>
+  }
+
+  export type usersUpsertWithoutSaved_gift_cardsInput = {
+    update: XOR<usersUpdateWithoutSaved_gift_cardsInput, usersUncheckedUpdateWithoutSaved_gift_cardsInput>
+    create: XOR<usersCreateWithoutSaved_gift_cardsInput, usersUncheckedCreateWithoutSaved_gift_cardsInput>
+    where?: usersWhereInput
+  }
+
+  export type usersUpdateToOneWithWhereWithoutSaved_gift_cardsInput = {
+    where?: usersWhereInput
+    data: XOR<usersUpdateWithoutSaved_gift_cardsInput, usersUncheckedUpdateWithoutSaved_gift_cardsInput>
+  }
+
+  export type usersUpdateWithoutSaved_gift_cardsInput = {
+    first_name?: StringFieldUpdateOperationsInput | string
+    last_name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    password?: StringFieldUpdateOperationsInput | string
+    address?: StringFieldUpdateOperationsInput | string
+    verification_token?: NullableStringFieldUpdateOperationsInput | string | null
+    verified?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    reset_token?: NullableStringFieldUpdateOperationsInput | string | null
+    role?: NullableStringFieldUpdateOperationsInput | string | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    mobile?: NullableStringFieldUpdateOperationsInput | string | null
+    marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    bookings?: bookingsUpdateManyWithoutUsersNestedInput
+    credits?: creditsUpdateManyWithoutUsersNestedInput
+    season_tickets?: season_ticketsUpdateManyWithoutUsersNestedInput
+  }
+
+  export type usersUncheckedUpdateWithoutSaved_gift_cardsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    first_name?: StringFieldUpdateOperationsInput | string
+    last_name?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    password?: StringFieldUpdateOperationsInput | string
+    address?: StringFieldUpdateOperationsInput | string
+    verification_token?: NullableStringFieldUpdateOperationsInput | string | null
+    verified?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    reset_token?: NullableStringFieldUpdateOperationsInput | string | null
+    role?: NullableStringFieldUpdateOperationsInput | string | null
+    created_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    mobile?: NullableStringFieldUpdateOperationsInput | string | null
+    marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    bookings?: bookingsUncheckedUpdateManyWithoutUsersNestedInput
+    credits?: creditsUncheckedUpdateManyWithoutUsersNestedInput
+    season_tickets?: season_ticketsUncheckedUpdateManyWithoutUsersNestedInput
+  }
+
+  export type gift_cardUpsertWithoutSaved_byInput = {
+    update: XOR<gift_cardUpdateWithoutSaved_byInput, gift_cardUncheckedUpdateWithoutSaved_byInput>
+    create: XOR<gift_cardCreateWithoutSaved_byInput, gift_cardUncheckedCreateWithoutSaved_byInput>
+    where?: gift_cardWhereInput
+  }
+
+  export type gift_cardUpdateToOneWithWhereWithoutSaved_byInput = {
+    where?: gift_cardWhereInput
+    data: XOR<gift_cardUpdateWithoutSaved_byInput, gift_cardUncheckedUpdateWithoutSaved_byInput>
+  }
+
+  export type gift_cardUpdateWithoutSaved_byInput = {
+    code?: StringFieldUpdateOperationsInput | string
+    stripeSessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    amount?: FloatFieldUpdateOperationsInput | number
+    balance?: FloatFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    buyerEmail?: StringFieldUpdateOperationsInput | string
+    recipientName?: StringFieldUpdateOperationsInput | string
+    recipientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    message?: NullableStringFieldUpdateOperationsInput | string | null
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    redeemedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    bookingId?: NullableIntFieldUpdateOperationsInput | number | null
+  }
+
+  export type gift_cardUncheckedUpdateWithoutSaved_byInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    code?: StringFieldUpdateOperationsInput | string
+    stripeSessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    amount?: FloatFieldUpdateOperationsInput | number
+    balance?: FloatFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    buyerEmail?: StringFieldUpdateOperationsInput | string
+    recipientName?: StringFieldUpdateOperationsInput | string
+    recipientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    message?: NullableStringFieldUpdateOperationsInput | string | null
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    redeemedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    bookingId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type refundsCreateManyBookingsInput = {
@@ -34087,6 +35929,12 @@ export namespace Prisma {
     payment_time?: Date | string | null
   }
 
+  export type user_saved_gift_cardsCreateManyUsersInput = {
+    id?: number
+    gift_card_id: number
+    saved_at?: Date | string
+  }
+
   export type bookingsUpdateWithoutUsersInput = {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
@@ -34264,6 +36112,23 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type user_saved_gift_cardsUpdateWithoutUsersInput = {
+    saved_at?: DateTimeFieldUpdateOperationsInput | Date | string
+    gift_card?: gift_cardUpdateOneRequiredWithoutSaved_byNestedInput
+  }
+
+  export type user_saved_gift_cardsUncheckedUpdateWithoutUsersInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    gift_card_id?: IntFieldUpdateOperationsInput | number
+    saved_at?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type user_saved_gift_cardsUncheckedUpdateManyWithoutUsersInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    gift_card_id?: IntFieldUpdateOperationsInput | number
+    saved_at?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type blog_postsCreateManyLabelInput = {

@@ -8,7 +8,10 @@
     "prisma:migrate": "prisma migrate deploy",
     "test": "cross-env NODE_ENV=test jest --runInBand",
     "test:watch": "cross-env NODE_ENV=test jest --watch --runInBand",
-    "test:coverage": "cross-env NODE_ENV=test jest --coverage --runInBand"
+    "test:coverage": "cross-env NODE_ENV=test jest --coverage --runInBand",
+    "db:push": "prisma db push",
+    "db:push:test": "cross-env DATABASE_URL=postgresql://postgres:polipok@localhost:5432/nitracik_test prisma db push",
+    "db:sync": "npm run db:push && npm run db:push:test"
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",
