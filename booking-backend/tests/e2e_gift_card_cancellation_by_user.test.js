@@ -498,10 +498,13 @@ describe('FLOW B — Mixed booking: User zruší → Kredit', () => {
     const agent = await loginAs(user.email);
     await agent.delete(`/api/bookings/${booking.id}`).send({ requestCredit: true });
 
-    // Zistíme skutočnú štruktúru credits tabuľky
+    // credits tabuľka nemá booking_id stĺpec; kredit je vytvorený priamo s user_id
+    // a session_id (ktorý obsahuje training_id = training_availability.id)
     const creditRes = await pool.query(
-      `SELECT * FROM credits WHERE booking_id=$1 OR user_id=$2 ORDER BY created_at DESC LIMIT 1`,
-      [booking.id, user.id]
+      `SELECT * FROM credits 
+       WHERE user_id = $1 AND session_id = $2
+       ORDER BY created_at DESC LIMIT 1`,
+      [user.id, booking.training_id]
     );
     expect(creditRes.rows.length).toBeGreaterThan(0);
 

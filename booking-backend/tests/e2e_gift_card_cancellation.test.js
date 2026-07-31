@@ -436,7 +436,13 @@ describe('Gift Card — Full purchase flow (Stripe → DB → email)', () => {
     const user = await createVerifiedUser('test_gcc_fetch_001@example.com');
     const agent = await loginAs(user.email);
     const code = testGcCode('FTCH1');
-    await createGiftCardInDb({ code, amount: 50, balance: 50, buyerEmail: user.email });
+    const gc = await createGiftCardInDb({ code, amount: 50, balance: 50, buyerEmail: user.email });
+
+    // Endpoint vracia len manuálne uložené poukazy (cez user_saved_gift_cards)
+    await pool.query(
+      `INSERT INTO user_saved_gift_cards (user_id, gift_card_id, saved_at) VALUES ($1, $2, NOW())`,
+      [user.id, gc.id]
+    );
 
     const res = await agent.get(`/api/gift-cards/user/${user.id}`);
     expect(res.status).toBe(200);
