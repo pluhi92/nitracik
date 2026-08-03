@@ -183,6 +183,16 @@ const ActivityList = () => {
     return map;
   }, [types, dates]);
 
+  const renderedDescriptions = useMemo(() => {
+    const map = {};
+    types.forEach((t) => {
+      if (t.description) {
+        map[t.id] = renderMarkdown(t.description);
+      }
+    });
+    return map;
+  }, [types]);
+
   const handleToggleExpanded = (typeId) => {
     setExpandedTypeIds((prev) => ({
       ...prev,
@@ -304,12 +314,9 @@ const ActivityList = () => {
             const expanded = Boolean(expandedTypeIds[type.id]);
 
             return (
-              <motion.article
+              <article
                 key={type.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="rounded-[2rem] border border-neutral-200 bg-white shadow-sm transition-all hover:shadow-md"
+                className="rounded-[2rem] border border-neutral-200 bg-white shadow-sm transition-shadow hover:shadow-md"
                 style={{ borderLeftWidth: '6px', borderLeftColor: type.color_hex || '#f43f5e' }}
               >
                 <div className="relative p-6 sm:p-8 pb-10">
@@ -338,10 +345,10 @@ const ActivityList = () => {
                       </div>
                     </div>
                   </div>
-                  {type.description && (
+                  {renderedDescriptions[type.id] && (
                     <div
                       className="mt-4 text-neutral-600 text-base leading-relaxed text-justify"
-                      dangerouslySetInnerHTML={{ __html: renderMarkdown(type.description) }}
+                      dangerouslySetInnerHTML={{ __html: renderedDescriptions[type.id] }}
                     />
                   )}
 
@@ -412,7 +419,7 @@ const ActivityList = () => {
                       )}
                     </div>
                   )}
-              </motion.article>
+              </article>
             );
           })}
         </div>

@@ -32,20 +32,6 @@ import {
   Trash2,
   Link
 } from 'lucide-react';
-const fadeInUp = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
-};
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 24 },
-  visible: (i) => ({
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.4, ease: 'easeOut', delay: i * 0.08 }
-  })
-};
-
 const NativeSelect = React.memo(({ value, onChange, disabled, required, className, children, style, ...props }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -1734,12 +1720,7 @@ const Booking = () => {
 
   if (!isLoggedIn) {
     return (
-      <motion.section 
-        initial="hidden"
-        animate="visible"
-        variants={fadeInUp}
-        className="py-12 md:py-16 container-custom max-w-lg mx-auto px-4"
-      >
+      <section className="py-12 md:py-16 container-custom max-w-lg mx-auto px-4">
         <div className="bg-white rounded-[2rem] border border-neutral-200 shadow-sm p-6 sm:p-10">
           <h2 className="text-2xl font-extrabold text-center text-foreground mb-8">
             {t?.booking?.title || 'Book Your Training'}
@@ -1751,7 +1732,7 @@ const Booking = () => {
             }}
           />
         </div>
-      </motion.section>
+      </section>
     );
   }
 
@@ -1770,12 +1751,7 @@ const Booking = () => {
   const availableSeasonTickets = getAvailableSeasonTickets(seasonTickets, selectedTypeObj);
 
   return (
-    <motion.section 
-      initial="hidden"
-      animate="visible"
-      variants={fadeInUp}
-      className="py-12 md:py-16 container-custom max-w-5xl mx-auto px-4 sm:px-6 relative"
-    >
+    <section className="py-12 md:py-16 container-custom max-w-5xl mx-auto px-4 sm:px-6 relative">
       <AnimatePresence>
         {showScrollButton && (
           <motion.button
@@ -2083,13 +2059,7 @@ const Booking = () => {
         )}
 
         {/* 1. Training Details */}
-        <motion.div
-          custom={0}
-          initial="visible"
-          animate="visible"
-          variants={cardVariants}
-          className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-primary overflow-hidden relative"
-        >
+        <div className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-primary overflow-hidden relative">
           <div className="bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
               <CalIcon className="w-4 h-4" />
@@ -2211,14 +2181,10 @@ const Booking = () => {
               </div>
             )}
           </div>
-        </motion.div>
+        </div>
 
         {/* 2. Personal Information */}
-        <motion.div
-          custom={1}
-          initial="visible"
-          animate="visible"
-          variants={cardVariants}
+        <div
           className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-sky-400 overflow-hidden relative"
         >
           <div className="bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
@@ -2282,7 +2248,7 @@ const Booking = () => {
               </div>
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* 3. Children Information */}
         <AnimatePresence>
@@ -2295,11 +2261,7 @@ const Booking = () => {
               transition={{ duration: 0.2, ease: 'easeOut' }}
               className="overflow-hidden"
             >
-              <motion.div
-                custom={2}
-                initial="visible"
-                animate="visible"
-                variants={cardVariants}
+              <div
                 className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-violet-400 overflow-hidden relative"
               >
                 <div className="bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
@@ -2368,17 +2330,13 @@ const Booking = () => {
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* 4. Additional Options */}
-        <motion.div
-          custom={3}
-          initial="visible"
-          animate="visible"
-          variants={cardVariants}
+        <div
           className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-amber-400 overflow-hidden relative"
         >
           <div className="bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
@@ -2521,14 +2479,10 @@ const Booking = () => {
               </div>
             )}
           </div>
-        </motion.div>
+        </div>
 
         {/* Gift Card Section */}
-        <motion.div
-          custom={4}
-          initial="visible"
-          animate="visible"
-          variants={cardVariants}
+        <div
           className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-amber-400 overflow-hidden"
         >
           <div className="bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
@@ -2627,14 +2581,10 @@ const Booking = () => {
               })()}
             </AnimatePresence>
           </div>
-        </motion.div>
+        </div>
 
         {/* 5. Consents and Agreements */}
-        <motion.div
-          custom={5}
-          initial="visible"
-          animate="visible"
-          variants={cardVariants}
+        <div
           className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-emerald-400 overflow-hidden relative"
         >
           <div className="bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
@@ -2717,15 +2667,11 @@ const Booking = () => {
               </div>
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* 6. Pricing and Submission */}
 
-        <motion.div
-          custom={5}
-          initial="visible"
-          animate="visible"
-          variants={cardVariants}
+        <div
           className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-emerald-500 overflow-hidden mb-8"
         >
           <div className="bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
@@ -2851,7 +2797,7 @@ const Booking = () => {
               <span>{t?.booking?.secureBooking || 'Your booking is secure and protected'}</span>
             </div>
           </div>
-        </motion.div>
+        </div>
       </form>
 
       {/* Duplicate Booking Modal */}
@@ -3481,7 +3427,7 @@ const Booking = () => {
         )}
       </AnimatePresence>
 
-    </motion.section>
+    </section>
   );
 };
 
