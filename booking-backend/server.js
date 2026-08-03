@@ -1534,6 +1534,74 @@ app.put('/api/admin/training-types/:id/toggle', isAdmin, async (req, res) => {
   }
 });
 
+// PUT /api/admin/training-types/:id/description — update description only
+app.put('/api/admin/training-types/:id/description', isAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { description } = req.body;
+  try {
+    await pool.query(
+      'UPDATE training_types SET description = $1 WHERE id = $2',
+      [description, id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating training type description:', error);
+    res.status(500).json({ error: 'Failed to update description' });
+  }
+});
+
+// DELETE /api/admin/training-types/:id — delete training type (only if no bookings/sessions)
+app.delete('/api/admin/training-types/:id', isAdmin, async (req, res) => {
+  const { id } = req.params;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Check for active bookings linked to sessions of this type
+    const bookingCheck = await client.query(
+      `SELECT COUNT(*) as cnt 
+       FROM bookings b
+       JOIN training_availability ta ON b.training_id = ta.id
+       WHERE ta.training_type_id = $1 AND b.active = true`,
+      [id]
+    );
+    if (parseInt(bookingCheck.rows[0].cnt) > 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: `Tento typ má ${bookingCheck.rows[0].cnt} aktívnych rezerváci(í). Najprv zruš rezervácie.`
+      });
+    }
+
+    // Check for future training sessions
+    const sessionCheck = await client.query(
+      `SELECT COUNT(*) as cnt 
+       FROM training_availability 
+       WHERE training_type_id = $1 AND training_date > NOW()`,
+      [id]
+    );
+    if (parseInt(sessionCheck.rows[0].cnt) > 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: `Tento typ má ${sessionCheck.rows[0].cnt} budúc(ich) hodín v rozvrhu. Najprv ich vymaž.`
+      });
+    }
+
+    // Delete prices first (FK constraint)
+    await client.query('DELETE FROM training_prices WHERE training_type_id = $1', [id]);
+    // Delete the type
+    await client.query('DELETE FROM training_types WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error deleting training type:', error);
+    res.status(500).json({ error: 'Failed to delete training type' });
+  } finally {
+    client.release();
+  }
+});
+
 // --- SEASON TICKET PRODUCTS ---
 // GET /api/season-ticket-products - zoznam produktov (USER)
 app.get('/api/season-ticket-products', async (req, res) => {

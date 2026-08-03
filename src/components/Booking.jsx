@@ -27,7 +27,10 @@ import {
   Settings,
   X,
   FileText,
-  Gift
+  Gift,
+  Pencil,
+  Trash2,
+  Link
 } from 'lucide-react';
 const fadeInUp = {
   hidden: { opacity: 0, y: 30 },
@@ -43,7 +46,7 @@ const cardVariants = {
   })
 };
 
-const NativeSelect = ({ value, onChange, disabled, required, className, children, style, ...props }) => {
+const NativeSelect = React.memo(({ value, onChange, disabled, required, className, children, style, ...props }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const isPlaceholderValue = value === '' || value === null || typeof value === 'undefined';
@@ -118,7 +121,7 @@ const NativeSelect = ({ value, onChange, disabled, required, className, children
       </motion.div>
     </motion.div>
   );
-};
+});
 
 const Booking = () => {
   const toDateKey = (value) => {
@@ -236,6 +239,25 @@ const Booking = () => {
   const [giftCardError, setGiftCardError] = useState('');
   const [giftCardLoading, setGiftCardLoading] = useState(false);
   const [giftCardApplied, setGiftCardApplied] = useState(false);
+  const [newTypeLink, setNewTypeLink] = useState('');
+  const newTypeDescRef = useRef(null);
+
+  // Edit type modal state
+  const [showEditTypeModal, setShowEditTypeModal] = useState(false);
+  const [editingType, setEditingType] = useState(null); // { id, name, description }
+  const [editTypeDesc, setEditTypeDesc] = useState('');
+  const [editTypeLink, setEditTypeLink] = useState('');
+  const editTypeDescRef = useRef(null);
+
+  // Delete type modal state
+  const [showDeleteTypeModal, setShowDeleteTypeModal] = useState(false);
+  const [deletingType, setDeletingType] = useState(null); // { id, name }
+  const [deleteTypeLoading, setDeleteTypeLoading] = useState(false);
+  const [deleteTypeError, setDeleteTypeError] = useState('');
+
+  // Type detail modal state
+  const [showTypeDetailModal, setShowTypeDetailModal] = useState(false);
+  const [detailType, setDetailType] = useState(null);
 
   const calculateTotalPrice = () => {
     if (!selectedTypeObj) return 0;
@@ -404,14 +426,8 @@ const Booking = () => {
             minute: '2-digit',
             hour12: false
           });
-
-          if (!acc[training.training_type]) {
-            acc[training.training_type] = {};
-          }
-          if (!acc[training.training_type][date]) {
-            acc[training.training_type][date] = [];
-          }
-
+          if (!acc[training.training_type]) acc[training.training_type] = {};
+          if (!acc[training.training_type][date]) acc[training.training_type][date] = [];
           acc[training.training_type][date].push({ time, id: training.id });
           return acc;
         }, {});
@@ -425,7 +441,6 @@ const Booking = () => {
       try {
         const userId = localStorage.getItem('userId');
         if (!userId) return;
-
         const response = await api.get(`/api/season-tickets/${userId}`);
         setSeasonTickets(
           response.data.filter(
@@ -443,7 +458,6 @@ const Booking = () => {
       try {
         const userId = localStorage.getItem('userId');
         if (!userId) return;
-
         const response = await api.get(`/api/credits/${userId}`);
         setCredits(response.data);
       } catch (error) {
@@ -455,7 +469,6 @@ const Booking = () => {
       try {
         const userId = localStorage.getItem('userId');
         if (!userId) return;
-
         const response = await api.get(`/api/bookings/user/${userId}`);
         setUserBookings(response.data);
       } catch (error) {
@@ -463,24 +476,31 @@ const Booking = () => {
       }
     };
 
-    const fetchTypes = async (audience = null) => {
-      const params = new URLSearchParams();
-      if (isAdmin) params.set('admin', 'true');
-      if (audience) params.set('audience', audience);
-
-      const qs = params.toString();
-      const response = await api.get(`/api/training-types${qs ? `?${qs}` : ''}`);
-      setTrainingTypes(response.data);
-    };
-
     if (isLoggedIn) {
-      const targetAudience = (lockedReservation?.incomingAgeGroup || ageGroup) === 'adult' ? 'adults' : 'children';
-
       fetchTrainingDates();
       fetchSeasonTickets();
       fetchCredits();
       fetchUserBookings();
-      fetchTypes(targetAudience);
+    }
+  }, [isLoggedIn, isAdmin]);
+
+  useEffect(() => {
+    const fetchTypes = async () => {
+      try {
+        const params = new URLSearchParams();
+        if (isAdmin) params.set('admin', 'true');
+        const targetAudience = (lockedReservation?.incomingAgeGroup || ageGroup) === 'adult' ? 'adults' : 'children';
+        params.set('audience', targetAudience);
+        const qs = params.toString();
+        const response = await api.get(`/api/training-types${qs ? `?${qs}` : ''}`);
+        setTrainingTypes(response.data);
+      } catch (error) {
+        console.error('Error fetching training types:', error);
+      }
+    };
+
+    if (isLoggedIn) {
+      fetchTypes();
     }
   }, [isLoggedIn, isAdmin, ageGroup, lockedReservation]);
 
@@ -623,6 +643,7 @@ const Booking = () => {
 
       setNewTypeName('');
       setNewTypeDesc('');
+      setNewTypeLink('');
       setNewTypeDuration(60);
       setNewTypeColor('#3b82f6');
       setPricingMode('tiered');
@@ -640,10 +661,100 @@ const Booking = () => {
   const toggleTypeStatus = async (typeId, currentStatus) => {
     try {
       await api.put(`/api/admin/training-types/${typeId}/toggle`, { active: !currentStatus });
-      const response = await api.get(`/api/training-types?admin=true`);
-      setTrainingTypes(response.data);
+      // Optimistic update — zmeň len daný typ v existujúcom poli, bez nového API callu
+      setTrainingTypes(prev =>
+        prev.map(t => t.id === typeId ? { ...t, active: !currentStatus } : t)
+      );
     } catch (error) {
       console.error(error);
+      alert('Nepodarilo sa zmeniť stav typu tréningu');
+    }
+  };
+
+  // Vloží link na pozíciu kurzora v textarea (Create modal)
+  const insertLinkIntoDesc = () => {
+    if (!newTypeLink.trim()) return;
+    const textarea = newTypeDescRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const before = newTypeDesc.substring(0, start);
+    const after = newTypeDesc.substring(end);
+    const inserted = before + newTypeLink + after;
+    setNewTypeDesc(inserted);
+    // Obnov focus a pozíciu kurzora za vloženým linkom
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + newTypeLink.length, start + newTypeLink.length);
+    }, 0);
+  };
+
+  // Vloží link na pozíciu kurzora v Edit modal textarea
+  const insertLinkIntoEditDesc = () => {
+    if (!editTypeLink.trim()) return;
+    const textarea = editTypeDescRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const before = editTypeDesc.substring(0, start);
+    const after = editTypeDesc.substring(end);
+    const inserted = before + editTypeLink + after;
+    setEditTypeDesc(inserted);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + editTypeLink.length, start + editTypeLink.length);
+    }, 0);
+  };
+
+  // Otvor Edit modal pre daný typ
+  const openEditTypeModal = (type) => {
+    setEditingType(type);
+    setEditTypeDesc(type.description || '');
+    setEditTypeLink('');
+    setShowEditTypeModal(true);
+  };
+
+  // Ulož popis (a príp. nový link v texte)
+  const handleSaveEditType = async () => {
+    if (!editingType) return;
+    try {
+      await api.put(`/api/admin/training-types/${editingType.id}/description`, {
+        description: editTypeDesc
+      });
+      const response = await api.get(`/api/training-types?admin=true`);
+      setTrainingTypes(response.data);
+      setShowEditTypeModal(false);
+      setEditingType(null);
+    } catch (error) {
+      console.error(error);
+      alert('Nepodarilo sa uložiť popis');
+    }
+  };
+
+  // Otvor Delete confirm modal
+  const openDeleteTypeModal = (type) => {
+    setDeletingType(type);
+    setDeleteTypeError('');
+    setShowDeleteTypeModal(true);
+  };
+
+  // Vymaž typ tréningu
+  const handleDeleteType = async () => {
+    if (!deletingType) return;
+    setDeleteTypeLoading(true);
+    setDeleteTypeError('');
+    try {
+      await api.delete(`/api/admin/training-types/${deletingType.id}`);
+      const response = await api.get(`/api/training-types?admin=true`);
+      setTrainingTypes(response.data);
+      setShowDeleteTypeModal(false);
+      setDeletingType(null);
+    } catch (error) {
+      console.error(error);
+      const msg = error?.response?.data?.error || 'Nepodarilo sa vymazať typ tréningu';
+      setDeleteTypeError(msg);
+    } finally {
+      setDeleteTypeLoading(false);
     }
   };
 
@@ -1868,11 +1979,16 @@ const Booking = () => {
             <h4 className="text-base font-extrabold mb-4 text-foreground">Správa kategórií (Aktívne/Neaktívne)</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {trainingTypes.map(type => (
-                <div key={type.id} className="flex items-center justify-between bg-neutral-50 p-3 rounded-2xl border border-neutral-200">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-foreground">{type.name}</span>
+                <button
+                  key={type.id}
+                  type="button"
+                  onClick={() => { setDetailType(type); setShowTypeDetailModal(true); }}
+                  className="flex items-center justify-between bg-neutral-50 hover:bg-neutral-100 active:bg-neutral-200 p-3 rounded-2xl border border-neutral-200 transition-colors w-full text-left cursor-pointer"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-bold text-sm text-foreground truncate">{type.name}</span>
                     {type.audience_type && (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                         type.audience_type === 'children' ? 'bg-blue-100 text-blue-700' :
                         type.audience_type === 'adults' ? 'bg-emerald-100 text-emerald-700' :
                         'bg-purple-100 text-purple-700'
@@ -1882,14 +1998,8 @@ const Booking = () => {
                       </span>
                     )}
                   </div>
-                  <Form.Check
-                    type="switch"
-                    id={`active-switch-${type.id}`}
-                    checked={type.active}
-                    onChange={() => toggleTypeStatus(type.id, type.active)}
-                    className="m-0"
-                  />
-                </div>
+                  <div className={`shrink-0 w-2 h-2 rounded-full ml-2 ${type.active ? 'bg-emerald-400' : 'bg-neutral-300'}`} />
+                </button>
               ))}
             </div>
           </div>
@@ -1908,9 +2018,8 @@ const Booking = () => {
         {/* 1. Training Details */}
         <motion.div
           custom={0}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-40px' }}
+          initial="visible"
+          animate="visible"
           variants={cardVariants}
           className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-primary overflow-hidden relative"
         >
@@ -2025,9 +2134,8 @@ const Booking = () => {
         {/* 2. Personal Information */}
         <motion.div
           custom={1}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-40px' }}
+          initial="visible"
+          animate="visible"
           variants={cardVariants}
           className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-sky-400 overflow-hidden relative"
         >
@@ -2102,14 +2210,13 @@ const Booking = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.35, ease: 'easeOut' }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
               className="overflow-hidden"
             >
               <motion.div
                 custom={2}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, margin: '-40px' }}
+                initial="visible"
+                animate="visible"
                 variants={cardVariants}
                 className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-violet-400 overflow-hidden relative"
               >
@@ -2187,9 +2294,8 @@ const Booking = () => {
         {/* 4. Additional Options */}
         <motion.div
           custom={3}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-40px' }}
+          initial="visible"
+          animate="visible"
           variants={cardVariants}
           className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-amber-400 overflow-hidden relative"
         >
@@ -2338,9 +2444,8 @@ const Booking = () => {
         {/* Gift Card Section */}
         <motion.div
           custom={4}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-40px' }}
+          initial="visible"
+          animate="visible"
           variants={cardVariants}
           className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-amber-400 overflow-hidden"
         >
@@ -2445,9 +2550,8 @@ const Booking = () => {
         {/* 5. Consents and Agreements */}
         <motion.div
           custom={5}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-40px' }}
+          initial="visible"
+          animate="visible"
           variants={cardVariants}
           className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-emerald-400 overflow-hidden relative"
         >
@@ -2537,9 +2641,8 @@ const Booking = () => {
 
         <motion.div
           custom={5}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-40px' }}
+          initial="visible"
+          animate="visible"
           variants={cardVariants}
           className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 border-l-4 border-l-emerald-500 overflow-hidden mb-8"
         >
@@ -2862,15 +2965,48 @@ const Booking = () => {
               )}
             </div>
 
-            <div>
-              <label className="font-bold text-sm text-neutral-700 mb-1.5">Popis</label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                value={newTypeDesc}
-                onChange={e => setNewTypeDesc(e.target.value)}
-                className="rounded-xl border-neutral-200 bg-neutral-50/50 py-2.5 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
-              />
+            <div className="space-y-3">
+              {/* Link helper */}
+              <div>
+                <label className="font-bold text-sm text-neutral-700 mb-1.5 flex items-center gap-1.5">
+                  <Link className="w-3.5 h-3.5 text-neutral-400" />
+                  Link (voliteľný)
+                </label>
+                <div className="flex gap-2">
+                  <Form.Control
+                    type="url"
+                    value={newTypeLink}
+                    onChange={e => setNewTypeLink(e.target.value)}
+                    placeholder="https://..."
+                    className="rounded-xl border-neutral-200 bg-neutral-50/50 py-2.5 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={insertLinkIntoDesc}
+                    disabled={!newTypeLink.trim()}
+                    title="Vložiť link do popisu na pozíciu kurzora"
+                    className="px-4 py-2 rounded-xl bg-primary text-white font-extrabold text-base hover:bg-primary/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                  >
+                    #
+                  </button>
+                </div>
+                <p className="text-[11px] text-neutral-400 mt-1 font-medium">
+                  Klikni do poľa Popis, umiestni kurzor, potom stlač <strong>#</strong> pre vloženie linku.
+                </p>
+              </div>
+
+              {/* Popis textarea */}
+              <div>
+                <label className="font-bold text-sm text-neutral-700 mb-1.5">Popis</label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  ref={newTypeDescRef}
+                  value={newTypeDesc}
+                  onChange={e => setNewTypeDesc(e.target.value)}
+                  className="rounded-xl border-neutral-200 bg-neutral-50/50 py-2.5 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
+                />
+              </div>
             </div>
 
             <div className="relative">
@@ -3045,6 +3181,183 @@ const Booking = () => {
             </button>
           </Modal.Footer>
         </form>
+      </Modal>
+
+      {/* Type Detail Modal */}
+      <Modal
+        show={showTypeDetailModal}
+        onHide={() => setShowTypeDetailModal(false)}
+        centered
+      >
+        <Modal.Header closeButton className="border-neutral-200">
+          <Modal.Title className="font-extrabold text-lg text-foreground">
+            {detailType?.name}
+            {detailType?.audience_type && (
+              <span className={`ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider align-middle ${
+                detailType.audience_type === 'children' ? 'bg-blue-100 text-blue-700' :
+                detailType.audience_type === 'adults' ? 'bg-emerald-100 text-emerald-700' :
+                'bg-purple-100 text-purple-700'
+              }`}>
+                {detailType.audience_type === 'children' ? 'Deti' :
+                 detailType.audience_type === 'adults' ? 'Dospelí' : 'Oboje'}
+              </span>
+            )}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-6">
+          {/* Switch */}
+          <div className="flex items-center justify-between bg-neutral-50 rounded-2xl border border-neutral-200 px-5 py-4 mb-4">
+            <div>
+              <div className="font-bold text-sm text-foreground">Viditeľnosť pre používateľov</div>
+              <div className="text-xs text-neutral-500 mt-0.5">
+                {detailType?.active ? 'Hodina je aktívna a viditeľná' : 'Hodina je skrytá'}
+              </div>
+            </div>
+            <Form.Check
+              type="switch"
+              id={`detail-active-switch-${detailType?.id}`}
+              checked={detailType?.active ?? false}
+              onChange={() => {
+                toggleTypeStatus(detailType.id, detailType.active);
+                setDetailType(prev => ({ ...prev, active: !prev.active }));
+              }}
+              className="m-0"
+            />
+          </div>
+
+          {/* Edit + Delete */}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setShowTypeDetailModal(false);
+                openEditTypeModal(detailType);
+              }}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border border-neutral-200 bg-white hover:bg-primary/5 hover:border-primary/30 text-neutral-700 hover:text-primary font-bold text-sm transition-all"
+            >
+              <Pencil className="w-4 h-4" />
+              Upraviť popis
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowTypeDetailModal(false);
+                openDeleteTypeModal(detailType);
+              }}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border border-red-100 bg-white hover:bg-red-50 hover:border-red-200 text-neutral-500 hover:text-red-600 font-bold text-sm transition-all"
+            >
+              <Trash2 className="w-4 h-4" />
+              Vymazať
+            </button>
+          </div>
+        </Modal.Body>
+      </Modal>
+
+      {/* Edit Training Type Modal */}
+      <Modal show={showEditTypeModal} onHide={() => setShowEditTypeModal(false)} size="lg" centered>
+        <Modal.Header closeButton className="border-neutral-200">
+          <Modal.Title className="font-extrabold text-xl text-foreground">
+            Upraviť popis: {editingType?.name}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-6 space-y-4">
+          {/* Link helper */}
+          <div>
+            <label className="font-bold text-sm text-neutral-700 mb-1.5 flex items-center gap-1.5">
+              <Link className="w-3.5 h-3.5 text-neutral-400" />
+              Link (voliteľný)
+            </label>
+            <div className="flex gap-2">
+              <Form.Control
+                type="url"
+                value={editTypeLink}
+                onChange={e => setEditTypeLink(e.target.value)}
+                placeholder="https://..."
+                className="rounded-xl border-neutral-200 bg-neutral-50/50 py-2.5 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
+              />
+              <button
+                type="button"
+                onClick={insertLinkIntoEditDesc}
+                disabled={!editTypeLink.trim()}
+                title="Vložiť link do popisu na pozíciu kurzora"
+                className="px-4 py-2 rounded-xl bg-primary text-white font-extrabold text-base hover:bg-primary/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              >
+                #
+              </button>
+            </div>
+            <p className="text-[11px] text-neutral-400 mt-1 font-medium">
+              Klikni do poľa Popis, umiestni kurzor, potom stlač <strong>#</strong> pre vloženie linku.
+            </p>
+          </div>
+
+          {/* Popis */}
+          <div>
+            <label className="font-bold text-sm text-neutral-700 mb-1.5">Popis</label>
+            <Form.Control
+              as="textarea"
+              rows={5}
+              ref={editTypeDescRef}
+              value={editTypeDesc}
+              onChange={e => setEditTypeDesc(e.target.value)}
+              className="rounded-xl border-neutral-200 bg-neutral-50/50 py-2.5 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-primary"
+            />
+          </div>
+        </Modal.Body>
+        <Modal.Footer className="border-neutral-200 p-6">
+          <button
+            type="button"
+            onClick={() => setShowEditTypeModal(false)}
+            className="px-6 py-2.5 rounded-full border border-neutral-200 text-neutral-700 font-bold hover:bg-neutral-100 transition-all text-sm"
+          >
+            Zrušiť
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveEditType}
+            className="px-6 py-2.5 rounded-full bg-primary text-white font-bold hover:bg-primary/90 transition-all text-sm shadow-sm"
+          >
+            Uložiť popis
+          </button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Delete Training Type Confirm Modal */}
+      <Modal show={showDeleteTypeModal} onHide={() => { setShowDeleteTypeModal(false); setDeleteTypeError(''); }} centered>
+        <Modal.Header closeButton className="border-neutral-200">
+          <Modal.Title className="font-extrabold text-xl text-foreground text-red-600">
+            Vymazať typ tréningu
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-6">
+          <p className="text-sm text-neutral-700 font-medium mb-2">
+            Naozaj chceš vymazať typ <strong>{deletingType?.name}</strong>?
+          </p>
+          <p className="text-sm text-neutral-500">
+            Táto akcia je nevratná. Ak je k tomuto typu priradená existujúca hodina alebo rezervácia, server vráti chybu.
+          </p>
+          {deleteTypeError && (
+            <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm font-medium">
+              {deleteTypeError}
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="border-neutral-200 p-6">
+          <button
+            type="button"
+            onClick={() => { setShowDeleteTypeModal(false); setDeleteTypeError(''); }}
+            className="px-6 py-2.5 rounded-full border border-neutral-200 text-neutral-700 font-bold hover:bg-neutral-100 transition-all text-sm"
+          >
+            Zrušiť
+          </button>
+          <button
+            type="button"
+            onClick={handleDeleteType}
+            disabled={deleteTypeLoading}
+            className="px-6 py-2.5 rounded-full bg-red-600 text-white font-bold hover:bg-red-700 transition-all text-sm shadow-sm disabled:opacity-50"
+          >
+            {deleteTypeLoading ? 'Mazanie...' : 'Vymazať'}
+          </button>
+        </Modal.Footer>
       </Modal>
 
       {/* Service Consent Modal (Tailwind/Framer Motion) */}
