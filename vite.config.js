@@ -14,6 +14,21 @@ export default defineConfig({
     port: 3000,
     strictPort: true,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-ui': ['framer-motion', 'lucide-react'],
+          'vendor-payment': ['@stripe/stripe-js'],
+          'vendor-forms': ['react-bootstrap', 'react-imask', 'react-colorful'],
+        },
+      },
+    },
+    target: 'es2020',
+    minify: 'esbuild',
+    cssMinify: true,
+  },
   test: {
     globals: true,
     environment: 'jsdom',

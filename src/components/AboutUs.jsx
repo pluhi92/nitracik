@@ -400,10 +400,8 @@ const AboutUs = () => {
 
       {/* About Us Text Section - SOFTER CARD & NEW LAYOUT */}
       <motion.section 
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
-        variants={staggerContainer}
+        initial="visible"
+        animate="visible"
         className="section-wrapper container-custom"
       >
         <div className="relative">
@@ -465,10 +463,8 @@ const AboutUs = () => {
 
 
       <motion.section 
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
-        variants={staggerContainer}
+        initial="visible"
+        animate="visible"
         className="section-wrapper container-custom"
       >
         <div className="relative">
@@ -630,10 +626,8 @@ const AboutUs = () => {
 
       {/* Gift Card Section */}
       <motion.section 
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
-        variants={fadeInUp}
+        initial="visible"
+        animate="visible"
         className="section-wrapper container-custom"
       >
         <div className="card-glass border border-neutral-200 rounded-[2rem] shadow-sm p-6 sm:p-8 relative overflow-hidden">
@@ -690,10 +684,8 @@ const AboutUs = () => {
 
       {/* Blog Section */}
       <motion.section 
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
-        variants={fadeInUp}
+        initial="visible"
+        animate="visible"
         className="section-wrapper container-custom"
       >
         <div className="card-glass border border-neutral-200 rounded-[2rem] shadow-sm p-8 sm:p-12">
@@ -703,10 +695,8 @@ const AboutUs = () => {
 
       {/* Owner Section */}
       <motion.section 
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
-        variants={staggerContainer}
+        initial="visible"
+        animate="visible"
         className="section-wrapper container-custom"
       >
         <div className="bg-white border border-neutral-200 rounded-[2rem] shadow-sm p-0 overflow-hidden">
@@ -771,10 +761,8 @@ const AboutUs = () => {
 
       {/* Join Us Section */}
       <motion.section 
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-100px" }}
-        variants={fadeInUp}
+        initial="visible"
+        animate="visible"
         className="section-wrapper container-custom pb-24"
       >
         <div className="card-glass border border-neutral-200 rounded-[2rem] shadow-sm p-8 sm:p-12 relative">

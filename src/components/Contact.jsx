@@ -51,7 +51,7 @@ function Contact() {
     >
       <div className="container-custom max-w-5xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-20 md:mb-24">
           <h1 className="text-3xl sm:text-5xl font-extrabold text-foreground tracking-tight mb-4">
             {t?.contact?.title || 'Kontakt'}
           </h1>
@@ -75,7 +75,7 @@ function Contact() {
             <div className="space-y-8">
               {/* Contact Info */}
               <div className="space-y-6">
-                <h3 className="text-2xl font-extrabold text-foreground mb-6">
+                <h3 className="text-2xl font-extrabold text-foreground mb-6 text-center lg:!text-left">
                   Kontaktné informácie
                 </h3>
 
@@ -132,7 +132,7 @@ function Contact() {
 
               {/* Map Section */}
               <div className="pt-8 border-t border-neutral-100">
-                <h4 className="text-xl font-extrabold text-foreground mb-6">
+                <h4 className="text-xl font-extrabold text-foreground mb-6 text-center lg:!text-left">
                   Kde nás nájdete
                 </h4>
                 <div className="rounded-2xl overflow-hidden shadow-sm border border-neutral-200 mb-4">
@@ -163,7 +163,7 @@ function Contact() {
             {/* Right Column - Contact Form */}
             <div className="lg:border-l lg:border-neutral-100 lg:pl-12 pt-8 lg:pt-0 border-t border-neutral-100 lg:border-t-0">
               <form onSubmit={handleSubmit} className="space-y-6">
-                <h3 className="text-2xl font-extrabold text-foreground mb-8">
+                <h3 className="text-2xl font-extrabold text-foreground mb-8 text-center lg:!text-left">
                   {t?.contact?.form?.title || 'Napíšte nám'}
                 </h3>
 

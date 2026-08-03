@@ -1,5 +1,5 @@
 // Booking.jsx
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import Login from './Login';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IMaskInput } from 'react-imask';
@@ -181,13 +181,37 @@ const Booking = () => {
 
   // Scroll to top button
   useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
-      setShowScrollButton(window.scrollY > 300);
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          setShowScrollButton(window.scrollY > 300);
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
-
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Force top position when entering Booking, even if browser restores previous scroll.
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+
+    const rafId = window.requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+    });
+
+    const timeoutId = window.setTimeout(() => {
+      window.scrollTo(0, 0);
+    }, 0);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [location.key]);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -234,6 +258,7 @@ const Booking = () => {
   const [useSessionTheme, setUseSessionTheme] = useState(false);
   const [lockedReservation, setLockedReservation] = useState(null);
   const [isLockedSelectionApplied, setIsLockedSelectionApplied] = useState(false);
+  const [typesLoading, setTypesLoading] = useState(false);
   const [giftCardCode, setGiftCardCode] = useState('');
   const [giftCardData, setGiftCardData] = useState(null);
   const [giftCardError, setGiftCardError] = useState('');
@@ -477,16 +502,19 @@ const Booking = () => {
     };
 
     if (isLoggedIn) {
-      fetchTrainingDates();
-      fetchSeasonTickets();
-      fetchCredits();
-      fetchUserBookings();
+      Promise.all([
+        fetchTrainingDates(),
+        fetchSeasonTickets(),
+        fetchCredits(),
+        fetchUserBookings(),
+      ]).catch(err => console.error('Init fetch error:', err));
     }
   }, [isLoggedIn, isAdmin]);
 
   useEffect(() => {
     const fetchTypes = async () => {
       try {
+        setTypesLoading(true);
         const params = new URLSearchParams();
         if (isAdmin) params.set('admin', 'true');
         const targetAudience = (lockedReservation?.incomingAgeGroup || ageGroup) === 'adult' ? 'adults' : 'children';
@@ -496,6 +524,8 @@ const Booking = () => {
         setTrainingTypes(response.data);
       } catch (error) {
         console.error('Error fetching training types:', error);
+      } finally {
+        setTypesLoading(false);
       }
     };
 
@@ -1597,8 +1627,8 @@ const Booking = () => {
     });
   };
 
-  const childCredits = getCreditsForAudience('children');
-  const adultCredits = getCreditsForAudience('adults');
+  const childCredits = useMemo(() => getCreditsForAudience('children'), [credits, trainingTypes]);
+  const adultCredits = useMemo(() => getCreditsForAudience('adults'), [credits, trainingTypes]);
 
   const getAllowedCreditTypeNames = (credit) => {
     if (!credit?.training_type) {
@@ -1717,6 +1747,18 @@ const Booking = () => {
     );
   }
 
+  const sortedSessions = useMemo(() => {
+    if (!trainingType || !trainingDates[trainingType]) return [];
+    return Object.entries(trainingDates[trainingType])
+      .sort(([a], [b]) => a.localeCompare(b))
+      .flatMap(([dateKey, sessions]) =>
+        sessions.map((session) => ({
+          date: dateKey,
+          ...session,
+        }))
+      );
+  }, [trainingType, trainingDates]);
+
   const availableSeasonTickets = getAvailableSeasonTickets(seasonTickets, selectedTypeObj);
 
   return (
@@ -1747,21 +1789,19 @@ const Booking = () => {
 
       {/* Age Group Toggle */}
       <div className="flex justify-center mb-6">
-        <div className="bg-neutral-100 rounded-full p-1.5 flex shadow-2xs relative">
-          <motion.div
-            className="absolute top-1.5 bottom-1.5 bg-white rounded-full shadow-sm"
-            animate={{
-              left: ageGroup === 'child' ? '6px' : '50%',
-              right: ageGroup === 'child' ? '50%' : '6px',
+        <div className="relative bg-neutral-100 rounded-full p-1.5 flex shadow-2xs">
+          <div
+            className="absolute top-1.5 bottom-1.5 rounded-full bg-white shadow-sm"
+            style={{
+              width: 'calc(50% - 6px)',
+              transition: 'transform 0.1s ease',
+              transform: ageGroup === 'child' ? 'translateX(0)' : 'translateX(100%)',
             }}
-            transition={{ type: 'tween', duration: 0.18, ease: 'easeOut' }}
           />
           <button
             type="button"
-            className={`relative z-10 px-6 py-2.5 rounded-full font-bold text-sm transition-colors duration-200 ${
-              ageGroup === 'child'
-                ? 'text-primary'
-                : 'text-neutral-500 hover:text-neutral-700'
+            className={`relative z-10 flex-1 flex items-center justify-center px-6 py-2.5 rounded-full font-bold text-sm transition-colors duration-200 ${
+              ageGroup === 'child' ? 'text-primary' : 'text-neutral-500 hover:text-neutral-700'
             }`}
             disabled={Boolean(lockedReservation)}
             onClick={() => setAgeGroup('child')}
@@ -1770,10 +1810,8 @@ const Booking = () => {
           </button>
           <button
             type="button"
-            className={`relative z-10 px-6 py-2.5 rounded-full font-bold text-sm transition-colors duration-200 ${
-              ageGroup === 'adult'
-                ? 'text-primary'
-                : 'text-neutral-500 hover:text-neutral-700'
+            className={`relative z-10 flex-1 flex items-center justify-center px-6 py-2.5 rounded-full font-bold text-sm transition-colors duration-200 ${
+              ageGroup === 'adult' ? 'text-primary' : 'text-neutral-500 hover:text-neutral-700'
             }`}
             disabled={Boolean(lockedReservation)}
             onClick={() => setAgeGroup('adult')}
@@ -1977,31 +2015,52 @@ const Booking = () => {
 
           <div className="mt-8 border-t border-neutral-100 pt-6">
             <h4 className="text-base font-extrabold mb-4 text-foreground">Správa kategórií (Aktívne/Neaktívne)</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {trainingTypes.map(type => (
-                <button
-                  key={type.id}
-                  type="button"
-                  onClick={() => { setDetailType(type); setShowTypeDetailModal(true); }}
-                  className="flex items-center justify-between bg-neutral-50 hover:bg-neutral-100 active:bg-neutral-200 p-3 rounded-2xl border border-neutral-200 transition-colors w-full text-left cursor-pointer"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-bold text-sm text-foreground truncate">{type.name}</span>
-                    {type.audience_type && (
-                      <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        type.audience_type === 'children' ? 'bg-blue-100 text-blue-700' :
-                        type.audience_type === 'adults' ? 'bg-emerald-100 text-emerald-700' :
-                        'bg-purple-100 text-purple-700'
-                      }`}>
-                        {type.audience_type === 'children' ? 'Deti' :
-                         type.audience_type === 'adults' ? 'Dospelí' : 'Oboje'}
-                      </span>
-                    )}
-                  </div>
-                  <div className={`shrink-0 w-2 h-2 rounded-full ml-2 ${type.active ? 'bg-emerald-400' : 'bg-neutral-300'}`} />
-                </button>
-              ))}
-            </div>
+            {typesLoading ? (
+              <motion.div
+                key="types-loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex items-center justify-center py-8 gap-3"
+              >
+                <Spinner animation="border" size="sm" className="text-primary" />
+                <span className="text-sm font-medium text-neutral-500">Načítavam hodiny...</span>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="types-content"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {trainingTypes.map(type => (
+                    <button
+                      key={type.id}
+                      type="button"
+                      onClick={() => { setDetailType(type); setShowTypeDetailModal(true); }}
+                      className="flex items-center justify-between bg-neutral-50 hover:bg-neutral-100 active:bg-neutral-200 p-3 rounded-2xl border border-neutral-200 transition-colors w-full text-left cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-bold text-sm text-foreground truncate">{type.name}</span>
+                        {type.audience_type && (
+                          <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            type.audience_type === 'children' ? 'bg-blue-100 text-blue-700' :
+                            type.audience_type === 'adults' ? 'bg-emerald-100 text-emerald-700' :
+                            'bg-purple-100 text-purple-700'
+                          }`}>
+                            {type.audience_type === 'children' ? 'Deti' :
+                             type.audience_type === 'adults' ? 'Dospelí' : 'Oboje'}
+                          </span>
+                        )}
+                      </div>
+                      <div className={`shrink-0 w-2 h-2 rounded-full ml-2 ${type.active ? 'bg-emerald-400' : 'bg-neutral-300'}`} />
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
           </div>
         </div>
       )}
@@ -2050,20 +2109,41 @@ const Booking = () => {
                   )}
                 </AnimatePresence>
               </label>
-              <NativeSelect
-                value={trainingTypeId}
-                onChange={handleTypeChange}
-                disabled={Boolean(lockedReservation)}
-                className="w-full text-base sm:text-lg py-3 rounded-xl border border-neutral-200 bg-neutral-50/50 font-medium font-sans focus:ring-2 focus:ring-primary focus:border-primary"
-              >
-                <option value="">{t?.booking?.trainingType?.placeholder || 'Choose training type...'}</option>
-                {selectableTrainingTypes
-                  .map(type => (
-                    <option key={type.id} value={type.id}>
-                      {type.name} {type.duration_minutes ? `(${type.duration_minutes} min)` : ''} {!type.active ? '(Inactive)' : ''}
-                    </option>
-                  ))}
-              </NativeSelect>
+              {typesLoading ? (
+                <motion.div
+                  key="types-loading-user"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="flex items-center justify-center py-4 gap-3"
+                >
+                  <Spinner animation="border" size="sm" className="text-primary" />
+                  <span className="text-sm font-medium text-neutral-500">Načítavam hodiny...</span>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="types-content-user"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                >
+                  <NativeSelect
+                    value={trainingTypeId}
+                    onChange={handleTypeChange}
+                    disabled={Boolean(lockedReservation)}
+                    className="w-full text-base sm:text-lg py-3 rounded-xl border border-neutral-200 bg-neutral-50/50 font-medium font-sans focus:ring-2 focus:ring-primary focus:border-primary"
+                  >
+                    <option value="">{t?.booking?.trainingType?.placeholder || 'Choose training type...'}</option>
+                    {selectableTrainingTypes
+                      .map(type => (
+                        <option key={type.id} value={type.id}>
+                          {type.name} {type.duration_minutes ? `(${type.duration_minutes} min)` : ''} {!type.active ? '(Inactive)' : ''}
+                        </option>
+                      ))}
+                  </NativeSelect>
+                </motion.div>
+              )}
             </div>
 
             <AnimatePresence>
@@ -2100,17 +2180,11 @@ const Booking = () => {
                       className="w-full text-base sm:text-lg py-3 rounded-xl border border-neutral-200 bg-neutral-50/50 font-medium font-sans focus:ring-2 focus:ring-primary focus:border-primary"
                     >
                       <option value="">-- {t?.booking?.selectDate || 'Choose a date and time'} --</option>
-                      {trainingType && trainingDates[trainingType]
-                        ? Object.entries(trainingDates[trainingType])
-                            .sort(([a], [b]) => a.localeCompare(b))
-                            .flatMap(([dateKey, sessions]) =>
-                              sessions.map((session) => (
-                                <option key={session.id} value={session.id}>
-                                  {formatSessionOptionLabel(dateKey, session.time)}
-                                </option>
-                              ))
-                            )
-                        : null}
+                      {sortedSessions.map((session) => (
+                        <option key={session.id} value={session.id}>
+                          {formatSessionOptionLabel(session.date, session.time)}
+                        </option>
+                      ))}
                     </NativeSelect>
                   </div>
                 </motion.div>

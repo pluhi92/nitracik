@@ -477,23 +477,21 @@ const SeasonTickets = () => {
           </p>
         </div>
 
-        {/* Age Group Toggle (App-like Switch) */}
+        {/* Age Group Toggle */}
         <div className="flex justify-center mb-10">
-          <div className="bg-neutral-100 rounded-full p-1.5 flex shadow-2xs relative">
-            <motion.div
-              className="absolute top-1.5 bottom-1.5 bg-white rounded-full shadow-sm"
-              animate={{
-                left: ageGroup === 'child' ? '6px' : '50%',
-                right: ageGroup === 'child' ? '50%' : '6px',
+          <div className="relative bg-neutral-100 rounded-full p-1.5 flex shadow-2xs">
+            <div
+              className="absolute top-1.5 bottom-1.5 rounded-full bg-white shadow-sm"
+              style={{
+                width: 'calc(50% - 6px)',
+                transition: 'transform 0.2s ease',
+                transform: ageGroup === 'child' ? 'translateX(0)' : 'translateX(100%)',
               }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             />
             <button
               type="button"
-              className={`relative z-10 px-6 py-2.5 rounded-full font-bold text-sm transition-colors duration-200 ${
-                ageGroup === 'child'
-                  ? 'text-primary'
-                  : 'text-neutral-500 hover:text-neutral-700'
+              className={`relative z-10 flex-1 flex items-center justify-center px-6 py-2.5 rounded-full font-bold text-sm transition-colors duration-200 ${
+                ageGroup === 'child' ? 'text-primary' : 'text-neutral-500 hover:text-neutral-700'
               }`}
               onClick={() => {
                 setAgeGroup('child');
@@ -504,10 +502,8 @@ const SeasonTickets = () => {
             </button>
             <button
               type="button"
-              className={`relative z-10 px-6 py-2.5 rounded-full font-bold text-sm transition-colors duration-200 ${
-                ageGroup === 'adult'
-                  ? 'text-primary'
-                  : 'text-neutral-500 hover:text-neutral-700'
+              className={`relative z-10 flex-1 flex items-center justify-center px-6 py-2.5 rounded-full font-bold text-sm transition-colors duration-200 ${
+                ageGroup === 'adult' ? 'text-primary' : 'text-neutral-500 hover:text-neutral-700'
               }`}
               onClick={() => {
                 setAgeGroup('adult');
