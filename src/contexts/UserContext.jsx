@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import api from '../api/api';
+import nitracikLogo from '../assets/nitracik_svg2.svg';
 
 const UserContext = createContext();
 
@@ -16,6 +17,9 @@ export const UserProvider = ({ children }) => {
     userId: localStorage.getItem('userId'),
     role: localStorage.getItem('userRole') || 'user'
   });
+
+  // Stav pre inactivity modal
+  const [showInactivityModal, setShowInactivityModal] = useState(false);
 
   // Použijeme useRef pre sledovanie timeru a aktuálneho stavu
   const inactivityTimerRef = useRef(null);
@@ -70,8 +74,6 @@ export const UserProvider = ({ children }) => {
           // Dvojitá kontrola – ak by medzičasom došlo k odhláseniu
           if (!localStorage.getItem('isLoggedIn')) return;
 
-          alert('Boli ste odhlásený z dôvodu nečinnosti.');
-
           try {
             // Počkáme na backend, aby request nebol aborted
             await api.post('/api/logout', {}, { withCredentials: true });
@@ -91,9 +93,8 @@ export const UserProvider = ({ children }) => {
 
             setUser({ isLoggedIn: false, firstName: '', userId: null, role: 'user' });
 
-            // React-friendly redirect (bez reloadu)
-            window.history.pushState({}, '', '/login');
-            window.dispatchEvent(new PopStateEvent('popstate'));
+            // Zobrazíme modal namiesto alertu
+            setShowInactivityModal(true);
           }
         }, INACTIVITY_TIMEOUT);
       }
@@ -154,9 +155,51 @@ export const UserProvider = ({ children }) => {
     };
   }, []);
 
+  const handleCloseInactivityModal = () => {
+    setShowInactivityModal(false);
+    // React-friendly redirect (bez reloadu)
+    window.history.pushState({}, '', '/login');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
+
   return (
     <UserContext.Provider value={{ user, updateUser, logout }}>
       {children}
+
+      {/* Inactivity logout modal */}
+      {showInactivityModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]"
+            onClick={handleCloseInactivityModal}
+          />
+          <div className="relative bg-white rounded-[2.5rem] p-8 sm:p-10 max-w-sm w-full shadow-2xl text-center z-10 animate-[scaleIn_0.3s_ease-out]">
+            <button
+              onClick={handleCloseInactivityModal}
+              className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <img
+              src={nitracikLogo}
+              alt="Nitracik Logo"
+              className="w-28 h-28 mx-auto mb-6"
+            />
+            <h3 className="text-xl font-extrabold text-foreground mb-2">
+              Boli ste odhlásený
+            </h3>
+            <p className="text-neutral-500 font-medium mb-8">
+              Boli ste odhlásený z dôvodu nečinnosti.
+            </p>
+            <button
+              onClick={handleCloseInactivityModal}
+              className="w-full bg-primary hover:bg-primary-600 text-white px-6 py-3.5 rounded-full font-bold transition-all shadow-sm"
+            >
+              Rozumiem
+            </button>
+          </div>
+        </div>
+      )}
     </UserContext.Provider>
   );
 };

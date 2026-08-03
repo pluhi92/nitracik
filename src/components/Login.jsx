@@ -4,7 +4,8 @@ import { useTranslation } from '../contexts/LanguageContext';
 import { useUser } from '../contexts/UserContext';
 import api from '../api/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, AlertCircle, LogOut, ArrowRight, Loader2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, LogOut, ArrowRight, Loader2, X } from 'lucide-react';
+import nitracikLogo from '../assets/nitracik_svg2.svg';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 30 },
@@ -19,6 +20,8 @@ const Login = ({ onLoginSuccess }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [welcomeName, setWelcomeName] = useState('');
   const navigate = useNavigate();
   const { updateUser, logout } = useUser();
   
@@ -77,11 +80,9 @@ const Login = ({ onLoginSuccess }) => {
         role: role || 'user' // Poslanie roly do contextu
       });
 
-      // Show success alert
-      alert('You are successfully logged in!');
-
-      // Redirect to the booking page after successful login
-      navigate('/booking');
+      // Show success modal instead of alert
+      setWelcomeName(firstName);
+      setShowSuccessModal(true);
     } catch (error) {
       // Handle login errors
       if (error.response?.status === 400) {
@@ -96,9 +97,65 @@ const Login = ({ onLoginSuccess }) => {
     }
   };
 
+  const handleCloseSuccessModal = () => {
+    setShowSuccessModal(false);
+    navigate('/booking');
+  };
+
   // If the user is already logged in, show a message
   if (localStorage.getItem('isLoggedIn') === 'true') {
     return (
+      <>
+      {/* Success welcome modal — rendered at top level so it appears after login */}
+      <AnimatePresence>
+        {showSuccessModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={handleCloseSuccessModal}
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", duration: 0.5 }}
+              className="relative bg-white rounded-[2.5rem] p-8 sm:p-10 max-w-sm w-full shadow-2xl text-center z-10"
+            >
+              <button
+                onClick={handleCloseSuccessModal}
+                className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <img
+                src={nitracikLogo}
+                alt="Nitracik Logo"
+                className="w-28 h-28 mx-auto mb-6"
+              />
+              <h3 className="text-xl font-extrabold text-foreground mb-2">
+                Vitajte{welcomeName ? `, ${welcomeName}` : ''}!
+              </h3>
+              <p className="text-neutral-500 font-medium mb-8">
+                Boli ste úspešne prihlásený.
+              </p>
+              <button
+                onClick={handleCloseSuccessModal}
+                className="w-full bg-primary hover:bg-primary-600 text-white px-6 py-3.5 rounded-full font-bold transition-all shadow-sm"
+              >
+                Pokračovať
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="min-h-[70vh] flex items-center justify-center px-4 py-12">
         <motion.div 
           initial="hidden"
@@ -127,11 +184,62 @@ const Login = ({ onLoginSuccess }) => {
           </button>
         </motion.div>
       </div>
+      </>
     );
   }
 
   // If the user is not logged in, show the login form
   return (
+    <>
+    <AnimatePresence>
+      {showSuccessModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={handleCloseSuccessModal}
+          />
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            transition={{ type: "spring", duration: 0.5 }}
+            className="relative bg-white rounded-[2.5rem] p-8 sm:p-10 max-w-sm w-full shadow-2xl text-center z-10"
+          >
+            <button
+              onClick={handleCloseSuccessModal}
+              className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img
+              src={nitracikLogo}
+              alt="Nitracik Logo"
+              className="w-28 h-28 mx-auto mb-6"
+            />
+            <h3 className="text-xl font-extrabold text-foreground mb-2">
+              Vitajte{welcomeName ? `, ${welcomeName}` : ''}!
+            </h3>
+            <p className="text-neutral-500 font-medium mb-8">
+              Boli ste úspešne prihlásený.
+            </p>
+            <button
+              onClick={handleCloseSuccessModal}
+              className="w-full bg-primary hover:bg-primary-600 text-white px-6 py-3.5 rounded-full font-bold transition-all shadow-sm"
+            >
+              Pokračovať
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
       <motion.div 
         initial="hidden"
@@ -274,6 +382,7 @@ const Login = ({ onLoginSuccess }) => {
         </div>
       </motion.div>
     </div>
+    </>
   );
 };
 
