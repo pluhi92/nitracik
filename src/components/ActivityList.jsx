@@ -5,7 +5,7 @@ import 'dayjs/locale/sk';
 import 'dayjs/locale/en';
 import { useTranslation } from '../contexts/LanguageContext';
 import api from '../api/api';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Calendar, Clock, Tag, RefreshCcw, ChevronDown, ChevronUp, ChevronRight, AlertCircle, Sparkles } from 'lucide-react';
 
 const slugify = (value = '') =>
@@ -23,8 +23,30 @@ const fadeInUp = {
 };
 
 /**
+ * Converts inline Markdown formatting: **bold**, [links](url), and plain URLs.
+ */
+const LINK_STYLE = 'color:#218838;text-decoration:underline;font-weight:600';
+const LINK_ATTRS = `target="_blank" rel="noopener noreferrer" style="${LINK_STYLE}"`;
+
+const convertInline = (text) => {
+  // 1. Markdown links: [text](url)
+  let result = text.replace(
+    /\[([^\]]+)\]\(([^)]+)\)/g,
+    `<a href="$2" ${LINK_ATTRS}>$1</a>`
+  );
+  // 2. Plain URLs (https?://...) – skip those already inside an <a> tag
+  result = result.replace(
+    /(?<!["'>])(https?:\/\/[^\s<>"'»«„"»]+)/g,
+    `<a href="$1" ${LINK_ATTRS}>$1</a>`
+  );
+  // 3. Bold: **text**
+  result = result.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  return result;
+};
+
+/**
  * Converts a simple Markdown-like text to HTML.
- * Supports: ## / ### headings, **bold**, blank-line paragraphs, single newlines as <br />.
+ * Supports: ## / ### headings, **bold**, [links](url), blank-line paragraphs, single newlines as <br />.
  */
 const renderMarkdown = (text) => {
   if (!text) return '';
@@ -35,13 +57,13 @@ const renderMarkdown = (text) => {
       if (!trimmed) return '';
 
       if (trimmed.startsWith('### ')) {
-        return `<h3 class="text-lg font-bold text-foreground mt-4 mb-2">${trimmed.slice(4)}</h3>`;
+        return `<h3 class="text-lg font-bold text-foreground mt-4 mb-2">${convertInline(trimmed.slice(4))}</h3>`;
       }
       if (trimmed.startsWith('## ')) {
-        return `<h2 class="text-xl font-extrabold text-foreground mt-5 mb-3">${trimmed.slice(3)}</h2>`;
+        return `<h2 class="text-xl font-extrabold text-foreground mt-5 mb-3">${convertInline(trimmed.slice(3))}</h2>`;
       }
 
-      let content = trimmed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      let content = convertInline(trimmed);
       content = content.replace(/\n/g, '<br />');
 
       return `<p class="mb-4">${content}</p>`;
@@ -287,60 +309,58 @@ const ActivityList = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
-                className="rounded-[2rem] border border-neutral-200 bg-white shadow-sm overflow-hidden transition-all hover:shadow-md"
+                className="rounded-[2rem] border border-neutral-200 bg-white shadow-sm transition-all hover:shadow-md"
                 style={{ borderLeftWidth: '6px', borderLeftColor: type.color_hex || '#f43f5e' }}
               >
-                <div className="flex items-start justify-between gap-4 p-6 sm:p-8">
-                  <div className="flex-1 min-w-0">
-                    <Link
-                      to={`/aktivity/${slugify(type.name)}`}
-                      className="inline-flex items-center gap-2 text-2xl sm:text-3xl font-extrabold tracking-tight hover:opacity-80 transition-colors"
-                      style={{
-                        color: type.color_hex || 'inherit',
-                        WebkitTextStroke: '1px rgba(0,0,0,0.36)',
-                        textShadow: '0 0 1.2px rgba(0,0,0,0.12)'
-                      }}
-                    >
-                      {type.name}
-                    </Link>
-                    <div className="mt-3 flex flex-wrap items-center gap-4 text-neutral-500 text-sm font-semibold">
-                      <span className="inline-flex items-center bg-neutral-100 px-3 py-1 rounded-full">
-                        <Clock className="w-4 h-4 mr-1.5 text-neutral-400" />
-                        {type.duration_minutes || 60} min
-                      </span>
-                      <span className="inline-flex items-center bg-neutral-100 px-3 py-1 rounded-full">
-                        <Tag className="w-4 h-4 mr-1.5 text-neutral-400" />
-                        {getPriceLabel(type)}
-                      </span>
+                <div className="relative p-6 sm:p-8 pb-10">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-1 min-w-0">
+                      <Link
+                        to={`/aktivity/${slugify(type.name)}`}
+                        className="inline-flex items-center gap-2 text-2xl sm:text-3xl font-extrabold tracking-tight hover:opacity-80 transition-colors"
+                        style={{
+                          color: type.color_hex || 'inherit',
+                          WebkitTextStroke: '1px rgba(0,0,0,0.36)',
+                          textShadow: '0 0 1.2px rgba(0,0,0,0.12)'
+                        }}
+                      >
+                        {type.name}
+                      </Link>
+                      <div className="mt-3 flex flex-wrap items-center gap-4 text-neutral-500 text-sm font-semibold">
+                        <span className="inline-flex items-center bg-neutral-100 px-3 py-1 rounded-full">
+                          <Clock className="w-4 h-4 mr-1.5 text-neutral-400" />
+                          {type.duration_minutes || 60} min
+                        </span>
+                        <span className="inline-flex items-center bg-neutral-100 px-3 py-1 rounded-full">
+                          <Tag className="w-4 h-4 mr-1.5 text-neutral-400" />
+                          {getPriceLabel(type)}
+                        </span>
+                      </div>
                     </div>
-                    {type.description && (
-                      <div
-                        className="mt-4 text-neutral-600 text-base leading-relaxed text-justify"
-                        dangerouslySetInnerHTML={{ __html: renderMarkdown(type.description) }}
-                      />
-                    )}
                   </div>
-                  
-                  <button
-                    type="button"
-                    onClick={() => handleToggleExpanded(type.id)}
-                    className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full border border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300 hover:text-foreground transition-all"
-                    aria-expanded={expanded}
-                    aria-label={expanded ? 'Zbaliť termíny' : 'Rozbaliť termíny'}
-                  >
-                    {expanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                  </button>
+                  {type.description && (
+                    <div
+                      className="mt-4 text-neutral-600 text-base leading-relaxed text-justify"
+                      dangerouslySetInnerHTML={{ __html: renderMarkdown(type.description) }}
+                    />
+                  )}
+
+                  {/* Stamp toggle button */}
+                  <div className="absolute -bottom-5 left-1/2 -translate-x-1/2">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleExpanded(type.id)}
+                      className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-neutral-200 bg-white text-neutral-500 hover:border-neutral-400 hover:text-foreground shadow-md transition-all"
+                      aria-expanded={expanded}
+                      aria-label={expanded ? 'Zbaliť termíny' : 'Rozbaliť termíny'}
+                    >
+                      {expanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                    </button>
+                  </div>
                 </div>
 
-                <AnimatePresence>
-                  {expanded && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8 }}
-                      transition={{ duration: 0.2, ease: 'easeOut' }}
-                      className="border-t border-neutral-100 bg-neutral-50/50 p-6 sm:p-8"
-                    >
+                {expanded && (
+                  <div className="border-t border-neutral-100 bg-neutral-50/50 p-6 sm:p-8 rounded-b-[2rem]">
                       {typeDates.length === 0 && (
                         <p className="text-neutral-500 text-center font-medium py-4">
                           {t?.activities?.noDates || 'Momentálne nie je dostupný žiadny termín.'}
@@ -390,9 +410,8 @@ const ActivityList = () => {
                           </div>
                         </div>
                       )}
-                    </motion.div>
+                    </div>
                   )}
-                </AnimatePresence>
               </motion.article>
             );
           })}

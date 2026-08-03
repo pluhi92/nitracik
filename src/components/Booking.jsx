@@ -534,6 +534,17 @@ const Booking = () => {
     }
   }, [isLoggedIn, isAdmin, ageGroup, lockedReservation]);
 
+  // Helper: znovu načíta training types s aktuálnym audience filtrom
+  const refetchTrainingTypes = useCallback(async () => {
+    const params = new URLSearchParams();
+    if (isAdmin) params.set('admin', 'true');
+    const targetAudience = (lockedReservation?.incomingAgeGroup || ageGroup) === 'adult' ? 'adults' : 'children';
+    params.set('audience', targetAudience);
+    const qs = params.toString();
+    const response = await api.get(`/api/training-types${qs ? `?${qs}` : ''}`);
+    setTrainingTypes(response.data);
+  }, [isAdmin, ageGroup, lockedReservation]);
+
   useEffect(() => {
     if (!trainingTypeId || trainingTypes.length === 0) return;
 
@@ -680,8 +691,7 @@ const Booking = () => {
       setNewAudienceType('children');
       setFixedPricePerChild(15);
 
-      const response = await api.get(`/api/training-types?admin=true`);
-      setTrainingTypes(response.data);
+      await refetchTrainingTypes();
     } catch (error) {
       console.error(error);
       alert("Nepodarilo sa vytvoriť typ tréningu");
@@ -751,8 +761,7 @@ const Booking = () => {
       await api.put(`/api/admin/training-types/${editingType.id}/description`, {
         description: editTypeDesc
       });
-      const response = await api.get(`/api/training-types?admin=true`);
-      setTrainingTypes(response.data);
+      await refetchTrainingTypes();
       setShowEditTypeModal(false);
       setEditingType(null);
     } catch (error) {
@@ -775,8 +784,7 @@ const Booking = () => {
     setDeleteTypeError('');
     try {
       await api.delete(`/api/admin/training-types/${deletingType.id}`);
-      const response = await api.get(`/api/training-types?admin=true`);
-      setTrainingTypes(response.data);
+      await refetchTrainingTypes();
       setShowDeleteTypeModal(false);
       setDeletingType(null);
     } catch (error) {

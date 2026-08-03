@@ -5,6 +5,12 @@ module.exports = {
     "./src/**/*.{js,jsx,ts,tsx}",
     "./index.html",
   ],
+  safelist: [
+    'text-accent-600',
+    'underline',
+    'hover:no-underline',
+    'font-semibold',
+  ],
   theme: {
     container: {
       center: true,
