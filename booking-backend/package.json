@@ -10,7 +10,7 @@
     "test:watch": "cross-env NODE_ENV=test jest --watch --runInBand",
     "test:coverage": "cross-env NODE_ENV=test jest --coverage --runInBand",
     "db:push": "prisma db push",
-    "db:push:test": "cross-env DATABASE_URL=postgresql://postgres:polipok@localhost:5432/nitracik_test prisma db push",
+    "db:push:test": "dotenv -e tests/.env -- prisma db push",
     "db:sync": "npm run db:push && npm run db:push:test"
   },
   "dependencies": {
@@ -37,6 +37,7 @@
   "devDependencies": {
     "@types/jest": "^29.5.11",
     "cross-env": "^10.1.0",
+    "dotenv-cli": "^11.0.0",
     "jest": "^29.7.0",
     "nodemon": "^3.0.3",
     "prisma": "^6.19.2",

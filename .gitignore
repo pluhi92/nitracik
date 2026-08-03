@@ -24,6 +24,7 @@ yarn-error.log*
 .env
 booking-backend/cred.env
 booking-backend/.env
+booking-backend/tests/.env
 /src/generated/prisma
 booking-backend/CHANGES_SUMMARY.md
 booking-backend/latest-test-run.log

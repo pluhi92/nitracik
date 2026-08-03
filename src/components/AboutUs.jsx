@@ -667,8 +667,8 @@ const AboutUs = () => {
                 <GiftCertificate
                   mode="preview"
                   amount={50}
-                  recipientName="Maťka"
-                  buyerEmail="Barborka"
+                  recipientName="Barborku"
+                  buyerEmail="Maťky"
                   message="Užite si krásny zážitok!"
                   expiresAt={new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()}
                   code="VASKODNTRCK"

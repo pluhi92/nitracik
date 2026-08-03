@@ -22,6 +22,33 @@ const fadeInUp = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
 };
 
+/**
+ * Converts a simple Markdown-like text to HTML.
+ * Supports: ## / ### headings, **bold**, blank-line paragraphs, single newlines as <br />.
+ */
+const renderMarkdown = (text) => {
+  if (!text) return '';
+  const blocks = text.split(/\n\n+/);
+  return blocks
+    .map((block) => {
+      const trimmed = block.trim();
+      if (!trimmed) return '';
+
+      if (trimmed.startsWith('### ')) {
+        return `<h3 class="text-lg font-bold text-foreground mt-4 mb-2">${trimmed.slice(4)}</h3>`;
+      }
+      if (trimmed.startsWith('## ')) {
+        return `<h2 class="text-xl font-extrabold text-foreground mt-5 mb-3">${trimmed.slice(3)}</h2>`;
+      }
+
+      let content = trimmed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      content = content.replace(/\n/g, '<br />');
+
+      return `<p class="mb-4">${content}</p>`;
+    })
+    .join('');
+};
+
 const ActivityList = () => {
   const { t, language } = useTranslation();
   const navigate = useNavigate();
@@ -287,9 +314,10 @@ const ActivityList = () => {
                       </span>
                     </div>
                     {type.description && (
-                      <p className="mt-4 text-neutral-600 text-base leading-relaxed text-justify">
-                        {type.description}
-                      </p>
+                      <div
+                        className="mt-4 text-neutral-600 text-base leading-relaxed text-justify"
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(type.description) }}
+                      />
                     )}
                   </div>
                   

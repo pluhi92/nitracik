@@ -1,6 +1,6 @@
 // GiftCard.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Spinner } from 'react-bootstrap';
 import { loadStripe } from '@stripe/stripe-js';
@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import api from '../api/api';
 import GiftCertificate from '../components/GiftCertificate';
+import mascotImage from '../assets/logo_bez.PNG';
 
 const cardVariants = {
   hidden: { opacity: 0, y: 24 },
@@ -388,24 +389,31 @@ const GiftCard = () => {
     <section className="py-12 md:py-20 container-custom max-w-2xl mx-auto px-4 sm:px-6 relative">
       <form onSubmit={handleSubmit}>
         {/* ── CARD 1: Gift card details ── */}
-        <motion.div
-          custom={0}
-          initial="hidden"
-          animate="visible"
-          variants={cardVariants}
-          className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 p-6 sm:p-8 mb-6"
-        >
+        <div className="relative">
+          <img
+            src={mascotImage}
+            alt=""
+            className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 sm:w-24 z-20 pointer-events-none"
+            style={{ filter: 'drop-shadow(2px 4px 12px rgba(0,0,0,0.12))' }}
+          />
+          <motion.div
+            custom={0}
+            initial="hidden"
+            animate="visible"
+            variants={cardVariants}
+            className="bg-white rounded-[2rem] shadow-sm border border-neutral-200 p-6 sm:p-8 mb-6 relative"
+          >
           {/* Header */}
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
-              <Gift className="w-5 h-5" />
+          <div className="flex flex-col items-center text-center mb-2">
+            <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center mb-3">
+              <Gift className="w-6 h-6" />
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-foreground">
+            <h2 className="text-2xl sm:text-3xl font-black text-foreground mb-3">
               Darčekový poukaz
             </h2>
           </div>
-          <p className="text-neutral-500 text-sm sm:text-base ml-[52px] mb-6">
-            Obdarujte niekoho zážitkom v bazéne 🏊
+          <p className="text-neutral-600 text-sm sm:text-base text-center mb-6 font-medium">
+            Darujte svojim blízkym nezabudnuteľný zážitok. Darčekový poukaz možno uplatniť na ľubovoľnú aktivitu z našej ponuky — pre deti aj dospelých.
           </p>
 
           {/* Amount selector - 2x2 grid */}
@@ -519,6 +527,7 @@ const GiftCard = () => {
             aria-hidden="true"
           />
         </motion.div>
+        </div>
 
         {/* ── CARD 2: Buyer details & payment ── */}
         <motion.div
@@ -605,9 +614,9 @@ const GiftCard = () => {
                 className="mt-0.5 w-4 h-4 rounded border-neutral-300 text-amber-500 focus:ring-amber-400 focus:ring-2 accent-amber-500"
               />
               <span className="text-sm text-neutral-600 leading-relaxed">
-                Súhlasím s{' '}
+                Súhlasím so{' '}
                 <a
-                  href="/vop"
+                  href="/terms"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-amber-600 underline hover:text-amber-700"
