@@ -79,7 +79,6 @@ function buildHTML({ code, amount, recipientName, buyerEmail, buyerName, message
       position: relative;
       width: 842px;
       height: 595px;
-      border-radius: 28px;
       overflow: hidden;
       background: white;
     }
@@ -89,20 +88,19 @@ function buildHTML({ code, amount, recipientName, buyerEmail, buyerName, message
       width: 842px;
       height: 595px;
       background: transparent;
-      border-radius: 28px;
       overflow: visible;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 8px 52px 12px 52px;
+      padding: 0px 52px 12px 52px;
       gap: 0px;
     }
 
     /* ── Flak decorations — positioned on .card-outer so overflow:hidden clips correctly ── */
     .blob { position: absolute; pointer-events: none; z-index: 0; }
-    .blob-top-left  { top: -60px; left: -60px; width: 280px; opacity: 0.65; }
-    .blob-top-right { top: -60px; right: -60px; width: 280px; opacity: 0.65; transform: scaleX(-1); }
-    .blob-bottom-right { bottom: -80px; right: -80px; width: 320px; opacity: 0.65; }
+    .blob-top-left  { top: -90px; left: -90px; width: 380px; opacity: 0.65; }
+    .blob-top-right { top: -90px; right: -90px; width: 380px; opacity: 0.65; transform: scaleX(-1); }
+    .blob-bottom-right { bottom: -110px; right: -110px; width: 380px; opacity: 0.65; }
 
     /* ── Logo ── */
     .header {
@@ -111,14 +109,15 @@ function buildHTML({ code, amount, recipientName, buyerEmail, buyerName, message
       align-items: center;
       z-index: 1;
       width: 100%;
-      height: 140px;
-      margin-bottom: 2px;
+      height: 230px;
+      margin-top: -14px;
+      margin-bottom: 0px;
       flex-shrink: 0;
     }
     .logo-img {
-      height: 140px;
+      height: 230px;
       width: auto;
-      max-width: 320px;
+      max-width: 400px;
       object-fit: contain;
       display: block;
       mix-blend-mode: multiply;
@@ -145,7 +144,7 @@ function buildHTML({ code, amount, recipientName, buyerEmail, buyerName, message
       display: flex;
       flex-direction: column;
       z-index: 1;
-      margin-top: 6px; margin-bottom: 0;
+      margin-top: 14px; margin-bottom: 0;
     }
     .field-row {
       display: flex;
@@ -167,9 +166,10 @@ function buildHTML({ code, amount, recipientName, buyerEmail, buyerName, message
       font-size: 14px;
       font-weight: 700;
       color: #3D3D4E;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      word-break: break-word;
     }
     .italic { font-style: italic; color: #7A7A8C; }
 
@@ -180,7 +180,7 @@ function buildHTML({ code, amount, recipientName, buyerEmail, buyerName, message
       justify-content: space-between;
       align-items: center;
       z-index: 1;
-      margin-top: 4px; margin-bottom: 2px;
+      margin-top: 10px; margin-bottom: 4px;
     }
     .meta-text { font-size: 10px; font-weight: 700; color: #9CA3AF; }
 
@@ -192,11 +192,11 @@ function buildHTML({ code, amount, recipientName, buyerEmail, buyerName, message
       color: #3D3D4E;
       z-index: 1;
       line-height: 1;
-      margin-top: 4px; margin-bottom: 6px;
+      margin-top: 12px; margin-bottom: 12px;
     }
 
     /* ── Code box ── */
-    .code-box { display: flex; justify-content: center; z-index: 1; margin-bottom: 4px; }
+    .code-box { display: flex; justify-content: center; z-index: 1; margin-bottom: 2px; }
     .code-inner {
       background: #FFFBEB;
       border: 2.5px dashed #F59E0B;
@@ -228,6 +228,7 @@ function buildHTML({ code, amount, recipientName, buyerEmail, buyerName, message
       font-weight: 600;
       z-index: 1;
       font-style: italic;
+      margin-top: 6px;
       padding: 0 20px;
     }
 
@@ -285,7 +286,7 @@ function buildHTML({ code, amount, recipientName, buyerEmail, buyerName, message
 
     <!-- Meta row -->
     <div class="meta-row">
-      <span class="meta-text">No. ${escapeHtml(displayNo)}</span>
+      <span class="meta-text">No. ${escapeHtml(code ? code.replace(/-/g, '') : 'XXXXXXXX')}</span>
       <span class="meta-text">Platnosť do: ${escapeHtml(displayDate)}</span>
     </div>
 

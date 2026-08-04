@@ -4,10 +4,11 @@ import nitracikLogo from '../assets/nitracik_svg2.svg';
 
 const UserContext = createContext();
 
-// 5 minút nečinnosti = 300 000 ms
-const INACTIVITY_TIMEOUT = 300000;
-// Hodnota pre rýchle testovanie: 15 sekúnd (15000 ms)
-// const INACTIVITY_TIMEOUT = 15000;
+
+//INACTIVITY TIMEOUT: 2 hodiny (7200000 ms) - po tejto dobe nečinnosti sa používateľ automaticky odhlási
+const INACTIVITY_TIMEOUT = 7200000; // 2 hodiny
+// const INACTIVITY_TIMEOUT = 300000; // 5 minút
+// const INACTIVITY_TIMEOUT = 15000; // 15 sekúnd pre testovanie
 
 export const UserProvider = ({ children }) => {
   const savedName = localStorage.getItem('userFirstName') || localStorage.getItem('userName')?.split(' ')[0] || '';
@@ -154,6 +155,47 @@ export const UserProvider = ({ children }) => {
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
+
+  // Visibility API — pri návrate na kartu overíme reálny stav session
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      // Karta sa skryla — nič nerobíme
+      if (document.hidden) return;
+
+      // Nie sme prihlásení — nič nerobíme
+      if (!isLoggedInRef.current) return;
+
+      // Karta sa stala viditeľnou → overíme backend session
+      try {
+        await api.get('/api/ping');
+        // Session OK — používateľ môže pokračovať
+      } catch (err) {
+        if (err.response?.status === 401) {
+          // Session expirovala zatiaľ čo bol user na inej karte
+          // Vyčistíme frontend state a zobrazíme modal
+          console.log('[Visibility] Session expired while tab was hidden');
+
+          localStorage.removeItem('isLoggedIn');
+          localStorage.removeItem('userFirstName');
+          localStorage.removeItem('userId');
+          localStorage.removeItem('userName');
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('user');
+          localStorage.removeItem('userRole');
+
+          setUser({ isLoggedIn: false, firstName: '', userId: null, role: 'user' });
+          setShowInactivityModal(true);
+        }
+        // Sieťová chyba, timeout atď. — ignorujeme, nechceme zbytočne odhlasovať
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []); // prázdne deps — isLoggedInRef a setShowInactivityModal sú stabilné referencie
 
   const handleCloseInactivityModal = () => {
     setShowInactivityModal(false);

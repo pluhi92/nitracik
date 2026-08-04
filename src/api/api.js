@@ -30,8 +30,15 @@ api.interceptors.response.use(
       
       if (!isNonCritical) {
         console.log('[API Interceptor] Session expired, redirecting to login');
+        localStorage.removeItem('isLoggedIn');
         localStorage.removeItem('user');
-        window.location.href = '/login';
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userFirstName');
+        window.history.pushState({}, '', '/login');
+        window.dispatchEvent(new PopStateEvent('popstate'));
       }
     }
     return Promise.reject(error);

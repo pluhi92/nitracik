@@ -4642,6 +4642,11 @@ app.get('/api/get-session-id', async (req, res) => {
   }
 });
 
+// Session keep-alive / health-check pre Visibility API
+app.get('/api/ping', isAuthenticated, (req, res) => {
+  res.json({ ok: true });
+});
+
 // --- FAQ ENDPOINTS ---
 
 // 1. GET všetkých FAQ (Verejné - vidí každý)
