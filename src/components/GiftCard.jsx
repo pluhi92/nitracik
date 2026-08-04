@@ -21,6 +21,7 @@ import {
 import api from '../api/api';
 import GiftCertificate from '../components/GiftCertificate';
 import mascotImage from '../assets/logo_bez.PNG';
+import nitracikLogo from '../assets/nitracik_svg2.svg';
 
 const cardVariants = {
   hidden: { opacity: 0, y: 24 },
@@ -68,6 +69,7 @@ const GiftCard = () => {
   const [successError, setSuccessError] = useState('');
   const [copied, setCopied] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState('');
 
@@ -148,6 +150,14 @@ const GiftCard = () => {
       document.body.removeChild(textArea);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  // ── Confirm modal: show recap then proceed ──
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    if (!isSubmitDisabled) {
+      setShowConfirmModal(true);
     }
   };
 
@@ -255,7 +265,16 @@ const GiftCard = () => {
     return (
       <section className="py-12 md:py-20 container-custom max-w-4xl mx-auto px-4 sm:px-6 relative">
         {successLoading && (
-          <div className="flex items-center justify-center min-h-[300px]">
+          <div className="flex flex-col items-center justify-center min-h-[300px] gap-6">
+            <img
+              src={nitracikLogo}
+              alt="Nitráčik"
+              className="w-40 sm:w-48 h-auto opacity-90"
+            />
+            <p className="text-neutral-600 text-sm sm:text-base text-center max-w-md leading-relaxed">
+              Váš darčekový poukaz je už na ceste. 😊<br />
+              Ostaňte na stránke, chvíľku trpezlivosti…
+            </p>
             <Spinner animation="border" variant="warning" />
           </div>
         )}
@@ -387,7 +406,7 @@ const GiftCard = () => {
   // ── Render: Purchase form ──
   return (
     <section className="py-12 md:py-20 container-custom max-w-2xl mx-auto px-4 sm:px-6 relative">
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleFormSubmit}>
         {/* ── CARD 1: Gift card details ── */}
         <div className="relative">
           <img
@@ -678,6 +697,84 @@ const GiftCard = () => {
           </button>
         </motion.div>
       </form>
+
+      {/* ── Confirmation Modal ── */}
+      {showConfirmModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => setShowConfirmModal(false)}
+        >
+          <div
+            className="relative bg-white rounded-[2rem] shadow-2xl max-w-md w-full p-6 sm:p-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setShowConfirmModal(false)}
+              className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-700 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-xl font-black text-foreground mb-6 text-center">
+              Skontrolujte údaje ešte raz
+            </h3>
+
+            {/* Summary fields */}
+            <div className="space-y-3 mb-6">
+              <div className="flex justify-between items-center py-2 border-b border-neutral-100">
+                <span className="text-sm font-bold text-neutral-500 uppercase tracking-wider">OD:</span>
+                <span className="text-sm font-bold text-foreground">{buyerName.trim() || '—'}</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-neutral-100">
+                <span className="text-sm font-bold text-neutral-500 uppercase tracking-wider">PRE:</span>
+                <span className="text-sm font-bold text-foreground">{recipientName.trim() || '—'}</span>
+              </div>
+              {message.trim() && (
+                <div className="flex justify-between items-center py-2 border-b border-neutral-100">
+                  <span className="text-sm font-bold text-neutral-500 uppercase tracking-wider">VENOVANIE:</span>
+                  <span className="text-sm italic text-neutral-600 text-right max-w-[200px]">{message.trim()}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center py-2 border-b border-neutral-100">
+                <span className="text-sm font-bold text-neutral-500 uppercase tracking-wider">Mail na zaslanie:</span>
+                <span className="text-sm font-bold text-foreground">{buyerEmail}</span>
+              </div>
+              <div className="flex justify-between items-center py-2">
+                <span className="text-sm font-bold text-neutral-500 uppercase tracking-wider">Suma:</span>
+                <span className="text-lg font-black text-amber-600">{selectedAmount}€</span>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  handleSubmit({ preventDefault: () => {} });
+                }}
+                disabled={loading}
+                className="w-full bg-amber-400 hover:bg-amber-500 text-white font-bold rounded-2xl px-8 py-4 transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <Spinner animation="border" size="sm" />
+                ) : (
+                  'Potvrdiť a zaplatiť'
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="w-full border-2 border-neutral-200 text-foreground font-bold rounded-2xl px-8 py-3 hover:bg-neutral-50 transition-colors"
+              >
+                Späť
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Preview Modal ── */}
       {showPreviewModal && (
