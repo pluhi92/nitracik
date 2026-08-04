@@ -2466,8 +2466,8 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
       : `🎁 Niekto ti posiela darček od Nitráčika!`;
 
     const intro = isBuyer
-      ? `Ďakujeme za nákup darčekového poukazu! Nižšie nájdete vygenerovaný kód, ktorý môžete odovzdať obdarovanému.`
-      : `Niekto na vás myslel a zakúpil vám darčekový poukaz do Nitráčika. Nižšie nájdete váš jedinečný kód.`;
+      ? `Ďakujeme za nákup darčekového poukazu! Nižšie nájdete vygenerovaný kód, ktorý môžete odovzdať obdarovanému. V prílohe tohto e-mailu nájdete aj darčekový poukaz vo formáte PDF pripravený na vytlačenie.`
+      : `Niekto na vás myslel a zakúpil vám darčekový poukaz do Nitráčika. Nižšie nájdete váš jedinečný kód. V prílohe tohto e-mailu nájdete aj darčekový poukaz vo formáte PDF pripravený na vytlačenie.`;
 
     const mailOptions = {
       from: SENDER,
@@ -2482,14 +2482,20 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
             .container { width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
             .header { background-color: #ffffff; padding: 20px; text-align: center; border-bottom: 3px solid #f59e0b; }
             .content { padding: 30px; color: #333333; line-height: 1.6; text-align: justify; }
-            .voucher-box { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 2px solid #f59e0b; border-radius: 16px; padding: 30px; margin: 25px 0; text-align: center; }
-            .voucher-amount { font-size: 48px; font-weight: 900; color: #d97706; margin: 0 0 8px 0; }
-            .voucher-label { font-size: 14px; color: #92400e; margin: 0 0 20px 0; letter-spacing: 1px; text-transform: uppercase; }
-            .code-box { background-color: #ffffff; border: 2px dashed #f59e0b; border-radius: 10px; padding: 16px 24px; display: inline-block; margin: 10px 0; }
-            .code-text { font-family: 'Courier New', monospace; font-size: 28px; font-weight: 900; letter-spacing: 6px; color: #92400e; }
-            .code-label { font-size: 11px; color: #b45309; text-transform: uppercase; letter-spacing: 2px; margin-top: 6px; }
+            .voucher-box { background-color: #ffdcdc; border: 2px solid #ef3f3f; border-radius: 16px; padding: 30px; margin: 25px 0; text-align: center; }
+            .voucher-amount { font-size: 48px; font-weight: 900; color: #dc2626; margin: 0 0 8px 0; }
+            .voucher-label { font-size: 14px; color: #991b1b; margin: 0 0 20px 0; letter-spacing: 1px; text-transform: uppercase; }
+            .code-box { background-color: #ffffff; border: 2px dashed #ef3f3f; border-radius: 10px; padding: 16px 24px; display: inline-block; margin: 10px 0; }
+            .code-text { font-family: 'Courier New', monospace; font-size: 28px; font-weight: 900; letter-spacing: 6px; color: #991b1b; }
+            .code-label { font-size: 11px; color: #dc2626; text-transform: uppercase; letter-spacing: 2px; margin-top: 6px; }
             .highlight-box { background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 15px; margin: 20px 0; text-align: left; }
             .highlight-item { margin-bottom: 6px; font-size: 15px; }
+            .instructions-box { background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 20px; margin: 25px 0; text-align: left; }
+            .instructions-title { font-size: 16px; font-weight: bold; color: #0369a1; margin: 0 0 16px 0; text-align: left; }
+            .step-item { display: flex; align-items: flex-start; margin-bottom: 12px; font-size: 14px; line-height: 1.5; }
+            .step-number { flex: 0 0 26px; width: 26px; min-width: 26px; max-width: 26px; height: 26px; background-color: #2563eb; color: #ffffff; border-radius: 50%; text-align: center; line-height: 26px; font-weight: bold; font-size: 13px; margin-right: 10px; margin-top: 1px; }
+            .step-text { color: #1e293b; }
+            .profile-tip-box { background-color: #ecfdf5; border: 1px solid #6ee7b7; border-radius: 8px; padding: 15px; margin: 20px 0; text-align: left; }
             .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
             p { margin-bottom: 15px; }
           </style>
@@ -2509,8 +2515,8 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
                 <div class="voucher-box">
                   <p class="voucher-label">Darčekový poukaz Nitráčik</p>
                   <p class="voucher-amount">${amount}€</p>
-                  ${recipientName ? `<p style="font-size: 16px; color: #92400e; margin: 0 0 16px 0;">Pre: <strong>${recipientName}</strong></p>` : ''}
-                  ${message ? `<p style="font-size: 14px; color: #78350f; font-style: italic; margin: 0 0 20px 0; padding: 10px; background: rgba(255,255,255,0.6); border-radius: 8px;">"${message}"</p>` : ''}
+                  ${recipientName ? `<p style="font-size: 16px; color: #991b1b; margin: 0 0 16px 0;">Pre: <strong>${recipientName}</strong></p>` : ''}
+                  ${message ? `<p style="font-size: 14px; color: #991b1b; font-style: italic; margin: 0 0 20px 0; padding: 10px; background: rgba(255,255,255,0.6); border-radius: 8px;">"${message}"</p>` : ''}
                   <div class="code-box">
                     <div class="code-text">${code}</div>
                     <div class="code-label">Váš jedinečný kód</div>
@@ -2519,14 +2525,58 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
 
                 <div class="highlight-box">
                   <div class="highlight-item">💰 <strong>Hodnota poukazu:</strong> ${amount}€</div>
-                  <div class="highlight-item">💳 <strong>Zostatok:</strong> ${balance}€</div>
+                  <div class="highlight-item">💳 <strong>Aktuálny zostatok:</strong> ${balance}€</div>
                   <div class="highlight-item">📅 <strong>Platnosť do:</strong> ${formattedExpiry}</div>
-                  <div class="highlight-item" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #fcd34d; font-size: 14px; color: #92400e;">
-                    💡 Kód zadajte v rezervačnom formulári na <strong>nitracik.sk/booking</strong> v sekcii <em>"Máte darčekový poukaz?"</em>
+                  <div class="highlight-item" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #fcd34d; font-size: 13px; color: #92400e;">
+                    ℹ️ Poukaz môžete využiť jednorazovo alebo na viacero rezervácií – nevyčerpaný zostatok vám zostáva k dispozícii.
                   </div>
                 </div>
 
-                <p>Poukaz je možné využiť jednorazovo alebo čiastočne – zostatok zostáva k dispozícii na ďalšie rezervácie.</p>
+                <div class="instructions-box">
+                  <p class="instructions-title">📋 Ako použiť darčekový poukaz?</p>
+                  
+                  <div class="step-item">
+                    <span class="step-number">1</span>
+                    <span class="step-text"><strong>Zaregistrujte sa</strong> na našej stránke <a href="https://nitracik.sk" style="color: #2563eb;">nitracik.sk</a>. Ak už účet máte, jednoducho sa prihláste.</span>
+                  </div>
+                  
+                  <div class="step-item">
+                    <span class="step-number">2</span>
+                    <span class="step-text">Prejdite do <strong>rezervačného formulára</strong> (hlavné menu → <em>"Rezervuj si termín"</em>).</span>
+                  </div>
+                  
+                  <div class="step-item">
+                    <span class="step-number">3</span>
+                    <span class="step-text"><strong>Vyberte si aktivitu</strong>, na ktorej sa chcete zúčastniť (vy alebo vaše dieťa), a pokračujte vo výbere termínu.</span>
+                  </div>
+                  
+                  <div class="step-item">
+                    <span class="step-number">4</span>
+                    <span class="step-text"><strong>Zadajte kód poukazu</strong> v rezervačnom formulári v sekcii <em>"Máte darčekový poukaz?"</em>.</span>
+                  </div>
+                  
+                  <div class="step-item">
+                    <span class="step-number">5</span>
+                    <span class="step-text">Ak je <strong>hodnota poukazu rovnaká alebo vyššia</strong> ako cena aktivity → rezervácia sa vytvorí <strong>automaticky bez nutnosti platby kartou</strong>.</span>
+                  </div>
+                  
+                  <div class="step-item">
+                    <span class="step-number">6</span>
+                    <span class="step-text">Ak je <strong>hodnota poukazu nižšia</strong> ako cena aktivity → <strong>doplatíte kartou iba rozdiel</strong>. Zvyšný zostatok na poukaze môžete využiť na ďalšiu aktivitu.</span>
+                  </div>
+                </div>
+
+                <div class="profile-tip-box">
+                  <div style="display: flex; align-items: flex-start;">
+                    <span style="font-size: 20px; margin-right: 10px;">💡</span>
+                    <div>
+                      <strong style="color: #065f46;">Tip pre vás:</strong>
+                      <span style="font-size: 14px; color: #022c22;">
+                        Kód darčekového poukazu si môžete uložiť vo svojom profile (vpravo hore ikona profilu → <em>"Darčekové poukazy"</em>), kde uvidíte jeho aktuálny zostatok a dátum expirácie.
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
                 <div style="margin-top: 30px;">
                   <p style="font-family: 'Brush Script MT', cursive, sans-serif; font-size: 24px; color: #ef3f3f; margin-bottom: 5px;">Saška</p>
