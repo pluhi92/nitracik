@@ -330,7 +330,7 @@ function escapeHtml(str) {
 
 async function generateGiftCardPDF({ code, amount, recipientName, buyerEmail, buyerName, message, expiresAt }) {
   // Lazy-load puppeteer so Jest can import server modules without parsing ESM-only internals.
-  const puppeteer = require('puppeteer');
+  const puppeteer = (await import('puppeteer')).default;
   const html = buildHTML({ code, amount, recipientName, buyerEmail, buyerName, message, expiresAt });
 
   const browser = await puppeteer.launch({
