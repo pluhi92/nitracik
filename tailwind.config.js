@@ -291,7 +291,6 @@ module.exports = {
   'background': 'rgba(255, 255, 255, 0.92) !important',
   'backdrop-filter': 'blur(4px)',
   '-webkit-backdrop-filter': 'blur(4px)',
-  'border-color': 'rgba(255, 255, 255, 0.8) !important',
 },
         '.scroll-smooth': {
           'scroll-behavior': 'smooth',
