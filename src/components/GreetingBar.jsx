@@ -12,7 +12,7 @@ const GreetingBar = () => {
 
   return (
     <div
-      className="w-full px-5 py-2.5 text-xs font-medium flex justify-center bg-transparent text-foreground transition-colors duration-300 z-[998]"
+      className="w-full px-5 py-2.5 text-xs font-medium flex justify-center card-glass text-foreground transition-colors duration-300 z-[998]"
     >
       <div
         className="

@@ -1705,7 +1705,7 @@ const Booking = () => {
   if (!isLoggedIn) {
     return (
       <section className="section-wrapper container-custom max-w-lg mx-auto px-4">
-        <div className="bg-white card-glass border-2 border-neutral-500 rounded-[2rem] shadow-md p-6 sm:p-10">
+        <div className="bg-white card-glass border-2 border-neutral-300 rounded-[2rem] shadow-md p-6 sm:p-10">
           <h2 className="text-2xl font-extrabold text-center text-foreground mb-8">
             {t?.booking?.title || 'Book Your Training'}
           </h2>
@@ -1853,14 +1853,14 @@ const Booking = () => {
 
       {/* ADMIN PANEL */}
       {isAdmin && (
-        <div className="bg-white card-glass border-2 border-neutral-500 rounded-[2rem] p-6 sm:p-8 mb-10 shadow-md relative overflow-hidden">
-          <FlakPink className="absolute pointer-events-none z-0" style={{ width: 200, top: -45, left: -30, opacity: 0.22, transform: 'rotate(-20deg)' }} />
-          <FlakCream className="absolute pointer-events-none z-0" style={{ width: 190, top: '35%', right: -25, opacity: 0.20, transform: 'rotate(25deg)' }} />
-          <FlakPink className="absolute pointer-events-none z-0" style={{ width: 180, bottom: -35, left: '40%', opacity: 0.18, transform: 'rotate(50deg)' }} />
-          <div className="relative z-10">
-          <div className="absolute top-0 left-0 w-2 h-full bg-emerald-500"></div>
+        <div className="bg-white card-glass border-2 border-neutral-300 rounded-[2rem] p-6 sm:p-8 mb-10 shadow-md relative overflow-hidden" style={{ isolation: 'isolate' }}>
+          <FlakPink className="absolute pointer-events-none" style={{ width: 200, top: -45, left: -30, opacity: 0.22, transform: 'rotate(-20deg)', zIndex: -1 }} />
+          <FlakCream className="absolute pointer-events-none" style={{ width: 190, top: '35%', right: -25, opacity: 0.20, transform: 'rotate(25deg)', zIndex: -1 }} />
+          <FlakPink className="absolute pointer-events-none" style={{ width: 180, bottom: -35, left: '40%', opacity: 0.18, transform: 'rotate(50deg)', zIndex: -1 }} />
+          <div className="relative">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-neutral-100 pb-5 mb-6 gap-4">
             <h3 className="text-xl font-extrabold text-foreground flex items-center gap-2">
+              <span className="w-1.5 h-7 bg-emerald-500 rounded-full shrink-0"></span>
               <Settings className="w-5 h-5 text-emerald-600" />
               <span>{t?.admin?.title || 'Admin Controls'}</span>
             </h3>
@@ -2035,10 +2035,8 @@ const Booking = () => {
         )}
 
         {/* 1. Training Details */}
-        <div className="bg-white card-glass border-2 border-neutral-500 rounded-[2rem] shadow-md overflow-hidden relative">
-          <FlakCream className="absolute pointer-events-none z-0" style={{ width: 195, top: -45, left: '30%', opacity: 0.20, transform: 'rotate(-30deg)' }} />
-          <FlakPink className="absolute pointer-events-none z-0" style={{ width: 175, top: '40%', right: -25, opacity: 0.18, transform: 'rotate(20deg)' }} />
-          <div className="relative z-10">
+        <div className="bg-white card-glass border-2 border-neutral-300 rounded-[2rem] shadow-md overflow-hidden relative" style={{ isolation: 'isolate' }}>
+          <div className="relative">
           <div className="relative z-10 bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
               <CalIcon className="w-4 h-4" />
@@ -2048,7 +2046,9 @@ const Booking = () => {
             </h5>
           </div>
 
-          <div className="p-6 sm:p-8 relative z-10">
+          <div className="p-6 sm:p-8 relative">
+            <FlakCream className="absolute pointer-events-none" style={{ width: 195, top: -45, left: '30%', opacity: 0.38, transform: 'rotate(-30deg)', zIndex: -1 }} />
+            <FlakPink className="absolute pointer-events-none" style={{ width: 175, top: '40%', right: -25, opacity: 0.35, transform: 'rotate(20deg)', zIndex: -1 }} />
             <div className="mb-8">
               <label className="font-bold text-sm text-neutral-700 mb-2">
                 {t?.booking?.trainingType?.label || 'Select Training Type'} <span className="text-red-500">*</span>
@@ -2137,11 +2137,9 @@ const Booking = () => {
 
         {/* 2. Personal Information */}
         <div
-          className="bg-white card-glass border-2 border-neutral-500 rounded-[2rem] shadow-md overflow-hidden relative"
+          className="bg-white card-glass border-2 border-neutral-300 rounded-[2rem] shadow-md overflow-hidden relative" style={{ isolation: 'isolate' }}
         >
-          <FlakPink className="absolute pointer-events-none z-0" style={{ width: 185, top: -40, right: -28, opacity: 0.20, transform: 'rotate(40deg)' }} />
-          <FlakCream className="absolute pointer-events-none z-0" style={{ width: 170, bottom: -35, left: '25%', opacity: 0.18, transform: 'rotate(-20deg)' }} />
-          <div className="relative z-10">
+          <div className="relative">
           <div className="relative z-10 bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
               <User className="w-4 h-4" />
@@ -2150,7 +2148,9 @@ const Booking = () => {
               {t?.booking?.personalInfo || 'Personal Information'}
             </h5>
           </div>
-          <div className="p-6 sm:p-8 relative z-10">
+          <div className="p-6 sm:p-8 relative">
+            <FlakPink className="absolute pointer-events-none" style={{ width: 185, top: -40, right: -28, opacity: 0.38, transform: 'rotate(40deg)', zIndex: -1 }} />
+            <FlakCream className="absolute pointer-events-none" style={{ width: 170, bottom: -35, left: '25%', opacity: 0.35, transform: 'rotate(-20deg)', zIndex: -1 }} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
                 <label className="font-bold text-sm text-neutral-700 mb-2">
@@ -2212,11 +2212,9 @@ const Booking = () => {
             className="overflow-hidden"
           >
             <div
-              className="bg-white card-glass border-2 border-neutral-500 rounded-[2rem] shadow-md overflow-hidden relative"
+              className="bg-white card-glass border-2 border-neutral-300 rounded-[2rem] shadow-md overflow-hidden relative" style={{ isolation: 'isolate' }}
             >
-              <FlakCream className="absolute pointer-events-none z-0" style={{ width: 200, top: -42, left: -28, opacity: 0.18, transform: 'rotate(15deg)' }} />
-              <FlakPink className="absolute pointer-events-none z-0" style={{ width: 165, top: '50%', right: -22, opacity: 0.16, transform: 'rotate(-35deg)' }} />
-              <div className="relative z-10">
+              <div className="relative">
                 <div className="relative z-10 bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                     <Users className="w-4 h-4" />
@@ -2225,7 +2223,9 @@ const Booking = () => {
                     {t?.booking?.childrenInfo || 'Children Information'}
                   </h5>
                 </div>
-                <div className="p-6 sm:p-8 relative z-10">
+                <div className="p-6 sm:p-8 relative">
+                  <FlakCream className="absolute pointer-events-none" style={{ width: 200, top: -42, left: -28, opacity: 0.35, transform: 'rotate(15deg)', zIndex: -1 }} />
+                  <FlakPink className="absolute pointer-events-none" style={{ width: 165, top: '50%', right: -22, opacity: 0.30, transform: 'rotate(-35deg)', zIndex: -1 }} />
                   <div className="mb-8">
                     <label className="font-bold text-sm text-neutral-700 mb-2">
                       {t?.booking?.childrenCount || 'Number of Children'} <span className="text-red-500">*</span>
@@ -2290,11 +2290,9 @@ const Booking = () => {
 
         {/* 4. Additional Options */}
         <div
-          className="bg-white card-glass border-2 border-neutral-500 rounded-[2rem] shadow-md overflow-hidden relative"
+          className="bg-white card-glass border-2 border-neutral-300 rounded-[2rem] shadow-md overflow-hidden relative" style={{ isolation: 'isolate' }}
         >
-          <FlakPink className="absolute pointer-events-none z-0" style={{ width: 190, top: -38, left: '40%', opacity: 0.20, transform: 'rotate(25deg)' }} />
-          <FlakCream className="absolute pointer-events-none z-0" style={{ width: 180, bottom: -32, right: -24, opacity: 0.17, transform: 'rotate(-40deg)' }} />
-          <div className="relative z-10">
+          <div className="relative">
           <div className="relative z-10 bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
               <Settings className="w-4 h-4" />
@@ -2303,7 +2301,9 @@ const Booking = () => {
               {t?.booking?.additionalOptions || 'Additional Options'}
             </h5>
           </div>
-          <div className="p-6 sm:p-8 relative z-10">
+          <div className="p-6 sm:p-8 relative">
+            <FlakPink className="absolute pointer-events-none" style={{ width: 190, top: -38, left: '40%', opacity: 0.38, transform: 'rotate(25deg)', zIndex: -1 }} />
+            <FlakCream className="absolute pointer-events-none" style={{ width: 180, bottom: -32, right: -24, opacity: 0.32, transform: 'rotate(-40deg)', zIndex: -1 }} />
             <div className="mb-6">
               <label className="font-bold text-sm text-neutral-700 mb-2">
                 {t?.booking?.notes || 'Additional Notes'}
@@ -2440,18 +2440,18 @@ const Booking = () => {
 
         {/* Gift Card Section */}
         <div
-          className="bg-white card-glass border-2 border-neutral-500 rounded-[2rem] shadow-md overflow-hidden relative"
+          className="bg-white card-glass border-2 border-neutral-300 rounded-[2rem] shadow-md overflow-hidden relative" style={{ isolation: 'isolate' }}
         >
-          <FlakCream className="absolute pointer-events-none z-0" style={{ width: 185, top: -40, right: '35%', opacity: 0.18, transform: 'rotate(-25deg)' }} />
-          <FlakPink className="absolute pointer-events-none z-0" style={{ width: 175, bottom: -30, left: -22, opacity: 0.16, transform: 'rotate(30deg)' }} />
-          <div className="relative z-10">
+          <div className="relative">
           <div className="relative z-10 bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-amber-400/10 flex items-center justify-center text-amber-500">
               <Gift className="w-4 h-4" />
             </div>
             <h5 className="text-lg font-extrabold text-foreground m-0">Máte darčekový poukaz?</h5>
           </div>
-          <div className="p-6 sm:p-8 relative z-10">
+          <div className="p-6 sm:p-8 relative">
+            <FlakCream className="absolute pointer-events-none" style={{ width: 185, top: -40, right: '35%', opacity: 0.35, transform: 'rotate(-25deg)', zIndex: -1 }} />
+            <FlakPink className="absolute pointer-events-none" style={{ width: 175, bottom: -30, left: -22, opacity: 0.30, transform: 'rotate(30deg)', zIndex: -1 }} />
             <div className="flex flex-col sm:flex-row gap-3">
               <input
                 type="text"
@@ -2536,11 +2536,9 @@ const Booking = () => {
 
         {/* 5. Consents and Agreements */}
         <div
-          className="bg-white card-glass border-2 border-neutral-500 rounded-[2rem] shadow-md overflow-hidden relative"
+          className="bg-white card-glass border-2 border-neutral-300 rounded-[2rem] shadow-md overflow-hidden relative" style={{ isolation: 'isolate' }}
         >
-          <FlakPink className="absolute pointer-events-none z-0" style={{ width: 200, top: -44, left: -30, opacity: 0.18, transform: 'rotate(-15deg)' }} />
-          <FlakCream className="absolute pointer-events-none z-0" style={{ width: 170, top: '45%', right: -22, opacity: 0.16, transform: 'rotate(45deg)' }} />
-          <div className="relative z-10">
+          <div className="relative">
           <div className="relative z-10 bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
               <FileText className="w-4 h-4" />
@@ -2549,7 +2547,9 @@ const Booking = () => {
               {t?.booking?.consents || 'Consents and Agreements'}
             </h5>
           </div>
-          <div className="p-6 sm:p-8 space-y-4 relative z-10">
+          <div className="p-6 sm:p-8 space-y-4 relative">
+            <FlakPink className="absolute pointer-events-none" style={{ width: 200, top: -44, left: -30, opacity: 0.35, transform: 'rotate(-15deg)', zIndex: -1 }} />
+            <FlakCream className="absolute pointer-events-none" style={{ width: 170, top: '45%', right: -22, opacity: 0.30, transform: 'rotate(45deg)', zIndex: -1 }} />
             <div>
               <div className="flex items-start">
                 <Form.Check
@@ -2627,11 +2627,9 @@ const Booking = () => {
         {/* 6. Pricing and Submission */}
 
         <div
-          className="bg-white card-glass border-2 border-neutral-500 rounded-[2rem] shadow-md overflow-hidden mb-8 relative"
+          className="bg-white card-glass border-2 border-neutral-300 rounded-[2rem] shadow-md overflow-hidden mb-8 relative" style={{ isolation: 'isolate' }}
         >
-          <FlakCream className="absolute pointer-events-none z-0" style={{ width: 210, top: -45, right: -35, opacity: 0.22, transform: 'rotate(35deg)' }} />
-          <FlakPink className="absolute pointer-events-none z-0" style={{ width: 180, bottom: -35, left: -25, opacity: 0.20, transform: 'rotate(-15deg)' }} />
-          <div className="relative z-10">
+          <div className="relative">
           <div className="relative z-10 bg-neutral-50 border-b border-neutral-100 px-6 sm:px-8 py-5 flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600">
               <CreditCard className="w-4 h-4" />
@@ -2640,7 +2638,9 @@ const Booking = () => {
               {t?.booking?.summary || 'Zhrnutie a platba'}
             </h5>
           </div>
-          <div className="p-8 sm:p-10 text-center relative z-10">
+          <div className="p-8 sm:p-10 text-center relative">
+            <FlakCream className="absolute pointer-events-none" style={{ width: 210, top: -45, right: -35, opacity: 0.40, transform: 'rotate(35deg)', zIndex: -1 }} />
+            <FlakPink className="absolute pointer-events-none" style={{ width: 180, bottom: -35, left: -25, opacity: 0.38, transform: 'rotate(-15deg)', zIndex: -1 }} />
             {!useSeasonTicket && !isCreditMode && (
               <div className="mb-8">
                 {giftCardApplied && giftCardDiscount() > 0 && (
@@ -3181,23 +3181,30 @@ const Booking = () => {
         </Modal.Header>
         <Modal.Body className="p-6">
           {/* Switch */}
-          <div className="flex items-center justify-between bg-neutral-50 rounded-2xl border border-neutral-200 px-5 py-4 mb-4">
+          <div className="flex items-center justify-between gap-4 bg-neutral-50 rounded-2xl border border-neutral-200 px-5 py-4 mb-4">
             <div>
               <div className="font-bold text-sm text-foreground">Viditeľnosť pre používateľov</div>
               <div className="text-xs text-neutral-500 mt-0.5">
                 {detailType?.active ? 'Hodina je aktívna a viditeľná' : 'Hodina je skrytá'}
               </div>
             </div>
-            <Form.Check
-              type="switch"
-              id={`detail-active-switch-${detailType?.id}`}
-              checked={detailType?.active ?? false}
-              onChange={() => {
+            <button
+              type="button"
+              role="switch"
+              aria-checked={detailType?.active ?? false}
+              aria-label="Viditeľnosť pre používateľov"
+              onClick={() => {
                 toggleTypeStatus(detailType.id, detailType.active);
                 setDetailType(prev => ({ ...prev, active: !prev.active }));
               }}
-              className="m-0"
-            />
+              className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer items-center rounded-full border-0 transition-colors duration-200 ${
+                detailType?.active ? 'bg-emerald-500' : 'bg-neutral-300'
+              }`}
+            >
+              <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                detailType?.active ? 'translate-x-8' : 'translate-x-1'
+              }`} />
+            </button>
           </div>
 
           {/* Edit + Delete */}

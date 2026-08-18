@@ -420,7 +420,7 @@ const AboutUs = () => {
       </section>
 
       {/* About Us Text Section - SOFTER CARD & NEW LAYOUT */}
-      <section className="section-wrapper container-custom">
+      <section className="section-wrapper container-custom !py-8">
         <div className="relative">
           <img
             src={mascotImage}
@@ -428,7 +428,7 @@ const AboutUs = () => {
             className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 sm:w-24 z-20 pointer-events-none"
             style={{ filter: 'drop-shadow(2px 4px 12px rgba(0,0,0,0.12))' }}
           />
-          <div className="bg-white card-glass border-2 border-neutral-500 rounded-[2rem] shadow-md p-8 sm:p-12 relative overflow-hidden">
+          <div className="bg-white card-glass border-2 border-neutral-300 rounded-[2rem] shadow-md p-8 sm:p-12 relative overflow-hidden">
           {/* Flak dekorácie */}
           <FlakPink className="absolute pointer-events-none z-0" style={{ width: 200, top: -40, left: -30, opacity: 0.38, transform: 'rotate(-25deg)' }} />
           <FlakCream className="absolute pointer-events-none z-0" style={{ width: 180, top: -35, right: -25, opacity: 0.4, transform: 'rotate(30deg)' }} />
@@ -485,7 +485,7 @@ const AboutUs = () => {
 
 
 
-      <section className="section-wrapper container-custom">
+      <section className="section-wrapper container-custom !py-8">
         <div className="relative">
           <img
             src={mascotImage}
@@ -493,7 +493,7 @@ const AboutUs = () => {
             className="absolute -top-10 left-1/2 -translate-x-1/2 w-20 sm:w-24 z-20 pointer-events-none"
             style={{ filter: 'drop-shadow(2px 4px 12px rgba(0,0,0,0.12))' }}
           />
-          <div className="bg-white card-glass border-2 border-neutral-500 rounded-[2rem] shadow-md p-8 sm:p-12 relative overflow-hidden">
+          <div className="bg-white card-glass border-2 border-neutral-300 rounded-[2rem] shadow-md p-8 sm:p-12 relative overflow-hidden">
           {/* Flak dekorácie */}
           <FlakCream className="absolute pointer-events-none z-0" style={{ width: 200, top: -45, right: -35, opacity: 0.4, transform: 'rotate(35deg)' }} />
           <FlakPink className="absolute pointer-events-none z-0" style={{ width: 170, top: -35, left: -25, opacity: 0.36, transform: 'rotate(-20deg)' }} />
@@ -650,8 +650,8 @@ const AboutUs = () => {
       </section>
 
       {/* Gift Card Section */}
-      <section className="section-wrapper container-custom">
-        <div className="bg-white card-glass border-2 border-neutral-500 rounded-[2rem] shadow-md p-6 sm:p-8 relative overflow-hidden">
+      <section className="section-wrapper container-custom !py-8">
+        <div className="bg-white card-glass border-2 border-neutral-300 rounded-[2rem] shadow-md p-6 sm:p-8 relative overflow-hidden">
           {/* Flak dekorácie */}
           <FlakPink className="absolute pointer-events-none z-0" style={{ width: 180, top: -35, left: '30%', opacity: 0.36, transform: 'rotate(20deg)' }} />
           <FlakCream className="absolute pointer-events-none z-0" style={{ width: 200, top: -30, right: -30, opacity: 0.4, transform: 'rotate(-25deg)' }} />
@@ -707,8 +707,8 @@ const AboutUs = () => {
       </section>
 
       {/* Blog Section */}
-      <section className="section-wrapper container-custom">
-        <div className="bg-white card-glass border-2 border-neutral-500 rounded-[2rem] shadow-md p-8 sm:p-12 relative overflow-hidden">
+      <section className="section-wrapper container-custom !py-8">
+        <div className="bg-white card-glass border-2 border-neutral-300 rounded-[2rem] shadow-md p-8 sm:p-12 relative overflow-hidden">
           {/* Flak dekorácie */}
           <FlakCream className="absolute pointer-events-none z-0" style={{ width: 200, top: -40, left: -30, opacity: 0.38, transform: 'rotate(-40deg)' }} />
           <FlakPink className="absolute pointer-events-none z-0" style={{ width: 170, top: -30, right: -25, opacity: 0.36, transform: 'rotate(25deg)' }} />
@@ -722,8 +722,8 @@ const AboutUs = () => {
       </section>
 
       {/* Owner Section */}
-      <section className="section-wrapper container-custom">
-        <div className="bg-white border-2 border-neutral-500 rounded-[2rem] shadow-md p-0 overflow-hidden relative">
+      <section className="section-wrapper container-custom !py-8">
+        <div className="bg-white border-2 border-neutral-300 rounded-[2rem] shadow-md p-0 overflow-hidden relative">
           <FlakPink className="absolute pointer-events-none z-0" style={{ width: 180, top: -35, right: '25%', opacity: 0.33, transform: 'rotate(15deg)' }} />
           <FlakCream className="absolute pointer-events-none z-0" style={{ width: 190, top: -30, left: -25, opacity: 0.38, transform: 'rotate(-30deg)' }} />
           <FlakPink className="absolute pointer-events-none z-0" style={{ width: 170, top: '30%', right: -22, opacity: 0.34, transform: 'rotate(40deg)' }} />
@@ -789,8 +789,8 @@ const AboutUs = () => {
       </section>
 
       {/* Join Us Section */}
-      <section className="section-wrapper container-custom pb-24">
-        <div className="bg-white card-glass border-2 border-neutral-500 rounded-[2rem] shadow-md p-8 sm:p-12 relative overflow-hidden">
+      <section className="section-wrapper container-custom !pt-8 pb-24">
+        <div className="bg-white card-glass border-2 border-neutral-300 rounded-[2rem] shadow-md p-8 sm:p-12 relative overflow-hidden">
           {/* Flak dekorácie */}
           <FlakCream className="absolute pointer-events-none z-0" style={{ width: 200, top: -40, left: '20%', opacity: 0.38, transform: 'rotate(-30deg)' }} />
           <FlakPink className="absolute pointer-events-none z-0" style={{ width: 180, top: -30, right: -30, opacity: 0.36, transform: 'rotate(20deg)' }} />
