@@ -8,7 +8,7 @@ import {
   MapPin, Phone, ShieldAlert, FileText, 
   Ticket, CalendarDays, History, Archive,
   AlertTriangle, ChevronDown, CheckCircle, CreditCard, RefreshCw, ChevronUp, Gift,
-  Mail, ExternalLink, Clock
+  Mail, ExternalLink, Clock, Edit2
 } from 'lucide-react';
 import api from '../api/api';
 import GiftCertificate from './GiftCertificate';
@@ -86,6 +86,10 @@ const UserProfile = () => {
   const [gcInputCode, setGcInputCode] = useState('');
   const [gcLookupLoading, setGcLookupLoading] = useState(false);
   const [gcLookupError, setGcLookupError] = useState('');
+  const [showCapacityModal, setShowCapacityModal] = useState(false);
+  const [capacitySession, setCapacitySession] = useState(null);
+  const [newCapacity, setNewCapacity] = useState('');
+  const [isUpdatingCapacity, setIsUpdatingCapacity] = useState(false);
 
   // --- SMART ADRESA LOGIKA ---
   const [addrCity, setAddrCity] = useState('');
@@ -165,6 +169,32 @@ const UserProfile = () => {
     }
     setCopiedCode(code);
     setTimeout(() => setCopiedCode(null), 2000);
+  };
+
+  const handleUpdateCapacity = async () => {
+    if (!capacitySession?.training_id) return;
+    setIsUpdatingCapacity(true);
+    try {
+      const response = await api.put(
+        `/api/admin/training-sessions/${capacitySession.training_id}/capacity`,
+        { newCapacity: Number(newCapacity) }
+      );
+      showAlert(
+        response.data?.message || 'Kapacita bola úspešne aktualizovaná.',
+        'success'
+      );
+      await refreshBookings();
+      setShowCapacityModal(false);
+      setCapacitySession(null);
+      setNewCapacity('');
+    } catch (err) {
+      showAlert(
+        err.response?.data?.error || 'Nepodarilo sa aktualizovať kapacitu.',
+        'danger'
+      );
+    } finally {
+      setIsUpdatingCapacity(false);
+    }
   };
 
   const scrollToTop = () => {
@@ -432,6 +462,7 @@ const UserProfile = () => {
           last_name: session.last_name,
           email: session.email,
           children: isAdultParticipant ? 0 : (session.number_of_children ?? 0),
+          adults: isAdultParticipant ? (Number(session.number_of_adults) || 1) : 0,
           booking_type: session.booking_type || null,
           active: session.active,
           amount_paid: session.amount_paid || 0,
@@ -558,11 +589,25 @@ const UserProfile = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-center">
-                        <span className={`font-black text-lg ${session.available_spots === 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                      <div
+                        className={`flex items-center justify-center gap-1 rounded-xl px-2 py-1.5 transition-colors ${!isCancelled ? 'hover:bg-neutral-100 group cursor-pointer' : 'cursor-not-allowed'}`}
+                        onClick={() => {
+                          if (isCancelled) return;
+                          setCapacitySession(session);
+                          setNewCapacity(session.max_participants);
+                          setShowCapacityModal(true);
+                        }}
+                        title={!isCancelled ? 'Upraviť kapacitu' : 'Zrušený tréning'}
+                      >
+                        <span className={`font-black text-lg leading-none ${session.available_spots === 0 ? 'text-red-500' : 'text-emerald-500'}`}>
                           {session.available_spots}
                         </span>
-                        <div className="text-xs font-medium text-neutral-400">z {session.max_participants}</div>
+                        <span className="text-xs font-medium text-neutral-400 leading-none">
+                          z {session.max_participants}
+                        </span>
+                        {!isCancelled && (
+                          <Edit2 className="w-3.5 h-3.5 ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-neutral-500" />
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -1000,6 +1045,12 @@ const UserProfile = () => {
     const hideAfter = new Date(sessionStart.getTime() + 1 * 60 * 60 * 1000);
     return now < hideAfter;
   });
+
+  const capacityBookedSpots = capacitySession
+    ? capacitySession.participants
+        .filter(p => p.active === true)
+        .reduce((sum, p) => sum + (p.children || 0) + (p.adults || 0), 0)
+    : 0;
 
   return (
     <div className="relative w-full bg-white">
@@ -2528,6 +2579,68 @@ const UserProfile = () => {
                 ? <><SpinnerIcon className="w-4 h-4" /> Odosielam...</>
                 : <><Mail className="w-4 h-4" /> Áno, odoslať</>
               }
+            </button>
+          </Modal.Footer>
+        </div>
+      </Modal>
+
+      {/* Upraviť Kapacitu Modal */}
+      <Modal show={showCapacityModal} onHide={() => setShowCapacityModal(false)} centered>
+        <div className="bg-white rounded-[2rem] shadow-2xl border-0 overflow-hidden">
+          <Modal.Header closeButton className="border-b border-neutral-100 p-6 pb-4">
+            <Modal.Title className="text-xl font-black text-foreground flex items-center gap-2">
+              <Edit2 className="w-5 h-5 text-primary" />
+              Upraviť kapacitu tréningu
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="p-6">
+            {capacitySession && (
+              <div className="space-y-4">
+                <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 text-sm font-medium text-neutral-700 space-y-2">
+                  <p className="font-black text-foreground uppercase">{capacitySession.training_type}</p>
+                  <p className="text-neutral-500">{formatSlovakDate(capacitySession.training_date)}</p>
+                  <p>
+                    Aktuálne prihlásených:{' '}
+                    <strong className="text-foreground">{capacityBookedSpots}</strong>
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-foreground mb-2">
+                    Nová maximálna kapacita
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newCapacity}
+                    onChange={(e) => setNewCapacity(e.target.value)}
+                    className="w-full px-4 py-3 bg-white border border-neutral-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors font-medium text-foreground"
+                  />
+                  {Number(newCapacity) < capacityBookedSpots && (
+                    <p className="text-xs font-bold text-red-500 mt-2">
+                      Nová kapacita nemôže byť menšia ako počet už prihlásených ({capacityBookedSpots}).
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </Modal.Body>
+          <Modal.Footer className="border-t border-neutral-100 p-6 pt-4 flex gap-3">
+            <button
+              className="px-6 py-2.5 rounded-xl font-bold text-neutral-600 bg-neutral-100 hover:bg-neutral-200 transition-colors flex-1"
+              onClick={() => setShowCapacityModal(false)}
+            >
+              Zrušiť
+            </button>
+            <button
+              disabled={isUpdatingCapacity || !Number.isFinite(Number(newCapacity)) || Number(newCapacity) < 1 || Number(newCapacity) < capacityBookedSpots}
+              className="px-6 py-2.5 rounded-xl font-bold text-white bg-primary hover:bg-primary-600 transition-all hover:shadow-md disabled:bg-neutral-300 disabled:shadow-none flex-1 flex items-center justify-center gap-2"
+              onClick={handleUpdateCapacity}
+            >
+              {isUpdatingCapacity
+                ? <SpinnerIcon className="w-4 h-4 text-white" />
+                : <CheckCircle className="w-4 h-4" />
+              }
+              {isUpdatingCapacity ? 'Ukladám...' : 'Uložiť kapacitu'}
             </button>
           </Modal.Footer>
         </div>

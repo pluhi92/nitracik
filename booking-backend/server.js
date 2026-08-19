@@ -4087,6 +4087,83 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
   }
 });
 
+// ADMIN: Update max capacity (max_participants) of an existing training session
+app.put('/api/admin/training-sessions/:id/capacity', isAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { newCapacity } = req.body;
+
+  console.log('[DEBUG] Admin update capacity request:', { trainingId: id, newCapacity });
+
+  // 1. Validácia newCapacity (platné číslo >= 1)
+  const capacity = Number(newCapacity);
+  if (!Number.isFinite(capacity) || capacity < 1) {
+    return res.status(400).json({ error: 'Nová kapacita musí byť platné číslo väčšie alebo rovné 1.' });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // 2. Overenie existencie session
+    const sessionCheck = await client.query(
+      'SELECT id, max_participants, training_type, training_date FROM training_availability WHERE id = $1',
+      [id]
+    );
+
+    if (sessionCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Training session not found' });
+    }
+
+    // 3. Výpočet aktuálneho počtu prihlásených (aktívnych) — dospelí = 1 (resp. number_of_adults), deti = number_of_children
+    const bookingsResult = await client.query(
+      `SELECT COALESCE(
+         SUM(
+           CASE
+             WHEN COALESCE(age_group, '') = 'adult' OR COALESCE(number_of_adults, 0) > 0
+               THEN COALESCE(NULLIF(number_of_adults, 0), 1)
+             ELSE COALESCE(number_of_children, 0)
+           END
+         ),
+         0
+       ) AS booked_participants
+       FROM bookings WHERE training_id = $1 AND active = true`,
+      [id]
+    );
+    const bookedParticipants = parseInt(bookingsResult.rows[0].booked_participants, 10);
+
+    // 4. Validácia: nová kapacita nesmie byť menšia ako počet prihlásených
+    if (capacity < bookedParticipants) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Nová kapacita nemôže byť menšia ako počet už prihlásených.' });
+    }
+
+    // 5. Aktualizácia max_participants
+    await client.query(
+      'UPDATE training_availability SET max_participants = $1 WHERE id = $2',
+      [capacity, id]
+    );
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: 'Kapacita tréningu bola úspešne aktualizovaná.',
+      trainingId: id,
+      max_participants: capacity,
+      bookedParticipants
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Update capacity error:', error);
+    res.status(500).json({ error: 'Failed to update capacity: ' + error.message });
+  } finally {
+    client.release();
+  }
+});
+
 
 app.get('/api/booking/refund', async (req, res) => {
   console.log("🔥 REFUND ENDPOINT CALLED", new Date().toISOString(), "bookingId:", req.query.bookingId);
