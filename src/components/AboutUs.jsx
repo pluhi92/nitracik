@@ -801,12 +801,13 @@ const AboutUs = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
             <div>
               <h2 className="text-4xl sm:text-5xl font-extrabold mb-6 text-balance">
-                Objavte svet Messy & Sensory Play!
+                Objavte svet Nitráčika!
               </h2>
               <p className="text-lg text-neutral-600 mb-8 leading-relaxed">
-                Doprajte deťom radosť z tvorenia, farieb a zmyslového objavovania.
-                Čakajú ich hravé aktivity, ktoré podporujú kreativitu, jemnú motoriku
-                aj prirodzenú zvedavosť.
+                Nitráčik nie je len pre deti – ponúka zážitky pre celú rodinu.
+                Aj vy si u nás nájdete priestor na zábavu, oddych a rozvoj vlastnej
+                kreativity. Objavte hravé aktivity, pri ktorých si prídu na svoje
+                deti aj dospelí.
               </p>
 
               <div className="relative inline-flex items-center flex-wrap gap-4">

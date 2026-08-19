@@ -153,9 +153,18 @@ const ActivityDetail = () => {
 
   if (loading) {
     return (
-      <section className="min-h-[60vh] flex items-center justify-center px-4">
-        <p className="text-neutral-500 font-medium text-lg">Načítavam detail aktivity...</p>
-      </section>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center bg-white gap-6 px-4">
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#F4A5A5] animate-bounce" style={{ animationDelay: '0ms' }}></span>
+            <span className="w-2.5 h-2.5 rounded-full bg-[#eabd64] animate-bounce" style={{ animationDelay: '150ms' }}></span>
+            <span className="w-2.5 h-2.5 rounded-full bg-[#EFE4C8] animate-bounce" style={{ animationDelay: '300ms' }}></span>
+          </div>
+          <p className="text-sm font-bold text-neutral-400 uppercase tracking-[0.15em]">
+            Načítavam detail aktivity...
+          </p>
+        </div>
+      </div>
     );
   }
 
