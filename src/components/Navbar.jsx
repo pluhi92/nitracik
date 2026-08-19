@@ -304,7 +304,7 @@ const Navbar = () => {
       </nav>
 
       {/* Spacer to push page content below the fixed navbar (prevents carousel/content appearing under navbar) */}
-      <div aria-hidden className="h-[90px] lg:h-[90px]" />
+      <div aria-hidden className="h-[90px] lg:h-[90px] bg-white" />
     </>
   );
 };

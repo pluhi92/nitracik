@@ -9,6 +9,7 @@ import Navbar from './components/Navbar';
 import GreetingBar from './components/GreetingBar';
 import Foot from './components/Foot';
 import CookieConsent from './components/CookieConsent';
+import nitracikLogo from './assets/nitracik_svg2.svg';
 
 // Lazy loaded components
 const AboutUs = lazy(() => import('./components/AboutUs'));
@@ -74,8 +75,23 @@ const AppContent = () => {
 
       <main className="flex-grow">
         <Suspense fallback={
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="text-lg text-gray-600">Načítavam...</div>
+          <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-6">
+            <img
+              src={nitracikLogo}
+              alt="Nitráčik"
+              className="w-36 h-auto object-contain"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+            <div className="flex flex-col items-center gap-3">
+              <div className="flex gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#F4A5A5] animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                <span className="w-2.5 h-2.5 rounded-full bg-[#eabd64] animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                <span className="w-2.5 h-2.5 rounded-full bg-[#EFE4C8] animate-bounce" style={{ animationDelay: '300ms' }}></span>
+              </div>
+              <p className="text-sm font-bold text-neutral-400 uppercase tracking-[0.15em]">
+                Načítavam...
+              </p>
+            </div>
           </div>
         }>
           <Routes>
