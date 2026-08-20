@@ -104,7 +104,7 @@ const Navbar = () => {
         }`}
       >
       {/* Hlavný panel s Glassmorphism efektom */}
-      <div className="card-glass border-b-2 border-neutral-300 shadow-sm">
+      <div className="card-glass bg-white border-b-2 border-neutral-300 shadow-sm overflow-visible" style={{ contain: 'none' }}>
         <div className="container-custom flex items-center justify-between h-[90px]">
           
           {/* Logo */}
@@ -144,7 +144,7 @@ const Navbar = () => {
             </div>
 
             {/* User Dropdown */}
-            <div className="relative ml-2" ref={dropdownRef}>
+            <div className="relative z-20 ml-2" ref={dropdownRef}>
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 aria-expanded={isDropdownOpen}
@@ -160,7 +160,7 @@ const Navbar = () => {
 
               {isDropdownOpen && (
                 <div
-                  className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-elevated border-2 border-neutral-300 overflow-hidden py-2"
+                  className="absolute right-0 z-30 mt-3 w-56 bg-white rounded-2xl shadow-elevated border-2 border-neutral-300 overflow-hidden py-2"
                   style={{ animation: 'fadeInDown 0.15s ease-out' }}
                 >
                     {user.isLoggedIn ? (
@@ -221,7 +221,7 @@ const Navbar = () => {
       {/* Mobile Menu Dropdown */}
       {isMenuOpen && (
         <div
-          className="lg:hidden bg-white/95 backdrop-blur-xl border-b border-neutral-300 shadow-lg relative"
+          className="lg:hidden relative z-20 bg-white border-b border-neutral-300 shadow-lg"
           style={{ animation: 'fadeInDown 0.2s ease-out' }}
         >
             <div className="px-4 py-6 space-y-2 flex flex-col items-center text-center relative" style={{ isolation: 'isolate' }}>

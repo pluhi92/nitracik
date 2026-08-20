@@ -165,25 +165,42 @@ const Terms = () => {
 
           {/* Článok 6 */}
           <section>
-            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 6 Storno podmienky, refundácie a kredity</h2>
-            <p className="mb-2">6.1 Zákazník môže zrušiť potvrdenú rezerváciu výhradne prostredníctvom užívateľského účtu (v prípade nedostupnosti alebo zrušeného účtu aj e-mailom/telefonicky).</p>
-            <p className="mb-2">6.2 V prípade zrušenia rezervácie <strong className="text-foreground">viac ako 10 hodín pred začiatkom tréningu</strong> má zákazník možnosť voľby: presunutie rezervácie, refundácia platby, pripísanie kreditu alebo vrátenie vstupu na permanentku.</p>
-            <p className="mb-2">6.3 <strong className="text-foreground">Menej ako 10 hodín pred začiatkom tréningu</strong> storno rezervácie nie je možné.</p>
-            <p className="mb-2">6.4 V prípade zrušenia tréningu zo strany prevádzkovateľa má zákazník nárok na plnú refundáciu, kredit alebo vrátenie vstupu.</p>
-            <p>6.5 Technické zlyhania nemajú vplyv na platnosť rezervácie, ak bola platba úspešne spracovaná.</p>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 6 Darčekový poukaz</h2>
+            <p className="mb-2">6.1 Prevádzkovateľ ponúka zákazníkom možnosť zakúpiť si darčekový poukaz v nominálnej hodnote 15 €, 30 €, 50 € alebo 100 € prostredníctvom webu.</p>
+            <p className="mb-2">6.2 Darčekový poukaz je po úspešnom prijatí platby vystavený v elektronickej forme. Poukaz obsahuje jedinečný kód, nominálnu hodnotu a dátum platnosti.</p>
+            <p className="mb-2">6.3 Darčekový poukaz je platný 12 mesiacov odo dňa jeho vystavenia. Po uplynutí doby platnosti ho nie je možné použiť ani vymeniť za peňažnú náhradu.</p>
+            <p className="mb-2">6.4 Darčekový poukaz je možné uplatniť na úhradu ľubovoľnej aktivity z ponuky prevádzkovateľa pre deti aj dospelých, a to zadaním jeho jedinečného kódu pri rezervácii.</p>
+            <p className="mb-2">6.5 Darčekový poukaz je možné čerpať postupne. Pri každom použití sa z jeho zostatku odpočíta cena príslušnej rezervovanej služby, najviac však do výšky aktuálneho zostatku poukazu.</p>
+            <p className="mb-2">6.6 Ak hodnota rezervovanej služby presahuje zostatok darčekového poukazu, zákazník môže rozdiel doplatiť platobnou kartou prostredníctvom Stripe.</p>
+            <p className="mb-2">6.7 Ak je hodnota rezervovanej služby nižšia ako zostatok darčekového poukazu, nevyčerpaná časť zostáva k dispozícii na ďalšie použitie počas doby platnosti poukazu. Nevyčerpaný zostatok nie je možné vyplatiť v hotovosti ani inak refundovať.</p>
+            <p className="mb-2">6.8 Darčekový poukaz je prenosný a môže ho použiť osoba, ktorej bol darovaný, alebo iná osoba, ktorá disponuje jeho platným kódom. Zákazník je povinný chrániť kód poukazu pred zneužitím.</p>
+            <p className="mb-2">6.9 Po úplnom vyčerpaní hodnoty darčekového poukazu sa jeho stav zmení na použitý a poukaz už nie je možné ďalej uplatniť.</p>
+            <p>6.10 V prípade straty alebo neoprávneného sprístupnenia kódu darčekového poukazu je zákazník povinný bezodkladne kontaktovať prevádzkovateľa. Prevádzkovateľ nezodpovedá za použitie poukazu osobou, ktorá sa dostala k jeho kódu.</p>
           </section>
 
           <hr className="border-neutral-100" />
 
           {/* Článok 7 */}
           <section>
-            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 7 Pravidlá účasti a bezpečnosť (Messy Play)</h2>
-            <p className="mb-2">7.1 Aktivity sú senzorické a môžu viesť k znečisteniu odevu alebo pokožky.</p>
-            <p className="mb-2">7.2 Za bezpečnosť, zdravie a správanie dieťaťa zodpovedá výlučne zákonný zástupca alebo sprevádzajúca dospelá osoba, ktorý nemôže ponechať dieťa bez jeho dozoru počas celého trvania aktivity.</p>
-            <p className="mb-2">7.3 Prevádzkovateľ nezodpovedá za úrazy vzniknuté nedodržaním pokynov alebo v dôsledku povahy aktivít, pokiaľ neboli spôsobené porušením povinností prevádzkovateľa.</p>
-            <p className="mb-2">7.4 Prevádzkovateľ nezodpovedá za poškodenie alebo znehodnotenie odevu, obuvi ani osobných vecí účastníkov.</p>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 7 Storno podmienky, refundácie a kredity</h2>
+            <p className="mb-2">7.1 Zákazník môže zrušiť potvrdenú rezerváciu výhradne prostredníctvom užívateľského účtu (v prípade nedostupnosti alebo zrušeného účtu aj e-mailom/telefonicky).</p>
+            <p className="mb-2">7.2 V prípade zrušenia rezervácie <strong className="text-foreground">viac ako 10 hodín pred začiatkom tréningu</strong> má zákazník možnosť voľby: presunutie rezervácie, refundácia platby, pripísanie kreditu alebo vrátenie vstupu na permanentku.</p>
+            <p className="mb-2">7.3 <strong className="text-foreground">Menej ako 10 hodín pred začiatkom tréningu</strong> storno rezervácie nie je možné.</p>
+            <p className="mb-2">7.4 V prípade zrušenia tréningu zo strany prevádzkovateľa má zákazník nárok na plnú refundáciu, kredit alebo vrátenie vstupu.</p>
+            <p>7.5 Technické zlyhania nemajú vplyv na platnosť rezervácie, ak bola platba úspešne spracovaná.</p>
+          </section>
+
+          <hr className="border-neutral-100" />
+
+          {/* Článok 8 */}
+          <section>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 8 Pravidlá účasti a bezpečnosť (Messy Play)</h2>
+            <p className="mb-2">8.1 Aktivity sú senzorické a môžu viesť k znečisteniu odevu alebo pokožky.</p>
+            <p className="mb-2">8.2 Za bezpečnosť, zdravie a správanie dieťaťa zodpovedá výlučne zákonný zástupca alebo sprevádzajúca dospelá osoba, ktorý nemôže ponechať dieťa bez jeho dozoru počas celého trvania aktivity.</p>
+            <p className="mb-2">8.3 Prevádzkovateľ nezodpovedá za úrazy vzniknuté nedodržaním pokynov alebo v dôsledku povahy aktivít, pokiaľ neboli spôsobené porušením povinností prevádzkovateľa.</p>
+            <p className="mb-2">8.4 Prevádzkovateľ nezodpovedá za poškodenie alebo znehodnotenie odevu, obuvi ani osobných vecí účastníkov.</p>
             <div className="mb-2">
-              7.5 Účastníci sú povinní:
+              8.5 Účastníci sú povinní:
               <ul className="space-y-1 list-disc pl-5 mt-1 marker:text-primary">
                 <li>dodržiavať pokyny inštruktora,</li>
                 <li>neničiť vybavenie (“objavujeme, nie ničíme”),</li>
@@ -191,61 +208,61 @@ const Terms = () => {
                 <li>spolupracovať pri upratovaní priestoru po skončení aktivity.</li>
               </ul>
             </div>
-            <p>7.6 Zákazník vyhlasuje, že zdravotný stav dieťaťa umožňuje jeho účasť na kolektívnej aktivite.</p>
-          </section>
-
-          <hr className="border-neutral-100" />
-
-          {/* Článok 8 */}
-          <section>
-            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 8 Alergie, intolerancie a zdravotné obmedzenia</h2>
-            <p className="mb-2">8.1 Aktivity môžu zahŕňať použitie potravín, farieb, prírodných materiálov a látok, ktoré môžu predstavovať riziko pre osoby s alergiami.</p>
-            <p className="mb-2">8.2 Zákazník je povinný pred rezerváciou zvážiť zdravotný stav dieťaťa.</p>
-            <p className="mb-2">8.3 Prevádzkovateľ nezodpovedá za zdravotné komplikácie vzniknuté v dôsledku alergickej reakcie alebo intolerancie.</p>
-            <p className="mb-2">8.4 Ak má dieťa známe alergie, zodpovednosť za jeho účasť nesie výlučne zákonný zástupca.</p>
-            <p>8.5 Prevádzkovateľ môže na základe informácie od zákazníka primerane upraviť aktivitu, avšak negarantuje úplné vylúčenie alergénov.</p>
+            <p>8.6 Zákazník vyhlasuje, že zdravotný stav dieťaťa umožňuje jeho účasť na kolektívnej aktivite.</p>
           </section>
 
           <hr className="border-neutral-100" />
 
           {/* Článok 9 */}
           <section>
-            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 9 Fotografie, videozáznamy a súhlasy</h2>
-            <p className="mb-2">9.1 Počas tréningov môžu byť vyhotovované fotografie alebo videozáznamy.</p>
-            <p className="mb-2">9.2 Záznamy môžu byť použité na marketingové účely výlučne na základe výslovného a dobrovoľného súhlasu zákonného zástupcu.</p>
-            <p className="mb-2">9.3 Súhlas sa udeľuje v rezervačnom formulári.</p>
-            <p className="mb-2">9.4 Zákazník má právo súhlas kedykoľvek odvolať.</p>
-            <p>9.5 Ak zákazník súhlas neudelí alebo ho odvolá, prevádzkovateľ zabezpečí, aby dieťa nebolo na záznamoch identifikovateľné.</p>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 9 Alergie, intolerancie a zdravotné obmedzenia</h2>
+            <p className="mb-2">9.1 Aktivity môžu zahŕňať použitie potravín, farieb, prírodných materiálov a látok, ktoré môžu predstavovať riziko pre osoby s alergiami.</p>
+            <p className="mb-2">9.2 Zákazník je povinný pred rezerváciou zvážiť zdravotný stav dieťaťa.</p>
+            <p className="mb-2">9.3 Prevádzkovateľ nezodpovedá za zdravotné komplikácie vzniknuté v dôsledku alergickej reakcie alebo intolerancie.</p>
+            <p className="mb-2">9.4 Ak má dieťa známe alergie, zodpovednosť za jeho účasť nesie výlučne zákonný zástupca.</p>
+            <p>9.5 Prevádzkovateľ môže na základe informácie od zákazníka primerane upraviť aktivitu, avšak negarantuje úplné vylúčenie alergénov.</p>
           </section>
 
           <hr className="border-neutral-100" />
 
           {/* Článok 10 */}
           <section>
-            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 10 Technické a prevádzkové podmienky</h2>
-            <p className="mb-2">10.1 Prevádzkovateľ si vyhradzuje právo vykonávať údržbu systému, počas ktorej môže byť web nedostupný.</p>
-            <p className="mb-2">10.2 Dočasná nedostupnosť webu nezakladá nárok na náhradu škody.</p>
-            <p>10.3 Prevádzkovateľ používa primerané technické a organizačné opatrenia na ochranu systému.</p>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 10 Fotografie, videozáznamy a súhlasy</h2>
+            <p className="mb-2">10.1 Počas tréningov môžu byť vyhotovované fotografie alebo videozáznamy.</p>
+            <p className="mb-2">10.2 Záznamy môžu byť použité na marketingové účely výlučne na základe výslovného a dobrovoľného súhlasu zákonného zástupcu.</p>
+            <p className="mb-2">10.3 Súhlas sa udeľuje v rezervačnom formulári.</p>
+            <p className="mb-2">10.4 Zákazník má právo súhlas kedykoľvek odvolať.</p>
+            <p>10.5 Ak zákazník súhlas neudelí alebo ho odvolá, prevádzkovateľ zabezpečí, aby dieťa nebolo na záznamoch identifikovateľné.</p>
           </section>
 
           <hr className="border-neutral-100" />
 
           {/* Článok 11 */}
           <section>
-            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 11 Vyššia moc</h2>
-            <p className="mb-2">11.1 Prevádzkovateľ nenesie zodpovednosť za neplnenie povinností spôsobené vyššou mocou.</p>
-            <p className="mb-2">11.2 Za vyššiu moc sa považujú najmä: živelná pohroma, epidémia, rozhodnutia orgánov, vojnový stav, výpadok energií a iné.</p>
-            <p>11.3 V prípade vyššej moci má prevádzkovateľ právo tréning zrušiť alebo presunúť. Zákazníkovi bude ponúknutý náhradný termín alebo refundácia.</p>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 11 Technické a prevádzkové podmienky</h2>
+            <p className="mb-2">11.1 Prevádzkovateľ si vyhradzuje právo vykonávať údržbu systému, počas ktorej môže byť web nedostupný.</p>
+            <p className="mb-2">11.2 Dočasná nedostupnosť webu nezakladá nárok na náhradu škody.</p>
+            <p>11.3 Prevádzkovateľ používa primerané technické a organizačné opatrenia na ochranu systému.</p>
           </section>
 
           <hr className="border-neutral-100" />
 
           {/* Článok 12 */}
           <section>
-            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 12 Alternatívne riešenie sporov (ARS)</h2>
-            <p className="mb-2">12.1 Zákazník je oprávnený vytknúť vadu služby bez zbytočného odkladu, najneskôr do 3 dní od poskytnutia služby. Reklamácie budú vybavené do 30 dní.</p>
-            <p className="mb-2">12.2 Zákazník má právo podať žiadosť o nápravu, ak nie je spokojný s vybavením reklamácie.</p>
-            <p className="mb-2">12.3 Ak prevádzkovateľ na žiadosť o nápravu odpovie zamietavo alebo neodpovie do 30 dní, zákazník sa môže obrátiť na subjekt alternatívneho riešenia sporov (Slovenská obchodná inšpekcia).</p>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 12 Vyššia moc</h2>
+            <p className="mb-2">12.1 Prevádzkovateľ nenesie zodpovednosť za neplnenie povinností spôsobené vyššou mocou.</p>
+            <p className="mb-2">12.2 Za vyššiu moc sa považujú najmä: živelná pohroma, epidémia, rozhodnutia orgánov, vojnový stav, výpadok energií a iné.</p>
+            <p>12.3 V prípade vyššej moci má prevádzkovateľ právo tréning zrušiť alebo presunúť. Zákazníkovi bude ponúknutý náhradný termín alebo refundácia.</p>
+          </section>
+
+          <hr className="border-neutral-100" />
+
+          {/* Článok 13 */}
+          <section>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 13 Alternatívne riešenie sporov (ARS)</h2>
+            <p className="mb-2">13.1 Zákazník je oprávnený vytknúť vadu služby bez zbytočného odkladu, najneskôr do 3 dní od poskytnutia služby. Reklamácie budú vybavené do 30 dní.</p>
+            <p className="mb-2">13.2 Zákazník má právo podať žiadosť o nápravu, ak nie je spokojný s vybavením reklamácie.</p>
+            <p className="mb-2">13.3 Ak prevádzkovateľ na žiadosť o nápravu odpovie zamietavo alebo neodpovie do 30 dní, zákazník sa môže obrátiť na subjekt alternatívneho riešenia sporov (Slovenská obchodná inšpekcia).</p>
             <div className="flex flex-col items-start gap-2.5 my-3">
               <a href="https://www.soi.sk/alternativne-riesenie-spotrebitelskych-sporov" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-primary font-bold hover:underline">
                 <ArrowRight className="w-4 h-4 flex-shrink-0" />
@@ -256,17 +273,17 @@ const Terms = () => {
                 <span>Návrh na ARS cez Platformu RSO</span>
               </a>
             </div>
-            <p>12.6 Alternatívne riešenie sporov je bezodplatné (okrem zákonom stanovených prípadov).</p>
+            <p>13.6 Alternatívne riešenie sporov je bezodplatné (okrem zákonom stanovených prípadov).</p>
           </section>
 
           <hr className="border-neutral-100" />
 
-          {/* Článok 13 */}
+          {/* Článok 14 */}
           <section>
-            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 13 Záverečné ustanovenia</h2>
-            <p className="mb-2">13.1 Právne vzťahy neupravené týmito VOP sa spravujú Občianskym zákonníkom a zákonom o ochrane spotrebiteľa.</p>
-            <p className="mb-2">13.2 Prevádzkovateľ si vyhradzuje právo meniť VOP; zmeny nadobúdajú účinnosť ich zverejnením.</p>
-            <p>13.3 Tieto VOP nadobúdajú platnosť a účinnosť dňom 1. 2. 2026.</p>
+            <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 14 Záverečné ustanovenia</h2>
+            <p className="mb-2">14.1 Právne vzťahy neupravené týmito VOP sa spravujú Občianskym zákonníkom a zákonom o ochrane spotrebiteľa.</p>
+            <p className="mb-2">14.2 Prevádzkovateľ si vyhradzuje právo meniť VOP; zmeny nadobúdajú účinnosť ich zverejnením.</p>
+            <p>14.3 Tieto VOP nadobúdajú platnosť a účinnosť dňom 1. 2. 2026.</p>
           </section>
 
           <hr className="border-neutral-100" />

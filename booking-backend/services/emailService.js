@@ -2564,12 +2564,12 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
                   
                   <div class="step-item">
                     <span class="step-number">5</span>
-                    <span class="step-text">Ak je <strong>hodnota poukazu rovnaká alebo vyššia</strong> ako cena aktivity → rezervácia sa vytvorí <strong>automaticky bez nutnosti platby kartou</strong>.</span>
+                    <span class="step-text">Ak je <strong>hodnota poukazu rovnaká alebo vyššia</strong> ako cena aktivity → rezervácia sa vytvorí <strong>automaticky bez nutnosti platby kartou</strong>. Zvyšný zostatok na poukaze môžete využiť na ďalšiu aktivitu.</span>
                   </div>
                   
                   <div class="step-item">
                     <span class="step-number">6</span>
-                    <span class="step-text">Ak je <strong>hodnota poukazu nižšia</strong> ako cena aktivity → <strong>doplatíte kartou iba rozdiel</strong>. Zvyšný zostatok na poukaze môžete využiť na ďalšiu aktivitu.</span>
+                    <span class="step-text">Ak je <strong>hodnota poukazu nižšia</strong> ako cena aktivity → <strong>doplatíte kartou iba rozdiel</strong>.</span>
                   </div>
                 </div>
 
