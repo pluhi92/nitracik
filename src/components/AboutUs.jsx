@@ -676,8 +676,9 @@ const AboutUs = () => {
                   šťastné a slobodné.
                 </p>
                 <p className="text-neutral-500 text-sm sm:text-base leading-relaxed">
-                  Či už je to narodeninový darček, odmena za vysvedčenie alebo prekvapenie 
-                  bez dôvodu – poukaz poteší každé dieťa. Jednoduchý nákup online, 
+                  Darujte radosť svojim najbližším či kamarátom. V Nitráčiku nájdete
+                  aktivity nielen pre tých najmenších, ale aj pre dospelých – vďaka tomu
+                  je poukaz ideálnym darčekom pre celú rodinu. Jednoduchý nákup online, 
                   doručenie emailom a platnosť až 12 mesiacov.
                 </p>
               </div>
