@@ -36,6 +36,7 @@ const Foot = () => {
       description: "SENZORICKÉ-MOTORICKÉ-EDUKAČNÉ-LOGICKÉ POMÔCKY",
       url: "https://www.rajpredetisro.sk/",
       discount: "Nitracik10",
+      discountLabel: "-10%",
       image: "raj_pre_deti.png"
     },
     {
@@ -43,6 +44,7 @@ const Foot = () => {
       description: "Montessori pomôcky s láskou",
       url: "https://www.melian.sk",
       discount: "Nitracik10",
+      discountLabel: "-10%",
       image: "melian.png"
     },
     {
@@ -50,6 +52,7 @@ const Foot = () => {
       description: "Všetko pre vaše hravé detičky",
       url: "https://hravedeticky.sk/",
       discount: "Nitracik10",
+      discountLabel: "-10%",
       image: "hrave_deticky.png"
     },
     {
@@ -57,7 +60,25 @@ const Foot = () => {
       description: "Senzomotorické koberčeky",
       url: "https://www.cupilupi.sk/",
       discount: "Nitracik10",
+      discountLabel: "-10%",
       image: "cupilupi.png"
+    },
+    {
+      name: "Julivan",
+      description: "Kombinované kočíky, autosedačky a hračky",
+      url: "https://julivan.sk",
+      discount: "nitracik15",
+      discountLabel: "-15%",
+      image: "julivan.webp"
+    },
+    {
+      name: "Little Bee",
+      description: "Doplnky ku kočíkom Thule a senzomotorické pomôcky",
+      url: "https://little-bee.cz",
+      discount: "nitracik10",
+      discountLabel: "-10%",
+      discountNote: "pri nákupe nad 15 €",
+      image: "little-bee.webp"
     }
   ];
 
@@ -259,14 +280,19 @@ const Foot = () => {
                   </a>
                 </div>
 
-                <div className="bg-neutral-50 border border-neutral-200/60 rounded-xl p-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">Zľavový kód</p>
-                    <p className="text-sm font-extrabold text-primary">{partner.discount}</p>
+                <div className="bg-neutral-50 border border-neutral-200/60 rounded-xl p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">Zľavový kód</p>
+                      <p className="text-sm font-extrabold text-primary">{partner.discount}</p>
+                    </div>
+                    <span className="text-xs bg-primary/10 text-primary font-bold px-2.5 py-1 rounded-full">
+                      {partner.discountLabel}
+                    </span>
                   </div>
-                  <span className="text-xs bg-primary/10 text-primary font-bold px-2.5 py-1 rounded-full">
-                    -10%
-                  </span>
+                  {partner.discountNote && (
+                    <p className="text-[11px] font-semibold text-neutral-500 mt-1.5">{partner.discountNote}</p>
+                  )}
                 </div>
               </div>
             ))}

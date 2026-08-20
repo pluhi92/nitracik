@@ -57,6 +57,7 @@ const GiftCard = () => {
   const [honeypot, setHoneypot] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [validationErrors, setValidationErrors] = useState({});
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState(null);
 
@@ -151,9 +152,28 @@ const GiftCard = () => {
   };
 
   // ── Confirm modal: show recap then proceed ──
+  const clearValidationError = (field) => {
+    setValidationErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
   const handleFormSubmit = (e) => {
     e.preventDefault();
-    if (!isSubmitDisabled) {
+
+    const errors = {};
+    if (!selectedAmount) errors.amount = true;
+    if (!recipientName.trim()) errors.recipientName = true;
+    if (!buyerName.trim()) errors.buyerName = true;
+    if (!buyerEmail.trim()) errors.buyerEmail = true;
+    if (!tocAccepted) errors.tocAccepted = true;
+
+    setValidationErrors(errors);
+
+    if (Object.keys(errors).length === 0) {
       setShowConfirmModal(true);
     }
   };
@@ -254,13 +274,11 @@ const GiftCard = () => {
     }
   };
 
-  // ── Submit disabled condition ──
-  const isSubmitDisabled = !selectedAmount || !recipientName.trim() || !buyerEmail.trim() || !buyerName.trim() || !tocAccepted || loading;
-
   // ── Render: Success screen ──
   if (isSuccessRoute) {
     return (
-      <section className="py-12 md:py-20 container-custom max-w-4xl mx-auto px-4 sm:px-6 relative">
+      <div className="relative w-full bg-white">
+        <section className="py-12 md:py-20 container-custom max-w-4xl mx-auto px-4 sm:px-6 relative">
         {successLoading && (
           <div className="flex flex-col items-center justify-center min-h-[300px] gap-6">
             <img
@@ -393,14 +411,16 @@ const GiftCard = () => {
             </div>
           </div>
         )}
-      </section>
+        </section>
+      </div>
     );
   }
 
   // ── Render: Purchase form ──
   return (
-    <section className="py-12 md:py-20 container-custom max-w-2xl mx-auto px-4 sm:px-6 relative">
-      <form onSubmit={handleFormSubmit}>
+    <div className="relative w-full bg-white">
+      <section className="py-12 md:py-20 container-custom max-w-2xl mx-auto px-4 sm:px-6 relative">
+        <form onSubmit={handleFormSubmit} noValidate>
         {/* ── CARD 1: Gift card details ── */}
         <div className="relative">
           <img
@@ -428,14 +448,17 @@ const GiftCard = () => {
           </p>
 
           {/* Amount selector - 2x2 grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 ${validationErrors.amount ? 'rounded-2xl border-2 border-red-300 bg-red-50/30 p-3' : ''}`}>
             {AMOUNTS.map((item) => {
               const isSelected = selectedAmount === item.value;
               return (
                 <button
                   key={item.value}
                   type="button"
-                  onClick={() => setSelectedAmount(item.value)}
+                  onClick={() => {
+                    setSelectedAmount(item.value);
+                    clearValidationError('amount');
+                  }}
                   className={`
                     relative rounded-2xl border-2 min-h-[100px] flex flex-col items-center justify-center
                     transition-all duration-200 p-3
@@ -469,6 +492,11 @@ const GiftCard = () => {
               );
             })}
           </div>
+          {validationErrors.amount && (
+            <p className="text-red-500 text-xs font-semibold -mt-3 mb-4">
+              Prosím vyberte sumu poukazu.
+            </p>
+          )}
 
           {/* Recipient name */}
           <div className="mb-4">
@@ -478,11 +506,23 @@ const GiftCard = () => {
             <input
               type="text"
               value={recipientName}
-              onChange={(e) => setRecipientName(e.target.value)}
+              onChange={(e) => {
+                setRecipientName(e.target.value);
+                if (e.target.value.trim()) clearValidationError('recipientName');
+              }}
               placeholder="Meno obdarovaného"
               required
-              className="w-full rounded-2xl border-2 border-neutral-200 px-4 py-3 text-sm font-medium text-foreground placeholder-neutral-400 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all"
+              className={`w-full rounded-2xl border-2 px-4 py-3 text-sm font-medium text-foreground placeholder-neutral-400 focus:outline-none transition-all ${
+                validationErrors.recipientName
+                  ? 'border-red-400 focus:border-red-400 focus:ring-2 focus:ring-red-100 bg-red-50/40'
+                  : 'border-neutral-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-100'
+              }`}
             />
+            {validationErrors.recipientName && (
+              <p className="text-red-500 text-xs font-semibold mt-1.5">
+                Prosím vyplňte meno obdarovaného.
+              </p>
+            )}
           </div>
 
           {/* Message textarea */}
@@ -564,11 +604,23 @@ const GiftCard = () => {
             <input
               type="text"
               value={buyerName}
-              onChange={(e) => setBuyerName(e.target.value)}
+              onChange={(e) => {
+                setBuyerName(e.target.value);
+                if (e.target.value.trim()) clearValidationError('buyerName');
+              }}
               placeholder="Vaše meno a priezvisko"
               required
-              className="w-full rounded-2xl border-2 border-neutral-200 px-4 py-3 text-sm font-medium text-foreground placeholder-neutral-400 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all"
+              className={`w-full rounded-2xl border-2 px-4 py-3 text-sm font-medium text-foreground placeholder-neutral-400 focus:outline-none transition-all ${
+                validationErrors.buyerName
+                  ? 'border-red-400 focus:border-red-400 focus:ring-2 focus:ring-red-100 bg-red-50/40'
+                  : 'border-neutral-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-100'
+              }`}
             />
+            {validationErrors.buyerName && (
+              <p className="text-red-500 text-xs font-semibold mt-1.5">
+                Prosím vyplňte vaše meno.
+              </p>
+            )}
           </div>
 
           {/* Logged in: readonly email */}
@@ -593,11 +645,23 @@ const GiftCard = () => {
               <input
                 type="email"
                 value={buyerEmail}
-                onChange={(e) => setBuyerEmail(e.target.value)}
+                onChange={(e) => {
+                  setBuyerEmail(e.target.value);
+                  if (e.target.value.trim()) clearValidationError('buyerEmail');
+                }}
                 placeholder="Váš email"
                 required
-                className="w-full rounded-2xl border-2 border-neutral-200 px-4 py-3 text-sm font-medium text-foreground placeholder-neutral-400 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 transition-all"
+                className={`w-full rounded-2xl border-2 px-4 py-3 text-sm font-medium text-foreground placeholder-neutral-400 focus:outline-none transition-all ${
+                  validationErrors.buyerEmail
+                    ? 'border-red-400 focus:border-red-400 focus:ring-2 focus:ring-red-100 bg-red-50/40'
+                    : 'border-neutral-200 focus:border-amber-400 focus:ring-2 focus:ring-amber-100'
+                }`}
               />
+              {validationErrors.buyerEmail && (
+                <p className="text-red-500 text-xs font-semibold mt-1.5">
+                  Prosím zadajte váš email.
+                </p>
+              )}
             </div>
           )}
 
@@ -615,11 +679,14 @@ const GiftCard = () => {
 
           {/* VOP checkbox */}
           <div className="mb-6">
-            <label className="flex items-start gap-3 cursor-pointer">
+            <label className={`flex items-start gap-3 cursor-pointer ${validationErrors.tocAccepted ? 'rounded-2xl border-2 border-red-300 bg-red-50/40 p-3' : ''}`}>
               <input
                 type="checkbox"
                 checked={tocAccepted}
-                onChange={(e) => setTocAccepted(e.target.checked)}
+                onChange={(e) => {
+                  setTocAccepted(e.target.checked);
+                  if (e.target.checked) clearValidationError('tocAccepted');
+                }}
                 className="mt-0.5 w-4 h-4 rounded border-neutral-300 text-amber-500 focus:ring-amber-400 focus:ring-2 accent-amber-500"
               />
               <span className="text-sm text-neutral-600 leading-relaxed">
@@ -634,6 +701,11 @@ const GiftCard = () => {
                 </a>
               </span>
             </label>
+            {validationErrors.tocAccepted && (
+              <p className="text-red-500 text-xs font-semibold mt-1.5">
+                Prosím odsúhlaste obchodné podmienky.
+              </p>
+            )}
           </div>
 
           {/* Summary box */}
@@ -669,12 +741,8 @@ const GiftCard = () => {
           {/* Submit button */}
           <button
             type="submit"
-            disabled={isSubmitDisabled}
-            className={`
-              w-full bg-amber-400 hover:bg-amber-500 text-white font-bold rounded-2xl px-8 py-4
-              transition-all duration-200 flex items-center justify-center gap-2
-              ${isSubmitDisabled ? 'opacity-50 cursor-not-allowed' : ''}
-            `}
+            disabled={loading}
+            className="w-full bg-amber-400 hover:bg-amber-500 text-white font-bold rounded-2xl px-8 py-4 transition-all duration-200 flex items-center justify-center gap-2"
           >
             {loading ? (
               <Spinner animation="border" size="sm" />
@@ -686,7 +754,7 @@ const GiftCard = () => {
             )}
           </button>
         </div>
-      </form>
+        </form>
 
       {/* ── Confirmation Modal ── */}
       {showConfirmModal && (
@@ -802,7 +870,8 @@ const GiftCard = () => {
           </div>
         </div>
       )}
-    </section>
+      </section>
+    </div>
   );
 };
 
