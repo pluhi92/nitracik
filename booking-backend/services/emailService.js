@@ -2354,7 +2354,7 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
                   <p style="margin: 0 0 12px 0;">Budeme veľmi radi, ak nám zanecháte krátku recenziu na Google.</p>
                   <a href="${GOOGLE_REVIEW_URL}" class="btn-verify">Napísať recenziu na Google ⭐</a>
                   <div style="margin-top:16px">
-                    <a href="https://nitracik.sk/api/review/unsubscribe?token=${unsubscribeToken}"
+                    <a href="${process.env.BACKEND_URL}/api/review/unsubscribe?token=${unsubscribeToken}"
                        style="color:#999;font-size:13px;text-decoration:underline">
                       Už som dal hodnotenie
                     </a>
