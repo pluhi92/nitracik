@@ -5496,6 +5496,55 @@ app.delete('/api/users/:id', async (req, res) => {
   }
 });
 
+// === REVIEW OPT-OUT ENDPOINT ===
+const jwt = require('jsonwebtoken');
+
+app.get('/api/review/unsubscribe', async (req, res) => {
+  const { token } = req.query;
+
+  if (!token) {
+    return res.status(400).send(`
+      <html><body style="font-family:sans-serif;text-align:center;padding:60px">
+        <h2>Neplatný odkaz.</h2>
+      </body></html>
+    `);
+  }
+
+  let userId;
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    userId = decoded.userId;
+  } catch (err) {
+    return res.status(400).send(`
+      <html><body style="font-family:sans-serif;text-align:center;padding:60px">
+        <h2>Odkaz je neplatný alebo vypršal.</h2>
+      </body></html>
+    `);
+  }
+
+  try {
+    await pool.query(
+      'UPDATE users SET review_email_opt_out = true WHERE id = $1',
+      [userId]
+    );
+
+    return res.send(`
+      <html><body style="font-family:sans-serif;text-align:center;padding:60px">
+        <h2>Ďakujeme za vaše hodnotenie! 🙏</h2>
+        <p>Tento mail už v budúcnosti nedostanete.</p>
+        <p><a href="https://nitracik.sk">Späť na Nitráčik</a></p>
+      </body></html>
+    `);
+  } catch (err) {
+    console.error('[REVIEW OPT-OUT] DB error:', err.message);
+    return res.status(500).send(`
+      <html><body style="font-family:sans-serif;text-align:center;padding:60px">
+        <h2>Nastala chyba. Skúste prosím neskôr.</h2>
+      </body></html>
+    `);
+  }
+});
+
 // === PENDING PAYMENT CLEANUP ===
 // Run every 6 hours to clean up old pending payments (older than 24 hours)
 setInterval(async () => {
@@ -5537,6 +5586,7 @@ setInterval(async () => {
     const result = await client.query(`
 SELECT
   b.id AS booking_id,
+  u.id AS user_id,
   u.email,
   u.first_name,
   ta.training_date,
@@ -5548,14 +5598,22 @@ JOIN training_availability ta ON b.training_id = ta.id
 JOIN training_types tt ON ta.training_type_id = tt.id
 WHERE b.active = true
   AND b.review_email_sent_at IS NULL
+  AND u.review_email_opt_out = false
   AND (ta.training_date + (tt.duration_minutes * INTERVAL '1 minute') + INTERVAL '1 hour') <= NOW()
     `);
 
     for (const row of result.rows) {
       try {
+        const unsubscribeToken = jwt.sign(
+          { userId: row.user_id },
+          process.env.JWT_SECRET,
+          { expiresIn: '90d' }
+        );
+
         await emailService.sendReviewRequestEmail(row.email, row.first_name, {
           trainingType: row.training_type,
           trainingDate: row.training_date,
+          unsubscribeToken,
         });
 
         await client.query(

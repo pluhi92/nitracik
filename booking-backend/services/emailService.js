@@ -2318,6 +2318,7 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
 
   sendReviewRequestEmail: async (userEmail, firstName, trainingData) => {
     const formattedTrainingDate = dayjs(trainingData.trainingDate).utc().tz('Europe/Bratislava').format('DD.MM.YYYY (dddd) HH:mm');
+    const unsubscribeToken = trainingData.unsubscribeToken;
 
     const mailOptions = {
       from: SENDER,
@@ -2352,6 +2353,12 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
                 <div class="highlight-box">
                   <p style="margin: 0 0 12px 0;">Budeme veľmi radi, ak nám zanecháte krátku recenziu na Google.</p>
                   <a href="${GOOGLE_REVIEW_URL}" class="btn-verify">Napísať recenziu na Google ⭐</a>
+                  <div style="margin-top:16px">
+                    <a href="https://nitracik.sk/api/review/unsubscribe?token=${unsubscribeToken}"
+                       style="color:#999;font-size:13px;text-decoration:underline">
+                      Už som dal hodnotenie
+                    </a>
+                  </div>
                   <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(GOOGLE_REVIEW_URL)}" alt="QR kód pre Google recenziu" style="display: block; margin: 12px auto 6px auto; width: 150px; height: 150px;"/>
                   <p style="margin: 0; font-size: 12px; color: #6b7280; text-align: center;">Alebo naskenujte QR kód</p>
                 </div>

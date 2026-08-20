@@ -18293,6 +18293,7 @@ export namespace Prisma {
     updated_at: Date | null
     mobile: string | null
     marketing_consent: boolean | null
+    review_email_opt_out: boolean | null
   }
 
   export type UsersMaxAggregateOutputType = {
@@ -18310,6 +18311,7 @@ export namespace Prisma {
     updated_at: Date | null
     mobile: string | null
     marketing_consent: boolean | null
+    review_email_opt_out: boolean | null
   }
 
   export type UsersCountAggregateOutputType = {
@@ -18327,6 +18329,7 @@ export namespace Prisma {
     updated_at: number
     mobile: number
     marketing_consent: number
+    review_email_opt_out: number
     _all: number
   }
 
@@ -18354,6 +18357,7 @@ export namespace Prisma {
     updated_at?: true
     mobile?: true
     marketing_consent?: true
+    review_email_opt_out?: true
   }
 
   export type UsersMaxAggregateInputType = {
@@ -18371,6 +18375,7 @@ export namespace Prisma {
     updated_at?: true
     mobile?: true
     marketing_consent?: true
+    review_email_opt_out?: true
   }
 
   export type UsersCountAggregateInputType = {
@@ -18388,6 +18393,7 @@ export namespace Prisma {
     updated_at?: true
     mobile?: true
     marketing_consent?: true
+    review_email_opt_out?: true
     _all?: true
   }
 
@@ -18492,6 +18498,7 @@ export namespace Prisma {
     updated_at: Date | null
     mobile: string | null
     marketing_consent: boolean | null
+    review_email_opt_out: boolean
     _count: UsersCountAggregateOutputType | null
     _avg: UsersAvgAggregateOutputType | null
     _sum: UsersSumAggregateOutputType | null
@@ -18528,6 +18535,7 @@ export namespace Prisma {
     updated_at?: boolean
     mobile?: boolean
     marketing_consent?: boolean
+    review_email_opt_out?: boolean
     bookings?: boolean | users$bookingsArgs<ExtArgs>
     credits?: boolean | users$creditsArgs<ExtArgs>
     season_tickets?: boolean | users$season_ticketsArgs<ExtArgs>
@@ -18550,6 +18558,7 @@ export namespace Prisma {
     updated_at?: boolean
     mobile?: boolean
     marketing_consent?: boolean
+    review_email_opt_out?: boolean
   }, ExtArgs["result"]["users"]>
 
   export type usersSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -18567,6 +18576,7 @@ export namespace Prisma {
     updated_at?: boolean
     mobile?: boolean
     marketing_consent?: boolean
+    review_email_opt_out?: boolean
   }, ExtArgs["result"]["users"]>
 
   export type usersSelectScalar = {
@@ -18584,9 +18594,10 @@ export namespace Prisma {
     updated_at?: boolean
     mobile?: boolean
     marketing_consent?: boolean
+    review_email_opt_out?: boolean
   }
 
-  export type usersOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "first_name" | "last_name" | "email" | "password" | "address" | "verification_token" | "verified" | "reset_token" | "role" | "created_at" | "updated_at" | "mobile" | "marketing_consent", ExtArgs["result"]["users"]>
+  export type usersOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "first_name" | "last_name" | "email" | "password" | "address" | "verification_token" | "verified" | "reset_token" | "role" | "created_at" | "updated_at" | "mobile" | "marketing_consent" | "review_email_opt_out", ExtArgs["result"]["users"]>
   export type usersInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     bookings?: boolean | users$bookingsArgs<ExtArgs>
     credits?: boolean | users$creditsArgs<ExtArgs>
@@ -18620,6 +18631,7 @@ export namespace Prisma {
       updated_at: Date | null
       mobile: string | null
       marketing_consent: boolean | null
+      review_email_opt_out: boolean
     }, ExtArgs["result"]["users"]>
     composites: {}
   }
@@ -19061,6 +19073,7 @@ export namespace Prisma {
     readonly updated_at: FieldRef<"users", 'DateTime'>
     readonly mobile: FieldRef<"users", 'String'>
     readonly marketing_consent: FieldRef<"users", 'Boolean'>
+    readonly review_email_opt_out: FieldRef<"users", 'Boolean'>
   }
     
 
@@ -26429,7 +26442,8 @@ export namespace Prisma {
     created_at: 'created_at',
     updated_at: 'updated_at',
     mobile: 'mobile',
-    marketing_consent: 'marketing_consent'
+    marketing_consent: 'marketing_consent',
+    review_email_opt_out: 'review_email_opt_out'
   };
 
   export type UsersScalarFieldEnum = (typeof UsersScalarFieldEnum)[keyof typeof UsersScalarFieldEnum]
@@ -27685,6 +27699,7 @@ export namespace Prisma {
     updated_at?: DateTimeNullableFilter<"users"> | Date | string | null
     mobile?: StringNullableFilter<"users"> | string | null
     marketing_consent?: BoolNullableFilter<"users"> | boolean | null
+    review_email_opt_out?: BoolFilter<"users"> | boolean
     bookings?: BookingsListRelationFilter
     credits?: CreditsListRelationFilter
     season_tickets?: Season_ticketsListRelationFilter
@@ -27706,6 +27721,7 @@ export namespace Prisma {
     updated_at?: SortOrderInput | SortOrder
     mobile?: SortOrderInput | SortOrder
     marketing_consent?: SortOrderInput | SortOrder
+    review_email_opt_out?: SortOrder
     bookings?: bookingsOrderByRelationAggregateInput
     credits?: creditsOrderByRelationAggregateInput
     season_tickets?: season_ticketsOrderByRelationAggregateInput
@@ -27730,6 +27746,7 @@ export namespace Prisma {
     updated_at?: DateTimeNullableFilter<"users"> | Date | string | null
     mobile?: StringNullableFilter<"users"> | string | null
     marketing_consent?: BoolNullableFilter<"users"> | boolean | null
+    review_email_opt_out?: BoolFilter<"users"> | boolean
     bookings?: BookingsListRelationFilter
     credits?: CreditsListRelationFilter
     season_tickets?: Season_ticketsListRelationFilter
@@ -27751,6 +27768,7 @@ export namespace Prisma {
     updated_at?: SortOrderInput | SortOrder
     mobile?: SortOrderInput | SortOrder
     marketing_consent?: SortOrderInput | SortOrder
+    review_email_opt_out?: SortOrder
     _count?: usersCountOrderByAggregateInput
     _avg?: usersAvgOrderByAggregateInput
     _max?: usersMaxOrderByAggregateInput
@@ -27776,6 +27794,7 @@ export namespace Prisma {
     updated_at?: DateTimeNullableWithAggregatesFilter<"users"> | Date | string | null
     mobile?: StringNullableWithAggregatesFilter<"users"> | string | null
     marketing_consent?: BoolNullableWithAggregatesFilter<"users"> | boolean | null
+    review_email_opt_out?: BoolWithAggregatesFilter<"users"> | boolean
   }
 
   export type blog_labelsWhereInput = {
@@ -29238,6 +29257,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     mobile?: string | null
     marketing_consent?: boolean | null
+    review_email_opt_out?: boolean
     bookings?: bookingsCreateNestedManyWithoutUsersInput
     credits?: creditsCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsCreateNestedManyWithoutUsersInput
@@ -29259,6 +29279,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     mobile?: string | null
     marketing_consent?: boolean | null
+    review_email_opt_out?: boolean
     bookings?: bookingsUncheckedCreateNestedManyWithoutUsersInput
     credits?: creditsUncheckedCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsUncheckedCreateNestedManyWithoutUsersInput
@@ -29279,6 +29300,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    review_email_opt_out?: BoolFieldUpdateOperationsInput | boolean
     bookings?: bookingsUpdateManyWithoutUsersNestedInput
     credits?: creditsUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUpdateManyWithoutUsersNestedInput
@@ -29300,6 +29322,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    review_email_opt_out?: BoolFieldUpdateOperationsInput | boolean
     bookings?: bookingsUncheckedUpdateManyWithoutUsersNestedInput
     credits?: creditsUncheckedUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUncheckedUpdateManyWithoutUsersNestedInput
@@ -29321,6 +29344,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     mobile?: string | null
     marketing_consent?: boolean | null
+    review_email_opt_out?: boolean
   }
 
   export type usersUpdateManyMutationInput = {
@@ -29337,6 +29361,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    review_email_opt_out?: BoolFieldUpdateOperationsInput | boolean
   }
 
   export type usersUncheckedUpdateManyInput = {
@@ -29354,6 +29379,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    review_email_opt_out?: BoolFieldUpdateOperationsInput | boolean
   }
 
   export type blog_labelsCreateInput = {
@@ -30853,6 +30879,7 @@ export namespace Prisma {
     updated_at?: SortOrder
     mobile?: SortOrder
     marketing_consent?: SortOrder
+    review_email_opt_out?: SortOrder
   }
 
   export type usersAvgOrderByAggregateInput = {
@@ -30874,6 +30901,7 @@ export namespace Prisma {
     updated_at?: SortOrder
     mobile?: SortOrder
     marketing_consent?: SortOrder
+    review_email_opt_out?: SortOrder
   }
 
   export type usersMinOrderByAggregateInput = {
@@ -30891,6 +30919,7 @@ export namespace Prisma {
     updated_at?: SortOrder
     mobile?: SortOrder
     marketing_consent?: SortOrder
+    review_email_opt_out?: SortOrder
   }
 
   export type usersSumOrderByAggregateInput = {
@@ -32678,6 +32707,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     mobile?: string | null
     marketing_consent?: boolean | null
+    review_email_opt_out?: boolean
     credits?: creditsCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsCreateNestedManyWithoutUsersInput
     saved_gift_cards?: user_saved_gift_cardsCreateNestedManyWithoutUsersInput
@@ -32698,6 +32728,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     mobile?: string | null
     marketing_consent?: boolean | null
+    review_email_opt_out?: boolean
     credits?: creditsUncheckedCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsUncheckedCreateNestedManyWithoutUsersInput
     saved_gift_cards?: user_saved_gift_cardsUncheckedCreateNestedManyWithoutUsersInput
@@ -32861,6 +32892,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    review_email_opt_out?: BoolFieldUpdateOperationsInput | boolean
     credits?: creditsUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUpdateManyWithoutUsersNestedInput
     saved_gift_cards?: user_saved_gift_cardsUpdateManyWithoutUsersNestedInput
@@ -32881,6 +32913,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    review_email_opt_out?: BoolFieldUpdateOperationsInput | boolean
     credits?: creditsUncheckedUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUncheckedUpdateManyWithoutUsersNestedInput
     saved_gift_cards?: user_saved_gift_cardsUncheckedUpdateManyWithoutUsersNestedInput
@@ -33099,6 +33132,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     mobile?: string | null
     marketing_consent?: boolean | null
+    review_email_opt_out?: boolean
     bookings?: bookingsCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsCreateNestedManyWithoutUsersInput
     saved_gift_cards?: user_saved_gift_cardsCreateNestedManyWithoutUsersInput
@@ -33119,6 +33153,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     mobile?: string | null
     marketing_consent?: boolean | null
+    review_email_opt_out?: boolean
     bookings?: bookingsUncheckedCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsUncheckedCreateNestedManyWithoutUsersInput
     saved_gift_cards?: user_saved_gift_cardsUncheckedCreateNestedManyWithoutUsersInput
@@ -33235,6 +33270,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    review_email_opt_out?: BoolFieldUpdateOperationsInput | boolean
     bookings?: bookingsUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUpdateManyWithoutUsersNestedInput
     saved_gift_cards?: user_saved_gift_cardsUpdateManyWithoutUsersNestedInput
@@ -33255,6 +33291,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    review_email_opt_out?: BoolFieldUpdateOperationsInput | boolean
     bookings?: bookingsUncheckedUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUncheckedUpdateManyWithoutUsersNestedInput
     saved_gift_cards?: user_saved_gift_cardsUncheckedUpdateManyWithoutUsersNestedInput
@@ -34010,6 +34047,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     mobile?: string | null
     marketing_consent?: boolean | null
+    review_email_opt_out?: boolean
     bookings?: bookingsCreateNestedManyWithoutUsersInput
     credits?: creditsCreateNestedManyWithoutUsersInput
     saved_gift_cards?: user_saved_gift_cardsCreateNestedManyWithoutUsersInput
@@ -34030,6 +34068,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     mobile?: string | null
     marketing_consent?: boolean | null
+    review_email_opt_out?: boolean
     bookings?: bookingsUncheckedCreateNestedManyWithoutUsersInput
     credits?: creditsUncheckedCreateNestedManyWithoutUsersInput
     saved_gift_cards?: user_saved_gift_cardsUncheckedCreateNestedManyWithoutUsersInput
@@ -34107,6 +34146,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    review_email_opt_out?: BoolFieldUpdateOperationsInput | boolean
     bookings?: bookingsUpdateManyWithoutUsersNestedInput
     credits?: creditsUpdateManyWithoutUsersNestedInput
     saved_gift_cards?: user_saved_gift_cardsUpdateManyWithoutUsersNestedInput
@@ -34127,6 +34167,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    review_email_opt_out?: BoolFieldUpdateOperationsInput | boolean
     bookings?: bookingsUncheckedUpdateManyWithoutUsersNestedInput
     credits?: creditsUncheckedUpdateManyWithoutUsersNestedInput
     saved_gift_cards?: user_saved_gift_cardsUncheckedUpdateManyWithoutUsersNestedInput
@@ -35125,6 +35166,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     mobile?: string | null
     marketing_consent?: boolean | null
+    review_email_opt_out?: boolean
     bookings?: bookingsCreateNestedManyWithoutUsersInput
     credits?: creditsCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsCreateNestedManyWithoutUsersInput
@@ -35145,6 +35187,7 @@ export namespace Prisma {
     updated_at?: Date | string | null
     mobile?: string | null
     marketing_consent?: boolean | null
+    review_email_opt_out?: boolean
     bookings?: bookingsUncheckedCreateNestedManyWithoutUsersInput
     credits?: creditsUncheckedCreateNestedManyWithoutUsersInput
     season_tickets?: season_ticketsUncheckedCreateNestedManyWithoutUsersInput
@@ -35220,6 +35263,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    review_email_opt_out?: BoolFieldUpdateOperationsInput | boolean
     bookings?: bookingsUpdateManyWithoutUsersNestedInput
     credits?: creditsUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUpdateManyWithoutUsersNestedInput
@@ -35240,6 +35284,7 @@ export namespace Prisma {
     updated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     mobile?: NullableStringFieldUpdateOperationsInput | string | null
     marketing_consent?: NullableBoolFieldUpdateOperationsInput | boolean | null
+    review_email_opt_out?: BoolFieldUpdateOperationsInput | boolean
     bookings?: bookingsUncheckedUpdateManyWithoutUsersNestedInput
     credits?: creditsUncheckedUpdateManyWithoutUsersNestedInput
     season_tickets?: season_ticketsUncheckedUpdateManyWithoutUsersNestedInput

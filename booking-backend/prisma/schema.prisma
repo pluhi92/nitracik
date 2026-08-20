@@ -221,6 +221,7 @@ model users {
   updated_at         DateTime?        @default(now()) @db.Timestamptz(6)
   mobile             String?          @db.VarChar(20)
   marketing_consent  Boolean?
+  review_email_opt_out  Boolean  @default(false)
   bookings           bookings[]
   credits            credits[]
   season_tickets     season_tickets[]

@@ -284,7 +284,8 @@ exports.Prisma.UsersScalarFieldEnum = {
   created_at: 'created_at',
   updated_at: 'updated_at',
   mobile: 'mobile',
-  marketing_consent: 'marketing_consent'
+  marketing_consent: 'marketing_consent',
+  review_email_opt_out: 'review_email_opt_out'
 };
 
 exports.Prisma.Blog_labelsScalarFieldEnum = {
