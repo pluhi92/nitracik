@@ -9,6 +9,7 @@ import Navbar from './components/Navbar';
 import GreetingBar from './components/GreetingBar';
 import Foot from './components/Foot';
 import CookieConsent from './components/CookieConsent';
+import ReviewThankYou from './components/ReviewThankYou';
 import nitracikLogo from './assets/nitracik_svg2.svg';
 
 // Lazy loaded components
@@ -127,6 +128,7 @@ const AppContent = () => {
             <Route path="/blog/:slug" element={<BlogArticle />} />
             <Route path="/gift-card" element={<GiftCard />} />
             <Route path="/gift-card/success" element={<GiftCard />} />
+            <Route path="/hodnotenie" element={<ReviewThankYou />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

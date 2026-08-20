@@ -2347,14 +2347,14 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
               </div>
               <div class="content">
                 <p style="font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: left;">Dobrý deň, ${firstName}.</p>
-                <p>Dúfame, že si hodina ${trainingData.trainingType} bola plná zábavy a krásnych chvíľ! Vaša spätná väzba je pre nás veľmi dôležitá.</p>
+                <p>Dúfame, že hodina ${trainingData.trainingType} bola plná zábavy a krásnych chvíľ! Vaša spätná väzba je pre nás veľmi dôležitá.</p>
                 <p style="margin-bottom: 0;"><strong>Termín hodiny:</strong> ${formattedTrainingDate}</p>
 
                 <div class="highlight-box">
                   <p style="margin: 0 0 12px 0;">Budeme veľmi radi, ak nám zanecháte krátku recenziu na Google.</p>
                   <a href="${GOOGLE_REVIEW_URL}" class="btn-verify">Napísať recenziu na Google ⭐</a>
                   <div style="margin-top:16px">
-                    <a href="${process.env.BACKEND_URL}/api/review/unsubscribe?token=${unsubscribeToken}"
+                    <a href="${process.env.FRONTEND_URL}/hodnotenie?token=${unsubscribeToken}"
                        style="color:#999;font-size:13px;text-decoration:underline">
                       Už som dal hodnotenie
                     </a>
