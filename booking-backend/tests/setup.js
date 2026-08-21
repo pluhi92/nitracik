@@ -67,20 +67,55 @@ async function cleanupTestData() {
     )`);
     
     await client.query(`DELETE FROM bookings WHERE session_id LIKE 'test_%' OR payment_intent_id LIKE 'test_%'`);
+
+    // 2b. Zmazať bookings, ktoré nemajú test_% session_id/payment_intent_id
+    // (napr. credit bookings) ale smerujú na TEST_% training_availability
+    await client.query(`DELETE FROM bookings WHERE training_id IN (
+      SELECT id FROM training_availability WHERE training_type LIKE 'TEST_%'
+    )`);
     
     // 3. Zmazať season_tickets
     await client.query(`DELETE FROM season_tickets WHERE stripe_payment_id LIKE 'test_%'`);
     
     // 4. Zmazať season_ticket_products
     await client.query(`DELETE FROM season_ticket_products WHERE code LIKE 'test_%'`);
+
+    // 4b. Zmazať credits (pred training_availability, kôli FK credits_session_id_fkey)
+    await client.query(`DELETE FROM credits WHERE user_id IN (
+      SELECT id FROM users WHERE email LIKE 'test_%'
+    )`);
     
-    // 5. Teraz môžeme zmazať training_availability (už nie sú závislé bookings)
+    // 5. Teraz môžeme zmazať training_availability (už nie sú závislé bookings ani credits)
     await client.query(`DELETE FROM training_availability WHERE training_type LIKE 'TEST_%'`);
     
-    // 6. Zmazať training_types
+    // 6. Zmazať user_saved_gift_cards (pred gift_card, kôli FK)
+    const usgcTableCheck = await client.query(
+      `SELECT EXISTS (
+         SELECT FROM information_schema.tables 
+         WHERE table_schema = 'public' AND table_name = 'user_saved_gift_cards'
+       ) AS exists`
+    );
+    if (usgcTableCheck.rows[0].exists) {
+      await client.query(`DELETE FROM user_saved_gift_cards WHERE user_id IN (
+        SELECT id FROM users WHERE email LIKE 'test_%'
+      )`);
+    }
+
+    // 7. Zmazať gift_card (pred users, kôli FK) — len ak tabuľka existuje
+    const giftCardTableCheck = await client.query(
+      `SELECT EXISTS (
+         SELECT FROM information_schema.tables 
+         WHERE table_schema = 'public' AND table_name = 'gift_card'
+       ) AS exists`
+    );
+    if (giftCardTableCheck.rows[0].exists) {
+      await client.query(`DELETE FROM gift_card WHERE "buyerEmail" LIKE 'test_%' OR code LIKE 'TESTGC%'`);
+    }
+
+    // 8. Zmazať training_types
     await client.query(`DELETE FROM training_types WHERE name LIKE 'TEST_%'`);
     
-    // 7. Nakoniec zmazať users
+    // 9. Nakoniec zmazať users
     await client.query(`DELETE FROM users WHERE email LIKE 'test_%'`);
     
     await client.query('COMMIT');

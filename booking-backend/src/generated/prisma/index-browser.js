@@ -144,7 +144,9 @@ exports.Prisma.BookingsScalarFieldEnum = {
   checked_in: 'checked_in',
   age_group: 'age_group',
   number_of_adults: 'number_of_adults',
-  review_email_sent_at: 'review_email_sent_at'
+  review_email_sent_at: 'review_email_sent_at',
+  gift_card_code: 'gift_card_code',
+  gift_card_amount: 'gift_card_amount'
 };
 
 exports.Prisma.CreditsScalarFieldEnum = {
@@ -282,7 +284,8 @@ exports.Prisma.UsersScalarFieldEnum = {
   created_at: 'created_at',
   updated_at: 'updated_at',
   mobile: 'mobile',
-  marketing_consent: 'marketing_consent'
+  marketing_consent: 'marketing_consent',
+  review_email_opt_out: 'review_email_opt_out'
 };
 
 exports.Prisma.Blog_labelsScalarFieldEnum = {
@@ -318,6 +321,31 @@ exports.Prisma.About_contentScalarFieldEnum = {
   description: 'description',
   description2: 'description2',
   updated_at: 'updated_at'
+};
+
+exports.Prisma.Gift_cardScalarFieldEnum = {
+  id: 'id',
+  code: 'code',
+  stripeSessionId: 'stripeSessionId',
+  amount: 'amount',
+  balance: 'balance',
+  status: 'status',
+  buyerEmail: 'buyerEmail',
+  buyerName: 'buyerName',
+  recipientName: 'recipientName',
+  recipientEmail: 'recipientEmail',
+  message: 'message',
+  expiresAt: 'expiresAt',
+  redeemedAt: 'redeemedAt',
+  createdAt: 'createdAt',
+  bookingId: 'bookingId'
+};
+
+exports.Prisma.User_saved_gift_cardsScalarFieldEnum = {
+  id: 'id',
+  user_id: 'user_id',
+  gift_card_id: 'gift_card_id',
+  saved_at: 'saved_at'
 };
 
 exports.Prisma.SortOrder = {
@@ -364,7 +392,9 @@ exports.Prisma.ModelName = {
   blog_labels: 'blog_labels',
   blog_posts: 'blog_posts',
   google_ratings_config: 'google_ratings_config',
-  about_content: 'about_content'
+  about_content: 'about_content',
+  gift_card: 'gift_card',
+  user_saved_gift_cards: 'user_saved_gift_cards'
 };
 
 /**

@@ -20,7 +20,11 @@ html {
 }
 
 body {
-  background-color: var(--bg-body);
+  background-color: #fff9c4;
+  background-image: var(--bg-body);
+  background-repeat: repeat;
+  background-size: 600px 600px;
+  background-attachment: fixed;
   color: var(--text-primary);
   font-size: var(--text-base);
   line-height: var(--leading-normal);

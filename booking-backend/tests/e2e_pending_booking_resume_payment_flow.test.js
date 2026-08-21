@@ -311,6 +311,36 @@ describe('E2E - pending booking resume payment flow', () => {
     );
   });
 
+  test('cancel-pending removes an existing pending booking so the user can start over', async () => {
+    const user = await createVerifiedUser('test_pending_cancel_pending@example.com');
+    const agent = await loginAsUser(user.email);
+    const { trainingType, training } = await createTrainingWithPrice({
+      trainingTypeName: 'TEST_PENDING_CANCEL_PENDING',
+      audienceType: 'children',
+      price: 13,
+    });
+
+    const payload = childPayload({
+      userId: user.id,
+      trainingId: training.id,
+      trainingType: trainingType.name,
+      note: 'cancel-pending',
+    });
+
+    const firstCreate = await agent.post('/api/create-payment-session').send(payload);
+    expect(firstCreate.status).toBe(200);
+
+    const cancelResponse = await agent.post('/api/bookings/cancel-pending').send({
+      bookingId: firstCreate.body.bookingId,
+    });
+
+    expect(cancelResponse.status).toBe(200);
+    expect(cancelResponse.body.success).toBe(true);
+
+    const booking = await getBookingById(firstCreate.body.bookingId);
+    expect(booking).toBeUndefined();
+  });
+
   test('adult user can resume pending payment for same session and receives adult confirmation emails', async () => {
     const user = await createVerifiedUser('test_pending_resume_adult_flow@example.com');
     const agent = await loginAsUser(user.email);

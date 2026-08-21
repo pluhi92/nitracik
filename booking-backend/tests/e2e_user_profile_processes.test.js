@@ -398,8 +398,9 @@ describe('E2E - UserProfile processes', () => {
       expect(res.body.creditIssued).toBe(false);
       expect(mockStripe.refunds.create).toHaveBeenCalledTimes(1);
 
-      const bookingDb = await pool.query('SELECT * FROM bookings WHERE id = $1', [booking.id]);
-      expect(bookingDb.rows.length).toBe(0);
+      const bookingDb = await pool.query('SELECT active FROM bookings WHERE id = $1', [booking.id]);
+      expect(bookingDb.rows.length).toBe(1);
+      expect(bookingDb.rows[0].active).toBe(false);
     });
 
     test('cancels paid booking and issues credit when requestCredit=true', async () => {

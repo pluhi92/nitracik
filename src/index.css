@@ -1,20 +1,126 @@
+@import "tw-animate-css";
+/* 1. Zmena importu z geist na nunito */
+@import "@fontsource-variable/nunito";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Custom base styles that extend Tailwind */
+/* ============================================
+   SHADCN/UI CSS VARIABLES — upravené pre Nitráčik
+   ============================================ */
 @layer base {
-
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+  :root {
+    /* Nitráčik farby — teplá zlatá/terakotová paleta */
+    --background: 30 30% 98%;
+    --foreground: 20 14% 15%;
+    
+    --card: 30 30% 99%;
+    --card-foreground: 20 14% 15%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14% 15%;
+    
+    --primary: 38 72% 58%;
+    --primary-foreground: 30 30% 98%;
+    
+    --secondary: 0 72% 58%;
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 30 20% 95%;
+    --muted-foreground: 20 8% 45%;
+    
+    --accent: 142 60% 40%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 30 15% 90%;
+    --input: 30 15% 90%;
+    --ring: 38 72% 58%;
+    
+    --radius: 0.75rem;
+    
+    /* Chart farby (shadcn default) */
+    --chart-1: 38 72% 58%;
+    --chart-2: 0 72% 58%;
+    --chart-3: 142 60% 40%;
+    --chart-4: 20 14% 45%;
+    --chart-5: 30 20% 75%;
+    
+    /* Sidebar farby */
+    --sidebar: 30 30% 99%;
+    --sidebar-foreground: 20 14% 15%;
+    --sidebar-primary: 38 72% 58%;
+    --sidebar-primary-foreground: 30 30% 98%;
+    --sidebar-accent: 30 20% 95%;
+    --sidebar-accent-foreground: 20 14% 15%;
+    --sidebar-border: 30 15% 90%;
+    --sidebar-ring: 38 72% 58%;
   }
 
+  .dark {
+    --background: 20 14% 10%;
+    --foreground: 30 30% 98%;
+    
+    --card: 20 14% 12%;
+    --card-foreground: 30 30% 98%;
+    
+    --popover: 20 14% 12%;
+    --popover-foreground: 30 30% 98%;
+    
+    --primary: 38 72% 58%;
+    --primary-foreground: 20 14% 10%;
+    
+    --secondary: 0 72% 58%;
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 20 10% 20%;
+    --muted-foreground: 30 10% 60%;
+    
+    --accent: 142 60% 40%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 20 10% 20%;
+    --input: 20 10% 20%;
+    --ring: 38 72% 58%;
+    
+    --sidebar: 20 14% 12%;
+    --sidebar-foreground: 30 30% 98%;
+    --sidebar-primary: 38 72% 58%;
+    --sidebar-primary-foreground: 20 14% 10%;
+    --sidebar-accent: 20 10% 20%;
+    --sidebar-accent-foreground: 30 30% 98%;
+    --sidebar-border: 20 10% 20%;
+    --sidebar-ring: 38 72% 58%;
+  }
+  
+  .theme {
+    --font-heading: var(--font-sans);
+    /* 2. Definícia nového fontu */
+    --font-sans: 'Nunito Variable', 'Nunito', system-ui, -apple-system, sans-serif;
+  }
+  
+  * {
+    @apply border-border outline-ring/50;
+  }
+  
+  body {
+    /* 3. Texty budú tenšie (font-weight: 400) a tmavé (text-foreground) */
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+    background-color: transparent !important;
+    font-size: 1rem;
+    line-height: 1.6;
+    font-weight: 400; 
+  }
+  
   html {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    @apply font-sans;
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
   }
@@ -25,45 +131,28 @@
     }
   }
 
-  body {
-    @apply text-gray-800;
-    background-color: transparent !important;
-    font-size: 1rem;
-    line-height: 1.5;
-    font-weight: 400;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeSpeed;
+  /* 4. Nadpisy budú výrazne hrubšie (font-extrabold) a zjednotené do tmavej farby */
+  h1, .h1 {
+    @apply text-foreground text-4xl font-extrabold leading-tight mb-4 tracking-tight;
   }
 
-  /* Typography scale */
-  h1,
-  .h1 {
-    @apply text-4xl font-bold leading-tight mb-4;
+  h2, .h2 {
+    @apply text-foreground text-3xl font-extrabold leading-tight mb-4 tracking-tight;
   }
 
-  h2,
-  .h2 {
-    @apply text-3xl font-bold leading-tight mb-4;
+  h3, .h3 {
+    @apply text-foreground text-2xl font-bold leading-snug mb-3 tracking-tight;
   }
 
-  h3,
-  .h3 {
-    @apply text-2xl font-semibold leading-snug mb-3;
+  h4, .h4 {
+    @apply text-foreground text-xl font-bold leading-snug mb-3;
   }
 
-  h4,
-  .h4 {
-    @apply text-xl font-semibold leading-snug mb-3;
-  }
-
-  h5,
-  .h5 {
+  h5, .h5 {
     @apply text-lg font-semibold mb-2;
   }
 
-  h6,
-  .h6 {
+  h6, .h6 {
     @apply text-base font-semibold mb-2;
   }
 
@@ -72,9 +161,74 @@
   }
 }
 
+/* ============================================
+   DESIGN SYSTEM COMPONENTS
+   ============================================ */
 @layer components {
+  .section-wrapper {
+    @apply w-full px-4 py-16 sm:px-6 lg:px-8;
+  }
 
-  /* Container utilities */
+  .card-minimal {
+    @apply rounded-2xl border border-border/50 bg-card p-6 shadow-soft transition-all duration-300;
+  }
+
+  .card-minimal:hover {
+    @apply shadow-elevated border-border;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-all duration-200 hover:bg-primary-600 hover:shadow-elevated active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-full bg-secondary px-6 py-3 text-sm font-semibold text-secondary-foreground shadow-soft transition-all duration-200 hover:bg-secondary-600 hover:shadow-elevated active:scale-[0.98];
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center rounded-full border-2 border-primary/20 bg-transparent px-6 py-3 text-sm font-semibold text-primary transition-all duration-200 hover:bg-primary/5 hover:border-primary/40 active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground;
+  }
+
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20;
+  }
+
+  .glass-strong {
+    @apply bg-white/85 backdrop-blur-2xl border border-white/30 shadow-elevated;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .heading-xl {
+    @apply text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl;
+  }
+
+  .heading-lg {
+    @apply text-3xl font-bold tracking-tight sm:text-4xl;
+  }
+
+  .heading-md {
+    @apply text-2xl font-semibold tracking-tight;
+  }
+
+  .body-lg {
+    @apply text-lg leading-relaxed text-muted-foreground;
+  }
+
+  .body-md {
+    @apply text-base leading-7 text-muted-foreground;
+  }
+
+  .kicker {
+    @apply text-xs font-bold uppercase tracking-[0.2em] text-primary;
+  }
+
   .container-custom {
     @apply max-w-container mx-auto px-4;
   }
@@ -83,7 +237,6 @@
     @apply max-w-container-wide mx-auto px-4;
   }
 
-  /* Section utilities */
   .section {
     @apply py-16;
   }
@@ -96,13 +249,12 @@
     @apply py-20;
   }
 
-  /* Button base styles - we'll convert these to Tailwind classes in components */
   .btn-base {
-    @apply inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold leading-normal border-2 border-transparent rounded-md cursor-pointer transition-all duration-250 ease-in-out no-underline text-center whitespace-nowrap select-none relative overflow-hidden;
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold leading-normal border-2 border-transparent rounded-md cursor-pointer transition-all duration-300 ease-in-out no-underline text-center whitespace-nowrap select-none relative overflow-hidden;
   }
 
   .btn-base:focus {
-    @apply outline-2 outline-primary-500 outline-offset-2;
+    @apply outline-2 outline-primary outline-offset-2;
   }
 
   .btn-base:disabled {
@@ -110,13 +262,16 @@
   }
 }
 
+/* ============================================
+   UTILITIES
+   ============================================ */
 @layer utilities {
   .text-muted {
-    @apply text-gray-500;
+    @apply text-muted-foreground;
   }
 
   .text-secondary {
-    @apply text-gray-600;
+    @apply text-muted-foreground;
   }
 
   .sr-only {
@@ -125,19 +280,25 @@
   }
 }
 
-/* Dark theme styles */
+/* ============================================
+   DARK THEME
+   ============================================ */
 [data-theme="dark"] body {
-  @apply bg-gray-900 text-gray-100;
+  @apply bg-background text-foreground;
 }
 
-/* Reduced motion */
+/* ============================================
+   REDUCED MOTION
+   ============================================ */
 @media (prefers-reduced-motion: reduce) {
   * {
     transition-duration: 0ms !important;
   }
 }
 
-/* Responsive design */
+/* ============================================
+   RESPONSIVE
+   ============================================ */
 @media (max-width: 768px) {
   .section {
     @apply py-12;
@@ -147,18 +308,15 @@
     @apply py-16;
   }
 
-  h1,
-  .h1 {
+  h1, .h1 {
     @apply text-3xl;
   }
 
-  h2,
-  .h2 {
+  h2, .h2 {
     @apply text-2xl;
   }
 
-  h3,
-  .h3 {
+  h3, .h3 {
     @apply text-xl;
   }
 }
@@ -166,5 +324,78 @@
 @media (max-width: 480px) {
   .section {
     @apply py-8;
+  }
+}
+
+/* ============================================
+   CUSTOM KEYFRAME ANIMATIONS
+   ============================================ */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ============================================
+   iOS PERFORMANCE OPTIMIZATIONS
+   ============================================ */
+
+/* Odstraniť backdrop-blur na iOS pre lepší výkon */
+@supports (-webkit-touch-callout: none) {
+  .backdrop-blur-sm,
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
+  .backdrop-blur-xl,
+  .backdrop-blur-2xl {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  
+  .glass,
+  .glass-strong {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+  }
+}
+
+/* GPU akcelerácia pre carousel a animované elementy */
+.will-change-transform {
+  will-change: transform;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Contain property pre lepšiu izoláciu repaints */
+.card-glass,
+.card-minimal {
+  contain: layout style paint;
+}
+
+/* Optimalizované prechody - kratšie a jednoduchšie */
+@supports (-webkit-touch-callout: none) {
+  .transition-all {
+    transition-duration: 150ms !important;
+  }
+  
+  .transition-transform {
+    transition-duration: 200ms !important;
+  }
+}
+
+/* Redukovať animácie pri nízkom výkone baterie */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
