@@ -343,7 +343,7 @@ const ActivityList = () => {
               <article
                 key={type.id}
                 className="rounded-[2rem] card-glass border-2 border-neutral-300 bg-white shadow-md transition-shadow hover:shadow-lg relative"
-                style={{ isolation: 'isolate', borderLeftWidth: '6px', borderLeftColor: type.color_hex || '#f43f5e' }}
+                style={{ isolation: 'isolate', contain: 'layout style', borderLeftWidth: '6px', borderLeftColor: type.color_hex || '#f43f5e' }}
               >
                 <FlakPink className="absolute pointer-events-none" style={{ ...flakeLayout.pink, opacity: 0.30, zIndex: -1 }} />
                 <FlakCream className="absolute pointer-events-none" style={{ ...flakeLayout.cream, opacity: 0.30, zIndex: -1 }} />
