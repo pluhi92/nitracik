@@ -101,6 +101,7 @@ const getAttendeesList = async (trainingId) => {
         ta.training_type,
         ta.training_date,
         ta.max_participants,
+        COALESCE(tt.audience_type, 'children') AS audience_type,
         u.first_name,
         u.last_name,
         u.email,
@@ -108,6 +109,7 @@ const getAttendeesList = async (trainingId) => {
         b.booking_type,
         COALESCE(SUM(b.number_of_children) OVER (PARTITION BY ta.id), 0) AS total_children
       FROM training_availability ta
+      LEFT JOIN training_types tt ON ta.training_type_id = tt.id
       LEFT JOIN bookings b ON ta.id = b.training_id AND b.active = true
       LEFT JOIN users u ON b.user_id = u.id
       WHERE ta.id = $1
@@ -126,10 +128,13 @@ const getAttendeesList = async (trainingId) => {
 
     const maxParticipants = firstRow.max_participants;
     const totalBooked = parseInt(firstRow.total_children) || 0;
-    const availableSpots = maxParticipants - totalBooked;
 
     // Filtrovanie riadkov kde existuje booking
     const attendees = result.rows.filter(row => row.first_name);
+    const isAdultSession = firstRow.audience_type === 'adult';
+    const availableSpots = isAdultSession
+      ? maxParticipants - attendees.length
+      : maxParticipants - totalBooked;
 
     let tableRows = '';
     attendees.forEach((row, index) => {
@@ -143,7 +148,7 @@ const getAttendeesList = async (trainingId) => {
         <tr style="border-bottom: 1px solid #e5e7eb;">
           <td style="padding: 10px; font-size: 14px;">${index + 1}.</td>
           <td style="padding: 10px; font-size: 14px;">${row.first_name} ${row.last_name}</td>
-          <td style="padding: 10px; text-align: center; font-size: 14px;">${row.number_of_children}</td>
+          ${!isAdultSession ? `<td style="padding: 10px; text-align: center; font-size: 14px;">${row.number_of_children}</td>` : ''}
           <td style="padding: 10px; font-size: 14px;">${bookingTypeText}</td>
           <td style="padding: 10px; font-size: 14px;"><a href="mailto:${row.email}" style="color: #2563eb; text-decoration: none;">${row.email}</a></td>
         </tr>
@@ -161,13 +166,13 @@ const getAttendeesList = async (trainingId) => {
             <tr style="background-color: #eab308;">
               <th style="padding: 12px; text-align: left; font-size: 14px; color: white;">#</th>
               <th style="padding: 12px; text-align: left; font-size: 14px; color: white;">Meno</th>
-              <th style="padding: 12px; text-align: center; font-size: 14px; color: white;">Počet detí</th>
+              ${!isAdultSession ? `<th style="padding: 12px; text-align: center; font-size: 14px; color: white;">Počet detí</th>` : ''}
               <th style="padding: 12px; text-align: left; font-size: 14px; color: white;">Typ rezervácie</th>
               <th style="padding: 12px; text-align: left; font-size: 14px; color: white;">Email</th>
             </tr>
           </thead>
           <tbody>
-            ${tableRows || '<tr><td colspan="5" style="padding: 20px; text-align: center; color: #6b7280;">Zatiaľ žiadne prihlásenia</td></tr>'}
+            ${tableRows || `<tr><td colspan="${isAdultSession ? 4 : 5}" style="padding: 20px; text-align: center; color: #6b7280;">Zatiaľ žiadne prihlásenia</td></tr>`}
           </tbody>
         </table>
         
