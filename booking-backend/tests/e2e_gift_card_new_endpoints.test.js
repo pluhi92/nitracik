@@ -101,14 +101,14 @@ async function createGiftCardInDb({
   recipientEmail = null,
   message = null,
   expiresAt = null,
-  stripeSessionId = null,
+  paymentTransId = null,
 }) {
   const expires  = expiresAt  || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-  const sessionId = stripeSessionId || `test_gc_session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const sessionId = paymentTransId || `test_gc_session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const r = await pool.query(
     `INSERT INTO gift_card
       (code, amount, balance, status, "buyerEmail", "recipientName", "recipientEmail",
-       message, "expiresAt", "stripeSessionId", "createdAt")
+       message, "expiresAt", "paymentTransId", "createdAt")
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
      ON CONFLICT (code) DO UPDATE SET balance=$3, status=$4
      RETURNING *`,

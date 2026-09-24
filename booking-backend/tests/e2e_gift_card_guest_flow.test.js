@@ -308,7 +308,7 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
 
       // V DB je len 1 záznam pre tento session
       const r = await pool.query(
-        'SELECT COUNT(*) as count FROM gift_card WHERE "stripeSessionId" = $1',
+        'SELECT COUNT(*) as count FROM gift_card WHERE "paymentTransId" = $1',
         [sessionId]
       );
       expect(parseInt(r.rows[0].count)).toBe(1);
@@ -346,7 +346,7 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
 
       // Žiadny poukaz v DB
       const rows = await pool.query(
-        'SELECT * FROM gift_card WHERE "stripeSessionId" = $1', [sessionId]
+        'SELECT * FROM gift_card WHERE "paymentTransId" = $1', [sessionId]
       );
       expect(rows.rows.length).toBe(0);
 
@@ -382,7 +382,7 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
       expect(res.status).toBe(400);
 
       const rows = await pool.query(
-        'SELECT * FROM gift_card WHERE "stripeSessionId" = $1', [sessionId]
+        'SELECT * FROM gift_card WHERE "paymentTransId" = $1', [sessionId]
       );
       expect(rows.rows.length).toBe(0);
     });

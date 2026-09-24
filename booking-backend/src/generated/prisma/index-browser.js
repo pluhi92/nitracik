@@ -326,7 +326,7 @@ exports.Prisma.About_contentScalarFieldEnum = {
 exports.Prisma.Gift_cardScalarFieldEnum = {
   id: 'id',
   code: 'code',
-  stripeSessionId: 'stripeSessionId',
+  paymentTransId: 'paymentTransId',
   amount: 'amount',
   balance: 'balance',
   status: 'status',
@@ -346,6 +346,20 @@ exports.Prisma.User_saved_gift_cardsScalarFieldEnum = {
   user_id: 'user_id',
   gift_card_id: 'gift_card_id',
   saved_at: 'saved_at'
+};
+
+exports.Prisma.Pending_gift_card_ordersScalarFieldEnum = {
+  id: 'id',
+  refId: 'refId',
+  amount: 'amount',
+  buyerEmail: 'buyerEmail',
+  buyerName: 'buyerName',
+  recipientName: 'recipientName',
+  recipientEmail: 'recipientEmail',
+  message: 'message',
+  transId: 'transId',
+  createdAt: 'createdAt',
+  expiresAt: 'expiresAt'
 };
 
 exports.Prisma.SortOrder = {
@@ -394,7 +408,8 @@ exports.Prisma.ModelName = {
   google_ratings_config: 'google_ratings_config',
   about_content: 'about_content',
   gift_card: 'gift_card',
-  user_saved_gift_cards: 'user_saved_gift_cards'
+  user_saved_gift_cards: 'user_saved_gift_cards',
+  pending_gift_card_orders: 'pending_gift_card_orders'
 };
 
 /**

@@ -113,6 +113,11 @@ export type gift_card = $Result.DefaultSelection<Prisma.$gift_cardPayload>
  * 
  */
 export type user_saved_gift_cards = $Result.DefaultSelection<Prisma.$user_saved_gift_cardsPayload>
+/**
+ * Model pending_gift_card_orders
+ * 
+ */
+export type pending_gift_card_orders = $Result.DefaultSelection<Prisma.$pending_gift_card_ordersPayload>
 
 /**
  * ##  Prisma Client ʲˢ
@@ -431,6 +436,16 @@ export class PrismaClient<
     * ```
     */
   get user_saved_gift_cards(): Prisma.user_saved_gift_cardsDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.pending_gift_card_orders`: Exposes CRUD operations for the **pending_gift_card_orders** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Pending_gift_card_orders
+    * const pending_gift_card_orders = await prisma.pending_gift_card_orders.findMany()
+    * ```
+    */
+  get pending_gift_card_orders(): Prisma.pending_gift_card_ordersDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -891,7 +906,8 @@ export namespace Prisma {
     google_ratings_config: 'google_ratings_config',
     about_content: 'about_content',
     gift_card: 'gift_card',
-    user_saved_gift_cards: 'user_saved_gift_cards'
+    user_saved_gift_cards: 'user_saved_gift_cards',
+    pending_gift_card_orders: 'pending_gift_card_orders'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -910,7 +926,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "bookings" | "credits" | "faqs" | "refunds" | "season_ticket_usage" | "season_ticket_products" | "season_ticket_product_training_types" | "season_tickets" | "season_ticket_offers" | "training_availability" | "training_prices" | "training_types" | "user_sessions" | "users" | "blog_labels" | "blog_posts" | "google_ratings_config" | "about_content" | "gift_card" | "user_saved_gift_cards"
+      modelProps: "bookings" | "credits" | "faqs" | "refunds" | "season_ticket_usage" | "season_ticket_products" | "season_ticket_product_training_types" | "season_tickets" | "season_ticket_offers" | "training_availability" | "training_prices" | "training_types" | "user_sessions" | "users" | "blog_labels" | "blog_posts" | "google_ratings_config" | "about_content" | "gift_card" | "user_saved_gift_cards" | "pending_gift_card_orders"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2394,6 +2410,80 @@ export namespace Prisma {
           }
         }
       }
+      pending_gift_card_orders: {
+        payload: Prisma.$pending_gift_card_ordersPayload<ExtArgs>
+        fields: Prisma.pending_gift_card_ordersFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.pending_gift_card_ordersFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_gift_card_ordersPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.pending_gift_card_ordersFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_gift_card_ordersPayload>
+          }
+          findFirst: {
+            args: Prisma.pending_gift_card_ordersFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_gift_card_ordersPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.pending_gift_card_ordersFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_gift_card_ordersPayload>
+          }
+          findMany: {
+            args: Prisma.pending_gift_card_ordersFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_gift_card_ordersPayload>[]
+          }
+          create: {
+            args: Prisma.pending_gift_card_ordersCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_gift_card_ordersPayload>
+          }
+          createMany: {
+            args: Prisma.pending_gift_card_ordersCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.pending_gift_card_ordersCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_gift_card_ordersPayload>[]
+          }
+          delete: {
+            args: Prisma.pending_gift_card_ordersDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_gift_card_ordersPayload>
+          }
+          update: {
+            args: Prisma.pending_gift_card_ordersUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_gift_card_ordersPayload>
+          }
+          deleteMany: {
+            args: Prisma.pending_gift_card_ordersDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.pending_gift_card_ordersUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.pending_gift_card_ordersUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_gift_card_ordersPayload>[]
+          }
+          upsert: {
+            args: Prisma.pending_gift_card_ordersUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_gift_card_ordersPayload>
+          }
+          aggregate: {
+            args: Prisma.Pending_gift_card_ordersAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregatePending_gift_card_orders>
+          }
+          groupBy: {
+            args: Prisma.pending_gift_card_ordersGroupByArgs<ExtArgs>
+            result: $Utils.Optional<Pending_gift_card_ordersGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.pending_gift_card_ordersCountArgs<ExtArgs>
+            result: $Utils.Optional<Pending_gift_card_ordersCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -2510,6 +2600,7 @@ export namespace Prisma {
     about_content?: about_contentOmit
     gift_card?: gift_cardOmit
     user_saved_gift_cards?: user_saved_gift_cardsOmit
+    pending_gift_card_orders?: pending_gift_card_ordersOmit
   }
 
   /* Types for Logging */
@@ -23921,7 +24012,7 @@ export namespace Prisma {
   export type Gift_cardMinAggregateOutputType = {
     id: number | null
     code: string | null
-    stripeSessionId: string | null
+    paymentTransId: string | null
     amount: number | null
     balance: number | null
     status: string | null
@@ -23939,7 +24030,7 @@ export namespace Prisma {
   export type Gift_cardMaxAggregateOutputType = {
     id: number | null
     code: string | null
-    stripeSessionId: string | null
+    paymentTransId: string | null
     amount: number | null
     balance: number | null
     status: string | null
@@ -23957,7 +24048,7 @@ export namespace Prisma {
   export type Gift_cardCountAggregateOutputType = {
     id: number
     code: number
-    stripeSessionId: number
+    paymentTransId: number
     amount: number
     balance: number
     status: number
@@ -23991,7 +24082,7 @@ export namespace Prisma {
   export type Gift_cardMinAggregateInputType = {
     id?: true
     code?: true
-    stripeSessionId?: true
+    paymentTransId?: true
     amount?: true
     balance?: true
     status?: true
@@ -24009,7 +24100,7 @@ export namespace Prisma {
   export type Gift_cardMaxAggregateInputType = {
     id?: true
     code?: true
-    stripeSessionId?: true
+    paymentTransId?: true
     amount?: true
     balance?: true
     status?: true
@@ -24027,7 +24118,7 @@ export namespace Prisma {
   export type Gift_cardCountAggregateInputType = {
     id?: true
     code?: true
-    stripeSessionId?: true
+    paymentTransId?: true
     amount?: true
     balance?: true
     status?: true
@@ -24132,7 +24223,7 @@ export namespace Prisma {
   export type Gift_cardGroupByOutputType = {
     id: number
     code: string
-    stripeSessionId: string | null
+    paymentTransId: string | null
     amount: number
     balance: number
     status: string
@@ -24169,7 +24260,7 @@ export namespace Prisma {
   export type gift_cardSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     code?: boolean
-    stripeSessionId?: boolean
+    paymentTransId?: boolean
     amount?: boolean
     balance?: boolean
     status?: boolean
@@ -24188,7 +24279,7 @@ export namespace Prisma {
   export type gift_cardSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     code?: boolean
-    stripeSessionId?: boolean
+    paymentTransId?: boolean
     amount?: boolean
     balance?: boolean
     status?: boolean
@@ -24206,7 +24297,7 @@ export namespace Prisma {
   export type gift_cardSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     code?: boolean
-    stripeSessionId?: boolean
+    paymentTransId?: boolean
     amount?: boolean
     balance?: boolean
     status?: boolean
@@ -24224,7 +24315,7 @@ export namespace Prisma {
   export type gift_cardSelectScalar = {
     id?: boolean
     code?: boolean
-    stripeSessionId?: boolean
+    paymentTransId?: boolean
     amount?: boolean
     balance?: boolean
     status?: boolean
@@ -24239,7 +24330,7 @@ export namespace Prisma {
     bookingId?: boolean
   }
 
-  export type gift_cardOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "code" | "stripeSessionId" | "amount" | "balance" | "status" | "buyerEmail" | "buyerName" | "recipientName" | "recipientEmail" | "message" | "expiresAt" | "redeemedAt" | "createdAt" | "bookingId", ExtArgs["result"]["gift_card"]>
+  export type gift_cardOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "code" | "paymentTransId" | "amount" | "balance" | "status" | "buyerEmail" | "buyerName" | "recipientName" | "recipientEmail" | "message" | "expiresAt" | "redeemedAt" | "createdAt" | "bookingId", ExtArgs["result"]["gift_card"]>
   export type gift_cardInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     saved_by?: boolean | gift_card$saved_byArgs<ExtArgs>
   }
@@ -24254,7 +24345,7 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: number
       code: string
-      stripeSessionId: string | null
+      paymentTransId: string | null
       amount: number
       balance: number
       status: string
@@ -24693,7 +24784,7 @@ export namespace Prisma {
   interface gift_cardFieldRefs {
     readonly id: FieldRef<"gift_card", 'Int'>
     readonly code: FieldRef<"gift_card", 'String'>
-    readonly stripeSessionId: FieldRef<"gift_card", 'String'>
+    readonly paymentTransId: FieldRef<"gift_card", 'String'>
     readonly amount: FieldRef<"gift_card", 'Float'>
     readonly balance: FieldRef<"gift_card", 'Float'>
     readonly status: FieldRef<"gift_card", 'String'>
@@ -26227,6 +26318,1117 @@ export namespace Prisma {
 
 
   /**
+   * Model pending_gift_card_orders
+   */
+
+  export type AggregatePending_gift_card_orders = {
+    _count: Pending_gift_card_ordersCountAggregateOutputType | null
+    _avg: Pending_gift_card_ordersAvgAggregateOutputType | null
+    _sum: Pending_gift_card_ordersSumAggregateOutputType | null
+    _min: Pending_gift_card_ordersMinAggregateOutputType | null
+    _max: Pending_gift_card_ordersMaxAggregateOutputType | null
+  }
+
+  export type Pending_gift_card_ordersAvgAggregateOutputType = {
+    id: number | null
+    amount: number | null
+  }
+
+  export type Pending_gift_card_ordersSumAggregateOutputType = {
+    id: number | null
+    amount: number | null
+  }
+
+  export type Pending_gift_card_ordersMinAggregateOutputType = {
+    id: number | null
+    refId: string | null
+    amount: number | null
+    buyerEmail: string | null
+    buyerName: string | null
+    recipientName: string | null
+    recipientEmail: string | null
+    message: string | null
+    transId: string | null
+    createdAt: Date | null
+    expiresAt: Date | null
+  }
+
+  export type Pending_gift_card_ordersMaxAggregateOutputType = {
+    id: number | null
+    refId: string | null
+    amount: number | null
+    buyerEmail: string | null
+    buyerName: string | null
+    recipientName: string | null
+    recipientEmail: string | null
+    message: string | null
+    transId: string | null
+    createdAt: Date | null
+    expiresAt: Date | null
+  }
+
+  export type Pending_gift_card_ordersCountAggregateOutputType = {
+    id: number
+    refId: number
+    amount: number
+    buyerEmail: number
+    buyerName: number
+    recipientName: number
+    recipientEmail: number
+    message: number
+    transId: number
+    createdAt: number
+    expiresAt: number
+    _all: number
+  }
+
+
+  export type Pending_gift_card_ordersAvgAggregateInputType = {
+    id?: true
+    amount?: true
+  }
+
+  export type Pending_gift_card_ordersSumAggregateInputType = {
+    id?: true
+    amount?: true
+  }
+
+  export type Pending_gift_card_ordersMinAggregateInputType = {
+    id?: true
+    refId?: true
+    amount?: true
+    buyerEmail?: true
+    buyerName?: true
+    recipientName?: true
+    recipientEmail?: true
+    message?: true
+    transId?: true
+    createdAt?: true
+    expiresAt?: true
+  }
+
+  export type Pending_gift_card_ordersMaxAggregateInputType = {
+    id?: true
+    refId?: true
+    amount?: true
+    buyerEmail?: true
+    buyerName?: true
+    recipientName?: true
+    recipientEmail?: true
+    message?: true
+    transId?: true
+    createdAt?: true
+    expiresAt?: true
+  }
+
+  export type Pending_gift_card_ordersCountAggregateInputType = {
+    id?: true
+    refId?: true
+    amount?: true
+    buyerEmail?: true
+    buyerName?: true
+    recipientName?: true
+    recipientEmail?: true
+    message?: true
+    transId?: true
+    createdAt?: true
+    expiresAt?: true
+    _all?: true
+  }
+
+  export type Pending_gift_card_ordersAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which pending_gift_card_orders to aggregate.
+     */
+    where?: pending_gift_card_ordersWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of pending_gift_card_orders to fetch.
+     */
+    orderBy?: pending_gift_card_ordersOrderByWithRelationInput | pending_gift_card_ordersOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: pending_gift_card_ordersWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` pending_gift_card_orders from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` pending_gift_card_orders.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned pending_gift_card_orders
+    **/
+    _count?: true | Pending_gift_card_ordersCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: Pending_gift_card_ordersAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: Pending_gift_card_ordersSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: Pending_gift_card_ordersMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: Pending_gift_card_ordersMaxAggregateInputType
+  }
+
+  export type GetPending_gift_card_ordersAggregateType<T extends Pending_gift_card_ordersAggregateArgs> = {
+        [P in keyof T & keyof AggregatePending_gift_card_orders]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregatePending_gift_card_orders[P]>
+      : GetScalarType<T[P], AggregatePending_gift_card_orders[P]>
+  }
+
+
+
+
+  export type pending_gift_card_ordersGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: pending_gift_card_ordersWhereInput
+    orderBy?: pending_gift_card_ordersOrderByWithAggregationInput | pending_gift_card_ordersOrderByWithAggregationInput[]
+    by: Pending_gift_card_ordersScalarFieldEnum[] | Pending_gift_card_ordersScalarFieldEnum
+    having?: pending_gift_card_ordersScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: Pending_gift_card_ordersCountAggregateInputType | true
+    _avg?: Pending_gift_card_ordersAvgAggregateInputType
+    _sum?: Pending_gift_card_ordersSumAggregateInputType
+    _min?: Pending_gift_card_ordersMinAggregateInputType
+    _max?: Pending_gift_card_ordersMaxAggregateInputType
+  }
+
+  export type Pending_gift_card_ordersGroupByOutputType = {
+    id: number
+    refId: string
+    amount: number
+    buyerEmail: string
+    buyerName: string | null
+    recipientName: string
+    recipientEmail: string | null
+    message: string | null
+    transId: string | null
+    createdAt: Date
+    expiresAt: Date
+    _count: Pending_gift_card_ordersCountAggregateOutputType | null
+    _avg: Pending_gift_card_ordersAvgAggregateOutputType | null
+    _sum: Pending_gift_card_ordersSumAggregateOutputType | null
+    _min: Pending_gift_card_ordersMinAggregateOutputType | null
+    _max: Pending_gift_card_ordersMaxAggregateOutputType | null
+  }
+
+  type GetPending_gift_card_ordersGroupByPayload<T extends pending_gift_card_ordersGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<Pending_gift_card_ordersGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof Pending_gift_card_ordersGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], Pending_gift_card_ordersGroupByOutputType[P]>
+            : GetScalarType<T[P], Pending_gift_card_ordersGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type pending_gift_card_ordersSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    refId?: boolean
+    amount?: boolean
+    buyerEmail?: boolean
+    buyerName?: boolean
+    recipientName?: boolean
+    recipientEmail?: boolean
+    message?: boolean
+    transId?: boolean
+    createdAt?: boolean
+    expiresAt?: boolean
+  }, ExtArgs["result"]["pending_gift_card_orders"]>
+
+  export type pending_gift_card_ordersSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    refId?: boolean
+    amount?: boolean
+    buyerEmail?: boolean
+    buyerName?: boolean
+    recipientName?: boolean
+    recipientEmail?: boolean
+    message?: boolean
+    transId?: boolean
+    createdAt?: boolean
+    expiresAt?: boolean
+  }, ExtArgs["result"]["pending_gift_card_orders"]>
+
+  export type pending_gift_card_ordersSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    refId?: boolean
+    amount?: boolean
+    buyerEmail?: boolean
+    buyerName?: boolean
+    recipientName?: boolean
+    recipientEmail?: boolean
+    message?: boolean
+    transId?: boolean
+    createdAt?: boolean
+    expiresAt?: boolean
+  }, ExtArgs["result"]["pending_gift_card_orders"]>
+
+  export type pending_gift_card_ordersSelectScalar = {
+    id?: boolean
+    refId?: boolean
+    amount?: boolean
+    buyerEmail?: boolean
+    buyerName?: boolean
+    recipientName?: boolean
+    recipientEmail?: boolean
+    message?: boolean
+    transId?: boolean
+    createdAt?: boolean
+    expiresAt?: boolean
+  }
+
+  export type pending_gift_card_ordersOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "refId" | "amount" | "buyerEmail" | "buyerName" | "recipientName" | "recipientEmail" | "message" | "transId" | "createdAt" | "expiresAt", ExtArgs["result"]["pending_gift_card_orders"]>
+
+  export type $pending_gift_card_ordersPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "pending_gift_card_orders"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      refId: string
+      amount: number
+      buyerEmail: string
+      buyerName: string | null
+      recipientName: string
+      recipientEmail: string | null
+      message: string | null
+      transId: string | null
+      createdAt: Date
+      expiresAt: Date
+    }, ExtArgs["result"]["pending_gift_card_orders"]>
+    composites: {}
+  }
+
+  type pending_gift_card_ordersGetPayload<S extends boolean | null | undefined | pending_gift_card_ordersDefaultArgs> = $Result.GetResult<Prisma.$pending_gift_card_ordersPayload, S>
+
+  type pending_gift_card_ordersCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<pending_gift_card_ordersFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: Pending_gift_card_ordersCountAggregateInputType | true
+    }
+
+  export interface pending_gift_card_ordersDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['pending_gift_card_orders'], meta: { name: 'pending_gift_card_orders' } }
+    /**
+     * Find zero or one Pending_gift_card_orders that matches the filter.
+     * @param {pending_gift_card_ordersFindUniqueArgs} args - Arguments to find a Pending_gift_card_orders
+     * @example
+     * // Get one Pending_gift_card_orders
+     * const pending_gift_card_orders = await prisma.pending_gift_card_orders.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends pending_gift_card_ordersFindUniqueArgs>(args: SelectSubset<T, pending_gift_card_ordersFindUniqueArgs<ExtArgs>>): Prisma__pending_gift_card_ordersClient<$Result.GetResult<Prisma.$pending_gift_card_ordersPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one Pending_gift_card_orders that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {pending_gift_card_ordersFindUniqueOrThrowArgs} args - Arguments to find a Pending_gift_card_orders
+     * @example
+     * // Get one Pending_gift_card_orders
+     * const pending_gift_card_orders = await prisma.pending_gift_card_orders.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends pending_gift_card_ordersFindUniqueOrThrowArgs>(args: SelectSubset<T, pending_gift_card_ordersFindUniqueOrThrowArgs<ExtArgs>>): Prisma__pending_gift_card_ordersClient<$Result.GetResult<Prisma.$pending_gift_card_ordersPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Pending_gift_card_orders that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {pending_gift_card_ordersFindFirstArgs} args - Arguments to find a Pending_gift_card_orders
+     * @example
+     * // Get one Pending_gift_card_orders
+     * const pending_gift_card_orders = await prisma.pending_gift_card_orders.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends pending_gift_card_ordersFindFirstArgs>(args?: SelectSubset<T, pending_gift_card_ordersFindFirstArgs<ExtArgs>>): Prisma__pending_gift_card_ordersClient<$Result.GetResult<Prisma.$pending_gift_card_ordersPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Pending_gift_card_orders that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {pending_gift_card_ordersFindFirstOrThrowArgs} args - Arguments to find a Pending_gift_card_orders
+     * @example
+     * // Get one Pending_gift_card_orders
+     * const pending_gift_card_orders = await prisma.pending_gift_card_orders.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends pending_gift_card_ordersFindFirstOrThrowArgs>(args?: SelectSubset<T, pending_gift_card_ordersFindFirstOrThrowArgs<ExtArgs>>): Prisma__pending_gift_card_ordersClient<$Result.GetResult<Prisma.$pending_gift_card_ordersPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more Pending_gift_card_orders that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {pending_gift_card_ordersFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Pending_gift_card_orders
+     * const pending_gift_card_orders = await prisma.pending_gift_card_orders.findMany()
+     * 
+     * // Get first 10 Pending_gift_card_orders
+     * const pending_gift_card_orders = await prisma.pending_gift_card_orders.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const pending_gift_card_ordersWithIdOnly = await prisma.pending_gift_card_orders.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends pending_gift_card_ordersFindManyArgs>(args?: SelectSubset<T, pending_gift_card_ordersFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$pending_gift_card_ordersPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a Pending_gift_card_orders.
+     * @param {pending_gift_card_ordersCreateArgs} args - Arguments to create a Pending_gift_card_orders.
+     * @example
+     * // Create one Pending_gift_card_orders
+     * const Pending_gift_card_orders = await prisma.pending_gift_card_orders.create({
+     *   data: {
+     *     // ... data to create a Pending_gift_card_orders
+     *   }
+     * })
+     * 
+     */
+    create<T extends pending_gift_card_ordersCreateArgs>(args: SelectSubset<T, pending_gift_card_ordersCreateArgs<ExtArgs>>): Prisma__pending_gift_card_ordersClient<$Result.GetResult<Prisma.$pending_gift_card_ordersPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many Pending_gift_card_orders.
+     * @param {pending_gift_card_ordersCreateManyArgs} args - Arguments to create many Pending_gift_card_orders.
+     * @example
+     * // Create many Pending_gift_card_orders
+     * const pending_gift_card_orders = await prisma.pending_gift_card_orders.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends pending_gift_card_ordersCreateManyArgs>(args?: SelectSubset<T, pending_gift_card_ordersCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Pending_gift_card_orders and returns the data saved in the database.
+     * @param {pending_gift_card_ordersCreateManyAndReturnArgs} args - Arguments to create many Pending_gift_card_orders.
+     * @example
+     * // Create many Pending_gift_card_orders
+     * const pending_gift_card_orders = await prisma.pending_gift_card_orders.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Pending_gift_card_orders and only return the `id`
+     * const pending_gift_card_ordersWithIdOnly = await prisma.pending_gift_card_orders.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends pending_gift_card_ordersCreateManyAndReturnArgs>(args?: SelectSubset<T, pending_gift_card_ordersCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$pending_gift_card_ordersPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a Pending_gift_card_orders.
+     * @param {pending_gift_card_ordersDeleteArgs} args - Arguments to delete one Pending_gift_card_orders.
+     * @example
+     * // Delete one Pending_gift_card_orders
+     * const Pending_gift_card_orders = await prisma.pending_gift_card_orders.delete({
+     *   where: {
+     *     // ... filter to delete one Pending_gift_card_orders
+     *   }
+     * })
+     * 
+     */
+    delete<T extends pending_gift_card_ordersDeleteArgs>(args: SelectSubset<T, pending_gift_card_ordersDeleteArgs<ExtArgs>>): Prisma__pending_gift_card_ordersClient<$Result.GetResult<Prisma.$pending_gift_card_ordersPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one Pending_gift_card_orders.
+     * @param {pending_gift_card_ordersUpdateArgs} args - Arguments to update one Pending_gift_card_orders.
+     * @example
+     * // Update one Pending_gift_card_orders
+     * const pending_gift_card_orders = await prisma.pending_gift_card_orders.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends pending_gift_card_ordersUpdateArgs>(args: SelectSubset<T, pending_gift_card_ordersUpdateArgs<ExtArgs>>): Prisma__pending_gift_card_ordersClient<$Result.GetResult<Prisma.$pending_gift_card_ordersPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more Pending_gift_card_orders.
+     * @param {pending_gift_card_ordersDeleteManyArgs} args - Arguments to filter Pending_gift_card_orders to delete.
+     * @example
+     * // Delete a few Pending_gift_card_orders
+     * const { count } = await prisma.pending_gift_card_orders.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends pending_gift_card_ordersDeleteManyArgs>(args?: SelectSubset<T, pending_gift_card_ordersDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Pending_gift_card_orders.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {pending_gift_card_ordersUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Pending_gift_card_orders
+     * const pending_gift_card_orders = await prisma.pending_gift_card_orders.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends pending_gift_card_ordersUpdateManyArgs>(args: SelectSubset<T, pending_gift_card_ordersUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Pending_gift_card_orders and returns the data updated in the database.
+     * @param {pending_gift_card_ordersUpdateManyAndReturnArgs} args - Arguments to update many Pending_gift_card_orders.
+     * @example
+     * // Update many Pending_gift_card_orders
+     * const pending_gift_card_orders = await prisma.pending_gift_card_orders.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more Pending_gift_card_orders and only return the `id`
+     * const pending_gift_card_ordersWithIdOnly = await prisma.pending_gift_card_orders.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends pending_gift_card_ordersUpdateManyAndReturnArgs>(args: SelectSubset<T, pending_gift_card_ordersUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$pending_gift_card_ordersPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one Pending_gift_card_orders.
+     * @param {pending_gift_card_ordersUpsertArgs} args - Arguments to update or create a Pending_gift_card_orders.
+     * @example
+     * // Update or create a Pending_gift_card_orders
+     * const pending_gift_card_orders = await prisma.pending_gift_card_orders.upsert({
+     *   create: {
+     *     // ... data to create a Pending_gift_card_orders
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Pending_gift_card_orders we want to update
+     *   }
+     * })
+     */
+    upsert<T extends pending_gift_card_ordersUpsertArgs>(args: SelectSubset<T, pending_gift_card_ordersUpsertArgs<ExtArgs>>): Prisma__pending_gift_card_ordersClient<$Result.GetResult<Prisma.$pending_gift_card_ordersPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of Pending_gift_card_orders.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {pending_gift_card_ordersCountArgs} args - Arguments to filter Pending_gift_card_orders to count.
+     * @example
+     * // Count the number of Pending_gift_card_orders
+     * const count = await prisma.pending_gift_card_orders.count({
+     *   where: {
+     *     // ... the filter for the Pending_gift_card_orders we want to count
+     *   }
+     * })
+    **/
+    count<T extends pending_gift_card_ordersCountArgs>(
+      args?: Subset<T, pending_gift_card_ordersCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], Pending_gift_card_ordersCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Pending_gift_card_orders.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {Pending_gift_card_ordersAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends Pending_gift_card_ordersAggregateArgs>(args: Subset<T, Pending_gift_card_ordersAggregateArgs>): Prisma.PrismaPromise<GetPending_gift_card_ordersAggregateType<T>>
+
+    /**
+     * Group by Pending_gift_card_orders.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {pending_gift_card_ordersGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends pending_gift_card_ordersGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: pending_gift_card_ordersGroupByArgs['orderBy'] }
+        : { orderBy?: pending_gift_card_ordersGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, pending_gift_card_ordersGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetPending_gift_card_ordersGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the pending_gift_card_orders model
+   */
+  readonly fields: pending_gift_card_ordersFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for pending_gift_card_orders.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__pending_gift_card_ordersClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the pending_gift_card_orders model
+   */
+  interface pending_gift_card_ordersFieldRefs {
+    readonly id: FieldRef<"pending_gift_card_orders", 'Int'>
+    readonly refId: FieldRef<"pending_gift_card_orders", 'String'>
+    readonly amount: FieldRef<"pending_gift_card_orders", 'Float'>
+    readonly buyerEmail: FieldRef<"pending_gift_card_orders", 'String'>
+    readonly buyerName: FieldRef<"pending_gift_card_orders", 'String'>
+    readonly recipientName: FieldRef<"pending_gift_card_orders", 'String'>
+    readonly recipientEmail: FieldRef<"pending_gift_card_orders", 'String'>
+    readonly message: FieldRef<"pending_gift_card_orders", 'String'>
+    readonly transId: FieldRef<"pending_gift_card_orders", 'String'>
+    readonly createdAt: FieldRef<"pending_gift_card_orders", 'DateTime'>
+    readonly expiresAt: FieldRef<"pending_gift_card_orders", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * pending_gift_card_orders findUnique
+   */
+  export type pending_gift_card_ordersFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_gift_card_orders
+     */
+    select?: pending_gift_card_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_gift_card_orders
+     */
+    omit?: pending_gift_card_ordersOmit<ExtArgs> | null
+    /**
+     * Filter, which pending_gift_card_orders to fetch.
+     */
+    where: pending_gift_card_ordersWhereUniqueInput
+  }
+
+  /**
+   * pending_gift_card_orders findUniqueOrThrow
+   */
+  export type pending_gift_card_ordersFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_gift_card_orders
+     */
+    select?: pending_gift_card_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_gift_card_orders
+     */
+    omit?: pending_gift_card_ordersOmit<ExtArgs> | null
+    /**
+     * Filter, which pending_gift_card_orders to fetch.
+     */
+    where: pending_gift_card_ordersWhereUniqueInput
+  }
+
+  /**
+   * pending_gift_card_orders findFirst
+   */
+  export type pending_gift_card_ordersFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_gift_card_orders
+     */
+    select?: pending_gift_card_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_gift_card_orders
+     */
+    omit?: pending_gift_card_ordersOmit<ExtArgs> | null
+    /**
+     * Filter, which pending_gift_card_orders to fetch.
+     */
+    where?: pending_gift_card_ordersWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of pending_gift_card_orders to fetch.
+     */
+    orderBy?: pending_gift_card_ordersOrderByWithRelationInput | pending_gift_card_ordersOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for pending_gift_card_orders.
+     */
+    cursor?: pending_gift_card_ordersWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` pending_gift_card_orders from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` pending_gift_card_orders.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of pending_gift_card_orders.
+     */
+    distinct?: Pending_gift_card_ordersScalarFieldEnum | Pending_gift_card_ordersScalarFieldEnum[]
+  }
+
+  /**
+   * pending_gift_card_orders findFirstOrThrow
+   */
+  export type pending_gift_card_ordersFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_gift_card_orders
+     */
+    select?: pending_gift_card_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_gift_card_orders
+     */
+    omit?: pending_gift_card_ordersOmit<ExtArgs> | null
+    /**
+     * Filter, which pending_gift_card_orders to fetch.
+     */
+    where?: pending_gift_card_ordersWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of pending_gift_card_orders to fetch.
+     */
+    orderBy?: pending_gift_card_ordersOrderByWithRelationInput | pending_gift_card_ordersOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for pending_gift_card_orders.
+     */
+    cursor?: pending_gift_card_ordersWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` pending_gift_card_orders from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` pending_gift_card_orders.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of pending_gift_card_orders.
+     */
+    distinct?: Pending_gift_card_ordersScalarFieldEnum | Pending_gift_card_ordersScalarFieldEnum[]
+  }
+
+  /**
+   * pending_gift_card_orders findMany
+   */
+  export type pending_gift_card_ordersFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_gift_card_orders
+     */
+    select?: pending_gift_card_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_gift_card_orders
+     */
+    omit?: pending_gift_card_ordersOmit<ExtArgs> | null
+    /**
+     * Filter, which pending_gift_card_orders to fetch.
+     */
+    where?: pending_gift_card_ordersWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of pending_gift_card_orders to fetch.
+     */
+    orderBy?: pending_gift_card_ordersOrderByWithRelationInput | pending_gift_card_ordersOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing pending_gift_card_orders.
+     */
+    cursor?: pending_gift_card_ordersWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` pending_gift_card_orders from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` pending_gift_card_orders.
+     */
+    skip?: number
+    distinct?: Pending_gift_card_ordersScalarFieldEnum | Pending_gift_card_ordersScalarFieldEnum[]
+  }
+
+  /**
+   * pending_gift_card_orders create
+   */
+  export type pending_gift_card_ordersCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_gift_card_orders
+     */
+    select?: pending_gift_card_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_gift_card_orders
+     */
+    omit?: pending_gift_card_ordersOmit<ExtArgs> | null
+    /**
+     * The data needed to create a pending_gift_card_orders.
+     */
+    data: XOR<pending_gift_card_ordersCreateInput, pending_gift_card_ordersUncheckedCreateInput>
+  }
+
+  /**
+   * pending_gift_card_orders createMany
+   */
+  export type pending_gift_card_ordersCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many pending_gift_card_orders.
+     */
+    data: pending_gift_card_ordersCreateManyInput | pending_gift_card_ordersCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * pending_gift_card_orders createManyAndReturn
+   */
+  export type pending_gift_card_ordersCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_gift_card_orders
+     */
+    select?: pending_gift_card_ordersSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_gift_card_orders
+     */
+    omit?: pending_gift_card_ordersOmit<ExtArgs> | null
+    /**
+     * The data used to create many pending_gift_card_orders.
+     */
+    data: pending_gift_card_ordersCreateManyInput | pending_gift_card_ordersCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * pending_gift_card_orders update
+   */
+  export type pending_gift_card_ordersUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_gift_card_orders
+     */
+    select?: pending_gift_card_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_gift_card_orders
+     */
+    omit?: pending_gift_card_ordersOmit<ExtArgs> | null
+    /**
+     * The data needed to update a pending_gift_card_orders.
+     */
+    data: XOR<pending_gift_card_ordersUpdateInput, pending_gift_card_ordersUncheckedUpdateInput>
+    /**
+     * Choose, which pending_gift_card_orders to update.
+     */
+    where: pending_gift_card_ordersWhereUniqueInput
+  }
+
+  /**
+   * pending_gift_card_orders updateMany
+   */
+  export type pending_gift_card_ordersUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update pending_gift_card_orders.
+     */
+    data: XOR<pending_gift_card_ordersUpdateManyMutationInput, pending_gift_card_ordersUncheckedUpdateManyInput>
+    /**
+     * Filter which pending_gift_card_orders to update
+     */
+    where?: pending_gift_card_ordersWhereInput
+    /**
+     * Limit how many pending_gift_card_orders to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * pending_gift_card_orders updateManyAndReturn
+   */
+  export type pending_gift_card_ordersUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_gift_card_orders
+     */
+    select?: pending_gift_card_ordersSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_gift_card_orders
+     */
+    omit?: pending_gift_card_ordersOmit<ExtArgs> | null
+    /**
+     * The data used to update pending_gift_card_orders.
+     */
+    data: XOR<pending_gift_card_ordersUpdateManyMutationInput, pending_gift_card_ordersUncheckedUpdateManyInput>
+    /**
+     * Filter which pending_gift_card_orders to update
+     */
+    where?: pending_gift_card_ordersWhereInput
+    /**
+     * Limit how many pending_gift_card_orders to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * pending_gift_card_orders upsert
+   */
+  export type pending_gift_card_ordersUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_gift_card_orders
+     */
+    select?: pending_gift_card_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_gift_card_orders
+     */
+    omit?: pending_gift_card_ordersOmit<ExtArgs> | null
+    /**
+     * The filter to search for the pending_gift_card_orders to update in case it exists.
+     */
+    where: pending_gift_card_ordersWhereUniqueInput
+    /**
+     * In case the pending_gift_card_orders found by the `where` argument doesn't exist, create a new pending_gift_card_orders with this data.
+     */
+    create: XOR<pending_gift_card_ordersCreateInput, pending_gift_card_ordersUncheckedCreateInput>
+    /**
+     * In case the pending_gift_card_orders was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<pending_gift_card_ordersUpdateInput, pending_gift_card_ordersUncheckedUpdateInput>
+  }
+
+  /**
+   * pending_gift_card_orders delete
+   */
+  export type pending_gift_card_ordersDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_gift_card_orders
+     */
+    select?: pending_gift_card_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_gift_card_orders
+     */
+    omit?: pending_gift_card_ordersOmit<ExtArgs> | null
+    /**
+     * Filter which pending_gift_card_orders to delete.
+     */
+    where: pending_gift_card_ordersWhereUniqueInput
+  }
+
+  /**
+   * pending_gift_card_orders deleteMany
+   */
+  export type pending_gift_card_ordersDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which pending_gift_card_orders to delete
+     */
+    where?: pending_gift_card_ordersWhereInput
+    /**
+     * Limit how many pending_gift_card_orders to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * pending_gift_card_orders without action
+   */
+  export type pending_gift_card_ordersDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_gift_card_orders
+     */
+    select?: pending_gift_card_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_gift_card_orders
+     */
+    omit?: pending_gift_card_ordersOmit<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -26499,7 +27701,7 @@ export namespace Prisma {
   export const Gift_cardScalarFieldEnum: {
     id: 'id',
     code: 'code',
-    stripeSessionId: 'stripeSessionId',
+    paymentTransId: 'paymentTransId',
     amount: 'amount',
     balance: 'balance',
     status: 'status',
@@ -26525,6 +27727,23 @@ export namespace Prisma {
   };
 
   export type User_saved_gift_cardsScalarFieldEnum = (typeof User_saved_gift_cardsScalarFieldEnum)[keyof typeof User_saved_gift_cardsScalarFieldEnum]
+
+
+  export const Pending_gift_card_ordersScalarFieldEnum: {
+    id: 'id',
+    refId: 'refId',
+    amount: 'amount',
+    buyerEmail: 'buyerEmail',
+    buyerName: 'buyerName',
+    recipientName: 'recipientName',
+    recipientEmail: 'recipientEmail',
+    message: 'message',
+    transId: 'transId',
+    createdAt: 'createdAt',
+    expiresAt: 'expiresAt'
+  };
+
+  export type Pending_gift_card_ordersScalarFieldEnum = (typeof Pending_gift_card_ordersScalarFieldEnum)[keyof typeof Pending_gift_card_ordersScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -28040,7 +29259,7 @@ export namespace Prisma {
     NOT?: gift_cardWhereInput | gift_cardWhereInput[]
     id?: IntFilter<"gift_card"> | number
     code?: StringFilter<"gift_card"> | string
-    stripeSessionId?: StringNullableFilter<"gift_card"> | string | null
+    paymentTransId?: StringNullableFilter<"gift_card"> | string | null
     amount?: FloatFilter<"gift_card"> | number
     balance?: FloatFilter<"gift_card"> | number
     status?: StringFilter<"gift_card"> | string
@@ -28059,7 +29278,7 @@ export namespace Prisma {
   export type gift_cardOrderByWithRelationInput = {
     id?: SortOrder
     code?: SortOrder
-    stripeSessionId?: SortOrderInput | SortOrder
+    paymentTransId?: SortOrderInput | SortOrder
     amount?: SortOrder
     balance?: SortOrder
     status?: SortOrder
@@ -28078,7 +29297,7 @@ export namespace Prisma {
   export type gift_cardWhereUniqueInput = Prisma.AtLeast<{
     id?: number
     code?: string
-    stripeSessionId?: string
+    paymentTransId?: string
     AND?: gift_cardWhereInput | gift_cardWhereInput[]
     OR?: gift_cardWhereInput[]
     NOT?: gift_cardWhereInput | gift_cardWhereInput[]
@@ -28095,12 +29314,12 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"gift_card"> | Date | string
     bookingId?: IntNullableFilter<"gift_card"> | number | null
     saved_by?: XOR<User_saved_gift_cardsNullableScalarRelationFilter, user_saved_gift_cardsWhereInput> | null
-  }, "id" | "code" | "stripeSessionId">
+  }, "id" | "code" | "paymentTransId">
 
   export type gift_cardOrderByWithAggregationInput = {
     id?: SortOrder
     code?: SortOrder
-    stripeSessionId?: SortOrderInput | SortOrder
+    paymentTransId?: SortOrderInput | SortOrder
     amount?: SortOrder
     balance?: SortOrder
     status?: SortOrder
@@ -28126,7 +29345,7 @@ export namespace Prisma {
     NOT?: gift_cardScalarWhereWithAggregatesInput | gift_cardScalarWhereWithAggregatesInput[]
     id?: IntWithAggregatesFilter<"gift_card"> | number
     code?: StringWithAggregatesFilter<"gift_card"> | string
-    stripeSessionId?: StringNullableWithAggregatesFilter<"gift_card"> | string | null
+    paymentTransId?: StringNullableWithAggregatesFilter<"gift_card"> | string | null
     amount?: FloatWithAggregatesFilter<"gift_card"> | number
     balance?: FloatWithAggregatesFilter<"gift_card"> | number
     status?: StringWithAggregatesFilter<"gift_card"> | string
@@ -28194,6 +29413,90 @@ export namespace Prisma {
     user_id?: IntWithAggregatesFilter<"user_saved_gift_cards"> | number
     gift_card_id?: IntWithAggregatesFilter<"user_saved_gift_cards"> | number
     saved_at?: DateTimeWithAggregatesFilter<"user_saved_gift_cards"> | Date | string
+  }
+
+  export type pending_gift_card_ordersWhereInput = {
+    AND?: pending_gift_card_ordersWhereInput | pending_gift_card_ordersWhereInput[]
+    OR?: pending_gift_card_ordersWhereInput[]
+    NOT?: pending_gift_card_ordersWhereInput | pending_gift_card_ordersWhereInput[]
+    id?: IntFilter<"pending_gift_card_orders"> | number
+    refId?: StringFilter<"pending_gift_card_orders"> | string
+    amount?: FloatFilter<"pending_gift_card_orders"> | number
+    buyerEmail?: StringFilter<"pending_gift_card_orders"> | string
+    buyerName?: StringNullableFilter<"pending_gift_card_orders"> | string | null
+    recipientName?: StringFilter<"pending_gift_card_orders"> | string
+    recipientEmail?: StringNullableFilter<"pending_gift_card_orders"> | string | null
+    message?: StringNullableFilter<"pending_gift_card_orders"> | string | null
+    transId?: StringNullableFilter<"pending_gift_card_orders"> | string | null
+    createdAt?: DateTimeFilter<"pending_gift_card_orders"> | Date | string
+    expiresAt?: DateTimeFilter<"pending_gift_card_orders"> | Date | string
+  }
+
+  export type pending_gift_card_ordersOrderByWithRelationInput = {
+    id?: SortOrder
+    refId?: SortOrder
+    amount?: SortOrder
+    buyerEmail?: SortOrder
+    buyerName?: SortOrderInput | SortOrder
+    recipientName?: SortOrder
+    recipientEmail?: SortOrderInput | SortOrder
+    message?: SortOrderInput | SortOrder
+    transId?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    expiresAt?: SortOrder
+  }
+
+  export type pending_gift_card_ordersWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    refId?: string
+    AND?: pending_gift_card_ordersWhereInput | pending_gift_card_ordersWhereInput[]
+    OR?: pending_gift_card_ordersWhereInput[]
+    NOT?: pending_gift_card_ordersWhereInput | pending_gift_card_ordersWhereInput[]
+    amount?: FloatFilter<"pending_gift_card_orders"> | number
+    buyerEmail?: StringFilter<"pending_gift_card_orders"> | string
+    buyerName?: StringNullableFilter<"pending_gift_card_orders"> | string | null
+    recipientName?: StringFilter<"pending_gift_card_orders"> | string
+    recipientEmail?: StringNullableFilter<"pending_gift_card_orders"> | string | null
+    message?: StringNullableFilter<"pending_gift_card_orders"> | string | null
+    transId?: StringNullableFilter<"pending_gift_card_orders"> | string | null
+    createdAt?: DateTimeFilter<"pending_gift_card_orders"> | Date | string
+    expiresAt?: DateTimeFilter<"pending_gift_card_orders"> | Date | string
+  }, "id" | "refId">
+
+  export type pending_gift_card_ordersOrderByWithAggregationInput = {
+    id?: SortOrder
+    refId?: SortOrder
+    amount?: SortOrder
+    buyerEmail?: SortOrder
+    buyerName?: SortOrderInput | SortOrder
+    recipientName?: SortOrder
+    recipientEmail?: SortOrderInput | SortOrder
+    message?: SortOrderInput | SortOrder
+    transId?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    expiresAt?: SortOrder
+    _count?: pending_gift_card_ordersCountOrderByAggregateInput
+    _avg?: pending_gift_card_ordersAvgOrderByAggregateInput
+    _max?: pending_gift_card_ordersMaxOrderByAggregateInput
+    _min?: pending_gift_card_ordersMinOrderByAggregateInput
+    _sum?: pending_gift_card_ordersSumOrderByAggregateInput
+  }
+
+  export type pending_gift_card_ordersScalarWhereWithAggregatesInput = {
+    AND?: pending_gift_card_ordersScalarWhereWithAggregatesInput | pending_gift_card_ordersScalarWhereWithAggregatesInput[]
+    OR?: pending_gift_card_ordersScalarWhereWithAggregatesInput[]
+    NOT?: pending_gift_card_ordersScalarWhereWithAggregatesInput | pending_gift_card_ordersScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"pending_gift_card_orders"> | number
+    refId?: StringWithAggregatesFilter<"pending_gift_card_orders"> | string
+    amount?: FloatWithAggregatesFilter<"pending_gift_card_orders"> | number
+    buyerEmail?: StringWithAggregatesFilter<"pending_gift_card_orders"> | string
+    buyerName?: StringNullableWithAggregatesFilter<"pending_gift_card_orders"> | string | null
+    recipientName?: StringWithAggregatesFilter<"pending_gift_card_orders"> | string
+    recipientEmail?: StringNullableWithAggregatesFilter<"pending_gift_card_orders"> | string | null
+    message?: StringNullableWithAggregatesFilter<"pending_gift_card_orders"> | string | null
+    transId?: StringNullableWithAggregatesFilter<"pending_gift_card_orders"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"pending_gift_card_orders"> | Date | string
+    expiresAt?: DateTimeWithAggregatesFilter<"pending_gift_card_orders"> | Date | string
   }
 
   export type bookingsCreateInput = {
@@ -29626,7 +30929,7 @@ export namespace Prisma {
 
   export type gift_cardCreateInput = {
     code: string
-    stripeSessionId?: string | null
+    paymentTransId?: string | null
     amount: number
     balance: number
     status?: string
@@ -29645,7 +30948,7 @@ export namespace Prisma {
   export type gift_cardUncheckedCreateInput = {
     id?: number
     code: string
-    stripeSessionId?: string | null
+    paymentTransId?: string | null
     amount: number
     balance: number
     status?: string
@@ -29663,7 +30966,7 @@ export namespace Prisma {
 
   export type gift_cardUpdateInput = {
     code?: StringFieldUpdateOperationsInput | string
-    stripeSessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTransId?: NullableStringFieldUpdateOperationsInput | string | null
     amount?: FloatFieldUpdateOperationsInput | number
     balance?: FloatFieldUpdateOperationsInput | number
     status?: StringFieldUpdateOperationsInput | string
@@ -29682,7 +30985,7 @@ export namespace Prisma {
   export type gift_cardUncheckedUpdateInput = {
     id?: IntFieldUpdateOperationsInput | number
     code?: StringFieldUpdateOperationsInput | string
-    stripeSessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTransId?: NullableStringFieldUpdateOperationsInput | string | null
     amount?: FloatFieldUpdateOperationsInput | number
     balance?: FloatFieldUpdateOperationsInput | number
     status?: StringFieldUpdateOperationsInput | string
@@ -29701,7 +31004,7 @@ export namespace Prisma {
   export type gift_cardCreateManyInput = {
     id?: number
     code: string
-    stripeSessionId?: string | null
+    paymentTransId?: string | null
     amount: number
     balance: number
     status?: string
@@ -29718,7 +31021,7 @@ export namespace Prisma {
 
   export type gift_cardUpdateManyMutationInput = {
     code?: StringFieldUpdateOperationsInput | string
-    stripeSessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTransId?: NullableStringFieldUpdateOperationsInput | string | null
     amount?: FloatFieldUpdateOperationsInput | number
     balance?: FloatFieldUpdateOperationsInput | number
     status?: StringFieldUpdateOperationsInput | string
@@ -29736,7 +31039,7 @@ export namespace Prisma {
   export type gift_cardUncheckedUpdateManyInput = {
     id?: IntFieldUpdateOperationsInput | number
     code?: StringFieldUpdateOperationsInput | string
-    stripeSessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTransId?: NullableStringFieldUpdateOperationsInput | string | null
     amount?: FloatFieldUpdateOperationsInput | number
     balance?: FloatFieldUpdateOperationsInput | number
     status?: StringFieldUpdateOperationsInput | string
@@ -29793,6 +31096,101 @@ export namespace Prisma {
     user_id?: IntFieldUpdateOperationsInput | number
     gift_card_id?: IntFieldUpdateOperationsInput | number
     saved_at?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type pending_gift_card_ordersCreateInput = {
+    refId: string
+    amount: number
+    buyerEmail: string
+    buyerName?: string | null
+    recipientName: string
+    recipientEmail?: string | null
+    message?: string | null
+    transId?: string | null
+    createdAt?: Date | string
+    expiresAt: Date | string
+  }
+
+  export type pending_gift_card_ordersUncheckedCreateInput = {
+    id?: number
+    refId: string
+    amount: number
+    buyerEmail: string
+    buyerName?: string | null
+    recipientName: string
+    recipientEmail?: string | null
+    message?: string | null
+    transId?: string | null
+    createdAt?: Date | string
+    expiresAt: Date | string
+  }
+
+  export type pending_gift_card_ordersUpdateInput = {
+    refId?: StringFieldUpdateOperationsInput | string
+    amount?: FloatFieldUpdateOperationsInput | number
+    buyerEmail?: StringFieldUpdateOperationsInput | string
+    buyerName?: NullableStringFieldUpdateOperationsInput | string | null
+    recipientName?: StringFieldUpdateOperationsInput | string
+    recipientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    message?: NullableStringFieldUpdateOperationsInput | string | null
+    transId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type pending_gift_card_ordersUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    refId?: StringFieldUpdateOperationsInput | string
+    amount?: FloatFieldUpdateOperationsInput | number
+    buyerEmail?: StringFieldUpdateOperationsInput | string
+    buyerName?: NullableStringFieldUpdateOperationsInput | string | null
+    recipientName?: StringFieldUpdateOperationsInput | string
+    recipientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    message?: NullableStringFieldUpdateOperationsInput | string | null
+    transId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type pending_gift_card_ordersCreateManyInput = {
+    id?: number
+    refId: string
+    amount: number
+    buyerEmail: string
+    buyerName?: string | null
+    recipientName: string
+    recipientEmail?: string | null
+    message?: string | null
+    transId?: string | null
+    createdAt?: Date | string
+    expiresAt: Date | string
+  }
+
+  export type pending_gift_card_ordersUpdateManyMutationInput = {
+    refId?: StringFieldUpdateOperationsInput | string
+    amount?: FloatFieldUpdateOperationsInput | number
+    buyerEmail?: StringFieldUpdateOperationsInput | string
+    buyerName?: NullableStringFieldUpdateOperationsInput | string | null
+    recipientName?: StringFieldUpdateOperationsInput | string
+    recipientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    message?: NullableStringFieldUpdateOperationsInput | string | null
+    transId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type pending_gift_card_ordersUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    refId?: StringFieldUpdateOperationsInput | string
+    amount?: FloatFieldUpdateOperationsInput | number
+    buyerEmail?: StringFieldUpdateOperationsInput | string
+    buyerName?: NullableStringFieldUpdateOperationsInput | string | null
+    recipientName?: StringFieldUpdateOperationsInput | string
+    recipientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    message?: NullableStringFieldUpdateOperationsInput | string | null
+    transId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type IntFilter<$PrismaModel = never> = {
@@ -31099,7 +32497,7 @@ export namespace Prisma {
   export type gift_cardCountOrderByAggregateInput = {
     id?: SortOrder
     code?: SortOrder
-    stripeSessionId?: SortOrder
+    paymentTransId?: SortOrder
     amount?: SortOrder
     balance?: SortOrder
     status?: SortOrder
@@ -31124,7 +32522,7 @@ export namespace Prisma {
   export type gift_cardMaxOrderByAggregateInput = {
     id?: SortOrder
     code?: SortOrder
-    stripeSessionId?: SortOrder
+    paymentTransId?: SortOrder
     amount?: SortOrder
     balance?: SortOrder
     status?: SortOrder
@@ -31142,7 +32540,7 @@ export namespace Prisma {
   export type gift_cardMinOrderByAggregateInput = {
     id?: SortOrder
     code?: SortOrder
-    stripeSessionId?: SortOrder
+    paymentTransId?: SortOrder
     amount?: SortOrder
     balance?: SortOrder
     status?: SortOrder
@@ -31216,6 +32614,58 @@ export namespace Prisma {
     id?: SortOrder
     user_id?: SortOrder
     gift_card_id?: SortOrder
+  }
+
+  export type pending_gift_card_ordersCountOrderByAggregateInput = {
+    id?: SortOrder
+    refId?: SortOrder
+    amount?: SortOrder
+    buyerEmail?: SortOrder
+    buyerName?: SortOrder
+    recipientName?: SortOrder
+    recipientEmail?: SortOrder
+    message?: SortOrder
+    transId?: SortOrder
+    createdAt?: SortOrder
+    expiresAt?: SortOrder
+  }
+
+  export type pending_gift_card_ordersAvgOrderByAggregateInput = {
+    id?: SortOrder
+    amount?: SortOrder
+  }
+
+  export type pending_gift_card_ordersMaxOrderByAggregateInput = {
+    id?: SortOrder
+    refId?: SortOrder
+    amount?: SortOrder
+    buyerEmail?: SortOrder
+    buyerName?: SortOrder
+    recipientName?: SortOrder
+    recipientEmail?: SortOrder
+    message?: SortOrder
+    transId?: SortOrder
+    createdAt?: SortOrder
+    expiresAt?: SortOrder
+  }
+
+  export type pending_gift_card_ordersMinOrderByAggregateInput = {
+    id?: SortOrder
+    refId?: SortOrder
+    amount?: SortOrder
+    buyerEmail?: SortOrder
+    buyerName?: SortOrder
+    recipientName?: SortOrder
+    recipientEmail?: SortOrder
+    message?: SortOrder
+    transId?: SortOrder
+    createdAt?: SortOrder
+    expiresAt?: SortOrder
+  }
+
+  export type pending_gift_card_ordersSumOrderByAggregateInput = {
+    id?: SortOrder
+    amount?: SortOrder
   }
 
   export type training_availabilityCreateNestedOneWithoutBookingsInput = {
@@ -35200,7 +36650,7 @@ export namespace Prisma {
 
   export type gift_cardCreateWithoutSaved_byInput = {
     code: string
-    stripeSessionId?: string | null
+    paymentTransId?: string | null
     amount: number
     balance: number
     status?: string
@@ -35218,7 +36668,7 @@ export namespace Prisma {
   export type gift_cardUncheckedCreateWithoutSaved_byInput = {
     id?: number
     code: string
-    stripeSessionId?: string | null
+    paymentTransId?: string | null
     amount: number
     balance: number
     status?: string
@@ -35303,7 +36753,7 @@ export namespace Prisma {
 
   export type gift_cardUpdateWithoutSaved_byInput = {
     code?: StringFieldUpdateOperationsInput | string
-    stripeSessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTransId?: NullableStringFieldUpdateOperationsInput | string | null
     amount?: FloatFieldUpdateOperationsInput | number
     balance?: FloatFieldUpdateOperationsInput | number
     status?: StringFieldUpdateOperationsInput | string
@@ -35321,7 +36771,7 @@ export namespace Prisma {
   export type gift_cardUncheckedUpdateWithoutSaved_byInput = {
     id?: IntFieldUpdateOperationsInput | number
     code?: StringFieldUpdateOperationsInput | string
-    stripeSessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTransId?: NullableStringFieldUpdateOperationsInput | string | null
     amount?: FloatFieldUpdateOperationsInput | number
     balance?: FloatFieldUpdateOperationsInput | number
     status?: StringFieldUpdateOperationsInput | string

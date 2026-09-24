@@ -28,7 +28,7 @@ const { Pool } = require('pg');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const { v4: uuidv4 } = require('uuid');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const paymentGateway = require('./services/paymentGateway');
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const app = express();
@@ -2630,8 +2630,8 @@ function validateEnvVariables() {
     'DB_NAME',
     'DB_PASSWORD',
     'DB_PORT',
-    'STRIPE_SECRET_KEY',
-    'STRIPE_WEBHOOK_SECRET',
+    'COMGATE_MERCHANT',
+    'COMGATE_SECRET',
     'FRONTEND_URL',
     'SESSION_SECRET',
     'CLOUDFLARE_SECRET' // <--- CLOUDFLARE TURNSTILE
@@ -5871,49 +5871,28 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
       );
       const bookingId = bookingResult.rows[0].id;
 
-      // Stripe checkout session
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: [{
-          price_data: {
-            currency: 'eur',
-            product_data: {
-              name: `${training.type_name} Tréning (dospelí)`,
-              description: `Termín: ${sessionDate}`,
-            },
-            unit_amount: Math.round(finalPrice * 100),
-          },
-          quantity: 1,
-        }],
-        mode: 'payment',
-        success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}&booking_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.FRONTEND_URL}/payment-cancelled`,
-        payment_intent_data: {
-          metadata: { bookingId: bookingId.toString() }
-        },
-        metadata: {
-          userId: userId.toString(),
-          trainingId: training.id.toString(),
-          trainingType: training.type_name,
-          selectedDate: selectedDate || '',
-          selectedTime: selectedTime || '',
-          totalPrice: calculatedPrice.toString(),
-          mobile: mobile || '',
-          note: note || '',
-          type: 'adult_training_session',
-           photoConsent: photoConsent === true ? 'true' : 'null',
-          giftCardCode: req.body.giftCardCode || '',
-          giftCardDiscount: String(giftCardDiscountAmount),
-        },
+      const userEmailResult = await client.query(
+        'SELECT email FROM users WHERE id = $1', [userId]
+      );
+      const userEmail = userEmailResult.rows[0]?.email || '';
+
+      const returnUrl = `${process.env.FRONTEND_URL}/payment-success?booking_id=${bookingId}`;
+
+      const comgatePayment = await paymentGateway.createPayment({
+        priceEur:  finalPrice,
+        refId:     `adult-${bookingId}`,
+        label:     `Trening${training.id}`,
+        returnUrl,
+        email:     userEmail,
       });
 
       await client.query(
         `UPDATE bookings SET session_id = $1 WHERE id = $2`,
-        [session.id, bookingId]
+        [comgatePayment.transId, bookingId]
       );
 
       await client.query('COMMIT');
-      res.json({ sessionId: session.id, bookingId });
+      res.json({ redirectUrl: comgatePayment.redirectUrl, transId: comgatePayment.transId, bookingId });
 
     } catch (error) {
       await client.query('ROLLBACK');
@@ -6015,35 +5994,43 @@ app.post('/api/create-gift-card-session', async (req, res) => {
       return res.status(400).json({ error: 'Chýbajú povinné polia' });
     }
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'eur',
-          product_data: {
-            name: `Darčekový poukaz Nitráčik – ${parsedAmount}€`,
-            description: `Pre: ${recipientName}`
-          },
-          unit_amount: parsedAmount * 100,
-        },
-        quantity: 1,
-      }],
-      mode: 'payment',
-      customer_email: buyerEmail,
-      success_url: `${process.env.FRONTEND_URL}/gift-card/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/gift-card`,
-      metadata: {
-        type: 'gift_card',
-        amount: String(parsedAmount),
+    // Save pending order to DB before redirecting to Comgate
+    const refId = `gc-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const orderExpiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours
+
+    await pool.query(
+      `INSERT INTO pending_gift_card_orders
+         ("refId", amount, "buyerEmail", "buyerName", "recipientName", "recipientEmail", message, "expiresAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        refId,
+        parsedAmount,
         buyerEmail,
-        buyerName: (buyerName || '').trim(),
+        (buyerName || '').trim() || null,
         recipientName,
-        recipientEmail: recipientEmail || '',
-        message: message || '',
-      },
+        recipientEmail || null,
+        message || null,
+        orderExpiresAt,
+      ]
+    );
+
+    const returnUrl = `${process.env.FRONTEND_URL}/gift-card/success?refId=${encodeURIComponent(refId)}`;
+
+    const payment = await paymentGateway.createPayment({
+      priceEur:  parsedAmount,
+      refId,
+      label:     `DarcekPoukaz${parsedAmount}`,
+      returnUrl,
+      email:     buyerEmail,
     });
 
-    res.json({ sessionId: session.id });
+    // Save transId to pending order so gift-card-success can look it up
+    await pool.query(
+      `UPDATE pending_gift_card_orders SET "transId" = $1 WHERE "refId" = $2`,
+      [payment.transId, refId]
+    );
+
+    res.json({ redirectUrl: payment.redirectUrl, transId: payment.transId });
   } catch (error) {
     console.error('[GiftCard] create-session error:', error.message);
     res.status(500).json({ error: 'Chyba pri vytváraní platby' });
@@ -6052,21 +6039,39 @@ app.post('/api/create-gift-card-session', async (req, res) => {
 
 // ENDPOINT 2: Confirm gift card after successful Stripe payment
 app.get('/api/gift-card-success', async (req, res) => {
-  const { session_id } = req.query;
-  if (!session_id) return res.status(400).json({ error: 'Chýba session_id' });
+  const { refId } = req.query;
+  if (!refId) return res.status(400).json({ error: 'Chýba refId' });
 
   const client = await pool.connect();
   try {
-    // Retrieve Stripe session
-    const session = await stripe.checkout.sessions.retrieve(session_id);
-    if (session.payment_status !== 'paid') {
-      return res.status(400).json({ error: 'Platba nebola úspešná' });
+    // Look up pending order
+    const orderResult = await client.query(
+      `SELECT * FROM pending_gift_card_orders WHERE "refId" = $1`,
+      [refId]
+    );
+
+    if (orderResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Objednávka nenájdená alebo vypršala' });
     }
 
-    // Idempotency check — return existing if already created
+    const order = orderResult.rows[0];
+    const transId = order.transId;
+
+    if (!transId) {
+      return res.status(400).json({ error: 'Platba nebola iniciovaná' });
+    }
+
+    // Verify payment status with Comgate
+    const status = await paymentGateway.getPaymentStatus(transId);
+
+    if (status !== 'PAID') {
+      return res.status(400).json({ error: 'Platba nebola úspešná', status });
+    }
+
+    // Idempotency check — return existing gift card if already created
     const existing = await client.query(
-      'SELECT * FROM gift_card WHERE "stripeSessionId" = $1',
-      [session_id]
+      `SELECT * FROM gift_card WHERE "paymentTransId" = $1`,
+      [transId]
     );
     if (existing.rows.length > 0) {
       const gc = existing.rows[0];
@@ -6083,8 +6088,8 @@ app.get('/api/gift-card-success', async (req, res) => {
       });
     }
 
-    // Extract metadata
-    const { amount, buyerEmail, buyerName, recipientName, recipientEmail, message } = session.metadata;
+    // Extract order data
+    const { amount, buyerEmail, buyerName, recipientName, recipientEmail, message } = order;
     const parsedAmount = parseFloat(amount);
 
     // Generate unique code with retry
@@ -6103,103 +6108,73 @@ app.get('/api/gift-card-success', async (req, res) => {
 
     const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
 
-    // Insert gift card record
+    // Insert gift card
     const insertResult = await client.query(
-      `INSERT INTO gift_card 
-        (code, amount, balance, status, "buyerEmail", "buyerName", "recipientName", "recipientEmail", message, "expiresAt", "stripeSessionId", "createdAt")
+      `INSERT INTO gift_card
+         (code, amount, balance, status, "buyerEmail", "buyerName", "recipientName", "recipientEmail", message, "expiresAt", "paymentTransId", "createdAt")
        VALUES ($1, $2, $3, 'active', $4, $5, $6, $7, $8, $9, $10, NOW())
        RETURNING *`,
       [
-        code,
-        parsedAmount,
-        parsedAmount,
-        buyerEmail,
-        buyerName || null,
-        recipientName,
-        recipientEmail || null,
-        message || null,
-        expiresAt,
-        session_id,
+        code, parsedAmount, parsedAmount,
+        buyerEmail, buyerName || null,
+        recipientName, recipientEmail || null,
+        message || null, expiresAt, transId,
       ]
     );
     const gc = insertResult.rows[0];
 
-    // Generate PDF once, reuse for both emails
+    // Clean up pending order
+    await client.query(`DELETE FROM pending_gift_card_orders WHERE "refId" = $1`, [refId]);
+
+    // Generate PDF
     let pdfBuffer = null;
     try {
       pdfBuffer = await generateGiftCardPDF({
-        code,
-        amount: parsedAmount,
-        recipientName,
-        buyerEmail,
-        buyerName: buyerName || '',
-        message: message || null,
-        expiresAt,
+        code, amount: parsedAmount, recipientName,
+        buyerEmail, buyerName: buyerName || '',
+        message: message || null, expiresAt,
       });
     } catch (pdfError) {
       console.error('[GiftCard] PDF generation failed (non-fatal):', pdfError.message);
-      // pdfBuffer stays null — emails will be sent without attachment
     }
 
+    // Send emails
     try {
       await emailService.sendGiftCardEmail(buyerEmail, {
-        code,
-        amount: parsedAmount,
-        balance: parsedAmount,
-        recipientName,
-        buyerEmail,
-        message: message || null,
-        expiresAt,
-        isBuyer: true,
-        pdfBuffer,
+        code, amount: parsedAmount, balance: parsedAmount,
+        recipientName, buyerEmail,
+        message: message || null, expiresAt,
+        isBuyer: true, pdfBuffer,
       });
 
       if (recipientEmail && recipientEmail !== buyerEmail) {
         await emailService.sendGiftCardEmail(recipientEmail, {
-          code,
-          amount: parsedAmount,
-          balance: parsedAmount,
-          recipientName,
-          buyerEmail,
-          message: message || null,
-          expiresAt,
-          isBuyer: false,
-          pdfBuffer,
+          code, amount: parsedAmount, balance: parsedAmount,
+          recipientName, buyerEmail,
+          message: message || null, expiresAt,
+          isBuyer: false, pdfBuffer,
         });
       }
     } catch (emailError) {
       console.error('[GiftCard] Email sending failed (code already saved):', emailError.message);
-      // Do NOT re-throw — gift card was saved, user must get the code
     }
 
-    // Admin notifikácia o nákupe DP
     try {
-      await emailService.sendAdminGiftCardPurchaseNotification(
-        process.env.ADMIN_EMAIL,
-        {
-          buyerEmail,
-          recipientName,
-          recipientEmail: recipientEmail || null,
-          amount: parsedAmount,
-          code,
-          message: message || null,
-          expiresAt,
-        }
-      );
+      await emailService.sendAdminGiftCardPurchaseNotification(process.env.ADMIN_EMAIL, {
+        buyerEmail, recipientName,
+        recipientEmail: recipientEmail || null,
+        amount: parsedAmount, code,
+        message: message || null, expiresAt,
+      });
     } catch (adminEmailError) {
-      console.error('[GiftCard] Admin notification email failed:', adminEmailError.message);
+      console.error('[GiftCard] Admin notification failed:', adminEmailError.message);
     }
 
     res.json({
-      code: gc.code,
-      amount: gc.amount,
-      balance: gc.balance,
-      buyerEmail: gc.buyerEmail,
-      buyerName: gc.buyerName || '',
-      recipientName: gc.recipientName,
-      message: gc.message || '',
-      expiresAt: gc.expiresAt,
-      hasPdf: pdfBuffer !== null,
+      code: gc.code, amount: gc.amount, balance: gc.balance,
+      buyerEmail: gc.buyerEmail, buyerName: gc.buyerName || '',
+      recipientName: gc.recipientName, message: gc.message || '',
+      expiresAt: gc.expiresAt, hasPdf: pdfBuffer !== null,
     });
 
   } catch (error) {

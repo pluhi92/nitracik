@@ -114,14 +114,14 @@ async function createGiftCardInDb({
   recipientEmail = null,
   message = null,
   expiresAt = null,
-  stripeSessionId = null,
+  paymentTransId = null,
 }) {
   const expires = expiresAt || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-  const sessionId = stripeSessionId || `test_gc_session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const sessionId = paymentTransId || `test_gc_session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const result = await pool.query(
     `INSERT INTO gift_card
       (code, amount, balance, status, "buyerEmail", "recipientName", "recipientEmail",
-       message, "expiresAt", "stripeSessionId", "createdAt")
+       message, "expiresAt", "paymentTransId", "createdAt")
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
      ON CONFLICT (code) DO UPDATE SET balance = $3, status = $4
      RETURNING *`,
@@ -325,7 +325,7 @@ describe('Gift Card — Full purchase flow (Stripe → DB → email)', () => {
     expect(gc).not.toBeNull();
     expect(gc.status).toBe('active');
     expect(parseFloat(gc.balance)).toBe(30);
-    expect(gc.stripeSessionId).toBe(sessionId);
+    expect(gc.paymentTransId).toBe(sessionId);
 
     const emailService = require('../services/emailService');
     expect(emailService.sendGiftCardEmail).toHaveBeenCalledWith(
@@ -378,7 +378,7 @@ describe('Gift Card — Full purchase flow (Stripe → DB → email)', () => {
     expect(res2.status).toBe(200);
     expect(res1.body.code).toBe(res2.body.code);
 
-    const rows = await pool.query('SELECT * FROM gift_card WHERE "stripeSessionId" = $1', [sessionId]);
+    const rows = await pool.query('SELECT * FROM gift_card WHERE "paymentTransId" = $1', [sessionId]);
     expect(rows.rows.length).toBe(1);
   });
 

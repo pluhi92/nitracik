@@ -90,14 +90,14 @@ async function createGiftCardInDb({
   recipientEmail = null,
   message = null,
   expiresAt = null,
-  stripeSessionId = null,
+  paymentTransId = null,
 }) {
   const expires = expiresAt || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-  const sessionId = stripeSessionId || `test_gc_session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const sessionId = paymentTransId || `test_gc_session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const result = await pool.query(
     `INSERT INTO gift_card 
       (code, amount, balance, status, "buyerEmail", "recipientName", "recipientEmail", 
-       message, "expiresAt", "stripeSessionId", "createdAt")
+       message, "expiresAt", "paymentTransId", "createdAt")
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
      ON CONFLICT (code) DO UPDATE SET balance = $3, status = $4
      RETURNING *`,
@@ -250,7 +250,7 @@ describe('E2E - Gift Card Feature', () => {
       );
       const cols = result.rows.map(r => r.column_name);
       ['id', 'code', 'amount', 'balance', 'status', 'buyerEmail', 'recipientName',
-        'expiresAt', 'createdAt', 'stripeSessionId'].forEach(col => {
+        'expiresAt', 'createdAt', 'paymentTransId'].forEach(col => {
           expect(cols).toContain(col);
         });
     });
@@ -396,7 +396,7 @@ describe('E2E - Gift Card Feature', () => {
       expect(dbRow).not.toBeNull();
       expect(dbRow.status).toBe('active');
       expect(parseFloat(dbRow.balance)).toBe(30);
-      expect(dbRow.stripeSessionId).toBe(sessionId);
+      expect(dbRow.paymentTransId).toBe(sessionId);
 
       // Email sent to buyer
       const emailService = require('../services/emailService');
@@ -550,7 +550,7 @@ describe('E2E - Gift Card Feature', () => {
       const res = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
       expect(res.status).toBe(400);
 
-      const dbCheck = await pool.query('SELECT * FROM gift_card WHERE "stripeSessionId" = $1', [sessionId]);
+      const dbCheck = await pool.query('SELECT * FROM gift_card WHERE "paymentTransId" = $1', [sessionId]);
       expect(dbCheck.rows.length).toBe(0);
     });
 
@@ -1207,7 +1207,7 @@ describe('E2E - Gift Card Feature', () => {
       expect(res.status).toBe(200);
       expect(res.body.received).toBe(true);
       // No DB row should be created (handled by polling endpoint, not webhook)
-      const dbCheck = await pool.query('SELECT * FROM gift_card WHERE "stripeSessionId" = $1', [sessionId]);
+      const dbCheck = await pool.query('SELECT * FROM gift_card WHERE "paymentTransId" = $1', [sessionId]);
       expect(dbCheck.rows.length).toBe(0);
     });
   });
@@ -1571,25 +1571,25 @@ describe('E2E - Gift Card Feature', () => {
 
       await expect(
         pool.query(
-          `INSERT INTO gift_card (code, amount, balance, status, "buyerEmail", "recipientName", "expiresAt", "stripeSessionId", "createdAt")
+          `INSERT INTO gift_card (code, amount, balance, status, "buyerEmail", "recipientName", "expiresAt", "paymentTransId", "createdAt")
            VALUES ($1, 30, 30, 'active', 'test_gc_dupl_002@example.com', 'Test', NOW() + interval '1 year', $2, NOW())`,
           [code, `test_unique_session_${Date.now()}`]
         )
       ).rejects.toThrow();
     });
 
-    test('NEGATIVE: inserting duplicate stripeSessionId fails on unique constraint', async () => {
+    test('NEGATIVE: inserting duplicate paymentTransId fails on unique constraint', async () => {
       if (!giftCardTableExists) return;
       const sessionId = `test_gc_unique_session_${Date.now()}`;
       await createGiftCardInDb({
         code: testGcCode('DUPL2'), amount: 30, balance: 30,
         buyerEmail: 'test_gc_dupl_003@example.com',
-        stripeSessionId: sessionId,
+        paymentTransId: sessionId,
       });
 
       await expect(
         pool.query(
-          `INSERT INTO gift_card (code, amount, balance, status, "buyerEmail", "recipientName", "expiresAt", "stripeSessionId", "createdAt")
+          `INSERT INTO gift_card (code, amount, balance, status, "buyerEmail", "recipientName", "expiresAt", "paymentTransId", "createdAt")
            VALUES ($1, 30, 30, 'active', 'test_gc_dupl_004@example.com', 'Test', NOW() + interval '1 year', $2, NOW())`,
           [testGcCode('DUPL3'), sessionId]
         )

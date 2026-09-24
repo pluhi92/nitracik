@@ -110,7 +110,7 @@ async function createGiftCard({ code, amount = 50, balance = 50, status = 'activ
   const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
   const r = await pool.query(
     `INSERT INTO gift_card
-       (code, amount, balance, status, "buyerEmail", "recipientName", "expiresAt", "stripeSessionId", "createdAt")
+       (code, amount, balance, status, "buyerEmail", "recipientName", "expiresAt", "paymentTransId", "createdAt")
      VALUES ($1,$2,$3,$4,$5,'Test Recipient',$6,$7,NOW())
      ON CONFLICT (code) DO UPDATE SET balance=$3, status=$4
      RETURNING *`,
