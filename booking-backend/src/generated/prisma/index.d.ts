@@ -118,6 +118,11 @@ export type user_saved_gift_cards = $Result.DefaultSelection<Prisma.$user_saved_
  * 
  */
 export type pending_gift_card_orders = $Result.DefaultSelection<Prisma.$pending_gift_card_ordersPayload>
+/**
+ * Model pending_season_ticket_orders
+ * 
+ */
+export type pending_season_ticket_orders = $Result.DefaultSelection<Prisma.$pending_season_ticket_ordersPayload>
 
 /**
  * ##  Prisma Client ʲˢ
@@ -446,6 +451,16 @@ export class PrismaClient<
     * ```
     */
   get pending_gift_card_orders(): Prisma.pending_gift_card_ordersDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.pending_season_ticket_orders`: Exposes CRUD operations for the **pending_season_ticket_orders** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Pending_season_ticket_orders
+    * const pending_season_ticket_orders = await prisma.pending_season_ticket_orders.findMany()
+    * ```
+    */
+  get pending_season_ticket_orders(): Prisma.pending_season_ticket_ordersDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -907,7 +922,8 @@ export namespace Prisma {
     about_content: 'about_content',
     gift_card: 'gift_card',
     user_saved_gift_cards: 'user_saved_gift_cards',
-    pending_gift_card_orders: 'pending_gift_card_orders'
+    pending_gift_card_orders: 'pending_gift_card_orders',
+    pending_season_ticket_orders: 'pending_season_ticket_orders'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -926,7 +942,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "bookings" | "credits" | "faqs" | "refunds" | "season_ticket_usage" | "season_ticket_products" | "season_ticket_product_training_types" | "season_tickets" | "season_ticket_offers" | "training_availability" | "training_prices" | "training_types" | "user_sessions" | "users" | "blog_labels" | "blog_posts" | "google_ratings_config" | "about_content" | "gift_card" | "user_saved_gift_cards" | "pending_gift_card_orders"
+      modelProps: "bookings" | "credits" | "faqs" | "refunds" | "season_ticket_usage" | "season_ticket_products" | "season_ticket_product_training_types" | "season_tickets" | "season_ticket_offers" | "training_availability" | "training_prices" | "training_types" | "user_sessions" | "users" | "blog_labels" | "blog_posts" | "google_ratings_config" | "about_content" | "gift_card" | "user_saved_gift_cards" | "pending_gift_card_orders" | "pending_season_ticket_orders"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2484,6 +2500,80 @@ export namespace Prisma {
           }
         }
       }
+      pending_season_ticket_orders: {
+        payload: Prisma.$pending_season_ticket_ordersPayload<ExtArgs>
+        fields: Prisma.pending_season_ticket_ordersFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.pending_season_ticket_ordersFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_season_ticket_ordersPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.pending_season_ticket_ordersFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_season_ticket_ordersPayload>
+          }
+          findFirst: {
+            args: Prisma.pending_season_ticket_ordersFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_season_ticket_ordersPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.pending_season_ticket_ordersFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_season_ticket_ordersPayload>
+          }
+          findMany: {
+            args: Prisma.pending_season_ticket_ordersFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_season_ticket_ordersPayload>[]
+          }
+          create: {
+            args: Prisma.pending_season_ticket_ordersCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_season_ticket_ordersPayload>
+          }
+          createMany: {
+            args: Prisma.pending_season_ticket_ordersCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.pending_season_ticket_ordersCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_season_ticket_ordersPayload>[]
+          }
+          delete: {
+            args: Prisma.pending_season_ticket_ordersDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_season_ticket_ordersPayload>
+          }
+          update: {
+            args: Prisma.pending_season_ticket_ordersUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_season_ticket_ordersPayload>
+          }
+          deleteMany: {
+            args: Prisma.pending_season_ticket_ordersDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.pending_season_ticket_ordersUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.pending_season_ticket_ordersUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_season_ticket_ordersPayload>[]
+          }
+          upsert: {
+            args: Prisma.pending_season_ticket_ordersUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$pending_season_ticket_ordersPayload>
+          }
+          aggregate: {
+            args: Prisma.Pending_season_ticket_ordersAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregatePending_season_ticket_orders>
+          }
+          groupBy: {
+            args: Prisma.pending_season_ticket_ordersGroupByArgs<ExtArgs>
+            result: $Utils.Optional<Pending_season_ticket_ordersGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.pending_season_ticket_ordersCountArgs<ExtArgs>
+            result: $Utils.Optional<Pending_season_ticket_ordersCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -2601,6 +2691,7 @@ export namespace Prisma {
     gift_card?: gift_cardOmit
     user_saved_gift_cards?: user_saved_gift_cardsOmit
     pending_gift_card_orders?: pending_gift_card_ordersOmit
+    pending_season_ticket_orders?: pending_season_ticket_ordersOmit
   }
 
   /* Types for Logging */
@@ -3036,6 +3127,7 @@ export namespace Prisma {
     training_id: number | null
     number_of_children: number | null
     amount_paid: Decimal | null
+    amount_expected: Decimal | null
     credit_id: number | null
     number_of_adults: number | null
     gift_card_amount: Decimal | null
@@ -3047,6 +3139,7 @@ export namespace Prisma {
     training_id: number | null
     number_of_children: number | null
     amount_paid: Decimal | null
+    amount_expected: Decimal | null
     credit_id: number | null
     number_of_adults: number | null
     gift_card_amount: Decimal | null
@@ -3059,6 +3152,7 @@ export namespace Prisma {
     booked_at: Date | null
     number_of_children: number | null
     amount_paid: Decimal | null
+    amount_expected: Decimal | null
     payment_time: Date | null
     session_id: string | null
     payment_intent_id: string | null
@@ -3087,6 +3181,7 @@ export namespace Prisma {
     booked_at: Date | null
     number_of_children: number | null
     amount_paid: Decimal | null
+    amount_expected: Decimal | null
     payment_time: Date | null
     session_id: string | null
     payment_intent_id: string | null
@@ -3115,6 +3210,7 @@ export namespace Prisma {
     booked_at: number
     number_of_children: number
     amount_paid: number
+    amount_expected: number
     payment_time: number
     session_id: number
     payment_intent_id: number
@@ -3144,6 +3240,7 @@ export namespace Prisma {
     training_id?: true
     number_of_children?: true
     amount_paid?: true
+    amount_expected?: true
     credit_id?: true
     number_of_adults?: true
     gift_card_amount?: true
@@ -3155,6 +3252,7 @@ export namespace Prisma {
     training_id?: true
     number_of_children?: true
     amount_paid?: true
+    amount_expected?: true
     credit_id?: true
     number_of_adults?: true
     gift_card_amount?: true
@@ -3167,6 +3265,7 @@ export namespace Prisma {
     booked_at?: true
     number_of_children?: true
     amount_paid?: true
+    amount_expected?: true
     payment_time?: true
     session_id?: true
     payment_intent_id?: true
@@ -3195,6 +3294,7 @@ export namespace Prisma {
     booked_at?: true
     number_of_children?: true
     amount_paid?: true
+    amount_expected?: true
     payment_time?: true
     session_id?: true
     payment_intent_id?: true
@@ -3223,6 +3323,7 @@ export namespace Prisma {
     booked_at?: true
     number_of_children?: true
     amount_paid?: true
+    amount_expected?: true
     payment_time?: true
     session_id?: true
     payment_intent_id?: true
@@ -3338,6 +3439,7 @@ export namespace Prisma {
     booked_at: Date | null
     number_of_children: number
     amount_paid: Decimal | null
+    amount_expected: Decimal | null
     payment_time: Date | null
     session_id: string | null
     payment_intent_id: string | null
@@ -3385,6 +3487,7 @@ export namespace Prisma {
     booked_at?: boolean
     number_of_children?: boolean
     amount_paid?: boolean
+    amount_expected?: boolean
     payment_time?: boolean
     session_id?: boolean
     payment_intent_id?: boolean
@@ -3419,6 +3522,7 @@ export namespace Prisma {
     booked_at?: boolean
     number_of_children?: boolean
     amount_paid?: boolean
+    amount_expected?: boolean
     payment_time?: boolean
     session_id?: boolean
     payment_intent_id?: boolean
@@ -3450,6 +3554,7 @@ export namespace Prisma {
     booked_at?: boolean
     number_of_children?: boolean
     amount_paid?: boolean
+    amount_expected?: boolean
     payment_time?: boolean
     session_id?: boolean
     payment_intent_id?: boolean
@@ -3481,6 +3586,7 @@ export namespace Prisma {
     booked_at?: boolean
     number_of_children?: boolean
     amount_paid?: boolean
+    amount_expected?: boolean
     payment_time?: boolean
     session_id?: boolean
     payment_intent_id?: boolean
@@ -3502,7 +3608,7 @@ export namespace Prisma {
     gift_card_amount?: boolean
   }
 
-  export type bookingsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "user_id" | "training_id" | "booked_at" | "number_of_children" | "amount_paid" | "payment_time" | "session_id" | "payment_intent_id" | "credit_id" | "children_ages" | "photo_consent" | "mobile" | "note" | "accompanying_person" | "active" | "booking_type" | "archived_training_date" | "archived_training_type" | "checked_in" | "age_group" | "number_of_adults" | "review_email_sent_at" | "gift_card_code" | "gift_card_amount", ExtArgs["result"]["bookings"]>
+  export type bookingsOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "user_id" | "training_id" | "booked_at" | "number_of_children" | "amount_paid" | "amount_expected" | "payment_time" | "session_id" | "payment_intent_id" | "credit_id" | "children_ages" | "photo_consent" | "mobile" | "note" | "accompanying_person" | "active" | "booking_type" | "archived_training_date" | "archived_training_type" | "checked_in" | "age_group" | "number_of_adults" | "review_email_sent_at" | "gift_card_code" | "gift_card_amount", ExtArgs["result"]["bookings"]>
   export type bookingsInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     training_availability?: boolean | bookings$training_availabilityArgs<ExtArgs>
     users?: boolean | bookings$usersArgs<ExtArgs>
@@ -3538,6 +3644,7 @@ export namespace Prisma {
       booked_at: Date | null
       number_of_children: number
       amount_paid: Prisma.Decimal | null
+      amount_expected: Prisma.Decimal | null
       payment_time: Date | null
       session_id: string | null
       payment_intent_id: string | null
@@ -3991,6 +4098,7 @@ export namespace Prisma {
     readonly booked_at: FieldRef<"bookings", 'DateTime'>
     readonly number_of_children: FieldRef<"bookings", 'Int'>
     readonly amount_paid: FieldRef<"bookings", 'Decimal'>
+    readonly amount_expected: FieldRef<"bookings", 'Decimal'>
     readonly payment_time: FieldRef<"bookings", 'DateTime'>
     readonly session_id: FieldRef<"bookings", 'String'>
     readonly payment_intent_id: FieldRef<"bookings", 'String'>
@@ -27429,6 +27537,1120 @@ export namespace Prisma {
 
 
   /**
+   * Model pending_season_ticket_orders
+   */
+
+  export type AggregatePending_season_ticket_orders = {
+    _count: Pending_season_ticket_ordersCountAggregateOutputType | null
+    _avg: Pending_season_ticket_ordersAvgAggregateOutputType | null
+    _sum: Pending_season_ticket_ordersSumAggregateOutputType | null
+    _min: Pending_season_ticket_ordersMinAggregateOutputType | null
+    _max: Pending_season_ticket_ordersMaxAggregateOutputType | null
+  }
+
+  export type Pending_season_ticket_ordersAvgAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    productId: number | null
+    offerId: number | null
+    entries: number | null
+    amount: Decimal | null
+  }
+
+  export type Pending_season_ticket_ordersSumAggregateOutputType = {
+    id: number | null
+    userId: number | null
+    productId: number | null
+    offerId: number | null
+    entries: number | null
+    amount: Decimal | null
+  }
+
+  export type Pending_season_ticket_ordersMinAggregateOutputType = {
+    id: number | null
+    refId: string | null
+    userId: number | null
+    productId: number | null
+    offerId: number | null
+    entries: number | null
+    amount: Decimal | null
+    transId: string | null
+    createdAt: Date | null
+    expiresAt: Date | null
+  }
+
+  export type Pending_season_ticket_ordersMaxAggregateOutputType = {
+    id: number | null
+    refId: string | null
+    userId: number | null
+    productId: number | null
+    offerId: number | null
+    entries: number | null
+    amount: Decimal | null
+    transId: string | null
+    createdAt: Date | null
+    expiresAt: Date | null
+  }
+
+  export type Pending_season_ticket_ordersCountAggregateOutputType = {
+    id: number
+    refId: number
+    userId: number
+    productId: number
+    offerId: number
+    entries: number
+    amount: number
+    transId: number
+    createdAt: number
+    expiresAt: number
+    _all: number
+  }
+
+
+  export type Pending_season_ticket_ordersAvgAggregateInputType = {
+    id?: true
+    userId?: true
+    productId?: true
+    offerId?: true
+    entries?: true
+    amount?: true
+  }
+
+  export type Pending_season_ticket_ordersSumAggregateInputType = {
+    id?: true
+    userId?: true
+    productId?: true
+    offerId?: true
+    entries?: true
+    amount?: true
+  }
+
+  export type Pending_season_ticket_ordersMinAggregateInputType = {
+    id?: true
+    refId?: true
+    userId?: true
+    productId?: true
+    offerId?: true
+    entries?: true
+    amount?: true
+    transId?: true
+    createdAt?: true
+    expiresAt?: true
+  }
+
+  export type Pending_season_ticket_ordersMaxAggregateInputType = {
+    id?: true
+    refId?: true
+    userId?: true
+    productId?: true
+    offerId?: true
+    entries?: true
+    amount?: true
+    transId?: true
+    createdAt?: true
+    expiresAt?: true
+  }
+
+  export type Pending_season_ticket_ordersCountAggregateInputType = {
+    id?: true
+    refId?: true
+    userId?: true
+    productId?: true
+    offerId?: true
+    entries?: true
+    amount?: true
+    transId?: true
+    createdAt?: true
+    expiresAt?: true
+    _all?: true
+  }
+
+  export type Pending_season_ticket_ordersAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which pending_season_ticket_orders to aggregate.
+     */
+    where?: pending_season_ticket_ordersWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of pending_season_ticket_orders to fetch.
+     */
+    orderBy?: pending_season_ticket_ordersOrderByWithRelationInput | pending_season_ticket_ordersOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: pending_season_ticket_ordersWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` pending_season_ticket_orders from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` pending_season_ticket_orders.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned pending_season_ticket_orders
+    **/
+    _count?: true | Pending_season_ticket_ordersCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: Pending_season_ticket_ordersAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: Pending_season_ticket_ordersSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: Pending_season_ticket_ordersMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: Pending_season_ticket_ordersMaxAggregateInputType
+  }
+
+  export type GetPending_season_ticket_ordersAggregateType<T extends Pending_season_ticket_ordersAggregateArgs> = {
+        [P in keyof T & keyof AggregatePending_season_ticket_orders]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregatePending_season_ticket_orders[P]>
+      : GetScalarType<T[P], AggregatePending_season_ticket_orders[P]>
+  }
+
+
+
+
+  export type pending_season_ticket_ordersGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: pending_season_ticket_ordersWhereInput
+    orderBy?: pending_season_ticket_ordersOrderByWithAggregationInput | pending_season_ticket_ordersOrderByWithAggregationInput[]
+    by: Pending_season_ticket_ordersScalarFieldEnum[] | Pending_season_ticket_ordersScalarFieldEnum
+    having?: pending_season_ticket_ordersScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: Pending_season_ticket_ordersCountAggregateInputType | true
+    _avg?: Pending_season_ticket_ordersAvgAggregateInputType
+    _sum?: Pending_season_ticket_ordersSumAggregateInputType
+    _min?: Pending_season_ticket_ordersMinAggregateInputType
+    _max?: Pending_season_ticket_ordersMaxAggregateInputType
+  }
+
+  export type Pending_season_ticket_ordersGroupByOutputType = {
+    id: number
+    refId: string
+    userId: number
+    productId: number
+    offerId: number
+    entries: number
+    amount: Decimal
+    transId: string | null
+    createdAt: Date
+    expiresAt: Date
+    _count: Pending_season_ticket_ordersCountAggregateOutputType | null
+    _avg: Pending_season_ticket_ordersAvgAggregateOutputType | null
+    _sum: Pending_season_ticket_ordersSumAggregateOutputType | null
+    _min: Pending_season_ticket_ordersMinAggregateOutputType | null
+    _max: Pending_season_ticket_ordersMaxAggregateOutputType | null
+  }
+
+  type GetPending_season_ticket_ordersGroupByPayload<T extends pending_season_ticket_ordersGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<Pending_season_ticket_ordersGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof Pending_season_ticket_ordersGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], Pending_season_ticket_ordersGroupByOutputType[P]>
+            : GetScalarType<T[P], Pending_season_ticket_ordersGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type pending_season_ticket_ordersSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    refId?: boolean
+    userId?: boolean
+    productId?: boolean
+    offerId?: boolean
+    entries?: boolean
+    amount?: boolean
+    transId?: boolean
+    createdAt?: boolean
+    expiresAt?: boolean
+  }, ExtArgs["result"]["pending_season_ticket_orders"]>
+
+  export type pending_season_ticket_ordersSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    refId?: boolean
+    userId?: boolean
+    productId?: boolean
+    offerId?: boolean
+    entries?: boolean
+    amount?: boolean
+    transId?: boolean
+    createdAt?: boolean
+    expiresAt?: boolean
+  }, ExtArgs["result"]["pending_season_ticket_orders"]>
+
+  export type pending_season_ticket_ordersSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    refId?: boolean
+    userId?: boolean
+    productId?: boolean
+    offerId?: boolean
+    entries?: boolean
+    amount?: boolean
+    transId?: boolean
+    createdAt?: boolean
+    expiresAt?: boolean
+  }, ExtArgs["result"]["pending_season_ticket_orders"]>
+
+  export type pending_season_ticket_ordersSelectScalar = {
+    id?: boolean
+    refId?: boolean
+    userId?: boolean
+    productId?: boolean
+    offerId?: boolean
+    entries?: boolean
+    amount?: boolean
+    transId?: boolean
+    createdAt?: boolean
+    expiresAt?: boolean
+  }
+
+  export type pending_season_ticket_ordersOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "refId" | "userId" | "productId" | "offerId" | "entries" | "amount" | "transId" | "createdAt" | "expiresAt", ExtArgs["result"]["pending_season_ticket_orders"]>
+
+  export type $pending_season_ticket_ordersPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "pending_season_ticket_orders"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      refId: string
+      userId: number
+      productId: number
+      offerId: number
+      entries: number
+      amount: Prisma.Decimal
+      transId: string | null
+      createdAt: Date
+      expiresAt: Date
+    }, ExtArgs["result"]["pending_season_ticket_orders"]>
+    composites: {}
+  }
+
+  type pending_season_ticket_ordersGetPayload<S extends boolean | null | undefined | pending_season_ticket_ordersDefaultArgs> = $Result.GetResult<Prisma.$pending_season_ticket_ordersPayload, S>
+
+  type pending_season_ticket_ordersCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<pending_season_ticket_ordersFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: Pending_season_ticket_ordersCountAggregateInputType | true
+    }
+
+  export interface pending_season_ticket_ordersDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['pending_season_ticket_orders'], meta: { name: 'pending_season_ticket_orders' } }
+    /**
+     * Find zero or one Pending_season_ticket_orders that matches the filter.
+     * @param {pending_season_ticket_ordersFindUniqueArgs} args - Arguments to find a Pending_season_ticket_orders
+     * @example
+     * // Get one Pending_season_ticket_orders
+     * const pending_season_ticket_orders = await prisma.pending_season_ticket_orders.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends pending_season_ticket_ordersFindUniqueArgs>(args: SelectSubset<T, pending_season_ticket_ordersFindUniqueArgs<ExtArgs>>): Prisma__pending_season_ticket_ordersClient<$Result.GetResult<Prisma.$pending_season_ticket_ordersPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one Pending_season_ticket_orders that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {pending_season_ticket_ordersFindUniqueOrThrowArgs} args - Arguments to find a Pending_season_ticket_orders
+     * @example
+     * // Get one Pending_season_ticket_orders
+     * const pending_season_ticket_orders = await prisma.pending_season_ticket_orders.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends pending_season_ticket_ordersFindUniqueOrThrowArgs>(args: SelectSubset<T, pending_season_ticket_ordersFindUniqueOrThrowArgs<ExtArgs>>): Prisma__pending_season_ticket_ordersClient<$Result.GetResult<Prisma.$pending_season_ticket_ordersPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Pending_season_ticket_orders that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {pending_season_ticket_ordersFindFirstArgs} args - Arguments to find a Pending_season_ticket_orders
+     * @example
+     * // Get one Pending_season_ticket_orders
+     * const pending_season_ticket_orders = await prisma.pending_season_ticket_orders.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends pending_season_ticket_ordersFindFirstArgs>(args?: SelectSubset<T, pending_season_ticket_ordersFindFirstArgs<ExtArgs>>): Prisma__pending_season_ticket_ordersClient<$Result.GetResult<Prisma.$pending_season_ticket_ordersPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Pending_season_ticket_orders that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {pending_season_ticket_ordersFindFirstOrThrowArgs} args - Arguments to find a Pending_season_ticket_orders
+     * @example
+     * // Get one Pending_season_ticket_orders
+     * const pending_season_ticket_orders = await prisma.pending_season_ticket_orders.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends pending_season_ticket_ordersFindFirstOrThrowArgs>(args?: SelectSubset<T, pending_season_ticket_ordersFindFirstOrThrowArgs<ExtArgs>>): Prisma__pending_season_ticket_ordersClient<$Result.GetResult<Prisma.$pending_season_ticket_ordersPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more Pending_season_ticket_orders that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {pending_season_ticket_ordersFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Pending_season_ticket_orders
+     * const pending_season_ticket_orders = await prisma.pending_season_ticket_orders.findMany()
+     * 
+     * // Get first 10 Pending_season_ticket_orders
+     * const pending_season_ticket_orders = await prisma.pending_season_ticket_orders.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const pending_season_ticket_ordersWithIdOnly = await prisma.pending_season_ticket_orders.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends pending_season_ticket_ordersFindManyArgs>(args?: SelectSubset<T, pending_season_ticket_ordersFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$pending_season_ticket_ordersPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a Pending_season_ticket_orders.
+     * @param {pending_season_ticket_ordersCreateArgs} args - Arguments to create a Pending_season_ticket_orders.
+     * @example
+     * // Create one Pending_season_ticket_orders
+     * const Pending_season_ticket_orders = await prisma.pending_season_ticket_orders.create({
+     *   data: {
+     *     // ... data to create a Pending_season_ticket_orders
+     *   }
+     * })
+     * 
+     */
+    create<T extends pending_season_ticket_ordersCreateArgs>(args: SelectSubset<T, pending_season_ticket_ordersCreateArgs<ExtArgs>>): Prisma__pending_season_ticket_ordersClient<$Result.GetResult<Prisma.$pending_season_ticket_ordersPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many Pending_season_ticket_orders.
+     * @param {pending_season_ticket_ordersCreateManyArgs} args - Arguments to create many Pending_season_ticket_orders.
+     * @example
+     * // Create many Pending_season_ticket_orders
+     * const pending_season_ticket_orders = await prisma.pending_season_ticket_orders.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends pending_season_ticket_ordersCreateManyArgs>(args?: SelectSubset<T, pending_season_ticket_ordersCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Pending_season_ticket_orders and returns the data saved in the database.
+     * @param {pending_season_ticket_ordersCreateManyAndReturnArgs} args - Arguments to create many Pending_season_ticket_orders.
+     * @example
+     * // Create many Pending_season_ticket_orders
+     * const pending_season_ticket_orders = await prisma.pending_season_ticket_orders.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Pending_season_ticket_orders and only return the `id`
+     * const pending_season_ticket_ordersWithIdOnly = await prisma.pending_season_ticket_orders.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends pending_season_ticket_ordersCreateManyAndReturnArgs>(args?: SelectSubset<T, pending_season_ticket_ordersCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$pending_season_ticket_ordersPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a Pending_season_ticket_orders.
+     * @param {pending_season_ticket_ordersDeleteArgs} args - Arguments to delete one Pending_season_ticket_orders.
+     * @example
+     * // Delete one Pending_season_ticket_orders
+     * const Pending_season_ticket_orders = await prisma.pending_season_ticket_orders.delete({
+     *   where: {
+     *     // ... filter to delete one Pending_season_ticket_orders
+     *   }
+     * })
+     * 
+     */
+    delete<T extends pending_season_ticket_ordersDeleteArgs>(args: SelectSubset<T, pending_season_ticket_ordersDeleteArgs<ExtArgs>>): Prisma__pending_season_ticket_ordersClient<$Result.GetResult<Prisma.$pending_season_ticket_ordersPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one Pending_season_ticket_orders.
+     * @param {pending_season_ticket_ordersUpdateArgs} args - Arguments to update one Pending_season_ticket_orders.
+     * @example
+     * // Update one Pending_season_ticket_orders
+     * const pending_season_ticket_orders = await prisma.pending_season_ticket_orders.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends pending_season_ticket_ordersUpdateArgs>(args: SelectSubset<T, pending_season_ticket_ordersUpdateArgs<ExtArgs>>): Prisma__pending_season_ticket_ordersClient<$Result.GetResult<Prisma.$pending_season_ticket_ordersPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more Pending_season_ticket_orders.
+     * @param {pending_season_ticket_ordersDeleteManyArgs} args - Arguments to filter Pending_season_ticket_orders to delete.
+     * @example
+     * // Delete a few Pending_season_ticket_orders
+     * const { count } = await prisma.pending_season_ticket_orders.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends pending_season_ticket_ordersDeleteManyArgs>(args?: SelectSubset<T, pending_season_ticket_ordersDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Pending_season_ticket_orders.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {pending_season_ticket_ordersUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Pending_season_ticket_orders
+     * const pending_season_ticket_orders = await prisma.pending_season_ticket_orders.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends pending_season_ticket_ordersUpdateManyArgs>(args: SelectSubset<T, pending_season_ticket_ordersUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Pending_season_ticket_orders and returns the data updated in the database.
+     * @param {pending_season_ticket_ordersUpdateManyAndReturnArgs} args - Arguments to update many Pending_season_ticket_orders.
+     * @example
+     * // Update many Pending_season_ticket_orders
+     * const pending_season_ticket_orders = await prisma.pending_season_ticket_orders.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more Pending_season_ticket_orders and only return the `id`
+     * const pending_season_ticket_ordersWithIdOnly = await prisma.pending_season_ticket_orders.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends pending_season_ticket_ordersUpdateManyAndReturnArgs>(args: SelectSubset<T, pending_season_ticket_ordersUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$pending_season_ticket_ordersPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one Pending_season_ticket_orders.
+     * @param {pending_season_ticket_ordersUpsertArgs} args - Arguments to update or create a Pending_season_ticket_orders.
+     * @example
+     * // Update or create a Pending_season_ticket_orders
+     * const pending_season_ticket_orders = await prisma.pending_season_ticket_orders.upsert({
+     *   create: {
+     *     // ... data to create a Pending_season_ticket_orders
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Pending_season_ticket_orders we want to update
+     *   }
+     * })
+     */
+    upsert<T extends pending_season_ticket_ordersUpsertArgs>(args: SelectSubset<T, pending_season_ticket_ordersUpsertArgs<ExtArgs>>): Prisma__pending_season_ticket_ordersClient<$Result.GetResult<Prisma.$pending_season_ticket_ordersPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of Pending_season_ticket_orders.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {pending_season_ticket_ordersCountArgs} args - Arguments to filter Pending_season_ticket_orders to count.
+     * @example
+     * // Count the number of Pending_season_ticket_orders
+     * const count = await prisma.pending_season_ticket_orders.count({
+     *   where: {
+     *     // ... the filter for the Pending_season_ticket_orders we want to count
+     *   }
+     * })
+    **/
+    count<T extends pending_season_ticket_ordersCountArgs>(
+      args?: Subset<T, pending_season_ticket_ordersCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], Pending_season_ticket_ordersCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Pending_season_ticket_orders.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {Pending_season_ticket_ordersAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends Pending_season_ticket_ordersAggregateArgs>(args: Subset<T, Pending_season_ticket_ordersAggregateArgs>): Prisma.PrismaPromise<GetPending_season_ticket_ordersAggregateType<T>>
+
+    /**
+     * Group by Pending_season_ticket_orders.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {pending_season_ticket_ordersGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends pending_season_ticket_ordersGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: pending_season_ticket_ordersGroupByArgs['orderBy'] }
+        : { orderBy?: pending_season_ticket_ordersGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, pending_season_ticket_ordersGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetPending_season_ticket_ordersGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the pending_season_ticket_orders model
+   */
+  readonly fields: pending_season_ticket_ordersFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for pending_season_ticket_orders.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__pending_season_ticket_ordersClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the pending_season_ticket_orders model
+   */
+  interface pending_season_ticket_ordersFieldRefs {
+    readonly id: FieldRef<"pending_season_ticket_orders", 'Int'>
+    readonly refId: FieldRef<"pending_season_ticket_orders", 'String'>
+    readonly userId: FieldRef<"pending_season_ticket_orders", 'Int'>
+    readonly productId: FieldRef<"pending_season_ticket_orders", 'Int'>
+    readonly offerId: FieldRef<"pending_season_ticket_orders", 'Int'>
+    readonly entries: FieldRef<"pending_season_ticket_orders", 'Int'>
+    readonly amount: FieldRef<"pending_season_ticket_orders", 'Decimal'>
+    readonly transId: FieldRef<"pending_season_ticket_orders", 'String'>
+    readonly createdAt: FieldRef<"pending_season_ticket_orders", 'DateTime'>
+    readonly expiresAt: FieldRef<"pending_season_ticket_orders", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * pending_season_ticket_orders findUnique
+   */
+  export type pending_season_ticket_ordersFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_season_ticket_orders
+     */
+    select?: pending_season_ticket_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_season_ticket_orders
+     */
+    omit?: pending_season_ticket_ordersOmit<ExtArgs> | null
+    /**
+     * Filter, which pending_season_ticket_orders to fetch.
+     */
+    where: pending_season_ticket_ordersWhereUniqueInput
+  }
+
+  /**
+   * pending_season_ticket_orders findUniqueOrThrow
+   */
+  export type pending_season_ticket_ordersFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_season_ticket_orders
+     */
+    select?: pending_season_ticket_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_season_ticket_orders
+     */
+    omit?: pending_season_ticket_ordersOmit<ExtArgs> | null
+    /**
+     * Filter, which pending_season_ticket_orders to fetch.
+     */
+    where: pending_season_ticket_ordersWhereUniqueInput
+  }
+
+  /**
+   * pending_season_ticket_orders findFirst
+   */
+  export type pending_season_ticket_ordersFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_season_ticket_orders
+     */
+    select?: pending_season_ticket_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_season_ticket_orders
+     */
+    omit?: pending_season_ticket_ordersOmit<ExtArgs> | null
+    /**
+     * Filter, which pending_season_ticket_orders to fetch.
+     */
+    where?: pending_season_ticket_ordersWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of pending_season_ticket_orders to fetch.
+     */
+    orderBy?: pending_season_ticket_ordersOrderByWithRelationInput | pending_season_ticket_ordersOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for pending_season_ticket_orders.
+     */
+    cursor?: pending_season_ticket_ordersWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` pending_season_ticket_orders from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` pending_season_ticket_orders.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of pending_season_ticket_orders.
+     */
+    distinct?: Pending_season_ticket_ordersScalarFieldEnum | Pending_season_ticket_ordersScalarFieldEnum[]
+  }
+
+  /**
+   * pending_season_ticket_orders findFirstOrThrow
+   */
+  export type pending_season_ticket_ordersFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_season_ticket_orders
+     */
+    select?: pending_season_ticket_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_season_ticket_orders
+     */
+    omit?: pending_season_ticket_ordersOmit<ExtArgs> | null
+    /**
+     * Filter, which pending_season_ticket_orders to fetch.
+     */
+    where?: pending_season_ticket_ordersWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of pending_season_ticket_orders to fetch.
+     */
+    orderBy?: pending_season_ticket_ordersOrderByWithRelationInput | pending_season_ticket_ordersOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for pending_season_ticket_orders.
+     */
+    cursor?: pending_season_ticket_ordersWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` pending_season_ticket_orders from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` pending_season_ticket_orders.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of pending_season_ticket_orders.
+     */
+    distinct?: Pending_season_ticket_ordersScalarFieldEnum | Pending_season_ticket_ordersScalarFieldEnum[]
+  }
+
+  /**
+   * pending_season_ticket_orders findMany
+   */
+  export type pending_season_ticket_ordersFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_season_ticket_orders
+     */
+    select?: pending_season_ticket_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_season_ticket_orders
+     */
+    omit?: pending_season_ticket_ordersOmit<ExtArgs> | null
+    /**
+     * Filter, which pending_season_ticket_orders to fetch.
+     */
+    where?: pending_season_ticket_ordersWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of pending_season_ticket_orders to fetch.
+     */
+    orderBy?: pending_season_ticket_ordersOrderByWithRelationInput | pending_season_ticket_ordersOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing pending_season_ticket_orders.
+     */
+    cursor?: pending_season_ticket_ordersWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` pending_season_ticket_orders from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` pending_season_ticket_orders.
+     */
+    skip?: number
+    distinct?: Pending_season_ticket_ordersScalarFieldEnum | Pending_season_ticket_ordersScalarFieldEnum[]
+  }
+
+  /**
+   * pending_season_ticket_orders create
+   */
+  export type pending_season_ticket_ordersCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_season_ticket_orders
+     */
+    select?: pending_season_ticket_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_season_ticket_orders
+     */
+    omit?: pending_season_ticket_ordersOmit<ExtArgs> | null
+    /**
+     * The data needed to create a pending_season_ticket_orders.
+     */
+    data: XOR<pending_season_ticket_ordersCreateInput, pending_season_ticket_ordersUncheckedCreateInput>
+  }
+
+  /**
+   * pending_season_ticket_orders createMany
+   */
+  export type pending_season_ticket_ordersCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many pending_season_ticket_orders.
+     */
+    data: pending_season_ticket_ordersCreateManyInput | pending_season_ticket_ordersCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * pending_season_ticket_orders createManyAndReturn
+   */
+  export type pending_season_ticket_ordersCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_season_ticket_orders
+     */
+    select?: pending_season_ticket_ordersSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_season_ticket_orders
+     */
+    omit?: pending_season_ticket_ordersOmit<ExtArgs> | null
+    /**
+     * The data used to create many pending_season_ticket_orders.
+     */
+    data: pending_season_ticket_ordersCreateManyInput | pending_season_ticket_ordersCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * pending_season_ticket_orders update
+   */
+  export type pending_season_ticket_ordersUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_season_ticket_orders
+     */
+    select?: pending_season_ticket_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_season_ticket_orders
+     */
+    omit?: pending_season_ticket_ordersOmit<ExtArgs> | null
+    /**
+     * The data needed to update a pending_season_ticket_orders.
+     */
+    data: XOR<pending_season_ticket_ordersUpdateInput, pending_season_ticket_ordersUncheckedUpdateInput>
+    /**
+     * Choose, which pending_season_ticket_orders to update.
+     */
+    where: pending_season_ticket_ordersWhereUniqueInput
+  }
+
+  /**
+   * pending_season_ticket_orders updateMany
+   */
+  export type pending_season_ticket_ordersUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update pending_season_ticket_orders.
+     */
+    data: XOR<pending_season_ticket_ordersUpdateManyMutationInput, pending_season_ticket_ordersUncheckedUpdateManyInput>
+    /**
+     * Filter which pending_season_ticket_orders to update
+     */
+    where?: pending_season_ticket_ordersWhereInput
+    /**
+     * Limit how many pending_season_ticket_orders to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * pending_season_ticket_orders updateManyAndReturn
+   */
+  export type pending_season_ticket_ordersUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_season_ticket_orders
+     */
+    select?: pending_season_ticket_ordersSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_season_ticket_orders
+     */
+    omit?: pending_season_ticket_ordersOmit<ExtArgs> | null
+    /**
+     * The data used to update pending_season_ticket_orders.
+     */
+    data: XOR<pending_season_ticket_ordersUpdateManyMutationInput, pending_season_ticket_ordersUncheckedUpdateManyInput>
+    /**
+     * Filter which pending_season_ticket_orders to update
+     */
+    where?: pending_season_ticket_ordersWhereInput
+    /**
+     * Limit how many pending_season_ticket_orders to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * pending_season_ticket_orders upsert
+   */
+  export type pending_season_ticket_ordersUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_season_ticket_orders
+     */
+    select?: pending_season_ticket_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_season_ticket_orders
+     */
+    omit?: pending_season_ticket_ordersOmit<ExtArgs> | null
+    /**
+     * The filter to search for the pending_season_ticket_orders to update in case it exists.
+     */
+    where: pending_season_ticket_ordersWhereUniqueInput
+    /**
+     * In case the pending_season_ticket_orders found by the `where` argument doesn't exist, create a new pending_season_ticket_orders with this data.
+     */
+    create: XOR<pending_season_ticket_ordersCreateInput, pending_season_ticket_ordersUncheckedCreateInput>
+    /**
+     * In case the pending_season_ticket_orders was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<pending_season_ticket_ordersUpdateInput, pending_season_ticket_ordersUncheckedUpdateInput>
+  }
+
+  /**
+   * pending_season_ticket_orders delete
+   */
+  export type pending_season_ticket_ordersDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_season_ticket_orders
+     */
+    select?: pending_season_ticket_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_season_ticket_orders
+     */
+    omit?: pending_season_ticket_ordersOmit<ExtArgs> | null
+    /**
+     * Filter which pending_season_ticket_orders to delete.
+     */
+    where: pending_season_ticket_ordersWhereUniqueInput
+  }
+
+  /**
+   * pending_season_ticket_orders deleteMany
+   */
+  export type pending_season_ticket_ordersDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which pending_season_ticket_orders to delete
+     */
+    where?: pending_season_ticket_ordersWhereInput
+    /**
+     * Limit how many pending_season_ticket_orders to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * pending_season_ticket_orders without action
+   */
+  export type pending_season_ticket_ordersDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the pending_season_ticket_orders
+     */
+    select?: pending_season_ticket_ordersSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the pending_season_ticket_orders
+     */
+    omit?: pending_season_ticket_ordersOmit<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -27449,6 +28671,7 @@ export namespace Prisma {
     booked_at: 'booked_at',
     number_of_children: 'number_of_children',
     amount_paid: 'amount_paid',
+    amount_expected: 'amount_expected',
     payment_time: 'payment_time',
     session_id: 'session_id',
     payment_intent_id: 'payment_intent_id',
@@ -27746,6 +28969,22 @@ export namespace Prisma {
   export type Pending_gift_card_ordersScalarFieldEnum = (typeof Pending_gift_card_ordersScalarFieldEnum)[keyof typeof Pending_gift_card_ordersScalarFieldEnum]
 
 
+  export const Pending_season_ticket_ordersScalarFieldEnum: {
+    id: 'id',
+    refId: 'refId',
+    userId: 'userId',
+    productId: 'productId',
+    offerId: 'offerId',
+    entries: 'entries',
+    amount: 'amount',
+    transId: 'transId',
+    createdAt: 'createdAt',
+    expiresAt: 'expiresAt'
+  };
+
+  export type Pending_season_ticket_ordersScalarFieldEnum = (typeof Pending_season_ticket_ordersScalarFieldEnum)[keyof typeof Pending_season_ticket_ordersScalarFieldEnum]
+
+
   export const SortOrder: {
     asc: 'asc',
     desc: 'desc'
@@ -27895,6 +29134,7 @@ export namespace Prisma {
     booked_at?: DateTimeNullableFilter<"bookings"> | Date | string | null
     number_of_children?: IntFilter<"bookings"> | number
     amount_paid?: DecimalNullableFilter<"bookings"> | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: DecimalNullableFilter<"bookings"> | Decimal | DecimalJsLike | number | string | null
     payment_time?: DateTimeNullableFilter<"bookings"> | Date | string | null
     session_id?: StringNullableFilter<"bookings"> | string | null
     payment_intent_id?: StringNullableFilter<"bookings"> | string | null
@@ -27928,6 +29168,7 @@ export namespace Prisma {
     booked_at?: SortOrderInput | SortOrder
     number_of_children?: SortOrder
     amount_paid?: SortOrderInput | SortOrder
+    amount_expected?: SortOrderInput | SortOrder
     payment_time?: SortOrderInput | SortOrder
     session_id?: SortOrderInput | SortOrder
     payment_intent_id?: SortOrderInput | SortOrder
@@ -27964,6 +29205,7 @@ export namespace Prisma {
     booked_at?: DateTimeNullableFilter<"bookings"> | Date | string | null
     number_of_children?: IntFilter<"bookings"> | number
     amount_paid?: DecimalNullableFilter<"bookings"> | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: DecimalNullableFilter<"bookings"> | Decimal | DecimalJsLike | number | string | null
     payment_time?: DateTimeNullableFilter<"bookings"> | Date | string | null
     session_id?: StringNullableFilter<"bookings"> | string | null
     payment_intent_id?: StringNullableFilter<"bookings"> | string | null
@@ -27997,6 +29239,7 @@ export namespace Prisma {
     booked_at?: SortOrderInput | SortOrder
     number_of_children?: SortOrder
     amount_paid?: SortOrderInput | SortOrder
+    amount_expected?: SortOrderInput | SortOrder
     payment_time?: SortOrderInput | SortOrder
     session_id?: SortOrderInput | SortOrder
     payment_intent_id?: SortOrderInput | SortOrder
@@ -28033,6 +29276,7 @@ export namespace Prisma {
     booked_at?: DateTimeNullableWithAggregatesFilter<"bookings"> | Date | string | null
     number_of_children?: IntWithAggregatesFilter<"bookings"> | number
     amount_paid?: DecimalNullableWithAggregatesFilter<"bookings"> | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: DecimalNullableWithAggregatesFilter<"bookings"> | Decimal | DecimalJsLike | number | string | null
     payment_time?: DateTimeNullableWithAggregatesFilter<"bookings"> | Date | string | null
     session_id?: StringNullableWithAggregatesFilter<"bookings"> | string | null
     payment_intent_id?: StringNullableWithAggregatesFilter<"bookings"> | string | null
@@ -29499,10 +30743,90 @@ export namespace Prisma {
     expiresAt?: DateTimeWithAggregatesFilter<"pending_gift_card_orders"> | Date | string
   }
 
+  export type pending_season_ticket_ordersWhereInput = {
+    AND?: pending_season_ticket_ordersWhereInput | pending_season_ticket_ordersWhereInput[]
+    OR?: pending_season_ticket_ordersWhereInput[]
+    NOT?: pending_season_ticket_ordersWhereInput | pending_season_ticket_ordersWhereInput[]
+    id?: IntFilter<"pending_season_ticket_orders"> | number
+    refId?: StringFilter<"pending_season_ticket_orders"> | string
+    userId?: IntFilter<"pending_season_ticket_orders"> | number
+    productId?: IntFilter<"pending_season_ticket_orders"> | number
+    offerId?: IntFilter<"pending_season_ticket_orders"> | number
+    entries?: IntFilter<"pending_season_ticket_orders"> | number
+    amount?: DecimalFilter<"pending_season_ticket_orders"> | Decimal | DecimalJsLike | number | string
+    transId?: StringNullableFilter<"pending_season_ticket_orders"> | string | null
+    createdAt?: DateTimeFilter<"pending_season_ticket_orders"> | Date | string
+    expiresAt?: DateTimeFilter<"pending_season_ticket_orders"> | Date | string
+  }
+
+  export type pending_season_ticket_ordersOrderByWithRelationInput = {
+    id?: SortOrder
+    refId?: SortOrder
+    userId?: SortOrder
+    productId?: SortOrder
+    offerId?: SortOrder
+    entries?: SortOrder
+    amount?: SortOrder
+    transId?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    expiresAt?: SortOrder
+  }
+
+  export type pending_season_ticket_ordersWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    refId?: string
+    AND?: pending_season_ticket_ordersWhereInput | pending_season_ticket_ordersWhereInput[]
+    OR?: pending_season_ticket_ordersWhereInput[]
+    NOT?: pending_season_ticket_ordersWhereInput | pending_season_ticket_ordersWhereInput[]
+    userId?: IntFilter<"pending_season_ticket_orders"> | number
+    productId?: IntFilter<"pending_season_ticket_orders"> | number
+    offerId?: IntFilter<"pending_season_ticket_orders"> | number
+    entries?: IntFilter<"pending_season_ticket_orders"> | number
+    amount?: DecimalFilter<"pending_season_ticket_orders"> | Decimal | DecimalJsLike | number | string
+    transId?: StringNullableFilter<"pending_season_ticket_orders"> | string | null
+    createdAt?: DateTimeFilter<"pending_season_ticket_orders"> | Date | string
+    expiresAt?: DateTimeFilter<"pending_season_ticket_orders"> | Date | string
+  }, "id" | "refId">
+
+  export type pending_season_ticket_ordersOrderByWithAggregationInput = {
+    id?: SortOrder
+    refId?: SortOrder
+    userId?: SortOrder
+    productId?: SortOrder
+    offerId?: SortOrder
+    entries?: SortOrder
+    amount?: SortOrder
+    transId?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    expiresAt?: SortOrder
+    _count?: pending_season_ticket_ordersCountOrderByAggregateInput
+    _avg?: pending_season_ticket_ordersAvgOrderByAggregateInput
+    _max?: pending_season_ticket_ordersMaxOrderByAggregateInput
+    _min?: pending_season_ticket_ordersMinOrderByAggregateInput
+    _sum?: pending_season_ticket_ordersSumOrderByAggregateInput
+  }
+
+  export type pending_season_ticket_ordersScalarWhereWithAggregatesInput = {
+    AND?: pending_season_ticket_ordersScalarWhereWithAggregatesInput | pending_season_ticket_ordersScalarWhereWithAggregatesInput[]
+    OR?: pending_season_ticket_ordersScalarWhereWithAggregatesInput[]
+    NOT?: pending_season_ticket_ordersScalarWhereWithAggregatesInput | pending_season_ticket_ordersScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"pending_season_ticket_orders"> | number
+    refId?: StringWithAggregatesFilter<"pending_season_ticket_orders"> | string
+    userId?: IntWithAggregatesFilter<"pending_season_ticket_orders"> | number
+    productId?: IntWithAggregatesFilter<"pending_season_ticket_orders"> | number
+    offerId?: IntWithAggregatesFilter<"pending_season_ticket_orders"> | number
+    entries?: IntWithAggregatesFilter<"pending_season_ticket_orders"> | number
+    amount?: DecimalWithAggregatesFilter<"pending_season_ticket_orders"> | Decimal | DecimalJsLike | number | string
+    transId?: StringNullableWithAggregatesFilter<"pending_season_ticket_orders"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"pending_season_ticket_orders"> | Date | string
+    expiresAt?: DateTimeWithAggregatesFilter<"pending_season_ticket_orders"> | Date | string
+  }
+
   export type bookingsCreateInput = {
     booked_at?: Date | string | null
     number_of_children?: number
     amount_paid?: Decimal | DecimalJsLike | number | string | null
+    amount_expected?: Decimal | DecimalJsLike | number | string | null
     payment_time?: Date | string | null
     session_id?: string | null
     payment_intent_id?: string | null
@@ -29535,6 +30859,7 @@ export namespace Prisma {
     booked_at?: Date | string | null
     number_of_children?: number
     amount_paid?: Decimal | DecimalJsLike | number | string | null
+    amount_expected?: Decimal | DecimalJsLike | number | string | null
     payment_time?: Date | string | null
     session_id?: string | null
     payment_intent_id?: string | null
@@ -29562,6 +30887,7 @@ export namespace Prisma {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     session_id?: NullableStringFieldUpdateOperationsInput | string | null
     payment_intent_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -29594,6 +30920,7 @@ export namespace Prisma {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     session_id?: NullableStringFieldUpdateOperationsInput | string | null
     payment_intent_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -29624,6 +30951,7 @@ export namespace Prisma {
     booked_at?: Date | string | null
     number_of_children?: number
     amount_paid?: Decimal | DecimalJsLike | number | string | null
+    amount_expected?: Decimal | DecimalJsLike | number | string | null
     payment_time?: Date | string | null
     session_id?: string | null
     payment_intent_id?: string | null
@@ -29649,6 +30977,7 @@ export namespace Prisma {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     session_id?: NullableStringFieldUpdateOperationsInput | string | null
     payment_intent_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -29676,6 +31005,7 @@ export namespace Prisma {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     session_id?: NullableStringFieldUpdateOperationsInput | string | null
     payment_intent_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -31193,6 +32523,94 @@ export namespace Prisma {
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type pending_season_ticket_ordersCreateInput = {
+    refId: string
+    userId: number
+    productId: number
+    offerId: number
+    entries: number
+    amount: Decimal | DecimalJsLike | number | string
+    transId?: string | null
+    createdAt?: Date | string
+    expiresAt: Date | string
+  }
+
+  export type pending_season_ticket_ordersUncheckedCreateInput = {
+    id?: number
+    refId: string
+    userId: number
+    productId: number
+    offerId: number
+    entries: number
+    amount: Decimal | DecimalJsLike | number | string
+    transId?: string | null
+    createdAt?: Date | string
+    expiresAt: Date | string
+  }
+
+  export type pending_season_ticket_ordersUpdateInput = {
+    refId?: StringFieldUpdateOperationsInput | string
+    userId?: IntFieldUpdateOperationsInput | number
+    productId?: IntFieldUpdateOperationsInput | number
+    offerId?: IntFieldUpdateOperationsInput | number
+    entries?: IntFieldUpdateOperationsInput | number
+    amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    transId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type pending_season_ticket_ordersUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    refId?: StringFieldUpdateOperationsInput | string
+    userId?: IntFieldUpdateOperationsInput | number
+    productId?: IntFieldUpdateOperationsInput | number
+    offerId?: IntFieldUpdateOperationsInput | number
+    entries?: IntFieldUpdateOperationsInput | number
+    amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    transId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type pending_season_ticket_ordersCreateManyInput = {
+    id?: number
+    refId: string
+    userId: number
+    productId: number
+    offerId: number
+    entries: number
+    amount: Decimal | DecimalJsLike | number | string
+    transId?: string | null
+    createdAt?: Date | string
+    expiresAt: Date | string
+  }
+
+  export type pending_season_ticket_ordersUpdateManyMutationInput = {
+    refId?: StringFieldUpdateOperationsInput | string
+    userId?: IntFieldUpdateOperationsInput | number
+    productId?: IntFieldUpdateOperationsInput | number
+    offerId?: IntFieldUpdateOperationsInput | number
+    entries?: IntFieldUpdateOperationsInput | number
+    amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    transId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type pending_season_ticket_ordersUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    refId?: StringFieldUpdateOperationsInput | string
+    userId?: IntFieldUpdateOperationsInput | number
+    productId?: IntFieldUpdateOperationsInput | number
+    offerId?: IntFieldUpdateOperationsInput | number
+    entries?: IntFieldUpdateOperationsInput | number
+    amount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    transId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type IntFilter<$PrismaModel = never> = {
     equals?: number | IntFieldRefInput<$PrismaModel>
     in?: number[] | ListIntFieldRefInput<$PrismaModel>
@@ -31309,6 +32727,7 @@ export namespace Prisma {
     booked_at?: SortOrder
     number_of_children?: SortOrder
     amount_paid?: SortOrder
+    amount_expected?: SortOrder
     payment_time?: SortOrder
     session_id?: SortOrder
     payment_intent_id?: SortOrder
@@ -31336,6 +32755,7 @@ export namespace Prisma {
     training_id?: SortOrder
     number_of_children?: SortOrder
     amount_paid?: SortOrder
+    amount_expected?: SortOrder
     credit_id?: SortOrder
     number_of_adults?: SortOrder
     gift_card_amount?: SortOrder
@@ -31348,6 +32768,7 @@ export namespace Prisma {
     booked_at?: SortOrder
     number_of_children?: SortOrder
     amount_paid?: SortOrder
+    amount_expected?: SortOrder
     payment_time?: SortOrder
     session_id?: SortOrder
     payment_intent_id?: SortOrder
@@ -31376,6 +32797,7 @@ export namespace Prisma {
     booked_at?: SortOrder
     number_of_children?: SortOrder
     amount_paid?: SortOrder
+    amount_expected?: SortOrder
     payment_time?: SortOrder
     session_id?: SortOrder
     payment_intent_id?: SortOrder
@@ -31403,6 +32825,7 @@ export namespace Prisma {
     training_id?: SortOrder
     number_of_children?: SortOrder
     amount_paid?: SortOrder
+    amount_expected?: SortOrder
     credit_id?: SortOrder
     number_of_adults?: SortOrder
     gift_card_amount?: SortOrder
@@ -32665,6 +34088,63 @@ export namespace Prisma {
 
   export type pending_gift_card_ordersSumOrderByAggregateInput = {
     id?: SortOrder
+    amount?: SortOrder
+  }
+
+  export type pending_season_ticket_ordersCountOrderByAggregateInput = {
+    id?: SortOrder
+    refId?: SortOrder
+    userId?: SortOrder
+    productId?: SortOrder
+    offerId?: SortOrder
+    entries?: SortOrder
+    amount?: SortOrder
+    transId?: SortOrder
+    createdAt?: SortOrder
+    expiresAt?: SortOrder
+  }
+
+  export type pending_season_ticket_ordersAvgOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    productId?: SortOrder
+    offerId?: SortOrder
+    entries?: SortOrder
+    amount?: SortOrder
+  }
+
+  export type pending_season_ticket_ordersMaxOrderByAggregateInput = {
+    id?: SortOrder
+    refId?: SortOrder
+    userId?: SortOrder
+    productId?: SortOrder
+    offerId?: SortOrder
+    entries?: SortOrder
+    amount?: SortOrder
+    transId?: SortOrder
+    createdAt?: SortOrder
+    expiresAt?: SortOrder
+  }
+
+  export type pending_season_ticket_ordersMinOrderByAggregateInput = {
+    id?: SortOrder
+    refId?: SortOrder
+    userId?: SortOrder
+    productId?: SortOrder
+    offerId?: SortOrder
+    entries?: SortOrder
+    amount?: SortOrder
+    transId?: SortOrder
+    createdAt?: SortOrder
+    expiresAt?: SortOrder
+  }
+
+  export type pending_season_ticket_ordersSumOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    productId?: SortOrder
+    offerId?: SortOrder
+    entries?: SortOrder
     amount?: SortOrder
   }
 
@@ -34477,6 +35957,7 @@ export namespace Prisma {
     booked_at?: Date | string | null
     number_of_children?: number
     amount_paid?: Decimal | DecimalJsLike | number | string | null
+    amount_expected?: Decimal | DecimalJsLike | number | string | null
     payment_time?: Date | string | null
     session_id?: string | null
     payment_intent_id?: string | null
@@ -34508,6 +35989,7 @@ export namespace Prisma {
     booked_at?: Date | string | null
     number_of_children?: number
     amount_paid?: Decimal | DecimalJsLike | number | string | null
+    amount_expected?: Decimal | DecimalJsLike | number | string | null
     payment_time?: Date | string | null
     session_id?: string | null
     payment_intent_id?: string | null
@@ -34640,6 +36122,7 @@ export namespace Prisma {
     booked_at?: DateTimeNullableFilter<"bookings"> | Date | string | null
     number_of_children?: IntFilter<"bookings"> | number
     amount_paid?: DecimalNullableFilter<"bookings"> | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: DecimalNullableFilter<"bookings"> | Decimal | DecimalJsLike | number | string | null
     payment_time?: DateTimeNullableFilter<"bookings"> | Date | string | null
     session_id?: StringNullableFilter<"bookings"> | string | null
     payment_intent_id?: StringNullableFilter<"bookings"> | string | null
@@ -34751,6 +36234,7 @@ export namespace Prisma {
     booked_at?: Date | string | null
     number_of_children?: number
     amount_paid?: Decimal | DecimalJsLike | number | string | null
+    amount_expected?: Decimal | DecimalJsLike | number | string | null
     payment_time?: Date | string | null
     session_id?: string | null
     payment_intent_id?: string | null
@@ -34782,6 +36266,7 @@ export namespace Prisma {
     booked_at?: Date | string | null
     number_of_children?: number
     amount_paid?: Decimal | DecimalJsLike | number | string | null
+    amount_expected?: Decimal | DecimalJsLike | number | string | null
     payment_time?: Date | string | null
     session_id?: string | null
     payment_intent_id?: string | null
@@ -34824,6 +36309,7 @@ export namespace Prisma {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     session_id?: NullableStringFieldUpdateOperationsInput | string | null
     payment_intent_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -34855,6 +36341,7 @@ export namespace Prisma {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     session_id?: NullableStringFieldUpdateOperationsInput | string | null
     payment_intent_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -34881,6 +36368,7 @@ export namespace Prisma {
     booked_at?: Date | string | null
     number_of_children?: number
     amount_paid?: Decimal | DecimalJsLike | number | string | null
+    amount_expected?: Decimal | DecimalJsLike | number | string | null
     payment_time?: Date | string | null
     session_id?: string | null
     payment_intent_id?: string | null
@@ -34912,6 +36400,7 @@ export namespace Prisma {
     booked_at?: Date | string | null
     number_of_children?: number
     amount_paid?: Decimal | DecimalJsLike | number | string | null
+    amount_expected?: Decimal | DecimalJsLike | number | string | null
     payment_time?: Date | string | null
     session_id?: string | null
     payment_intent_id?: string | null
@@ -35022,6 +36511,7 @@ export namespace Prisma {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     session_id?: NullableStringFieldUpdateOperationsInput | string | null
     payment_intent_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -35053,6 +36543,7 @@ export namespace Prisma {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     session_id?: NullableStringFieldUpdateOperationsInput | string | null
     payment_intent_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -35717,6 +37208,7 @@ export namespace Prisma {
     booked_at?: Date | string | null
     number_of_children?: number
     amount_paid?: Decimal | DecimalJsLike | number | string | null
+    amount_expected?: Decimal | DecimalJsLike | number | string | null
     payment_time?: Date | string | null
     session_id?: string | null
     payment_intent_id?: string | null
@@ -35747,6 +37239,7 @@ export namespace Prisma {
     booked_at?: Date | string | null
     number_of_children?: number
     amount_paid?: Decimal | DecimalJsLike | number | string | null
+    amount_expected?: Decimal | DecimalJsLike | number | string | null
     payment_time?: Date | string | null
     session_id?: string | null
     payment_intent_id?: string | null
@@ -36215,6 +37708,7 @@ export namespace Prisma {
     booked_at?: Date | string | null
     number_of_children?: number
     amount_paid?: Decimal | DecimalJsLike | number | string | null
+    amount_expected?: Decimal | DecimalJsLike | number | string | null
     payment_time?: Date | string | null
     session_id?: string | null
     payment_intent_id?: string | null
@@ -36245,6 +37739,7 @@ export namespace Prisma {
     booked_at?: Date | string | null
     number_of_children?: number
     amount_paid?: Decimal | DecimalJsLike | number | string | null
+    amount_expected?: Decimal | DecimalJsLike | number | string | null
     payment_time?: Date | string | null
     session_id?: string | null
     payment_intent_id?: string | null
@@ -36863,6 +38358,7 @@ export namespace Prisma {
     booked_at?: Date | string | null
     number_of_children?: number
     amount_paid?: Decimal | DecimalJsLike | number | string | null
+    amount_expected?: Decimal | DecimalJsLike | number | string | null
     payment_time?: Date | string | null
     session_id?: string | null
     payment_intent_id?: string | null
@@ -36887,6 +38383,7 @@ export namespace Prisma {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     session_id?: NullableStringFieldUpdateOperationsInput | string | null
     payment_intent_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -36918,6 +38415,7 @@ export namespace Prisma {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     session_id?: NullableStringFieldUpdateOperationsInput | string | null
     payment_intent_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -36947,6 +38445,7 @@ export namespace Prisma {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     session_id?: NullableStringFieldUpdateOperationsInput | string | null
     payment_intent_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37112,6 +38611,7 @@ export namespace Prisma {
     booked_at?: Date | string | null
     number_of_children?: number
     amount_paid?: Decimal | DecimalJsLike | number | string | null
+    amount_expected?: Decimal | DecimalJsLike | number | string | null
     payment_time?: Date | string | null
     session_id?: string | null
     payment_intent_id?: string | null
@@ -37154,6 +38654,7 @@ export namespace Prisma {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     session_id?: NullableStringFieldUpdateOperationsInput | string | null
     payment_intent_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37184,6 +38685,7 @@ export namespace Prisma {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     session_id?: NullableStringFieldUpdateOperationsInput | string | null
     payment_intent_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37213,6 +38715,7 @@ export namespace Prisma {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     session_id?: NullableStringFieldUpdateOperationsInput | string | null
     payment_intent_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37405,6 +38908,7 @@ export namespace Prisma {
     booked_at?: Date | string | null
     number_of_children?: number
     amount_paid?: Decimal | DecimalJsLike | number | string | null
+    amount_expected?: Decimal | DecimalJsLike | number | string | null
     payment_time?: Date | string | null
     session_id?: string | null
     payment_intent_id?: string | null
@@ -37467,6 +38971,7 @@ export namespace Prisma {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     session_id?: NullableStringFieldUpdateOperationsInput | string | null
     payment_intent_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37497,6 +39002,7 @@ export namespace Prisma {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     session_id?: NullableStringFieldUpdateOperationsInput | string | null
     payment_intent_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37526,6 +39032,7 @@ export namespace Prisma {
     booked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     number_of_children?: IntFieldUpdateOperationsInput | number
     amount_paid?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    amount_expected?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
     payment_time?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     session_id?: NullableStringFieldUpdateOperationsInput | string | null
     payment_intent_id?: NullableStringFieldUpdateOperationsInput | string | null

@@ -128,6 +128,7 @@ exports.Prisma.BookingsScalarFieldEnum = {
   booked_at: 'booked_at',
   number_of_children: 'number_of_children',
   amount_paid: 'amount_paid',
+  amount_expected: 'amount_expected',
   payment_time: 'payment_time',
   session_id: 'session_id',
   payment_intent_id: 'payment_intent_id',
@@ -362,6 +363,19 @@ exports.Prisma.Pending_gift_card_ordersScalarFieldEnum = {
   expiresAt: 'expiresAt'
 };
 
+exports.Prisma.Pending_season_ticket_ordersScalarFieldEnum = {
+  id: 'id',
+  refId: 'refId',
+  userId: 'userId',
+  productId: 'productId',
+  offerId: 'offerId',
+  entries: 'entries',
+  amount: 'amount',
+  transId: 'transId',
+  createdAt: 'createdAt',
+  expiresAt: 'expiresAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -409,7 +423,8 @@ exports.Prisma.ModelName = {
   about_content: 'about_content',
   gift_card: 'gift_card',
   user_saved_gift_cards: 'user_saved_gift_cards',
-  pending_gift_card_orders: 'pending_gift_card_orders'
+  pending_gift_card_orders: 'pending_gift_card_orders',
+  pending_season_ticket_orders: 'pending_season_ticket_orders'
 };
 
 /**

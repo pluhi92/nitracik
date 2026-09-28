@@ -193,635 +193,55 @@ function generateGiftCode() {
   return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
-app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+// Comgate payment notification (optional background confirmation)
+// Primary confirmation is handled by /api/booking-success and /api/season-ticket-success
+// This endpoint handles cases where the user closes the browser before being redirected
+app.post('/api/comgate-notify', express.urlencoded({ extended: false }), async (req, res) => {
+  const { transId, status } = req.body;
 
   if (DEBUG_LOGS) {
-    console.log('� [STRIPE WEBHOOK] Received'); // Stripe webhook notification
+    console.log('[Comgate] Notification received:', { transId, status });
   }
-  const sig = req.headers['stripe-signature'];
-  let event;
 
+  // Acknowledge immediately — Comgate expects 200 OK
+  res.status(200).send('OK');
+
+  if (!transId || status !== 'PAID') return;
+
+  // Try to confirm a booking that hasn't been confirmed via redirect yet
+  const client = await pool.connect();
   try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
+    const bookingResult = await client.query(
+      `SELECT b.*, u.email, u.first_name
+       FROM bookings b
+       JOIN users u ON b.user_id = u.id
+       WHERE b.session_id = $1 AND b.amount_paid IS NULL AND b.active = true
+       LIMIT 1`,
+      [transId]
     );
-    if (DEBUG_LOGS) {
-      console.log('🔔 [STRIPE WEBHOOK] Event:', event.type);
-    }
-  } catch (err) {
-    console.error('[DEBUG] Webhook Signature Verification Failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
 
-  // === HANDLER FOR PAYMENT FAILURE ===
-  if (event.type === 'payment_intent.payment_failed') {
-    const paymentIntent = event.data.object;
-    const amountCents = paymentIntent.amount;
-    const amountEur = amountCents / 100;
-    const bookingId = paymentIntent.metadata?.bookingId;
-
-    if (DEBUG_LOGS) {
-      console.log('❌ [STRIPE WEBHOOK] Payment failed for PaymentIntent:', paymentIntent.id, 'Amount:', amountEur, 'EUR');
-    }
-
-    if (!bookingId) {
-      console.warn('⚠️ [STRIPE WEBHOOK] Missing bookingId in payment_intent metadata');
-      return res.json({ received: true });
-    }
-
-    const client = await pool.connect();
-    try {
-      const bookingResult = await client.query(
-        `SELECT b.id, b.session_id, u.email, u.first_name, ta.training_type, ta.training_date
-         FROM bookings b
-         JOIN users u ON b.user_id = u.id
-         LEFT JOIN training_availability ta ON b.training_id = ta.id
-         WHERE b.id = $1 AND b.amount_paid IS NULL AND b.active = false
-         LIMIT 1`,
-        [bookingId]
-      );
-
-      if (bookingResult.rows.length > 0) {
-        const booking = bookingResult.rows[0];
-
-        // Mark booking as definitely inactive
-        await client.query(
-          `UPDATE bookings SET active = false WHERE id = $1`,
-          [booking.id]
-        );
-
-        // Send payment failed email
-        try {
-          const trainingDate = booking.training_date ? dayjs(booking.training_date).tz(APP_TIMEZONE) : null;
-          await emailService.sendPaymentFailedEmail(booking.email, booking.first_name, {
-            selectedDate: trainingDate ? trainingDate.format('DD.MM.YYYY') : 'N/A',
-            selectedTime: trainingDate ? trainingDate.format('HH:mm') : 'N/A',
-            trainingType: booking.training_type || 'Tréning',
-            totalPrice: amountEur.toFixed(2)
-          });
-          console.log('✅ [STRIPE WEBHOOK] Payment failed email sent to:', booking.email);
-        } catch (emailError) {
-          console.error('[ERROR] Failed to send payment failed email:', emailError.message);
-        }
-      } else {
-        if (DEBUG_LOGS) {
-          console.warn('⚠️ [STRIPE WEBHOOK] No unpaid booking found');
-        }
-      }
-    } catch (error) {
-      console.error('[ERROR] Error handling payment_intent.payment_failed:', error.message);
-      console.error('[ERROR] Error stack:', error.stack);
-    } finally {
-      client.release();
-    }
-
-    return res.json({ received: true });
-  }
-
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-    
-    // ✅ CRITICAL: Only process if payment was actually successful
-    if (session.payment_status !== 'paid') {
-      console.log(`⚠️ [STRIPE WEBHOOK] Payment not completed. Status: ${session.payment_status}`);
-      return res.json({ received: true });
-    }
-    
-    if (DEBUG_LOGS) {
-      console.log('📦 [DEBUG] Session data:', JSON.stringify(session.metadata, null, 2));
-    }
-    const client = await pool.connect();
-
-    // Initialize email data variables
-    var emailDataToSend = null;
-    var bookingEmailData = null;
-
-    try {
+    if (bookingResult.rows.length > 0) {
+      const booking = bookingResult.rows[0];
       await client.query('BEGIN');
-
-      // === 1. SEASON TICKET (Permanentka) ===
-      if (session.metadata.type === 'season_ticket') {
-        const { userId, entries, totalPrice, productId } = session.metadata;
-        console.log(`Processing Season Ticket for User: ${userId}, Entries: ${entries}, Price: ${totalPrice}, Product: ${productId}`);
-
-        // Konverzia typov (Stripe posiela stringy)
-        const entriesInt = parseInt(entries, 10);
-        const priceFloat = parseFloat(totalPrice);
-        const productIdInt = parseInt(productId, 10);
-
-        if (!productIdInt) {
-          throw new Error('Product ID is missing for season ticket purchase');
-        }
-
-        // Bezpečnostná kontrola: overiť cenu podľa ponuky
-        const offerResult = await client.query(
-          `SELECT price FROM season_ticket_offers WHERE season_ticket_product_id = $1 AND entries = $2 AND active = TRUE`,
-          [productIdInt, entriesInt]
-        );
-
-        if (offerResult.rows.length === 0) {
-          console.error(`[SECURITY] Offer not found. Product: ${productIdInt}, Entries: ${entriesInt}`);
-          throw new Error('Season ticket offer not found');
-        }
-
-        const dbPrice = parseFloat(offerResult.rows[0].price);
-        if (dbPrice !== priceFloat) {
-          console.error(`[SECURITY] Price mismatch. Entries: ${entriesInt}, Paid: ${priceFloat}, Expected: ${dbPrice}`);
-          throw new Error('Payment amount verification failed');
-        }
-
-        // Exspirácia (6 mesiacov od nákupu) - UTC-safe
-        const expiryDate = dayjs.utc().add(6, 'month').toDate();
-
-        console.log('📝 [DEBUG] Attempting INSERT into DB...');
-
-        // === INSERT DO DB (Vrátane amount_paid a payment_time) ===
-        const ticketResult = await client.query(
-          `INSERT INTO season_tickets (
-              user_id, 
-              season_ticket_product_id,
-              entries_total, 
-              entries_remaining, 
-              purchase_date, 
-              expiry_date, 
-              stripe_payment_id, 
-              amount_paid, 
-              payment_time,
-              created_at,
-              updated_at
-           )
-           VALUES ($1, $2, $3, $3, NOW(), $4, $5, $6, $7, NOW(), NOW()) 
-           RETURNING id`,
-          [
-            parseInt(userId, 10),            // $1: user_id
-            productIdInt,                    // $2: season_ticket_product_id
-            entriesInt,                      // $3: entries_total (aj remaining)
-            expiryDate,                      // $4: expiry_date
-            session.id,                      // $5: stripe_payment_id
-            priceFloat,                      // $6: amount_paid
-            new Date(session.created * 1000) // $7: payment_time (zo Stripe timestampu)
-          ]
-        );
-
-        console.log('[DEBUG] Season ticket created ID:', ticketResult.rows[0].id);
-
-        const productResult = await client.query(
-          `SELECT name FROM season_ticket_products WHERE id = $1`,
-          [productIdInt]
-        );
-        const productName = productResult.rows[0]?.name || '';
-
-        // Odoslanie emailu užívateľovi
-        const userResult = await client.query(
-          'SELECT first_name, last_name, email, address FROM users WHERE id = $1',
-          [userId]
-        );
-        const user = userResult.rows[0];
-        const stripePaymentId = session.payment_intent || session.id;
-
-        if (user) {
-          // Store email data to send AFTER transaction commits
-          emailDataToSend = {
-            type: 'season_ticket_confirmation',
-            userEmail: user.email,
-            firstName: user.first_name,
-            lastName: user.last_name,
-            address: user.address,
-            entries: entriesInt,
-            totalPrice: priceFloat,
-            expiryDate,
-            productName,
-            stripePaymentId
-          };
-        }
-
-      } else if (session.metadata.type === 'training_session') {
-        const {
-          userId,
-          trainingId,
-          trainingType,
-          selectedDate,
-          selectedTime,
-          childrenCount,
-          childrenAge,
-          totalPrice,
-          photoConsent,
-          mobile,
-          note,
-          accompanyingPerson,
-        } = session.metadata;
-
-        if (!userId || !trainingType || !childrenCount || !totalPrice) {
-          throw new Error('Missing required metadata fields');
-        }
-        if (!trainingId && (!selectedDate || !selectedTime)) {
-          throw new Error('Missing required metadata fields');
-        }
-
-        let trainingResult;
-        let training;
-
-        if (trainingId) {
-          trainingResult = await client.query(
-            `SELECT * FROM training_availability WHERE id = $1`,
-            [parseInt(trainingId, 10)]
-          );
-        } else {
-          // Resolve training_type name to training_type_id
-          const typeIdResult = await client.query(
-            `SELECT id FROM training_types WHERE name = $1`,
-            [trainingType]
-          );
-          if (typeIdResult.rows.length === 0) {
-            throw new Error(`Training type '${trainingType}' not found`);
-          }
-          const trainingTypeId = typeIdResult.rows[0].id;
-
-          const time24 = to24Hour(selectedTime);
-          const trainingDateTimeUtc = toUtcDateTime(selectedDate, time24);
-
-          trainingResult = await client.query(
-            `SELECT * FROM training_availability WHERE training_type_id = $1 AND training_date = $2`,
-            [trainingTypeId, trainingDateTimeUtc]
-          );
-        }
-
-        if (trainingResult.rows.length === 0) {
-          throw new Error('Training session no longer available');
-        }
-
-        training = trainingResult.rows[0];
-
-        let displayDate = selectedDate;
-        let displayTime = selectedTime;
-        if ((!displayDate || !displayTime) && training?.training_date) {
-          const trainingLocal = dayjs(training.training_date).tz(APP_TIMEZONE);
-          if (!displayDate) displayDate = trainingLocal.format('YYYY-MM-DD');
-          if (!displayTime) displayTime = trainingLocal.format('HH:mm');
-        }
-        const bookingsResult = await client.query(
-          `SELECT COALESCE(
-             SUM(
-               CASE
-                 WHEN COALESCE(age_group, '') = 'adult' OR COALESCE(number_of_adults, 0) > 0
-                   THEN COALESCE(NULLIF(number_of_adults, 0), 1)
-                 ELSE COALESCE(number_of_children, 0)
-               END
-             ),
-             0
-           ) AS booked_children
-           FROM bookings WHERE training_id = $1 AND active = true`,
-          [training.id]
-        );
-        const bookedCount = parseInt(bookingsResult.rows[0].booked_children, 10);
-        if (bookedCount >= training.max_participants) {
-          throw new Error('Session is full');
-        }
-
-        // Prefer Stripe's charged amount when available; tests/mocks may omit amount_total.
-        const stripeAmountPaid = Number.isFinite(Number(session.amount_total))
-          ? Number(session.amount_total) / 100
-          : parseFloat(totalPrice);
-        if (!Number.isFinite(stripeAmountPaid)) {
-          throw new Error('Invalid paid amount in webhook payload');
-        }
-        const paymentIntentId = session.payment_intent;
-
-        const gcCodeWebhook = (session.metadata?.giftCardCode && session.metadata.giftCardCode.trim() !== '')
-          ? session.metadata.giftCardCode.trim().toUpperCase()
-          : null;
-        const gcAmountWebhook = parseFloat(session.metadata?.giftCardDiscount || '0');
-
-        const updateResult = await client.query(
-            `UPDATE bookings 
-             SET amount_paid = $1, 
-               payment_time = $2, 
-               payment_intent_id = $3, 
-               session_id = NULL,
-               active = true,
-               gift_card_code = $5,
-               gift_card_amount = $6
-             WHERE session_id = $4 
-             RETURNING *`,
-            [
-              stripeAmountPaid,
-              new Date(session.created * 1000),
-              paymentIntentId,
-              session.id,
-              gcCodeWebhook,
-              (gcAmountWebhook > 0) ? gcAmountWebhook : null,
-            ]
-        );
-
-        console.log('[DEBUG] Webhook booking update session_id:', session.id, 'rows:', updateResult.rowCount);
-
-        if (updateResult.rowCount === 0) {
-          throw new Error('No booking found with the provided session ID');
-        }
-
-        const booking = updateResult.rows[0];
-        console.log('✅ [STRIPE SUCCESS] Booking confirmed:', {
-          bookingId: booking.id,
-          paymentIntentId,
-          amountPaid: totalPrice
-        });
-
-        const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
-        const user = userResult.rows[0];
-
-        // Store booking email data to send AFTER transaction commits
-        const targetEmail = user.email || session.customer_details?.email;
-        const firstName = user.first_name || 'Osôbka';
-
-        bookingEmailData = {
-          targetEmail,
-          selectedDate: displayDate,
-          selectedTime: displayTime,
-          trainingType,
-          firstName,
-          user,
-          mobile,
-          childrenCount,
-          childrenAge,
-          photoConsent,
-          accompanyingPerson,
-          note,
-          totalPrice,
-          paymentIntentId,
-          trainingId: training.id,
-          theme: training.theme
-        };
-
-        console.log('[DEBUG] Booking data stored, will send emails after transaction commits');
-      }
-
-      else if (session.metadata.type === 'adult_training_session') {
-        const {
-          userId,
-          trainingId,
-          trainingType,
-          selectedDate,
-          selectedTime,
-          totalPrice,
-          mobile,
-          note,
-           photoConsent,
-        } = session.metadata;
-
-        if (!userId || !trainingType || !totalPrice) {
-          throw new Error('Missing required metadata fields for adult booking');
-        }
-
-        const trainingResult = await client.query(
-          `SELECT * FROM training_availability WHERE id = $1`,
-          [parseInt(trainingId, 10)]
-        );
-        if (trainingResult.rows.length === 0) {
-          throw new Error('Training session no longer available');
-        }
-        const training = trainingResult.rows[0];
-
-        let displayDate = selectedDate;
-        let displayTime = selectedTime;
-        if ((!displayDate || !displayTime) && training?.training_date) {
-          const trainingLocal = dayjs(training.training_date).tz(APP_TIMEZONE);
-          if (!displayDate) displayDate = trainingLocal.format('YYYY-MM-DD');
-          if (!displayTime) displayTime = trainingLocal.format('HH:mm');
-        }
-
-        // Prefer Stripe's charged amount when available; tests/mocks may omit amount_total.
-        const stripeAmountPaidAdult = Number.isFinite(Number(session.amount_total))
-          ? Number(session.amount_total) / 100
-          : parseFloat(totalPrice);
-        if (!Number.isFinite(stripeAmountPaidAdult)) {
-          throw new Error('Invalid paid amount in webhook payload');
-        }
-        const paymentIntentId = session.payment_intent;
-
-        const gcCodeAdult = (session.metadata?.giftCardCode && session.metadata.giftCardCode.trim() !== '')
-          ? session.metadata.giftCardCode.trim().toUpperCase()
-          : null;
-        const gcAmountAdult = parseFloat(session.metadata?.giftCardDiscount || '0');
-
-        const updateResult = await client.query(
-          `UPDATE bookings
-           SET amount_paid = $1,
-               payment_time = $2,
-               payment_intent_id = $3,
-               session_id = NULL,
-               active = true,
-               age_group = 'adult',
-               number_of_adults = 1,
-               number_of_children = 0,
-               photo_consent = $5,
-               gift_card_code = $6,
-               gift_card_amount = $7
-           WHERE session_id = $4
-           RETURNING *`,
-           [
-             stripeAmountPaidAdult,
-             new Date(session.created * 1000),
-             paymentIntentId,
-             session.id,
-             (photoConsent === 'true' ? true : null),
-             gcCodeAdult,
-             (gcAmountAdult > 0) ? gcAmountAdult : null,
-           ]
-        );
-
-        if (updateResult.rowCount === 0) {
-          throw new Error('No adult booking found with the provided session ID');
-        }
-
-        const booking = updateResult.rows[0];
-        console.log('✅ [STRIPE SUCCESS] Adult booking confirmed:', booking.id);
-
-        const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
-        const user = userResult.rows[0];
-
-        bookingEmailData = {
-          targetEmail: user.email || session.customer_details?.email,
-          selectedDate: displayDate,
-          selectedTime: displayTime,
-          trainingType,
-          firstName: user.first_name || 'Účastník',
-          user,
-          mobile,
-          childrenCount: 1,
-          childrenAge: null,
-           photoConsent: photoConsent === 'true' ? true : null,
-          accompanyingPerson: false,
-          note,
-          totalPrice,
-          paymentIntentId,
-          trainingId: training.id,
-          isAdult: true,
-          paymentType: 'paid',
-        };
-
-        console.log('[DEBUG] Adult booking data stored, will send emails after transaction commits');
-      } else if (session.metadata.type === 'gift_card') {
-        console.log('[STRIPE WEBHOOK] Gift card payment confirmed, handled by polling endpoint. session_id:', session.id);
-        // No action needed — /api/gift-card-success handles creation with idempotency
-      }
-
-      await client.query('COMMIT');
-    } catch (error) {
-      await client.query('ROLLBACK');
-      console.error('[DEBUG] Webhook processing error:', error.message);
-      console.error('[DEBUG] Error stack:', error.stack);
-    } finally {
-      client.release();
-    }
-
-    // --- Gift card redemption after successful Stripe payment ---
-    if (session.metadata?.giftCardCode) {
-      const discount = parseFloat(session.metadata.giftCardDiscount || '0');
-      if (discount > 0) {
-        const gcClient = await pool.connect();
-        try {
-          await gcClient.query('BEGIN');
-          const gcResult = await gcClient.query(
-            'SELECT * FROM gift_card WHERE code = $1 FOR UPDATE',
-            [session.metadata.giftCardCode]
-          );
-          if (gcResult.rows.length > 0) {
-            const gc = gcResult.rows[0];
-            const newBalance = parseFloat((parseFloat(gc.balance) - discount).toFixed(2));
-            const newStatus = newBalance <= 0 ? 'used' : 'active';
-            const updateQueryWh = newBalance <= 0
-              ? `UPDATE gift_card SET balance = $1, status = $2, "redeemedAt" = NOW() WHERE code = $3`
-              : `UPDATE gift_card SET balance = $1, status = $2 WHERE code = $3`;
-            await gcClient.query(updateQueryWh, [newBalance, newStatus, session.metadata.giftCardCode]);
-          }
-          await gcClient.query('COMMIT');
-        } catch (gcError) {
-          await gcClient.query('ROLLBACK');
-          console.error('[GiftCard] Webhook redemption error:', gcError.message);
-        } finally {
-          gcClient.release();
-        }
-      }
-    }
-  }
-
-  // === RESPOND TO STRIPE IMMEDIATELY (Best Practice) ===
-  // This must be OUTSIDE the if block, so ALL events get acknowledged
-  res.json({ received: true });
-
-  // === SEND EMAILS ASYNCHRONOUSLY AFTER STRIPE ACK ===
-  // Only send if we have email data from a season ticket purchase
-  if (emailDataToSend) {
-    console.log('📧 [DEBUG] Sending season ticket confirmation email to:', emailDataToSend.userEmail);
-    emailService.sendSeasonTicketConfirmation(
-      emailDataToSend.userEmail,
-      emailDataToSend.firstName,
-      {
-        entries: emailDataToSend.entries,
-        totalPrice: emailDataToSend.totalPrice,
-        expiryDate: emailDataToSend.expiryDate,
-        productName: emailDataToSend.productName,
-        stripePaymentId: emailDataToSend.stripePaymentId
-      }
-    ).catch(err => console.error('Failed to send season ticket confirmation email:', err.message));
-
-    // Send admin notification
-    emailService.sendAdminSeasonTicketPurchase('info@nitracik.sk', {
-      user: {
-        first_name: emailDataToSend.firstName,
-        last_name: emailDataToSend.lastName,
-        email: emailDataToSend.userEmail,
-        address: emailDataToSend.address
-      },
-      entries: emailDataToSend.entries,
-      totalPrice: emailDataToSend.totalPrice,
-      expiryDate: emailDataToSend.expiryDate,
-      stripePaymentId: emailDataToSend.stripePaymentId,
-      productName: emailDataToSend.productName
-    }).catch(err => console.error('Failed to send admin season ticket notification:', err.message));
-  }
-
-  // Send booking confirmation emails if booking was processed
-  if (bookingEmailData) {
-    console.log('📧 [DEBUG] Sending booking confirmation email to:', bookingEmailData.targetEmail);
-    
-    // Použijeme iný email template pre dospelých
-    if (bookingEmailData.isAdult) {
-      emailService.sendAdultBookingEmail(bookingEmailData.targetEmail, {
-        date: bookingEmailData.selectedDate,
-        start_time: bookingEmailData.selectedTime,
-        trainingType: bookingEmailData.trainingType,
-        userName: bookingEmailData.firstName,
-        paymentType: 'paid',
-        theme: bookingEmailData.theme
-      }).catch(err => console.error('Failed to send adult booking email:', err.message));
-    } else {
-      emailService.sendUserBookingEmail(bookingEmailData.targetEmail, {
-        date: bookingEmailData.selectedDate,
-        start_time: bookingEmailData.selectedTime,
-        trainingType: bookingEmailData.trainingType,
-        userName: bookingEmailData.firstName,
-        paymentType: 'payment',
-        theme: bookingEmailData.theme
-      }).catch(err => console.error('Failed to send user booking email:', err.message));
-    }
-
-    // Send admin booking notification
-    emailService.sendAdminNewBookingNotification('info@nitracik.sk', {
-      user: bookingEmailData.user,
-      mobile: bookingEmailData.mobile,
-      childrenCount: bookingEmailData.childrenCount,
-      childrenAge: bookingEmailData.childrenAge,
-      trainingType: bookingEmailData.trainingType,
-      selectedDate: bookingEmailData.selectedDate,
-      selectedTime: bookingEmailData.selectedTime,
-      photoConsent: bookingEmailData.photoConsent,
-      accompanyingPerson: bookingEmailData.accompanyingPerson,
-      note: bookingEmailData.note,
-      totalPrice: bookingEmailData.totalPrice,
-      paymentIntentId: bookingEmailData.paymentIntentId,
-      trainingId: bookingEmailData.trainingId
-    }).catch(err => console.error('Failed to send admin booking notification:', err.message));
-
-    console.log('[DEBUG] Booking confirmation emails sent (after transaction)');
-  }
-
-});
-// Add webhook handler for refund updates
-app.post('/stripe-refund-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
-
-  try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  if (event.type === 'charge.refund.updated') {
-    const refund = event.data.object;
-
-    try {
-      await pool.query(
-        'UPDATE refunds SET status = $1, updated_at = NOW() WHERE refund_id = $2',
-        [refund.status, refund.id]
+      await client.query(
+        `UPDATE bookings
+         SET amount_paid = $1, payment_time = NOW(), session_id = NULL,
+             active = true, payment_intent_id = $2
+         WHERE id = $3 AND amount_paid IS NULL`,
+        [booking.amount_expected, transId, booking.id]
       );
-      console.log('Refund status updated:', refund.id, refund.status);
-    } catch (error) {
-      console.error('Error updating refund status:', error);
+      await client.query('COMMIT');
+      console.log('[Comgate] Notify: confirmed booking', booking.id);
     }
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[Comgate] Notify error:', err.message);
+  } finally {
+    client.release();
   }
-
-  res.json({ received: true });
 });
 
+// Add webhook handler for refund updates
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -1980,7 +1400,7 @@ app.post('/api/create-season-ticket-payment', isAuthenticated, async (req, res) 
     const productIdInt = parseInt(productId, 10);
 
     const offerResult = await pool.query(
-      `SELECT o.price, p.name AS product_name
+      `SELECT o.id AS offer_id, o.price, p.name AS product_name
        FROM season_ticket_offers o
        JOIN season_ticket_products p ON p.id = o.season_ticket_product_id
        WHERE o.season_ticket_product_id = $1 AND o.entries = $2 AND o.active = TRUE`,
@@ -1996,31 +1416,37 @@ app.post('/api/create-season-ticket-payment', isAuthenticated, async (req, res) 
       return res.status(400).json({ error: 'Price validation failed' });
     }
 
-    const productName = `Permanentka: ${offerResult.rows[0].product_name} (${entriesInt} vstupov)`;
+    const refId = `st-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const orderExpiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'eur',
-          product_data: { name: productName },
-          unit_amount: Math.round(dbPrice * 100),
-        },
-        quantity: 1,
-      }],
-      mode: 'payment',
-      success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/payment-cancelled`,
-      metadata: {
-        userId: userId.toString(),
-        entries: entriesInt.toString(),
-        totalPrice: dbPrice.toString(),
-        productId: productIdInt.toString(),
-        type: 'season_ticket',
-      },
+    await pool.query(
+      `INSERT INTO pending_season_ticket_orders
+         ("refId", "userId", "productId", "offerId", entries, amount, "expiresAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [refId, userId, productIdInt, offerResult.rows[0].offer_id, entriesInt, dbPrice, orderExpiresAt]
+    );
+
+    const userEmailResult = await pool.query(
+      'SELECT email FROM users WHERE id = $1', [userId]
+    );
+    const userEmail = userEmailResult.rows[0]?.email || '';
+
+    const returnUrl = `${process.env.FRONTEND_URL}/season-ticket/success?refId=${encodeURIComponent(refId)}`;
+
+    const comgatePayment = await paymentGateway.createPayment({
+      priceEur: dbPrice,
+      refId,
+      label: `Permanentka${entriesInt}`,
+      returnUrl,
+      email: userEmail,
     });
 
-    res.json({ sessionId: session.id });
+    await pool.query(
+      `UPDATE pending_season_ticket_orders SET "transId" = $1 WHERE "refId" = $2`,
+      [comgatePayment.transId, refId]
+    );
+
+    res.json({ redirectUrl: comgatePayment.redirectUrl, transId: comgatePayment.transId });
   } catch (error) {
     console.error('Season ticket payment session error:', error);
     res.status(500).json({ error: 'Failed to create payment session' });
@@ -2362,8 +1788,6 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
         throw new Error('Kapacita tréningu bola práve naplnená.');
       }
 
-      const sessionDate = new Date(training.training_date).toLocaleDateString('sk-SK');
-
       // SPECIAL CASE: gift card covers 100% of the price
       if (finalPrice === 0) {
         // Create booking directly with gift card status
@@ -2480,54 +1904,39 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
 
       const bookingId = bookingResult.rows[0].id;
 
-      // 4. Create Stripe checkout session
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: [{
-          price_data: {
-            currency: 'eur',
-            product_data: {
-              name: `${training.type_name} Tréning`,
-              description: `Termín: ${sessionDate} | Počet detí: ${childrenCount}`
-            },
-            unit_amount: Math.round(finalPrice * 100),
-          },
-          quantity: 1,
-        }],
-        mode: 'payment',
-        success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}&booking_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.FRONTEND_URL}/payment-cancelled`,
-        payment_intent_data: {
-          metadata: {
-            bookingId: bookingId.toString()
-          }
-        },
-        metadata: {
-          userId: userId.toString(),
-          trainingId: training.id.toString(),
-          trainingType: training.type_name,
-          selectedDate,
-          selectedTime,
-          childrenCount: childrenCount.toString(),
-          childrenAge: childrenAge?.toString() || '',
-          totalPrice: calculatedPrice.toString(),
-          photoConsent: photoConsent === true ? 'true' : 'null',
-          mobile: mobile || '',
-          note: note || '',
-          accompanyingPerson: accompanyingPerson?.toString() || 'false',
-          type: 'training_session',
-          giftCardCode: req.body.giftCardCode || '',
-          giftCardDiscount: String(giftCardDiscountAmount),
-        },
+      const userEmailResult = await client.query(
+        'SELECT email FROM users WHERE id = $1', [userId]
+      );
+      const userEmail = userEmailResult.rows[0]?.email || '';
+
+      const returnUrl = `${process.env.FRONTEND_URL}/payment-success?booking_id=${bookingId}`;
+
+      const comgatePayment = await paymentGateway.createPayment({
+        priceEur: finalPrice,
+        refId: `child-${bookingId}`,
+        label: `Trening${training.id}`,
+        returnUrl,
+        email: userEmail,
       });
 
       await client.query(
-        `UPDATE bookings SET session_id = $1 WHERE id = $2`,
-        [session.id, bookingId]
+        `UPDATE bookings SET
+           session_id      = $1,
+           gift_card_code  = $2,
+           gift_card_amount = $3,
+           amount_expected  = $4
+         WHERE id = $5`,
+        [
+          comgatePayment.transId,
+          req.body.giftCardCode || null,
+          giftCardDiscountAmount > 0 ? giftCardDiscountAmount : null,
+          finalPrice,
+          bookingId,
+        ]
       );
 
       await client.query('COMMIT');
-      res.json({ sessionId: session.id, bookingId });
+      res.json({ redirectUrl: comgatePayment.redirectUrl, transId: comgatePayment.transId, bookingId });
 
     } catch (error) {
       await client.query('ROLLBACK');
@@ -2544,78 +1953,318 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
 
 // Updated endpoint to handle payment success redirect
 app.get('/api/booking-success', isAuthenticated, async (req, res) => {
-  const { session_id, booking_id } = req.query;
+  const { booking_id } = req.query;
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
-    const session = await stripe.checkout.sessions.retrieve(session_id);
-    
-    if (session.payment_status === 'paid') {
-      const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
-      const amountPaid = paymentIntent.amount / 100; // Convert from cents to euros
-      const paymentTime = new Date(paymentIntent.created * 1000);
 
-      // Update booking with payment details ONLY if payment succeeded
-      // Also activate it since payment is now confirmed
-      // Extrahuj gift card metadata zo Stripe session
-      const giftCardCode = session.metadata?.giftCardCode || null;
-      const giftCardAmount = parseFloat(session.metadata?.giftCardDiscount || '0');
+    // Load booking with gift card fields already stored at payment creation
+    const bookingResult = await client.query(
+      `SELECT b.*, u.email
+       FROM bookings b
+       JOIN users u ON b.user_id = u.id
+       WHERE b.id = $1`,
+      [booking_id]
+    );
+
+    if (bookingResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=booking_not_found`);
+    }
+
+    const booking = bookingResult.rows[0];
+    const transId = booking.session_id;
+
+    if (!transId) {
+      await client.query('ROLLBACK');
+      return res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=no_transaction`);
+    }
+
+    // Idempotency — already confirmed
+    if (booking.amount_paid !== null) {
+      await client.query('ROLLBACK');
+      return res.redirect('/user-profile');
+    }
+
+    // Verify payment status with Comgate
+    const status = await paymentGateway.getPaymentStatus(transId);
+
+    if (status === 'PAID') {
+      const paymentTime = new Date();
 
       await client.query(
-        `UPDATE bookings 
-         SET amount_paid = $1, 
-             payment_time = $2, 
-             session_id = NULL, 
-             active = true,
-             payment_intent_id = $4,
-             gift_card_code = $5,
-             gift_card_amount = $6
-         WHERE id = $3`,
+        `UPDATE bookings
+         SET amount_paid       = $1,
+             payment_time      = $2,
+             session_id        = NULL,
+             active            = true,
+             payment_intent_id = $3,
+             gift_card_code    = COALESCE(gift_card_code, $4),
+             gift_card_amount  = COALESCE(gift_card_amount, $5)
+         WHERE id = $6`,
         [
-          amountPaid, 
-          paymentTime, 
+          booking.amount_expected,
+          paymentTime,
+          transId,
+          booking.gift_card_code || null,
+          booking.gift_card_amount || null,
           booking_id,
-          session.payment_intent || null,
-          (giftCardCode && giftCardCode.trim() !== '') ? giftCardCode.trim().toUpperCase() : null,
-          (giftCardAmount > 0) ? giftCardAmount : null
         ]
       );
+
       await client.query('COMMIT');
+
+      // Send confirmation emails after commit (non-fatal)
+      try {
+        const emailBookingResult = await pool.query(
+          `SELECT b.*, u.email, u.first_name, u.last_name, u.mobile as user_mobile,
+                  ta.training_type, ta.training_date, ta.theme
+           FROM bookings b
+           JOIN users u ON b.user_id = u.id
+           LEFT JOIN training_availability ta ON b.training_id = ta.id
+           WHERE b.id = $1`,
+          [booking_id]
+        );
+        const eb = emailBookingResult.rows[0];
+        if (eb) {
+          const trainingDate = eb.training_date ? dayjs(eb.training_date).tz(APP_TIMEZONE) : null;
+          const displayDate = trainingDate ? trainingDate.format('DD.MM.YYYY') : 'N/A';
+          const displayTime = trainingDate ? trainingDate.format('HH:mm') : 'N/A';
+
+          if (eb.age_group === 'adult') {
+            await emailService.sendAdultBookingEmail(eb.email, {
+              date: displayDate,
+              start_time: displayTime,
+              trainingType: eb.training_type,
+              userName: eb.first_name,
+              paymentType: 'paid',
+              theme: eb.theme,
+            });
+          } else {
+            await emailService.sendUserBookingEmail(eb.email, {
+              date: displayDate,
+              start_time: displayTime,
+              trainingType: eb.training_type,
+              userName: eb.first_name,
+              paymentType: 'payment',
+              theme: eb.theme,
+            });
+          }
+
+          await emailService.sendAdminNewBookingNotification('info@nitracik.sk', {
+            user: eb,
+            mobile: eb.mobile || eb.user_mobile,
+            childrenCount: eb.number_of_children,
+            childrenAge: eb.children_ages,
+            trainingType: eb.training_type,
+            selectedDate: displayDate,
+            selectedTime: displayTime,
+            photoConsent: eb.photo_consent,
+            accompanyingPerson: eb.accompanying_person,
+            note: eb.note,
+            totalPrice: parseFloat(eb.amount_paid),
+            paymentIntentId: transId,
+            trainingId: eb.training_id,
+          });
+        }
+      } catch (emailError) {
+        console.error('[BookingSuccess] Email failed (booking already confirmed):', emailError.message);
+      }
+
+      // Redeem gift card balance if used
+      if (booking.gift_card_code) {
+        const gcDiscount = parseFloat(booking.gift_card_amount || 0);
+        if (gcDiscount > 0) {
+          const gcClient = await pool.connect();
+          try {
+            await gcClient.query('BEGIN');
+            const gcResult = await gcClient.query(
+              'SELECT * FROM gift_card WHERE code = $1 FOR UPDATE',
+              [booking.gift_card_code]
+            );
+            if (gcResult.rows.length > 0) {
+              const gc = gcResult.rows[0];
+              const newBalance = parseFloat((parseFloat(gc.balance) - gcDiscount).toFixed(2));
+              const newStatus = newBalance <= 0 ? 'used' : 'active';
+              const updateQuery = newBalance <= 0
+                ? `UPDATE gift_card SET balance = $1, status = $2, "redeemedAt" = NOW() WHERE code = $3`
+                : `UPDATE gift_card SET balance = $1, status = $2 WHERE code = $3`;
+              await gcClient.query(updateQuery, [newBalance, newStatus, booking.gift_card_code]);
+            }
+            await gcClient.query('COMMIT');
+          } catch (gcError) {
+            await gcClient.query('ROLLBACK');
+            console.error('[BookingSuccess] Gift card redemption error:', gcError.message);
+          } finally {
+            gcClient.release();
+          }
+        }
+      }
+
       res.redirect('/user-profile');
+
     } else {
-      // Payment failed or is not yet paid - Mark as inactive (soft delete)
-      // Get booking details for email notification
-      const bookingResult = await client.query(
-        `SELECT b.*, u.first_name, u.email, ta.training_type, ta.training_date
-         FROM bookings b
-         JOIN users u ON b.user_id = u.id
-         JOIN training_availability ta ON b.training_id = ta.id
-         WHERE b.id = $1`,
-        [booking_id]
-      );
-
-      const booking = bookingResult.rows[0];
-
-      // Mark booking inactive
+      // Payment failed, cancelled or expired
       await client.query(
-        `UPDATE bookings 
+        `UPDATE bookings
          SET active = false
          WHERE id = $1 AND amount_paid IS NULL`,
         [booking_id]
       );
       await client.query('COMMIT');
-
-      // Email sa posielá automaticky cez webhook (payment_intent.payment_failed event)
-      // Takže tu neposielame email znova
-
-      // Redirect to cancel page with error
       res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=payment_failed`);
     }
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error confirming payment:', error);
     res.status(500).json({ error: 'Failed to confirm payment' });
+  } finally {
+    client.release();
+  }
+});
+
+// Comgate return URL handler for season ticket purchases
+app.get('/api/season-ticket-success', async (req, res) => {
+  const { refId } = req.query;
+  if (!refId) return res.status(400).json({ error: 'Chýba refId' });
+
+  const client = await pool.connect();
+  try {
+    // Look up pending order
+    const orderResult = await client.query(
+      `SELECT * FROM pending_season_ticket_orders WHERE "refId" = $1`,
+      [refId]
+    );
+
+    if (orderResult.rows.length === 0) {
+      return res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=order_not_found`);
+    }
+
+    const order = orderResult.rows[0];
+    const transId = order.transId;
+
+    if (!transId) {
+      return res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=no_transaction`);
+    }
+
+    // Verify payment status with Comgate
+    const status = await paymentGateway.getPaymentStatus(transId);
+
+    if (status !== 'PAID') {
+      return res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=payment_failed`);
+    }
+
+    await client.query('BEGIN');
+
+    // Idempotency — check if season ticket already created for this transId
+    const existing = await client.query(
+      `SELECT id FROM season_tickets WHERE stripe_payment_id = $1`,
+      [transId]
+    );
+    if (existing.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.redirect('/user-profile');
+    }
+
+    // Re-validate price from DB
+    const offerResult = await client.query(
+      `SELECT o.price, p.name AS product_name
+       FROM season_ticket_offers o
+       JOIN season_ticket_products p ON p.id = o.season_ticket_product_id
+       WHERE o.id = $1 AND o.active = TRUE`,
+      [order.offerId]
+    );
+
+    if (offerResult.rows.length === 0) {
+      throw new Error('Season ticket offer not found or inactive');
+    }
+
+    const dbPrice = parseFloat(offerResult.rows[0].price);
+    const paidAmount = parseFloat(order.amount);
+
+    if (dbPrice !== paidAmount) {
+      console.error(`[SECURITY] Season ticket price mismatch. Expected: ${dbPrice}, Paid: ${paidAmount}`);
+      throw new Error('Payment amount verification failed');
+    }
+
+    // Expiry: 6 months from purchase — UTC-safe
+    const expiryDate = dayjs.utc().add(6, 'month').toDate();
+    const now = new Date();
+
+    // Insert season ticket
+    const ticketResult = await client.query(
+      `INSERT INTO season_tickets
+         (user_id, season_ticket_product_id, entries_total, entries_remaining,
+          purchase_date, expiry_date, stripe_payment_id, amount_paid, payment_time)
+       VALUES ($1, $2, $3, $3, $4, $5, $6, $7, $8)
+       RETURNING id`,
+      [
+        order.userId,
+        order.productId,
+        order.entries,
+        now,
+        expiryDate,
+        transId,
+        paidAmount,
+        now,
+      ]
+    );
+
+    const seasonTicketId = ticketResult.rows[0].id;
+
+    // Clean up pending order
+    await client.query(
+      `DELETE FROM pending_season_ticket_orders WHERE "refId" = $1`,
+      [refId]
+    );
+
+    await client.query('COMMIT');
+
+    // Send confirmation email (non-fatal)
+    try {
+      const userResult = await pool.query(
+        'SELECT first_name, last_name, email, address FROM users WHERE id = $1',
+        [order.userId]
+      );
+      const user = userResult.rows[0];
+      if (user) {
+        await emailService.sendSeasonTicketConfirmation(
+          user.email,
+          user.first_name,
+          {
+            entries: order.entries,
+            totalPrice: paidAmount,
+            expiryDate,
+            productName: offerResult.rows[0].product_name,
+            stripePaymentId: transId,
+          }
+        );
+
+        await emailService.sendAdminSeasonTicketPurchase('info@nitracik.sk', {
+          user: {
+            first_name: user.first_name,
+            last_name: user.last_name,
+            email: user.email,
+            address: user.address,
+          },
+          entries: order.entries,
+          totalPrice: paidAmount,
+          expiryDate,
+          stripePaymentId: transId,
+          productName: offerResult.rows[0].product_name,
+        });
+      }
+    } catch (emailError) {
+      console.error('[SeasonTicket] Email failed (ticket already saved):', emailError.message);
+    }
+
+    res.redirect('/user-profile');
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('[SeasonTicket] season-ticket-success error:', error.message);
+    res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=server_error`);
   } finally {
     client.release();
   }
@@ -3633,41 +3282,37 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
         const dpAmount = parseFloat(booking.gift_card_amount || 0);
         const dpCode = booking.gift_card_code || null;
 
-        // A. Stripe refund — len ak bolo niečo zaplatené kartou
+        // A. Comgate refund — len ak bolo niečo zaplatené kartou
         if (stripeAmount > 0 && booking.payment_intent_id) {
           try {
             // Deterministic idempotency key so repeated cancels reuse the same key
             // and Stripe won't process duplicate refunds when retried quickly.
-            const idempotencyKey = booking.payment_intent_id
-              ? `cancel-${bookingId}-${booking.payment_intent_id}`
-              : `cancel-${bookingId}`;
-            console.log('[DEBUG] Preparing Stripe refund for booking', bookingId, 'payment_intent:', booking.payment_intent_id, 'amount:', stripeAmount);
-            const refund = await stripe.refunds.create({
-              payment_intent: booking.payment_intent_id,
-              amount: Math.round(stripeAmount * 100), // partial refund — len Stripe čiastka
-              reason: 'requested_by_customer',
-              metadata: {
-                booking_id: bookingId,
-                user_id: booking.user_id,
-                gift_card_code: dpCode || '',
-                gift_card_amount: dpAmount.toString()
-              }
-            }, { idempotencyKey });
-            console.log('[DEBUG] Stripe refund response for booking', bookingId, 'refund:', refund && refund.id, 'status:', refund && refund.status);
-            refundData = refund;
+            // transId is stored in payment_intent_id after booking-success confirmation
+            const transId = booking.payment_intent_id || booking.session_id;
+            const refId = `cancel-${bookingId}-${transId || Date.now()}`;
+
+            console.log('[DEBUG] Preparing Comgate refund for booking', bookingId, 'transId:', transId, 'amount:', stripeAmount);
+
+            const refundResult = await paymentGateway.refundPayment(transId, stripeAmount, refId);
+
+            if (!refundResult.ok) {
+              throw new Error(`Comgate refund failed: ${refundResult.message} (code ${refundResult.code})`);
+            }
+
+            refundData = { id: refId, status: 'succeeded' };
 
             const refundReason = dpAmount > 0
               ? `Cancellation by customer (mixed: ${stripeAmount}€ card + ${dpAmount}€ gift card ${dpCode})`
               : 'Cancellation by customer';
 
-            console.log('[DEBUG] Inserting refund record into DB for booking', bookingId, 'amount', stripeAmount, 'refundId', refund.id);
+            console.log('[DEBUG] Inserting refund record into DB for booking', bookingId, 'refId', refId);
             await client.query(
               `INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at)
                VALUES ($1, $2, $3, $4, $5, NOW())
                ON CONFLICT (refund_id) DO NOTHING`,
-              [parseInt(bookingId, 10), refund.id, parseFloat(stripeAmount.toFixed(2)), refund.status, refundReason]
+              [parseInt(bookingId, 10), refId, parseFloat(stripeAmount.toFixed(2)), 'succeeded', refundReason]
             );
-            console.log('[DEBUG] Inserted refund record for booking', bookingId, 'refundId', refund.id);
+            console.log('[DEBUG] Inserted refund record for booking', bookingId, 'refId', refId);
           } catch (refundError) {
             console.error('[DEBUG] Stripe Refund error:', refundError.message);
             refundData = { error: 'Failed to process refund automatically.' };
@@ -4227,39 +3872,32 @@ app.get('/api/booking/refund', async (req, res) => {
     const idempotencyKey = `refund-${bookingId}-${payment_intent_id}`;
     let refund = null;
 
-    // A. Stripe refund — len ak bolo zaplatené kartou
+    // A. Comgate refund — len ak bolo zaplatené kartou
     if (stripeRefundAmount > 0 && payment_intent_id) {
-      try {
-        refund = await stripe.refunds.create(
-          { 
-            payment_intent: payment_intent_id,
-            amount: Math.round(stripeRefundAmount * 100)
-          },
-          { idempotencyKey }
-        );
-      } catch (stripeErr) {
-        console.error('Stripe refund create error:', stripeErr);
-
-        if (stripeErr.code === 'charge_already_refunded') {
-          const dbFind = await client.query(
-            'SELECT refund_id, status FROM refunds WHERE booking_id = $1',
-            [bookingId]
-          );
-          if (dbFind.rows.length > 0) {
-            await client.query('COMMIT');
-            return res.json({
-              status: 'already',
-              message: 'Your refund has already been processed',
-              refundId: dbFind.rows[0].refund_id,
-            });
-          }
-          await client.query('ROLLBACK');
-          return res.status(400).json({ status: 'error', message: 'Refund already refunded in Stripe but not in DB' });
-        }
-
-        await client.query('ROLLBACK');
-        return res.status(500).json({ status: 'error', message: 'Stripe error' });
+      // Check if already refunded in our DB (replaces Stripe charge_already_refunded check)
+      const existingRefund = await client.query(
+        'SELECT refund_id, status FROM refunds WHERE booking_id = $1',
+        [bookingId]
+      );
+      if (existingRefund.rows.length > 0) {
+        await client.query('COMMIT');
+        return res.json({
+          status: 'already',
+          message: 'Your refund has already been processed',
+          refundId: existingRefund.rows[0].refund_id,
+        });
       }
+
+      const refId = `refund-${bookingId}-${payment_intent_id}`;
+
+      const refundResult = await paymentGateway.refundPayment(payment_intent_id, stripeRefundAmount, refId);
+
+      if (!refundResult.ok) {
+        await client.query('ROLLBACK');
+        return res.status(500).json({ status: 'error', message: `Comgate refund failed: ${refundResult.message}` });
+      }
+
+      refund = { id: refId, status: 'succeeded' };
 
       const refundReason = dpRefundAmount > 0
         ? `User selected refund (mixed: ${stripeRefundAmount}€ card + ${dpRefundAmount}€ gift card ${dpRefundCode})`
@@ -4267,7 +3905,7 @@ app.get('/api/booking/refund', async (req, res) => {
 
       await client.query(
         'INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at) VALUES ($1,$2,$3,$4,$5,NOW())',
-        [bookingId, refund.id, stripeRefundAmount, refund.status, refundReason]
+        [bookingId, refId, stripeRefundAmount, 'succeeded', refundReason]
       );
     }
 
@@ -5564,6 +5202,14 @@ setInterval(async () => {
     if (result.rows.length > 0) {
       console.log(`[CLEANUP] Removed ${result.rows.length} old pending bookings`);
     }
+
+    // Clean up expired pending payment orders
+    await client.query(`
+      DELETE FROM pending_gift_card_orders WHERE "expiresAt" < NOW()
+    `);
+    await client.query(`
+      DELETE FROM pending_season_ticket_orders WHERE "expiresAt" < NOW()
+    `);
     client.release();
   } catch (err) {
     console.error('[CLEANUP] Error removing old pending bookings:', err.message);
@@ -5766,8 +5412,6 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
         throw new Error('Kapacita tréningu bola práve naplnená.');
       }
 
-      const sessionDate = new Date(training.training_date).toLocaleDateString('sk-SK');
-
       // SPECIAL CASE: gift card covers 100% of the price
       if (finalPrice === 0) {
         // Create booking directly with gift card status
@@ -5887,8 +5531,19 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
       });
 
       await client.query(
-        `UPDATE bookings SET session_id = $1 WHERE id = $2`,
-        [comgatePayment.transId, bookingId]
+        `UPDATE bookings SET
+           session_id       = $1,
+           gift_card_code   = $2,
+           gift_card_amount = $3,
+           amount_expected  = $4
+         WHERE id = $5`,
+        [
+          comgatePayment.transId,
+          req.body.giftCardCode || null,
+          giftCardDiscountAmount > 0 ? giftCardDiscountAmount : null,
+          finalPrice,
+          bookingId,
+        ]
       );
 
       await client.query('COMMIT');
