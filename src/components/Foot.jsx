@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Modal } from "react-bootstrap";
 import logo from "../assets/logo.png";
-import stripeLogo from "../assets/stripe-logo_black.png";
 import { ExternalLink } from "lucide-react";
 import { FaInstagram, FaFacebookF } from "react-icons/fa";
 
@@ -112,8 +111,6 @@ const Foot = () => {
         </a>
       </div>
 
-      {/* Stripe & Cards */}
-      <img src={stripeLogo} alt="Stripe" className="h-5 object-contain opacity-80 mb-3" />
       <div className="flex gap-2.5 flex-wrap justify-center items-center">
         <img src={visaLogo} alt="Visa" className="h-6 object-contain opacity-70 hover:opacity-100 transition-opacity" title="Visa" />
         <img src={mastercardLogo} alt="MasterCard" className="h-6 object-contain opacity-70 hover:opacity-100 transition-opacity" title="MasterCard" />

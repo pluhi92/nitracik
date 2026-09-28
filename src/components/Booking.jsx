@@ -4,7 +4,6 @@ import Login from './Login';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IMaskInput } from 'react-imask';
 import { Tooltip } from 'react-tooltip';
-import { loadStripe } from '@stripe/stripe-js';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Modal, Form, Spinner } from 'react-bootstrap';
 import api from '../api/api';
@@ -194,7 +193,6 @@ const Booking = () => {
   const [newAccompanyingPrice, setNewAccompanyingPrice] = useState(3);
   const [maxParticipants, setMaxParticipants] = useState(10);
   const [warningMessage, setWarningMessage] = useState('');
-  const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
   const [availability, setAvailability] = useState({
     isAvailable: true,
     remainingSpots: 0,
@@ -1055,16 +1053,8 @@ const Booking = () => {
         return;
       }
 
-      const stripe = await stripePromise;
-
       localStorage.setItem('pendingBookingId', paymentSession.data.bookingId);
-      localStorage.setItem('pendingSessionId', paymentSession.data.sessionId);
-
-      const { error } = await stripe.redirectToCheckout({
-        sessionId: paymentSession.data.sessionId,
-      });
-
-      if (error) throw error;
+      window.location.href = paymentSession.data.redirectUrl;
       return;
     }
 
@@ -1097,16 +1087,8 @@ const Booking = () => {
       return;
     }
 
-    const stripe = await stripePromise;
-
     localStorage.setItem('pendingBookingId', paymentSession.data.bookingId);
-    localStorage.setItem('pendingSessionId', paymentSession.data.sessionId);
-
-    const { error } = await stripe.redirectToCheckout({
-      sessionId: paymentSession.data.sessionId,
-    });
-
-    if (error) throw error;
+    window.location.href = paymentSession.data.redirectUrl;
   };
 
   const handleSubmit = async (e) => {
@@ -1265,10 +1247,9 @@ const Booking = () => {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
-    const sessionId = urlParams.get('session_id');
     const bookingId = urlParams.get('booking_id');
-    if (sessionId && bookingId) {
-      api.get(`/api/booking-success?session_id=${sessionId}&booking_id=${bookingId}`).then(() => {
+    if (bookingId) {
+      api.get(`/api/booking-success?booking_id=${bookingId}`).then(() => {
         alert(t?.booking?.paymentSuccess || 'Payment successful! Booking confirmed.');
         navigate('/profile');
       }).catch(error => {
@@ -1415,20 +1396,9 @@ const Booking = () => {
       setWarningMessage('');
 
       try {
-        const stripe = await stripePromise;
-
         if (pendingExistingSessionId) {
-          try {
-            const { error } = await stripe.redirectToCheckout({
-              sessionId: pendingExistingSessionId,
-            });
-
-            if (!error) {
-              return;
-            }
-          } catch (redirectError) {
-            console.warn('Pending booking redirect failed, falling back to new checkout:', redirectError);
-          }
+          window.location.href = `${import.meta.env.VITE_API_URL || ''}/payment-success?booking_id=${pendingExistingBookingId}`;
+          return;
         }
 
         if (pendingExistingBookingId) {

@@ -30,10 +30,10 @@ const PaymentSuccess = () => {
       }, 3000);
     } else {
       const urlParams = new URLSearchParams(location.search);
-      const sessionId = urlParams.get('session_id');
+      const bookingId = urlParams.get('booking_id');
       
-      if (sessionId) {
-        console.log('Payment successful, session:', sessionId);
+      if (bookingId) {
+        console.log('Payment successful, booking:', bookingId);
         timer = setTimeout(() => {
           navigate('/profile');
         }, 5000);

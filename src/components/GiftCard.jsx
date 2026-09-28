@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import { Spinner } from 'react-bootstrap';
-import { loadStripe } from '@stripe/stripe-js';
 import {
   Gift,
   CreditCard,
@@ -102,13 +101,13 @@ const GiftCard = () => {
       setSuccessLoading(true);
       setSuccessError('');
       try {
-        const sessionId = searchParams.get('session_id');
-        if (!sessionId) {
+        const refId = searchParams.get('refId');
+        if (!refId) {
           setSuccessError('Chýbajúci identifikátor platby.');
           setSuccessLoading(false);
           return;
         }
-        const response = await api.get(`/api/gift-card-success?session_id=${sessionId}`);
+        const response = await api.get(`/api/gift-card-success?refId=${refId}`);
         setSuccessData(response.data);
       } catch (err) {
         setSuccessError(err.response?.data?.error || 'Nepodarilo sa načítať údaje o poukaze.');
@@ -195,12 +194,7 @@ const GiftCard = () => {
         honeypot,
       });
 
-      const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
-      const { error: stripeError } = await stripe.redirectToCheckout({
-        sessionId: response.data.sessionId,
-      });
-
-      if (stripeError) throw stripeError;
+      window.location.href = response.data.redirectUrl;
     } catch (err) {
       setError(err.response?.data?.error || 'Nastala chyba, skúste znova');
     } finally {
@@ -212,13 +206,13 @@ const GiftCard = () => {
   const handleRetry = () => {
     setSuccessError('');
     setSuccessLoading(true);
-    const sessionId = searchParams.get('session_id');
-    if (!sessionId) {
+    const refId = searchParams.get('refId');
+    if (!refId) {
       setSuccessError('Chýbajúci identifikátor platby.');
       setSuccessLoading(false);
       return;
     }
-    api.get(`/api/gift-card-success?session_id=${sessionId}`)
+    api.get(`/api/gift-card-success?refId=${refId}`)
       .then((res) => setSuccessData(res.data))
       .catch((err) => setSuccessError(err.response?.data?.error || 'Nepodarilo sa načítať údaje o poukaze.'))
       .finally(() => setSuccessLoading(false));

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { loadStripe } from '@stripe/stripe-js';
 import { useTranslation } from '../contexts/LanguageContext';
 import api from '../api/api';
 import { 
@@ -27,7 +26,6 @@ const FlakCream = ({ className, style }) => (
   </svg>
 );
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 const ENTRY_OPTIONS = [3, 5, 10];
 
 const modalVariant = {
@@ -260,7 +258,6 @@ const SeasonTickets = () => {
     setLoading(true);
 
     try {
-      const stripe = await stripePromise;
       const response = await api.post('api/create-season-ticket-payment', {
         userId,
         entries: ticketToBuy.entries,
@@ -268,14 +265,7 @@ const SeasonTickets = () => {
         productId: parseInt(selectedProductId, 10)
       });
 
-      const { sessionId } = response.data;
-      const result = await stripe.redirectToCheckout({ sessionId });
-
-      if (result.error) {
-        setError(result.error.message);
-        setLoading(false);
-        setShowConfirmModal(false);
-      }
+      window.location.href = response.data.redirectUrl;
     } catch (err) {
       console.error('Payment error:', err);
       setError(t?.booking?.paymentError || 'Payment initialization failed.');

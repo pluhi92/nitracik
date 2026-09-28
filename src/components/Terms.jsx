@@ -127,7 +127,7 @@ const Terms = () => {
           <section>
             <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 3 Objednávka služieb a uzatvorenie zmluvy</h2>
             <p className="mb-2">3.1 Spôsobom objednávania služieb je rezervácia služby prostredníctvom registrovaného užívateľského účtu dostupného na webe v rezervačnom systéme. Zákazník si vyberá službu z ponuky služieb zverejnenej v rezervačnom systéme dostupnom po prihlásení sa do svojho užívateľského účtu.</p>
-            <p className="mb-2">3.2 Rezerváciou konkrétneho termínu služby, úspešným spracovaním platby prostredníctvom platobnej brány Stripe, resp. odpísaním vstupu zo zakúpenej permanentky, vzniká zmluva o poskytnutí služby súvisiacej s činnosťami v rámci voľného času, ktorá je viazaná na konkrétny termín. Po vykonaní úspešnej rezervácie bude zákazníkovi doručený potvrdzujúci e-mail.</p>
+            <p className="mb-2">3.2 Rezerváciou konkrétneho termínu služby, úspešným spracovaním platby prostredníctvom platobnej brány Comgate, resp. odpísaním vstupu zo zakúpenej permanentky, vzniká zmluva o poskytnutí služby súvisiacej s činnosťami v rámci voľného času, ktorá je viazaná na konkrétny termín. Po vykonaní úspešnej rezervácie bude zákazníkovi doručený potvrdzujúci e-mail.</p>
             <p className="mb-2">3.3 Rezervácia je viazaná na konkrétny termín, typ tréningu a počet detí, pričom prevádzkovateľ si vyhradzuje právo službu zrušiť v prípade, že nebude prihlásený minimálny počet zákazníkov na daný termín. V prípade neuskutočnenia služby z dôvodu nenaplnenia kapacity bude zákazníkovi vrátená platba alebo poskytnutý náhradný termín.</p>
             <p className="mb-2">3.4 Prevádzkovateľ si vyhradzuje právo odmietnuť účasť osobám, ktoré nie sú uvedené v rezervácii alebo by prekročili kapacitné limity priestoru.</p>
             <p>3.5 V súlade s § 19 ods. 1 písm. l) zákona č. 108/2024 Z.z. o ochrane spotrebiteľa nemá zákazník právo na odstúpenie od zmluvy o poskytnutí služby súvisiacej s činnosťami v rámci voľného času uzatvorenej podľa bodu 3.2 tohto článku VOP, nakoľko ide o poskytnutie služby v presne dohodnutom čase.</p>
@@ -139,9 +139,9 @@ const Terms = () => {
           <section>
             <h2 className="text-xl font-extrabold text-foreground mb-4">Čl. 4 Platobné podmienky</h2>
             <p className="mb-2">4.1 Ceny za jednotlivé aktivity sú konečné a uvedené priamo v rezervačnom systéme.</p>
-            <p className="mb-2">4.2 Platba je možná výhradne online platobnou kartou prostredníctvom Stripe.</p>
+            <p className="mb-2">4.2 Platba je možná výhradne online platobnou kartou prostredníctvom Comgate.</p>
             <p className="mb-2">4.3 Platba na mieste nie je možná.</p>
-            <p>4.4 Prevádzkovateľ neuchováva platobné údaje zákazníkov; spracovanie platieb zabezpečuje Stripe ako samostatný prevádzkovateľ platobnej služby.</p>
+            <p>4.4 Prevádzkovateľ neuchováva platobné údaje zákazníkov; spracovanie platieb zabezpečuje Comgate ako samostatný prevádzkovateľ platobnej služby.</p>
           </section>
 
           <hr className="border-neutral-100" />

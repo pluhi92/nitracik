@@ -20,7 +20,6 @@ export default defineConfig({
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-ui': ['framer-motion', 'lucide-react'],
-          'vendor-payment': ['@stripe/stripe-js'],
           'vendor-forms': ['react-bootstrap', 'react-imask', 'react-colorful'],
         },
       },

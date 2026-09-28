@@ -2368,9 +2368,7 @@ const UserProfile = () => {
                     <strong className="text-blue-900 block mb-1 text-sm">{t?.profile?.cancelModal?.refundInfo || 'Informácie o vrátení peňazí:'}</strong>
                     <p className="text-blue-700 text-sm font-medium">
                       {t?.profile?.cancelModal?.refundDetails || 'Peniaze budú automaticky vrátené na váš bankový účet. Proces môže trvať 5-10 pracovných dní.'}
-                      <a href="https://docs.stripe.com/refunds" target="_blank" rel="noopener noreferrer" className="ml-1 font-bold underline hover:text-blue-900">
-                        {t?.profile?.cancelModal?.moreInfo || 'Viac info'}
-                      </a>
+                      <a href="https://www.comgate.cz/cz/platebni-brana" target="_blank" rel="noopener noreferrer" className="ml-1 font-bold underline hover:text-blue-800">Comgate</a>
                     </p>
                   </div>
                 </div>

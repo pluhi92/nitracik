@@ -61,25 +61,13 @@ const CookieConsent = () => {
 
   const technicalCookiesData = [
     { name: 'connect.sid', domain: 'nitracik.sk', purpose: 'Uchovanie prihlásenia', validity: '1 deň' },
-    { name: '__stripe_mid', domain: 'nitracik.sk', purpose: 'Prevencia podvodov', validity: '1 rok' },
-    { name: '__stripe_sid', domain: 'nitracik.sk', purpose: 'Prevencia podvodov', validity: '30 minút' },
     { name: '_cfuvid', domain: 'challenges.cloudflare.com', purpose: 'Ochrana proti botom', validity: 'počas doby spojenia' },
-    { name: 'merchant', domain: 'stripe.com', purpose: 'Funkčnosť brány', validity: 'počas doby spojenia' },
-    { name: 'site-auth', domain: 'stripe.com', purpose: 'Autentifikácia', validity: 'počas doby spojenia' },
-    { name: 'stripe.csrf', domain: 'stripe.com', purpose: 'Ochrana formulárov', validity: 'počas doby spojenia' },
-    { name: '__Secure-has_logged_in', domain: 'stripe.com', purpose: 'Bezpečnosť', validity: '6 mesiacov' },
-    { name: '__Secure-sid', domain: 'stripe.com', purpose: 'Zabezpečenie relácie', validity: '30 minút' },
-    { name: 'cid', domain: 'stripe.com', purpose: 'Identifikácia klienta', validity: '1,5 mesiaca' },
-    { name: 'cookie-perms', domain: 'stripe.com', purpose: 'Preferencie cookies', validity: '5 mesiacov' },
-    { name: 'machine_identifier', domain: 'stripe.com', purpose: 'Identifikácia (bezpečnosť)', validity: '10 mesiacov' },
-    { name: 'private_machine_identifier', domain: 'stripe.com', purpose: 'Unikátna identifikácia', validity: '1 rok' },
-    { name: 'handoff', domain: 'stripe.com', purpose: 'Prenos stavu', validity: 'počas doby spojenia' },
+    // TODO: Verify the exact Comgate cookie names and properties against Comgate documentation.
+    { name: 'CGPC', domain: 'comgate.cz', purpose: 'Identifikácia platby', validity: 'počas doby spojenia' },
+    { name: 'CGPS', domain: 'comgate.cz', purpose: 'Stav platobnej relácie', validity: 'počas doby spojenia' },
   ];
 
-  const analyticalCookiesData = [
-    { name: '_ga', domain: 'stripe.com', purpose: 'Štatistika (Google Analytics)', validity: '11 mesiacov' },
-    { name: '__stripe_orig_props', domain: 'stripe.com', purpose: 'Analýza tokov', validity: '10 mesiacov' },
-  ];
+  const analyticalCookiesData = [];
 
   const TableRow = ({ data }) => (
     <tr className="border-b border-neutral-100 text-xs font-medium">

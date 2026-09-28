@@ -24,19 +24,17 @@ const PaymentCancelled = () => {
     
     const handlePaymentFailed = async () => {
       try {
-        // Try to get booking ID and session ID from localStorage
-        const bookingId = localStorage.getItem('pendingBookingId');
-        const sessionId = localStorage.getItem('pendingSessionId');
+        // Try to get booking ID from localStorage
+        const pendingBookingId = localStorage.getItem('pendingBookingId');
 
         // Call backend to mark booking as inactive and send email
-        if (bookingId && sessionId) {
-          console.log('[PaymentCancelled] Calling backend for booking:', bookingId);
-          await api.get(`/api/booking-success?session_id=${sessionId}&booking_id=${bookingId}`);
+        if (pendingBookingId) {
+          console.log('[PaymentCancelled] Calling backend for booking:', pendingBookingId);
+          await api.get(`/api/booking-success?booking_id=${pendingBookingId}`);
           setMessage('✅ We sent you an email with retry instructions. Redirecting...');
           
           // Clean up
           localStorage.removeItem('pendingBookingId');
-          localStorage.removeItem('pendingSessionId');
         } else {
           setMessage('❌ Payment was cancelled. Redirecting to booking page...');
         }
