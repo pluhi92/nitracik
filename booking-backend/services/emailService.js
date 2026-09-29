@@ -840,8 +840,8 @@ module.exports = {
     return transporter.sendMail(mailOptions);
   },
 
-  // --- 4. USER: SEASON TICKET PURCHASE (STRIPE WEBHOOK) ---
-  sendSeasonTicketConfirmation: async (userEmail, userName, { entries, totalPrice, expiryDate, productName, trainingTypeName, stripePaymentId }) => {
+  // --- 4. USER: SEASON TICKET PURCHASE (COMGATE) ---
+  sendSeasonTicketConfirmation: async (userEmail, userName, { entries, totalPrice, expiryDate, productName, trainingTypeName, paymentTransId }) => {
     // Naformátujeme dátumy do slovenčiny
     const formattedPurchaseDate = dayjs().tz('Europe/Bratislava').format('DD.MM.YYYY');
     const formattedExpiryDate = dayjs(expiryDate).tz('Europe/Bratislava').format('DD.MM.YYYY');
@@ -892,7 +892,7 @@ module.exports = {
                    <div class="highlight-item">💰 <strong>Cena:</strong> ${totalPrice} €</div>
                    <div class="highlight-item">📅 <strong>Dátum nákupu:</strong> ${formattedPurchaseDate}</div>
                    <div class="highlight-item">⏳ <strong>Platnosť (6 mesiacov):</strong> ${formattedExpiryDate}</div>
-                   ${stripePaymentId ? `<div class="highlight-item">🔑 <strong>Stripe Payment ID:</strong> ${stripePaymentId}</div>` : ''}
+                   ${paymentTransId ? `<div class="highlight-item">🔑 <strong>Comgate transakcia:</strong> ${paymentTransId}</div>` : ''}
                 </div>
 
                 <div class="quote-box">
@@ -977,7 +977,7 @@ module.exports = {
                   <p style="font-size: 16px; font-weight: bold; margin-bottom: 15px; color: #2563eb;">Informácie o užívateľovi</p>
                   <div class="info-row"><span class="info-label">👤 Meno:</span> ${data.user.first_name} ${data.user.last_name}</div>
                   <div class="info-row"><span class="info-label">📧 Email:</span> <a href="mailto:${data.user.email}" style="color: #2563eb;">${data.user.email}</a></div>
-                  <div class="info-row"><span class="info-label">📍 Adresa:</span> ${data.user.address}</div>
+                  <div class="info-row"><span class="info-label">📍 Adresa:</span> ${data.user.address || 'Neuvedené'}</div>
                   
                   <hr class="divider">
                   
@@ -991,7 +991,7 @@ module.exports = {
                   <hr class="divider">
                   
                   <div class="info-row">
-                    <span class="info-label">🔑 Stripe Payment ID:</span> <span style="font-size: 12px; color: #6b7280;">${data.stripePaymentId || 'N/A'}</span>
+                    <span class="info-label">🔑 Comgate transakcia:</span> <span style="font-size: 12px; color: #6b7280;">${data.paymentTransId || 'N/A'}</span>
                   </div>
                   
                   <hr class="divider">
@@ -1057,7 +1057,7 @@ module.exports = {
                   <p style="font-size: 16px; font-weight: bold; margin-bottom: 15px; color: #2563eb;">Informácie o užívateľovi</p>
                   <div class="info-row"><span class="info-label">👤 Meno:</span> ${data.user.first_name} ${data.user.last_name}</div>
                   <div class="info-row"><span class="info-label">📧 Email:</span> <a href="mailto:${data.user.email}" style="color: #2563eb;">${data.user.email}</a></div>
-                  <div class="info-row"><span class="info-label">📍 Adresa:</span> ${data.user.address}</div>
+                  <div class="info-row"><span class="info-label">📍 Adresa:</span> ${data.user.address || 'Neuvedené'}</div>
                   <div class="info-row"><span class="info-label">📱 Mobil:</span> ${data.mobile || 'Neuvedené'}</div>
                   
                   <hr class="divider">
@@ -1089,7 +1089,7 @@ module.exports = {
                   </div>
                   ` : `
                   <div class="info-row">
-                    <span class="info-label">🔑 Payment Intent:</span> <span style="font-size: 12px; color: #6b7280;">${data.paymentIntentId || ''}</span>
+                    <span class="info-label">🔑 Comgate transakcia:</span> <span style="font-size: 12px; color: #6b7280;">${data.paymentTransId || ''}</span>
                   </div>
                   `}
                   
@@ -1163,7 +1163,7 @@ module.exports = {
                   <p style="font-size: 16px; font-weight: bold; margin-bottom: 15px; color: #2563eb;">Informácie o užívateľovi</p>
                   <div class="info-row"><span class="info-label">👤 Meno:</span> ${data.user.first_name} ${data.user.last_name}</div>
                   <div class="info-row"><span class="info-label">📧 Email:</span> <a href="mailto:${data.user.email}" style="color: #2563eb;">${data.user.email}</a></div>
-                  <div class="info-row"><span class="info-label">📍 Adresa:</span> ${data.user.address}</div>
+                  <div class="info-row"><span class="info-label">📍 Adresa:</span> ${data.user.address || 'Neuvedené'}</div>
                   <div class="info-row"><span class="info-label">📱 Mobil:</span> ${data.mobile || 'Neuvedené'}</div>
                   
                   <hr class="divider">
@@ -1419,7 +1419,7 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
     let userRefundText = '';
     
     if (refundData && refundData.id) {
-      // A. REFUND NA KARTU (prípadne mixed: Stripe + DP)
+      // A. REFUND NA KARTU (prípadne kombinácia Comgate + darčekový poukaz)
       const dpAmount = parseFloat(booking.gift_card_amount || 0);
       const dpCode = booking.gift_card_code || null;
         
@@ -1622,8 +1622,8 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
                   <span class="option-title" style="color: #dc2626;">💳 Vrátenie peňazí (Refund)</span>
                   <p style="font-size: 14px; margin: 0 0 10px 0;">
                     ${(mixedPaymentInfo.giftCardAmount > 0 && mixedPaymentInfo.giftCardCode)
-                      ? `Vaša platba bola kombinovaná: <strong>${mixedPaymentInfo.stripeAmount ? mixedPaymentInfo.stripeAmount.toFixed(2) : '?'} €</strong> kartou a <strong>${mixedPaymentInfo.giftCardAmount.toFixed(2)} €</strong> darčekovým poukazom. Po kliknutí sa automaticky vráti <strong>${mixedPaymentInfo.stripeAmount ? mixedPaymentInfo.stripeAmount.toFixed(2) : '?'} € na kartu</strong> (5–10 pracovných dní) a <strong>${mixedPaymentInfo.giftCardAmount.toFixed(2)} € na zostatok poukazu ${mixedPaymentInfo.giftCardCode}</strong>.`
-                      : `Po kliknutí prebehne automatická požiadavka cez systém Stripe. Vrátenie peňazí na Váš bankový účet zvyčajne trvá <strong>5 až 10 pracovných dní</strong> v závislosti od banky.`
+                      ? `Vaša platba bola kombinovaná: <strong>${mixedPaymentInfo.cardAmount ? mixedPaymentInfo.cardAmount.toFixed(2) : '?'} €</strong> kartou a <strong>${mixedPaymentInfo.giftCardAmount.toFixed(2)} €</strong> darčekovým poukazom. Po kliknutí sa automaticky vráti <strong>${mixedPaymentInfo.cardAmount ? mixedPaymentInfo.cardAmount.toFixed(2) : '?'} € na kartu</strong> (5–10 pracovných dní) a <strong>${mixedPaymentInfo.giftCardAmount.toFixed(2)} € na zostatok poukazu ${mixedPaymentInfo.giftCardCode}</strong>.`
+                      : `Po kliknutí prebehne automatická požiadavka cez platobnú bránu Comgate. Vrátenie peňazí na pôvodnú platobnú kartu zvyčajne trvá <strong>5 až 10 pracovných dní</strong> v závislosti od banky.`
                     }
                   </p>
                   <div style="text-align: right;">

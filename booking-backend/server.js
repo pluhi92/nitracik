@@ -1872,7 +1872,7 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
               paymentType: 'gift_card',
               giftCardCode: req.body.giftCardCode.toUpperCase(),
               giftCardBalance: giftCardBalanceAfter,
-              paymentIntentId: null,
+              paymentTransId: null,
             }
           );
         } catch (emailError) {
@@ -1953,7 +1953,7 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
 
 // Updated endpoint to handle payment success redirect
 app.get('/api/booking-success', isAuthenticated, async (req, res) => {
-  const { booking_id } = req.query;
+  const { booking_id, transId: requestedTransId } = req.query;
   const client = await pool.connect();
 
   try {
@@ -1964,8 +1964,10 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
       `SELECT b.*, u.email
        FROM bookings b
        JOIN users u ON b.user_id = u.id
-       WHERE b.id = $1`,
-      [booking_id]
+       WHERE b.user_id = $1
+         AND (${booking_id ? 'b.id = $2' : 'b.session_id = $2'})
+       LIMIT 1`,
+      [req.session.userId, booking_id || requestedTransId]
     );
 
     if (bookingResult.rows.length === 0) {
@@ -1974,6 +1976,7 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
     }
 
     const booking = bookingResult.rows[0];
+    const bookingId = booking.id;
     const transId = booking.session_id;
 
     if (!transId) {
@@ -1984,7 +1987,7 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
     // Idempotency — already confirmed
     if (booking.amount_paid !== null) {
       await client.query('ROLLBACK');
-      return res.redirect('/user-profile');
+      return res.json({ success: true, alreadyConfirmed: true });
     }
 
     // Verify payment status with Comgate
@@ -2009,7 +2012,7 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
           transId,
           booking.gift_card_code || null,
           booking.gift_card_amount || null,
-          booking_id,
+          bookingId,
         ]
       );
 
@@ -2019,12 +2022,13 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
       try {
         const emailBookingResult = await pool.query(
           `SELECT b.*, u.email, u.first_name, u.last_name, u.mobile as user_mobile,
+              u.address,
                   ta.training_type, ta.training_date, ta.theme
            FROM bookings b
            JOIN users u ON b.user_id = u.id
            LEFT JOIN training_availability ta ON b.training_id = ta.id
            WHERE b.id = $1`,
-          [booking_id]
+          [bookingId]
         );
         const eb = emailBookingResult.rows[0];
         if (eb) {
@@ -2034,7 +2038,7 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
 
           if (eb.age_group === 'adult') {
             await emailService.sendAdultBookingEmail(eb.email, {
-              date: displayDate,
+              date: eb.training_date,
               start_time: displayTime,
               trainingType: eb.training_type,
               userName: eb.first_name,
@@ -2043,7 +2047,7 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
             });
           } else {
             await emailService.sendUserBookingEmail(eb.email, {
-              date: displayDate,
+              date: eb.training_date,
               start_time: displayTime,
               trainingType: eb.training_type,
               userName: eb.first_name,
@@ -2064,7 +2068,7 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
             accompanyingPerson: eb.accompanying_person,
             note: eb.note,
             totalPrice: parseFloat(eb.amount_paid),
-            paymentIntentId: transId,
+            paymentTransId: transId,
             trainingId: eb.training_id,
           });
         }
@@ -2102,7 +2106,7 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
         }
       }
 
-      res.redirect('/user-profile');
+      res.json({ success: true, bookingId });
 
     } else {
       // Payment failed, cancelled or expired
@@ -2110,10 +2114,10 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
         `UPDATE bookings
          SET active = false
          WHERE id = $1 AND amount_paid IS NULL`,
-        [booking_id]
+        [bookingId]
       );
       await client.query('COMMIT');
-      res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=payment_failed`);
+      res.status(400).json({ error: 'Payment not completed', reason: 'payment_failed' });
     }
   } catch (error) {
     await client.query('ROLLBACK');
@@ -2237,7 +2241,7 @@ app.get('/api/season-ticket-success', async (req, res) => {
             totalPrice: paidAmount,
             expiryDate,
             productName: offerResult.rows[0].product_name,
-            stripePaymentId: transId,
+            paymentTransId: transId,
           }
         );
 
@@ -2251,7 +2255,7 @@ app.get('/api/season-ticket-success', async (req, res) => {
           entries: order.entries,
           totalPrice: paidAmount,
           expiryDate,
-          stripePaymentId: transId,
+          paymentTransId: transId,
           productName: offerResult.rows[0].product_name,
         });
       }
@@ -3277,23 +3281,23 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
         refundData = { type: 'credit_issued' };
 
       } else {
-        // REFUND LOGIC: Stripe partial refund + optional gift card balance restore
-        const stripeAmount = parseFloat(booking.amount_paid || 0);
+        // REFUND LOGIC: Comgate card refund + optional gift card balance restore
+        const cardAmount = parseFloat(booking.amount_paid || 0);
         const dpAmount = parseFloat(booking.gift_card_amount || 0);
         const dpCode = booking.gift_card_code || null;
 
         // A. Comgate refund — len ak bolo niečo zaplatené kartou
-        if (stripeAmount > 0 && booking.payment_intent_id) {
+        if (cardAmount > 0 && booking.payment_intent_id) {
           try {
             // Deterministic idempotency key so repeated cancels reuse the same key
-            // and Stripe won't process duplicate refunds when retried quickly.
+            // and repeated Comgate refunds are not submitted for the same booking.
             // transId is stored in payment_intent_id after booking-success confirmation
             const transId = booking.payment_intent_id || booking.session_id;
             const refId = `cancel-${bookingId}-${transId || Date.now()}`;
 
-            console.log('[DEBUG] Preparing Comgate refund for booking', bookingId, 'transId:', transId, 'amount:', stripeAmount);
+            console.log('[DEBUG] Preparing Comgate refund for booking', bookingId, 'transId:', transId, 'amount:', cardAmount);
 
-            const refundResult = await paymentGateway.refundPayment(transId, stripeAmount, refId);
+            const refundResult = await paymentGateway.refundPayment(transId, cardAmount, refId);
 
             if (!refundResult.ok) {
               throw new Error(`Comgate refund failed: ${refundResult.message} (code ${refundResult.code})`);
@@ -3302,7 +3306,7 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
             refundData = { id: refId, status: 'succeeded' };
 
             const refundReason = dpAmount > 0
-              ? `Cancellation by customer (mixed: ${stripeAmount}€ card + ${dpAmount}€ gift card ${dpCode})`
+              ? `Cancellation by customer (mixed: ${cardAmount}€ card + ${dpAmount}€ gift card ${dpCode})`
               : 'Cancellation by customer';
 
             console.log('[DEBUG] Inserting refund record into DB for booking', bookingId, 'refId', refId);
@@ -3310,16 +3314,16 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
               `INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at)
                VALUES ($1, $2, $3, $4, $5, NOW())
                ON CONFLICT (refund_id) DO NOTHING`,
-              [parseInt(bookingId, 10), refId, parseFloat(stripeAmount.toFixed(2)), 'succeeded', refundReason]
+              [parseInt(bookingId, 10), refId, parseFloat(cardAmount.toFixed(2)), 'succeeded', refundReason]
             );
             console.log('[DEBUG] Inserted refund record for booking', bookingId, 'refId', refId);
           } catch (refundError) {
-            console.error('[DEBUG] Stripe Refund error:', refundError.message);
+            console.error('[DEBUG] Comgate refund error:', refundError.message);
             refundData = { error: 'Failed to process refund automatically.' };
           }
-        } else if (stripeAmount <= 0 && dpAmount <= 0) {
+        } else if (cardAmount <= 0 && dpAmount <= 0) {
           refundData = { error: 'No payment associated with this booking' };
-        } else if (stripeAmount > 0 && !booking.payment_intent_id) {
+        } else if (cardAmount > 0 && !booking.payment_intent_id) {
           refundData = { error: 'No payment intent found' };
         }
 
@@ -3670,7 +3674,7 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
             // Nové polia pre mixed-payment info v emaily
             giftCardCode: booking.gift_card_code || null,
             giftCardAmount: booking.gift_card_amount ? parseFloat(booking.gift_card_amount) : null,
-            stripeAmount: booking.amount_paid ? parseFloat(booking.amount_paid) : null
+            cardAmount: booking.amount_paid ? parseFloat(booking.amount_paid) : null
           });
         } else {
           // Títo ostávajú, kým si nevyberú možnosť
@@ -3683,7 +3687,7 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
             // Nové polia pre mixed-payment info v emaily
             giftCardCode: booking.gift_card_code || null,
             giftCardAmount: booking.gift_card_amount ? parseFloat(booking.gift_card_amount) : null,
-            stripeAmount: booking.amount_paid ? parseFloat(booking.amount_paid) : null
+            cardAmount: booking.amount_paid ? parseFloat(booking.amount_paid) : null
           });
         }
     }
@@ -3709,7 +3713,7 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
           {
             giftCardCode: task.giftCardCode || null,
             giftCardAmount: task.giftCardAmount || null,
-            stripeAmount: task.stripeAmount || null
+            cardAmount: task.cardAmount || null
           }
         );
       }
@@ -3865,7 +3869,7 @@ app.get('/api/booking/refund', async (req, res) => {
       gift_card_code, gift_card_amount 
     } = bookingRes.rows[0];
 
-    const stripeRefundAmount = parseFloat(amount_paid || 0);
+    const cardRefundAmount = parseFloat(amount_paid || 0);
     const dpRefundAmount = parseFloat(gift_card_amount || 0);
     const dpRefundCode = gift_card_code || null;
 
@@ -3873,8 +3877,8 @@ app.get('/api/booking/refund', async (req, res) => {
     let refund = null;
 
     // A. Comgate refund — len ak bolo zaplatené kartou
-    if (stripeRefundAmount > 0 && payment_intent_id) {
-      // Check if already refunded in our DB (replaces Stripe charge_already_refunded check)
+    if (cardRefundAmount > 0 && payment_intent_id) {
+      // Check our DB first so the same Comgate transaction is not refunded twice.
       const existingRefund = await client.query(
         'SELECT refund_id, status FROM refunds WHERE booking_id = $1',
         [bookingId]
@@ -3890,7 +3894,7 @@ app.get('/api/booking/refund', async (req, res) => {
 
       const refId = `refund-${bookingId}-${payment_intent_id}`;
 
-      const refundResult = await paymentGateway.refundPayment(payment_intent_id, stripeRefundAmount, refId);
+      const refundResult = await paymentGateway.refundPayment(payment_intent_id, cardRefundAmount, refId);
 
       if (!refundResult.ok) {
         await client.query('ROLLBACK');
@@ -3900,12 +3904,12 @@ app.get('/api/booking/refund', async (req, res) => {
       refund = { id: refId, status: 'succeeded' };
 
       const refundReason = dpRefundAmount > 0
-        ? `User selected refund (mixed: ${stripeRefundAmount}€ card + ${dpRefundAmount}€ gift card ${dpRefundCode})`
+        ? `User selected refund (mixed: ${cardRefundAmount}€ card + ${dpRefundAmount}€ gift card ${dpRefundCode})`
         : 'User selected refund';
 
       await client.query(
         'INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at) VALUES ($1,$2,$3,$4,$5,NOW())',
-        [bookingId, refId, stripeRefundAmount, 'succeeded', refundReason]
+        [bookingId, refId, cardRefundAmount, 'succeeded', refundReason]
       );
     }
 
@@ -3930,7 +3934,7 @@ app.get('/api/booking/refund', async (req, res) => {
         }
       } catch (gcErr) {
         console.error('[DEBUG] Gift card restore error in /api/booking/refund:', gcErr.message);
-        // Logujeme ale neprerušíme — Stripe refund už prebehol
+        // Logujeme, ale neprerušíme — Comgate refund už prebehol.
       }
     }
 
@@ -3942,7 +3946,7 @@ app.get('/api/booking/refund', async (req, res) => {
         await emailService.sendRefundConfirmationEmail(user_email, {
           userName: user_first_name,
           refundId: refund ? refund.id : null,
-          amount: stripeRefundAmount,
+          amount: cardRefundAmount,
           giftCardAmount: dpRefundAmount > 0 ? dpRefundAmount : null,
           giftCardCode: dpRefundCode || null,
           trainingType: training_type,
@@ -5493,7 +5497,7 @@ app.post('/api/create-adult-payment-session', isAuthenticated, async (req, res) 
               paymentType: 'gift_card',
               giftCardCode: req.body.giftCardCode.toUpperCase(),
               giftCardBalance: giftCardBalanceAfter,
-              paymentIntentId: null,
+              paymentTransId: null,
             }
           );
         } catch (emailError) {
@@ -5628,7 +5632,7 @@ app.post('/api/admin/send-bulk-email', isAdmin, async (req, res) => {
 
 // --- GIFT CARD ENDPOINTS ---
 
-// ENDPOINT 1: Create Stripe checkout session for gift card
+// ENDPOINT 1: Create Comgate payment for gift card
 app.post('/api/create-gift-card-session', async (req, res) => {
   try {
     const { amount, buyerEmail, buyerName, recipientName, recipientEmail, message, honeypot } = req.body;
@@ -5692,7 +5696,7 @@ app.post('/api/create-gift-card-session', async (req, res) => {
   }
 });
 
-// ENDPOINT 2: Confirm gift card after successful Stripe payment
+// ENDPOINT 2: Confirm gift card after successful Comgate payment
 app.get('/api/gift-card-success', async (req, res) => {
   const { refId } = req.query;
   if (!refId) return res.status(400).json({ error: 'Chýba refId' });

@@ -1203,7 +1203,7 @@ describe('Admin cancellation — gift card and mixed booking expectations', () =
     expect(mixedInfo).toBeDefined();
     expect(mixedInfo.giftCardCode).toBe(code);
     expect(mixedInfo.giftCardAmount).toBe(5);
-    expect(mixedInfo.stripeAmount).toBe(35);
+    expect(mixedInfo.cardAmount).toBe(35);
   });
 
   test('POSITIVE: admin cancels session with mixed booking → booking stays active (pending user choice)', async () => {

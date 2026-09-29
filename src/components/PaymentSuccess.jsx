@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle2, PartyPopper, Gift } from 'lucide-react';
+import api from '../api/api';
 
 const FlakPink = ({ className, style }) => (
   <svg viewBox="0 0 170.079 170.658" xmlns="http://www.w3.org/2000/svg" className={className} style={style} aria-hidden="true">
@@ -31,12 +32,17 @@ const PaymentSuccess = () => {
     } else {
       const urlParams = new URLSearchParams(location.search);
       const bookingId = urlParams.get('booking_id');
+      const transId = urlParams.get('transId');
       
-      if (bookingId) {
-        console.log('Payment successful, booking:', bookingId);
-        timer = setTimeout(() => {
-          navigate('/profile');
-        }, 5000);
+      if (bookingId || transId) {
+        api.get('/api/booking-success', {
+          params: bookingId ? { booking_id: bookingId } : { transId },
+        }).then(() => {
+          timer = setTimeout(() => navigate('/profile'), 5000);
+        }).catch((error) => {
+          console.error('Error confirming payment:', error);
+          navigate('/payment-cancelled?reason=payment_confirmation_failed');
+        });
       } else {
         navigate('/profile');
       }
