@@ -6,27 +6,7 @@ const {
   pool,
 } = require('./setup');
 
-let stripeCounter = 0;
-
-const mockStripe = {
-  checkout: {
-    sessions: {
-      create: jest.fn(),
-      retrieve: jest.fn(),
-    },
-  },
-  refunds: {
-    create: jest.fn(),
-  },
-  paymentIntents: {
-    retrieve: jest.fn(),
-  },
-  webhooks: {
-    constructEvent: jest.fn(),
-  },
-};
-
-jest.mock('stripe', () => jest.fn(() => mockStripe));
+jest.mock('../services/paymentGateway');
 
 jest.mock('../services/emailService', () => ({
   sendPaymentFailedEmail: jest.fn().mockResolvedValue(true),
@@ -48,20 +28,18 @@ jest.mock('../services/emailService', () => ({
 }));
 
 const { app, pool: serverPool } = require('../server');
+const paymentGateway = require('../services/paymentGateway');
 
-function resetStripeMocks() {
-  mockStripe.refunds.create.mockImplementation(async () => {
-    stripeCounter += 1;
-    return {
-      id: `test_refund_user_profile_${Date.now()}_${stripeCounter}`,
-      status: 'succeeded',
-    };
+function resetPaymentGatewayMocks() {
+  paymentGateway.createPayment.mockResolvedValue({
+    transId: `test_trans_user_profile_${Date.now()}`,
+    redirectUrl: 'https://payments.comgate.cz/mock',
   });
-
-  mockStripe.webhooks.constructEvent.mockImplementation((payload) => {
-    if (Buffer.isBuffer(payload)) return JSON.parse(payload.toString('utf8'));
-    if (typeof payload === 'string') return JSON.parse(payload);
-    return payload;
+  paymentGateway.getPaymentStatus.mockResolvedValue('PAID');
+  paymentGateway.refundPayment.mockImplementation(async () => {
+    return {
+      ok: true,
+    };
   });
 }
 
@@ -220,7 +198,7 @@ describe('E2E - UserProfile processes', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    resetStripeMocks();
+    resetPaymentGatewayMocks();
   });
 
   afterEach(async () => {
@@ -396,7 +374,7 @@ describe('E2E - UserProfile processes', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.refundProcessed).toBe(true);
       expect(res.body.creditIssued).toBe(false);
-      expect(mockStripe.refunds.create).toHaveBeenCalledTimes(1);
+      expect(paymentGateway.refundPayment).toHaveBeenCalledTimes(1);
 
       const bookingDb = await pool.query('SELECT active FROM bookings WHERE id = $1', [booking.id]);
       expect(bookingDb.rows.length).toBe(1);

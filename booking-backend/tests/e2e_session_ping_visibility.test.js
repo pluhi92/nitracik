@@ -13,9 +13,6 @@ const {
   pool,
 } = require('./setup');
 
-// ── Mock Stripe ──────────────────────────────────────────────────
-jest.mock('stripe', () => jest.fn(() => ({})));
-
 // ── Mock email service ───────────────────────────────────────────
 jest.mock('../services/emailService', () => ({
   sendVerificationEmail: jest.fn().mockResolvedValue(true),

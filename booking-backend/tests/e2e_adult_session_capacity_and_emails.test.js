@@ -9,48 +9,7 @@ const {
 
 let sessionCounter = 0;
 
-const buildMockStripeSession = (payload = {}) => {
-  sessionCounter += 1;
-  const sessionId = `test_session_${Date.now()}_${sessionCounter}`;
-  const paymentIntentId = `test_pi_${Date.now()}_${sessionCounter}`;
-
-  return {
-    id: sessionId,
-    payment_status: 'paid',
-    payment_intent: paymentIntentId,
-    created: Math.floor(Date.now() / 1000),
-    customer_details: { email: 'test@example.com' },
-    metadata: payload.metadata || {},
-  };
-};
-
-const mockStripe = {
-  checkout: {
-    sessions: {
-      create: jest.fn().mockImplementation(async (payload) => buildMockStripeSession(payload)),
-      retrieve: jest.fn(),
-    },
-  },
-  paymentIntents: {
-    retrieve: jest.fn(),
-  },
-  refunds: {
-    create: jest.fn(),
-  },
-  webhooks: {
-    constructEvent: jest.fn().mockImplementation((payload) => {
-      if (Buffer.isBuffer(payload)) {
-        return JSON.parse(payload.toString('utf8'));
-      }
-      if (typeof payload === 'string') {
-        return JSON.parse(payload);
-      }
-      return payload;
-    }),
-  },
-};
-
-jest.mock('stripe', () => jest.fn(() => mockStripe));
+jest.mock('../services/paymentGateway');
 
 jest.mock('../services/emailService', () => ({
   sendPaymentFailedEmail: jest.fn().mockResolvedValue(true),
@@ -64,6 +23,7 @@ jest.mock('../services/emailService', () => ({
 
 const emailService = require('../services/emailService');
 const { app, pool: serverPool } = require('../server');
+const paymentGateway = require('../services/paymentGateway');
 
 async function createUser({ email, role = 'user', firstName = 'Test', lastName = 'Adult' }) {
   const hashedPassword = await bcrypt.hash('TestPass123', 10);
@@ -132,26 +92,10 @@ async function createAdultSessionByAdmin({ maxParticipants = 5, basePrice = 15 }
   };
 }
 
-async function completeCheckoutWebhook({ sessionId, metadata, paymentIntentId }) {
-  const response = await request(app)
-    .post('/stripe-webhook')
-    .set('Content-Type', 'application/json')
-    .set('stripe-signature', 'test_signature')
-    .send({
-      type: 'checkout.session.completed',
-      data: {
-        object: {
-          id: sessionId,
-          payment_status: 'paid',
-          payment_intent: paymentIntentId || `test_pi_complete_${Date.now()}`,
-          created: Math.floor(Date.now() / 1000),
-          metadata,
-          customer_details: { email: 'test@example.com' },
-        },
-      },
-    });
-
-  expect(response.status).toBe(200);
+async function completeCheckoutWebhook({ agent, bookingId }) {
+  paymentGateway.getPaymentStatus.mockResolvedValueOnce('PAID');
+  const response = await agent.get(`/api/booking-success?booking_id=${bookingId}`);
+  expect(response.status).toBe(302);
 }
 
 async function getBookingById(bookingId) {
@@ -195,6 +139,12 @@ describe('E2E - Adult session (admin creation, payments, duplicate validation, e
 
   beforeEach(() => {
     jest.clearAllMocks();
+    paymentGateway.createPayment.mockImplementation(async () => ({
+      transId: `mock-trans-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      redirectUrl: 'https://payments.comgate.cz/mock',
+    }));
+    paymentGateway.getPaymentStatus.mockResolvedValue('PAID');
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
   });
 
   afterEach(async () => {
@@ -252,18 +202,8 @@ describe('E2E - Adult session (admin creation, payments, duplicate validation, e
       expect(pendingBooking.number_of_adults).toBe(1);
 
       await completeCheckoutWebhook({
-        sessionId: pendingBooking.session_id,
-        metadata: {
-          type: 'adult_training_session',
-          userId: String(user.id),
-          trainingId: String(session.id),
-          trainingType: trainingType.name,
-          selectedDate,
-          selectedTime,
-          totalPrice: String(basePrice),
-          mobile: `+42190000010${i}`,
-          note: `adult-capacity-multi-${i}`,
-        },
+        agent,
+        bookingId: createResponse.body.bookingId,
       });
 
       const paidBooking = await getBookingById(createResponse.body.bookingId);
@@ -357,18 +297,8 @@ describe('E2E - Adult session (admin creation, payments, duplicate validation, e
       expect(booking.number_of_adults).toBe(1);
 
       await completeCheckoutWebhook({
-        sessionId: booking.session_id,
-        metadata: {
-          type: 'adult_training_session',
-          userId: String(user.id),
-          trainingId: String(session.id),
-          trainingType: trainingType.name,
-          selectedDate,
-          selectedTime,
-          totalPrice: String(basePrice),
-          mobile: '+421900000200',
-          note: `adult-same-user-${i}`,
-        },
+        agent,
+        bookingId: createResponse.body.bookingId,
       });
     }
 
@@ -479,18 +409,8 @@ describe('E2E - Adult session (admin creation, payments, duplicate validation, e
 
     const pendingPaidBooking = await getBookingById(paidResponse.body.bookingId);
     await completeCheckoutWebhook({
-      sessionId: pendingPaidBooking.session_id,
-      metadata: {
-        type: 'adult_training_session',
-        userId: String(paidUser.id),
-        trainingId: String(session.id),
-        trainingType: trainingType.name,
-        selectedDate,
-        selectedTime,
-        totalPrice: String(basePrice),
-        mobile: '+421900000402',
-        note: 'redirected-from-activity-adult-paid',
-      },
+      agent: paidAgent,
+      bookingId: paidResponse.body.bookingId,
     });
 
     const blockedAgent = await loginAsUser(blockedUser.email);

@@ -9,48 +9,7 @@ const {
 
 let sessionCounter = 0;
 
-const buildMockStripeSession = (payload = {}) => {
-  sessionCounter += 1;
-  const sessionId = `test_session_${Date.now()}_${sessionCounter}`;
-  const paymentIntentId = `test_pi_${Date.now()}_${sessionCounter}`;
-
-  return {
-    id: sessionId,
-    payment_status: 'paid',
-    payment_intent: paymentIntentId,
-    created: Math.floor(Date.now() / 1000),
-    customer_details: { email: 'test@example.com' },
-    metadata: payload.metadata || {},
-  };
-};
-
-const mockStripe = {
-  checkout: {
-    sessions: {
-      create: jest.fn().mockImplementation(async (payload) => buildMockStripeSession(payload)),
-      retrieve: jest.fn(),
-    },
-  },
-  paymentIntents: {
-    retrieve: jest.fn(),
-  },
-  refunds: {
-    create: jest.fn(),
-  },
-  webhooks: {
-    constructEvent: jest.fn().mockImplementation((payload) => {
-      if (Buffer.isBuffer(payload)) {
-        return JSON.parse(payload.toString('utf8'));
-      }
-      if (typeof payload === 'string') {
-        return JSON.parse(payload);
-      }
-      return payload;
-    }),
-  },
-};
-
-jest.mock('stripe', () => jest.fn(() => mockStripe));
+jest.mock('../services/paymentGateway');
 
 jest.mock('../services/emailService', () => ({
   sendPaymentFailedEmail: jest.fn().mockResolvedValue(true),
@@ -62,6 +21,7 @@ jest.mock('../services/emailService', () => ({
 }));
 
 const { app, pool: serverPool } = require('../server');
+const paymentGateway = require('../services/paymentGateway');
 
 async function createVerifiedUser(email) {
   const hashedPassword = await bcrypt.hash('TestPass123', 10);
@@ -103,26 +63,10 @@ async function createTrainingWithPrice({ trainingTypeName, audienceType, price }
   return { trainingType, training };
 }
 
-async function completeCheckoutWebhook({ sessionId, metadata, paymentIntentId }) {
-  const response = await request(app)
-    .post('/stripe-webhook')
-    .set('Content-Type', 'application/json')
-    .set('stripe-signature', 'test_signature')
-    .send({
-      type: 'checkout.session.completed',
-      data: {
-        object: {
-          id: sessionId,
-          payment_status: 'paid',
-          payment_intent: paymentIntentId || `test_pi_complete_${Date.now()}`,
-          created: Math.floor(Date.now() / 1000),
-          metadata,
-          customer_details: { email: 'test@example.com' },
-        },
-      },
-    });
-
-  expect(response.status).toBe(200);
+async function completeCheckoutWebhook({ agent, bookingId }) {
+  paymentGateway.getPaymentStatus.mockResolvedValueOnce('PAID');
+  const response = await agent.get(`/api/booking-success?booking_id=${bookingId}`);
+  expect(response.status).toBe(302);
 }
 
 async function getBookingById(bookingId) {
@@ -133,6 +77,16 @@ async function getBookingById(bookingId) {
 describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => {
   beforeAll(async () => {
     await cleanupTestData();
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    paymentGateway.createPayment.mockImplementation(async () => ({
+      transId: `mock-trans-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      redirectUrl: 'https://payments.comgate.cz/mock',
+    }));
+    paymentGateway.getPaymentStatus.mockResolvedValue('PAID');
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
   });
 
   afterEach(async () => {
@@ -177,22 +131,8 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
     expect(pendingBooking.session_id).toBeTruthy();
 
     await completeCheckoutWebhook({
-      sessionId: pendingBooking.session_id,
-      metadata: {
-        type: 'training_session',
-        userId: String(user.id),
-        trainingId: String(training.id),
-        trainingType: trainingType.name,
-        selectedDate: '2026-05-01',
-        selectedTime: '16:30',
-        childrenCount: '1',
-        childrenAge: '8',
-        totalPrice: '13.5',
-        photoConsent: 'true',
-        mobile: '+421900000001',
-        note: 'booking-page-child',
-        accompanyingPerson: 'false',
-      },
+      agent,
+      bookingId: createResponse.body.bookingId,
     });
 
     const paidBooking = await getBookingById(createResponse.body.bookingId);
@@ -229,18 +169,8 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
     expect(pendingBooking.age_group).toBe('adult');
 
     await completeCheckoutWebhook({
-      sessionId: pendingBooking.session_id,
-      metadata: {
-        type: 'adult_training_session',
-        userId: String(user.id),
-        trainingId: String(training.id),
-        trainingType: trainingType.name,
-        selectedDate: '2026-05-02',
-        selectedTime: '18:00',
-        totalPrice: '17',
-        mobile: '+421900000002',
-        note: 'booking-page-adult',
-      },
+      agent,
+      bookingId: createResponse.body.bookingId,
     });
 
     const paidBooking = await getBookingById(createResponse.body.bookingId);
@@ -279,22 +209,8 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
     const pendingBooking = await getBookingById(createResponse.body.bookingId);
 
     await completeCheckoutWebhook({
-      sessionId: pendingBooking.session_id,
-      metadata: {
-        type: 'training_session',
-        userId: String(user.id),
-        trainingId: String(training.id),
-        trainingType: trainingType.name,
-        selectedDate: '2026-05-03',
-        selectedTime: '17:00',
-        childrenCount: '1',
-        childrenAge: '7',
-        totalPrice: '14',
-        photoConsent: 'true',
-        mobile: '+421900000003',
-        note: 'redirected-from-activity-child',
-        accompanyingPerson: 'false',
-      },
+      agent,
+      bookingId: createResponse.body.bookingId,
     });
 
     const paidBooking = await getBookingById(createResponse.body.bookingId);
@@ -326,18 +242,8 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
     const pendingBooking = await getBookingById(createResponse.body.bookingId);
 
     await completeCheckoutWebhook({
-      sessionId: pendingBooking.session_id,
-      metadata: {
-        type: 'adult_training_session',
-        userId: String(user.id),
-        trainingId: String(training.id),
-        trainingType: trainingType.name,
-        selectedDate: '2026-05-04',
-        selectedTime: '19:00',
-        totalPrice: '18',
-        mobile: '+421900000004',
-        note: 'redirected-from-activity-adult',
-      },
+      agent,
+      bookingId: createResponse.body.bookingId,
     });
 
     const paidBooking = await getBookingById(createResponse.body.bookingId);
@@ -371,22 +277,8 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
 
     const firstBooking = await getBookingById(first.body.bookingId);
     await completeCheckoutWebhook({
-      sessionId: firstBooking.session_id,
-      metadata: {
-        type: 'training_session',
-        userId: String(user.id),
-        trainingId: String(training.id),
-        trainingType: trainingType.name,
-        selectedDate: '2026-05-05',
-        selectedTime: '16:00',
-        childrenCount: '1',
-        childrenAge: '9',
-        totalPrice: '15',
-        photoConsent: 'true',
-        mobile: '+421900000005',
-        note: 'duplicate-child-1',
-        accompanyingPerson: 'false',
-      },
+      agent,
+      bookingId: first.body.bookingId,
     });
 
     const secondBlocked = await agent.post('/api/create-payment-session').send({
@@ -424,22 +316,8 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
 
     const secondBooking = await getBookingById(second.body.bookingId);
     await completeCheckoutWebhook({
-      sessionId: secondBooking.session_id,
-      metadata: {
-        type: 'training_session',
-        userId: String(user.id),
-        trainingId: String(training.id),
-        trainingType: trainingType.name,
-        selectedDate: '2026-05-05',
-        selectedTime: '16:00',
-        childrenCount: '1',
-        childrenAge: '9',
-        totalPrice: '15',
-        photoConsent: 'true',
-        mobile: '+421900000005',
-        note: 'duplicate-child-2',
-        accompanyingPerson: 'false',
-      },
+      agent,
+      bookingId: second.body.bookingId,
     });
 
     const result = await pool.query(
@@ -473,18 +351,8 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
 
     const firstBooking = await getBookingById(first.body.bookingId);
     await completeCheckoutWebhook({
-      sessionId: firstBooking.session_id,
-      metadata: {
-        type: 'adult_training_session',
-        userId: String(user.id),
-        trainingId: String(training.id),
-        trainingType: trainingType.name,
-        selectedDate: '2026-05-06',
-        selectedTime: '18:30',
-        totalPrice: '19',
-        mobile: '+421900000006',
-        note: 'duplicate-adult-1',
-      },
+      agent,
+      bookingId: first.body.bookingId,
     });
 
     const secondBlocked = await agent.post('/api/create-adult-payment-session').send({
@@ -514,18 +382,8 @@ describe('E2E - Booking platby z Booking/Aktivity stránky + duplikáty', () => 
 
     const secondBooking = await getBookingById(second.body.bookingId);
     await completeCheckoutWebhook({
-      sessionId: secondBooking.session_id,
-      metadata: {
-        type: 'adult_training_session',
-        userId: String(user.id),
-        trainingId: String(training.id),
-        trainingType: trainingType.name,
-        selectedDate: '2026-05-06',
-        selectedTime: '18:30',
-        totalPrice: '19',
-        mobile: '+421900000006',
-        note: 'duplicate-adult-2',
-      },
+      agent,
+      bookingId: second.body.bookingId,
     });
 
     const result = await pool.query(

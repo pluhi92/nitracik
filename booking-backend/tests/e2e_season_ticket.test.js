@@ -11,32 +11,13 @@ const {
   pool 
 } = require('./setup');
 
-// Mock pre Stripe
-let mockSessionId = 'test_session_' + Date.now();
-let mockPaymentIntentId = 'test_payment_intent_' + Date.now();
-
-const createMockStripeSession = (overrides = {}) => ({
-  id: mockSessionId,
-  payment_status: 'paid',
-  payment_intent: mockPaymentIntentId,
-  created: Math.floor(Date.now() / 1000),
-  metadata: {},
-  customer_details: {
-    email: 'test@example.com'
-  },
-  ...overrides
-});
-
-const mockStripe = {
-  checkout: {
-    sessions: {
-      create: jest.fn().mockImplementation(() => {
-        mockSessionId = 'test_session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        mockPaymentIntentId = 'test_payment_intent_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        return Promise.resolve(createMockStripeSession({ id: mockSessionId, payment_intent: mockPaymentIntentId }));
-      })
-    }
-  }
+const paymentGateway = {
+  createPayment: jest.fn().mockImplementation(async () => ({
+    transId: `test_trans_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+    redirectUrl: 'https://payments.comgate.cz/mock',
+  })),
+  getPaymentStatus: jest.fn().mockResolvedValue('PAID'),
+  refundPayment: jest.fn().mockResolvedValue({ ok: true }),
 };
 
 // Mock email service
@@ -46,11 +27,6 @@ jest.mock('../services/emailService', () => ({
   sendUserSeasonTicketPurchaseEmail: jest.fn().mockResolvedValue(true),
   sendAdminSeasonTicketUsage: jest.fn().mockResolvedValue(true)
 }));
-
-// Mock Stripe modul
-jest.mock('stripe', () => {
-  return jest.fn(() => mockStripe);
-});
 
 // Vytvorenie testovacej Express aplikácie
 const app = express();
@@ -165,7 +141,7 @@ app.post('/api/admin/season-ticket-products', isAdmin, async (req, res) => {
   }
 });
 
-// 3. Nákup permanentky s Stripe platbou
+// 3. Nákup permanentky s Comgate platbou
 app.post('/api/season-tickets/purchase', isAuthenticated, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -185,27 +161,24 @@ app.post('/api/season-tickets/purchase', isAuthenticated, async (req, res) => {
     
     const product = productResult.rows[0];
     
-    // Vytvorenie Stripe session (mock)
-    const session = await mockStripe.checkout.sessions.create({
-      metadata: {
-        userId: userId.toString(),
-        productId: productId.toString(),
-        type: 'season_ticket_purchase'
-      }
+    const payment = await paymentGateway.createPayment({
+      refId: `season-ticket-${productId}-${userId}`,
+      amount: 50,
+      email: 'test@example.com',
     });
     
-    // Vytvorenie permanentky (stripe_payment_id slúži ako flag - kým nie je zaplatené, nie je aktívna)
+    // Transakčné ID slúži ako flag - kým nie je zaplatené, permanentka nie je aktívna.
     const ticketResult = await client.query(
       `INSERT INTO season_tickets (
         user_id, season_ticket_product_id, entries_total, entries_remaining,
         purchase_date, expiry_date, stripe_payment_id, amount_paid
       ) VALUES ($1, $2, $3, $3, NOW(), NOW() + INTERVAL '6 months', $4, $5)
       RETURNING *`,
-      [userId, productId, 5, session.id, 50.00]
+      [userId, productId, 5, payment.transId, 50.00]
     );
     
     await client.query('COMMIT');
-    res.json({ sessionId: session.id, ticketId: ticketResult.rows[0].id });
+    res.json({ redirectUrl: payment.redirectUrl, transId: payment.transId, ticketId: ticketResult.rows[0].id });
   } catch (error) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: error.message });
@@ -214,43 +187,15 @@ app.post('/api/season-tickets/purchase', isAuthenticated, async (req, res) => {
   }
 });
 
-// 4. Webhook pre potvrdenie platby permanentky
-app.post('/stripe-webhook', express.json(), async (req, res) => {
+// 4. Comgate návratová URL pre potvrdenie platby permanentky
+app.get('/api/season-ticket-success', async (req, res) => {
   try {
-    const event = req.body;
-    
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-      
-      if (session.payment_status !== 'paid') {
-        return res.json({ received: true });
-      }
-      
-      const client = await pool.connect();
-      try {
-        await client.query('BEGIN');
-        
-        if (session.metadata?.type === 'season_ticket_purchase') {
-          // Aktivácia permanentky - nastavenie payment_time a payment_intent_id
-          await client.query(
-            `UPDATE season_tickets 
-             SET payment_time = NOW(),
-                 stripe_payment_id = $1
-             WHERE stripe_payment_id = $2`,
-            [session.payment_intent, session.id]
-          );
-        }
-        
-        await client.query('COMMIT');
-      } catch (error) {
-        await client.query('ROLLBACK');
-        console.error('Webhook error:', error);
-      } finally {
-        client.release();
-      }
-    }
-    
-    res.json({ received: true });
+    const ticketId = req.query.ticket_id;
+    const ticket = await pool.query('SELECT stripe_payment_id FROM season_tickets WHERE id = $1', [ticketId]);
+    const status = await paymentGateway.getPaymentStatus(ticket.rows[0]?.stripe_payment_id);
+    if (status !== 'PAID') return res.status(400).json({ error: 'Payment not completed' });
+    await pool.query('UPDATE season_tickets SET payment_time = NOW() WHERE id = $1', [ticketId]);
+    res.redirect('/season-ticket/success');
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -553,15 +498,15 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
         );
         refundData = { type: 'credit_issued' };
       } else {
-        // Stripe refund (mock)
-        const refund = await mockStripe.refunds.create({
-          payment_intent: booking.payment_intent_id
-        });
+        const refund = await paymentGateway.refundPayment(
+          booking.payment_intent_id,
+          Number(booking.amount_paid)
+        );
         refundData = refund;
         
         await client.query(
           'INSERT INTO refunds (booking_id, refund_id, amount, status, reason, created_at) VALUES ($1, $2, $3, $4, $5, NOW())',
-          [bookingId, refund.id, booking.amount_paid, refund.status, 'Cancellation by customer']
+          [bookingId, `test_refund_${Date.now()}`, booking.amount_paid, 'PAID', 'Cancellation by customer']
         );
       }
     }
@@ -574,7 +519,7 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
     res.json({
       success: true,
       message: 'Booking canceled successfully',
-      refundProcessed: !!refundData?.id || ['credit_returned', 'credit_issued', 'season_ticket_returned'].includes(refundData?.type),
+      refundProcessed: !!refundData?.ok || ['credit_returned', 'credit_issued', 'season_ticket_returned'].includes(refundData?.type),
       creditIssued: refundData?.type === 'credit_issued'
     });
     
@@ -794,31 +739,12 @@ describe('E2E Testy - Permanentky pre deti a dospelých', () => {
         });
       
       expect(response.status).toBe(200);
-      expect(response.body.sessionId).toBeDefined();
+      expect(response.body.transId).toBeDefined();
       expect(response.body.ticketId).toBeDefined();
       childSeasonTicket = response.body;
-      
-      // Simulácia webhooku - aktivácia permanentky
-      const webhookPayload = JSON.stringify({
-        type: 'checkout.session.completed',
-        data: {
-          object: {
-            id: response.body.sessionId,
-            payment_status: 'paid',
-            payment_intent: 'test_payment_intent_child',
-            metadata: {
-              type: 'season_ticket_purchase',
-              userId: testUser.id.toString(),
-              productId: childSeasonTicketProduct.id.toString()
-            }
-          }
-        }
-      });
-      
+      paymentGateway.getPaymentStatus.mockResolvedValueOnce('PAID');
       await request(app)
-        .post('/stripe-webhook')
-        .set('Content-Type', 'application/json')
-        .send(webhookPayload);
+        .get(`/api/season-ticket-success?ticket_id=${response.body.ticketId}`);
       
       // Overenie v DB
       const ticketResult = await pool.query(
@@ -840,31 +766,12 @@ describe('E2E Testy - Permanentky pre deti a dospelých', () => {
         });
       
       expect(response.status).toBe(200);
-      expect(response.body.sessionId).toBeDefined();
+      expect(response.body.transId).toBeDefined();
       expect(response.body.ticketId).toBeDefined();
       adultSeasonTicket = response.body;
-      
-      // Simulácia webhooku - aktivácia permanentky
-      const webhookPayload = JSON.stringify({
-        type: 'checkout.session.completed',
-        data: {
-          object: {
-            id: response.body.sessionId,
-            payment_status: 'paid',
-            payment_intent: 'test_payment_intent_adult',
-            metadata: {
-              type: 'season_ticket_purchase',
-              userId: testUser.id.toString(),
-              productId: adultSeasonTicketProduct.id.toString()
-            }
-          }
-        }
-      });
-      
+      paymentGateway.getPaymentStatus.mockResolvedValueOnce('PAID');
       await request(app)
-        .post('/stripe-webhook')
-        .set('Content-Type', 'application/json')
-        .send(webhookPayload);
+        .get(`/api/season-ticket-success?ticket_id=${response.body.ticketId}`);
       
       // Overenie v DB
       const ticketResult = await pool.query(

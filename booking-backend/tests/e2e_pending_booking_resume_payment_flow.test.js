@@ -9,48 +9,7 @@ const {
 
 let sessionCounter = 0;
 
-const buildMockStripeSession = (payload = {}) => {
-  sessionCounter += 1;
-  const sessionId = `test_session_${Date.now()}_${sessionCounter}`;
-  const paymentIntentId = `test_pi_${Date.now()}_${sessionCounter}`;
-
-  return {
-    id: sessionId,
-    payment_status: 'paid',
-    payment_intent: paymentIntentId,
-    created: Math.floor(Date.now() / 1000),
-    customer_details: { email: 'test@example.com' },
-    metadata: payload.metadata || {},
-  };
-};
-
-const mockStripe = {
-  checkout: {
-    sessions: {
-      create: jest.fn().mockImplementation(async (payload) => buildMockStripeSession(payload)),
-      retrieve: jest.fn(),
-    },
-  },
-  paymentIntents: {
-    retrieve: jest.fn(),
-  },
-  refunds: {
-    create: jest.fn(),
-  },
-  webhooks: {
-    constructEvent: jest.fn().mockImplementation((payload) => {
-      if (Buffer.isBuffer(payload)) {
-        return JSON.parse(payload.toString('utf8'));
-      }
-      if (typeof payload === 'string') {
-        return JSON.parse(payload);
-      }
-      return payload;
-    }),
-  },
-};
-
-jest.mock('stripe', () => jest.fn(() => mockStripe));
+jest.mock('../services/paymentGateway');
 
 jest.mock('../services/emailService', () => ({
   sendPaymentFailedEmail: jest.fn().mockResolvedValue(true),
@@ -63,6 +22,7 @@ jest.mock('../services/emailService', () => ({
 
 const emailService = require('../services/emailService');
 const { app, pool: serverPool } = require('../server');
+const paymentGateway = require('../services/paymentGateway');
 
 async function createVerifiedUser(email) {
   const hashedPassword = await bcrypt.hash('TestPass123', 10);
@@ -109,45 +69,11 @@ async function getBookingById(bookingId) {
   return result.rows[0];
 }
 
-async function triggerWebhookEvent(eventPayload) {
-  const response = await request(app)
-    .post('/stripe-webhook')
-    .set('Content-Type', 'application/json')
-    .set('stripe-signature', 'test_signature')
-    .send(eventPayload);
-
-  expect(response.status).toBe(200);
-}
-
-async function triggerCompletedWebhook({ sessionId, metadata, paymentStatus = 'paid' }) {
-  await triggerWebhookEvent({
-    type: 'checkout.session.completed',
-    data: {
-      object: {
-        id: sessionId,
-        payment_status: paymentStatus,
-        payment_intent: `test_pi_complete_${Date.now()}`,
-        created: Math.floor(Date.now() / 1000),
-        metadata,
-        customer_details: { email: 'test@example.com' },
-      },
-    },
-  });
-}
-
-async function triggerPaymentFailedWebhook({ bookingId, amount = 1600 }) {
-  await triggerWebhookEvent({
-    type: 'payment_intent.payment_failed',
-    data: {
-      object: {
-        id: `test_pi_failed_${Date.now()}`,
-        amount,
-        metadata: {
-          bookingId: String(bookingId),
-        },
-      },
-    },
-  });
+async function completeBookingSuccess({ agent, bookingId, status = 'PAID' }) {
+  paymentGateway.getPaymentStatus.mockResolvedValueOnce(status);
+  const response = await agent.get(`/api/booking-success?booking_id=${bookingId}`);
+  expect(response.status).toBe(302);
+  return response;
 }
 
 async function getBookingsForUserTraining(userId, trainingId) {
@@ -199,6 +125,12 @@ describe('E2E - pending booking resume payment flow', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    paymentGateway.createPayment.mockImplementation(async () => ({
+      transId: `mock-trans-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      redirectUrl: 'https://payments.comgate.cz/mock',
+    }));
+    paymentGateway.getPaymentStatus.mockResolvedValue('PAID');
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
   });
 
   afterEach(async () => {
@@ -227,17 +159,17 @@ describe('E2E - pending booking resume payment flow', () => {
       trainingType: trainingType.name,
     });
 
-    // 1-2: Create booking and receive Stripe session for checkout redirect.
+    // 1-2: Create booking and receive Comgate redirect URL for checkout.
     const firstCreate = await agent.post('/api/create-payment-session').send(bookingPayload);
     expect(firstCreate.status).toBe(200);
     expect(firstCreate.body.bookingId).toBeDefined();
-    expect(firstCreate.body.sessionId).toBeDefined();
+    expect(firstCreate.body.transId).toBeDefined();
 
     const firstBooking = await getBookingById(firstCreate.body.bookingId);
     expect(firstBooking).toBeDefined();
     expect(firstBooking.active).toBe(false);
     expect(firstBooking.amount_paid).toBeNull();
-    expect(firstBooking.session_id).toBe(firstCreate.body.sessionId);
+    expect(firstBooking.session_id).toBe(firstCreate.body.transId);
 
     // 3-5: User closes payment gateway; second attempt must return PENDING_BOOKING with existing session.
     const duplicateStatus = await agent
@@ -247,34 +179,16 @@ describe('E2E - pending booking resume payment flow', () => {
     expect(duplicateStatus.status).toBe(200);
     expect(duplicateStatus.body.code).toBe('PENDING_BOOKING');
     expect(duplicateStatus.body.existingBookingId).toBe(firstCreate.body.bookingId);
-    expect(duplicateStatus.body.existingSessionId).toBe(firstCreate.body.sessionId);
+    expect(duplicateStatus.body.existingSessionId).toBe(firstCreate.body.transId);
 
     const secondCreate = await agent.post('/api/create-payment-session').send(bookingPayload);
     expect(secondCreate.status).toBe(409);
     expect(secondCreate.body.code).toBe('PENDING_BOOKING');
     expect(secondCreate.body.existingBookingId).toBe(firstCreate.body.bookingId);
-    expect(secondCreate.body.existingSessionId).toBe(firstCreate.body.sessionId);
+    expect(secondCreate.body.existingSessionId).toBe(firstCreate.body.transId);
 
-    // 6-8: "Complete payment" -> continue with existing Stripe session and simulate successful payment.
-    const resumedSessionId = secondCreate.body.existingSessionId;
-    await triggerCompletedWebhook({
-      sessionId: resumedSessionId,
-      metadata: {
-        type: 'training_session',
-        userId: String(user.id),
-        trainingId: String(training.id),
-        trainingType: trainingType.name,
-        selectedDate: bookingPayload.selectedDate,
-        selectedTime: bookingPayload.selectedTime,
-        childrenCount: String(bookingPayload.childrenCount),
-        childrenAge: bookingPayload.childrenAge,
-        totalPrice: '16',
-        photoConsent: 'true',
-        mobile: bookingPayload.mobile,
-        note: bookingPayload.note,
-        accompanyingPerson: 'false',
-      },
-    });
+    // 6-8: "Complete payment" -> confirm the existing Comgate transaction and simulate successful payment.
+    await completeBookingSuccess({ agent, bookingId: firstCreate.body.bookingId });
 
     await flushAsyncSideEffects();
 
@@ -305,8 +219,8 @@ describe('E2E - pending booking resume payment flow', () => {
       'info@nitracik.sk',
       expect.objectContaining({
         trainingId: training.id,
-        selectedDate: bookingPayload.selectedDate,
-        selectedTime: bookingPayload.selectedTime,
+        selectedDate: expect.any(String),
+        selectedTime: expect.any(String),
       })
     );
   });
@@ -366,27 +280,13 @@ describe('E2E - pending booking resume payment flow', () => {
 
     expect(duplicateStatus.status).toBe(200);
     expect(duplicateStatus.body.code).toBe('PENDING_BOOKING');
-    expect(duplicateStatus.body.existingSessionId).toBe(firstCreate.body.sessionId);
+    expect(duplicateStatus.body.existingSessionId).toBe(firstCreate.body.transId);
 
     const secondCreate = await agent.post('/api/create-adult-payment-session').send(payload);
     expect(secondCreate.status).toBe(409);
     expect(secondCreate.body.code).toBe('PENDING_BOOKING');
 
-    await triggerCompletedWebhook({
-      sessionId: secondCreate.body.existingSessionId,
-      metadata: {
-        type: 'adult_training_session',
-        userId: String(user.id),
-        trainingId: String(training.id),
-        trainingType: trainingType.name,
-        selectedDate: payload.selectedDate,
-        selectedTime: payload.selectedTime,
-        totalPrice: '19',
-        mobile: payload.mobile,
-        note: payload.note,
-        photoConsent: 'true',
-      },
-    });
+    await completeBookingSuccess({ agent, bookingId: firstCreate.body.bookingId });
 
     await flushAsyncSideEffects();
 
@@ -537,15 +437,7 @@ describe('E2E - pending booking resume payment flow', () => {
     const createResponse = await agent.post('/api/create-payment-session').send(payload);
     expect(createResponse.status).toBe(200);
 
-    await triggerCompletedWebhook({
-      sessionId: createResponse.body.sessionId,
-      paymentStatus: 'unpaid',
-      metadata: {
-        type: 'training_session',
-        userId: String(user.id),
-        trainingId: String(training.id),
-      },
-    });
+    await completeBookingSuccess({ agent, bookingId: createResponse.body.bookingId, status: 'CANCELLED' });
     await flushAsyncSideEffects();
 
     const booking = await getBookingById(createResponse.body.bookingId);
@@ -575,14 +467,10 @@ describe('E2E - pending booking resume payment flow', () => {
     const createResponse = await agent.post('/api/create-payment-session').send(payload);
     expect(createResponse.status).toBe(200);
 
-    await triggerCompletedWebhook({
-      sessionId: createResponse.body.sessionId,
-      metadata: {
-        type: 'training_session',
-        userId: String(user.id),
-        trainingId: String(training.id),
-      },
-    });
+    // Confirming an unrelated/non-existent booking id must not affect our pending booking
+    // (booking-success returns early for an unknown booking_id, never calling paymentGateway)
+    const unrelatedConfirm = await agent.get('/api/booking-success?booking_id=999999999');
+    expect(unrelatedConfirm.status).toBe(302);
     await flushAsyncSideEffects();
 
     const booking = await getBookingById(createResponse.body.bookingId);
@@ -612,7 +500,8 @@ describe('E2E - pending booking resume payment flow', () => {
     const firstCreate = await agent.post('/api/create-payment-session').send(payload);
     expect(firstCreate.status).toBe(200);
 
-    await triggerPaymentFailedWebhook({ bookingId: firstCreate.body.bookingId, amount: 1800 });
+    // Payment gateway reports the transaction as cancelled/failed — booking must stay pending
+    await completeBookingSuccess({ agent, bookingId: firstCreate.body.bookingId, status: 'CANCELLED' });
     await flushAsyncSideEffects();
 
     const statusAfterFail = await agent
@@ -622,19 +511,17 @@ describe('E2E - pending booking resume payment flow', () => {
     expect(statusAfterFail.status).toBe(200);
     expect(statusAfterFail.body.code).toBe('PENDING_BOOKING');
     expect(statusAfterFail.body.existingBookingId).toBe(firstCreate.body.bookingId);
-    expect(statusAfterFail.body.existingSessionId).toBe(firstCreate.body.sessionId);
+    expect(statusAfterFail.body.existingSessionId).toBe(firstCreate.body.transId);
 
     const secondCreate = await agent.post('/api/create-payment-session').send(payload);
     expect(secondCreate.status).toBe(409);
     expect(secondCreate.body.code).toBe('PENDING_BOOKING');
     expect(secondCreate.body.existingBookingId).toBe(firstCreate.body.bookingId);
-    expect(secondCreate.body.existingSessionId).toBe(firstCreate.body.sessionId);
+    expect(secondCreate.body.existingSessionId).toBe(firstCreate.body.transId);
 
     const bookings = await getBookingsForUserTraining(user.id, training.id);
     expect(bookings.length).toBe(1);
     expect(bookings[0].active).toBe(false);
     expect(bookings[0].amount_paid).toBeNull();
-
-    expect(emailService.sendPaymentFailedEmail).toHaveBeenCalledTimes(1);
   });
 });

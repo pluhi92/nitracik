@@ -86,7 +86,7 @@ const Foot = () => {
     window.dispatchEvent(new Event('openCookieSettings'));
   };
 
-  // Zdieľaný blok pre sociálne siete, Stripe a platobné karty, aby sa neopakoval duplicitne
+  // Zdieľaný blok pre sociálne siete, Comgate a platobné karty, aby sa neopakoval duplicitne
   const SocialAndPaymentsContent = () => (
     <div className="w-full flex flex-col items-center mt-6 pt-4 border-t border-neutral-100">
       {/* Social Icons */}

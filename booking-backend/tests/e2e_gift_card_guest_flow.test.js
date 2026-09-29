@@ -19,13 +19,9 @@ const { cleanupTestData, pool } = require('./setup');
 // MOCKS
 // ─────────────────────────────────────────────────────────────────────────────
 
-const mockStripe = {
-  checkout: { sessions: { create: jest.fn(), retrieve: jest.fn() } },
-  webhooks: { constructEvent: jest.fn() },
-  paymentIntents: { retrieve: jest.fn() },
-  refunds: { create: jest.fn() },
-};
-jest.mock('stripe', () => jest.fn(() => mockStripe));
+const mockPaymentGatewayCounter = { n: 0 };
+
+jest.mock('../services/paymentGateway');
 
 jest.mock('../services/emailService', () => ({
   sendVerificationEmail:                 jest.fn().mockResolvedValue(true),
@@ -59,6 +55,7 @@ jest.mock('../utils/pdfGenerator', () => ({
 }));
 
 const { app } = require('../server');
+const paymentGateway = require('../services/paymentGateway');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -81,35 +78,43 @@ async function getGiftCardsByBuyerEmail(email) {
   return r.rows;
 }
 
-// Vytvorí Stripe session mock pre úspešnú platbu DP
-function mockSuccessfulGcSession({ sessionId, amount, buyerEmail, recipientName, recipientEmail = '', message = '', buyerName = '' }) {
-  mockStripe.checkout.sessions.create.mockResolvedValueOnce({
-    id: sessionId,
-    payment_status: 'unpaid',
-    metadata: {},
+async function createPendingGiftCardOrder({
+  refId,
+  transId,
+  amount = 30,
+  buyerEmail,
+  buyerName = null,
+  recipientName = 'Test Recipient',
+  recipientEmail = null,
+  message = null,
+}) {
+  const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  await pool.query(
+    `INSERT INTO pending_gift_card_orders
+       ("refId", "transId", amount, "buyerEmail", "buyerName", "recipientName", "recipientEmail", message, "expiresAt")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     ON CONFLICT ("refId") DO UPDATE SET "transId" = $2, "buyerName" = $5`,
+    [refId, transId, amount, buyerEmail, buyerName, recipientName, recipientEmail, message, expiresAt]
+  );
+}
+
+// Nastaví mock pre úspešnú Comgate platbu DP
+function mockSuccessfulGcPayment() {
+  mockPaymentGatewayCounter.n += 1;
+  const transId = `mock-gc-guest-trans-${Date.now()}-${mockPaymentGatewayCounter.n}`;
+  paymentGateway.createPayment.mockResolvedValueOnce({
+    transId,
+    redirectUrl: 'https://payments.comgate.cz/mock',
   });
-  mockStripe.checkout.sessions.retrieve.mockResolvedValueOnce({
-    id: sessionId,
-    payment_status: 'paid',
-    metadata: {
-      type: 'gift_card',
-      amount: String(amount),
-      buyerEmail,
-      buyerName,
-      recipientName,
-      recipientEmail,
-      message,
-    },
-  });
+  paymentGateway.getPaymentStatus.mockResolvedValue('PAID');
+  return transId;
 }
 
 // Simuluje celý guest purchase flow: session → success endpoint
 async function guestPurchaseGiftCard({ amount, buyerEmail, recipientName, recipientEmail = '', message = '', buyerName = '' }) {
-  const sessionId = `test_gc_guest_session_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  mockSuccessfulGcPayment();
 
-  mockSuccessfulGcSession({ sessionId, amount, buyerEmail, recipientName, recipientEmail, message, buyerName });
-
-  // Krok 1: vytvor Stripe session (guest — bez auth)
+  // Krok 1: vytvor Comgate platbu (guest — bez auth)
   const sessionRes = await request(app)
     .post('/api/create-gift-card-session')
     .send({ amount, buyerEmail, recipientName, recipientEmail, message, buyerName, honeypot: '' });
@@ -118,11 +123,17 @@ async function guestPurchaseGiftCard({ amount, buyerEmail, recipientName, recipi
     throw new Error(`Session creation failed: ${JSON.stringify(sessionRes.body)}`);
   }
 
-  // Krok 2: Stripe callback — potvrdenie platby
-  const successRes = await request(app)
-    .get(`/api/gift-card-success?session_id=${sessionId}`);
+  // Krok 2: nájdi refId založenej objednávky a potvrď platbu
+  const orderRow = await pool.query(
+    `SELECT "refId" FROM pending_gift_card_orders WHERE "buyerEmail" = $1 ORDER BY id DESC LIMIT 1`,
+    [buyerEmail]
+  );
+  const refId = orderRow.rows[0].refId;
 
-  return { sessionRes, successRes, sessionId };
+  const successRes = await request(app)
+    .get(`/api/gift-card-success?refId=${refId}`);
+
+  return { sessionRes, successRes, refId };
 }
 
 // Zaregistruje nového usera
@@ -284,32 +295,32 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
 
     test('POSITIVE: idempotencia — rovnaké session_id zavolané 2× → vráti rovnaký kód, nevytvorí duplikát', async () => {
       if (!giftCardTableExists) return;
-      const sessionId  = `test_gc_guest_idemp_${Date.now()}`;
+      const refId = `gc-guest-idemp-${Date.now()}`;
+      const transId = `mock-gc-guest-idemp-${Date.now()}`;
       const buyerEmail = 'test_gc_guest_idemp@example.com';
 
-      // Oba retrieve calls vrátia rovnaké dáta
-      mockStripe.checkout.sessions.retrieve
-        .mockResolvedValue({
-          id: sessionId,
-          payment_status: 'paid',
-          metadata: {
-            type: 'gift_card', amount: '30',
-            buyerEmail, buyerName: '',
-            recipientName: 'Idempotent Test', recipientEmail: '', message: '',
-          },
-        });
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 30, buyerEmail, buyerName: null,
+        recipientName: 'Idempotent Test', recipientEmail: null, message: null,
+      });
 
-      const res1 = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
-      const res2 = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+      const res1 = await request(app).get(`/api/gift-card-success?refId=${refId}`);
+
+      // Re-seed the pending order (consumed/deleted by the first call)
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 30, buyerEmail, buyerName: null,
+        recipientName: 'Idempotent Test', recipientEmail: null, message: null,
+      });
+      const res2 = await request(app).get(`/api/gift-card-success?refId=${refId}`);
 
       expect(res1.status).toBe(200);
       expect(res2.status).toBe(200);
       expect(res1.body.code).toBe(res2.body.code); // rovnaký kód
 
-      // V DB je len 1 záznam pre tento session
+      // V DB je len 1 záznam pre tento transId
       const r = await pool.query(
         'SELECT COUNT(*) as count FROM gift_card WHERE "paymentTransId" = $1',
-        [sessionId]
+        [transId]
       );
       expect(parseInt(r.rows[0].count)).toBe(1);
     });
@@ -324,21 +335,18 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
     test('NEGATIVE: Stripe vráti payment_status=unpaid → 400, žiadny kód, žiadny email', async () => {
       if (!giftCardTableExists) return;
       const emailService = require('../services/emailService');
-      const sessionId  = `test_gc_guest_fail_${Date.now()}`;
+      const refId = `gc-guest-fail-${Date.now()}`;
+      const transId = `mock-gc-guest-fail-${Date.now()}`;
       const buyerEmail = 'test_gc_guest_fail001@example.com';
 
-      mockStripe.checkout.sessions.retrieve.mockResolvedValueOnce({
-        id: sessionId,
-        payment_status: 'unpaid',
-        metadata: {
-          type: 'gift_card', amount: '30',
-          buyerEmail, buyerName: '',
-          recipientName: 'Test', recipientEmail: '', message: '',
-        },
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 30, buyerEmail, buyerName: null,
+        recipientName: 'Test', recipientEmail: null, message: null,
       });
+      paymentGateway.getPaymentStatus.mockResolvedValueOnce('CANCELLED');
 
       const res = await request(app)
-        .get(`/api/gift-card-success?session_id=${sessionId}`);
+        .get(`/api/gift-card-success?refId=${refId}`);
 
       // Endpoint musí odmietnuť neplatené session
       expect(res.status).toBe(400);
@@ -346,7 +354,7 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
 
       // Žiadny poukaz v DB
       const rows = await pool.query(
-        'SELECT * FROM gift_card WHERE "paymentTransId" = $1', [sessionId]
+        'SELECT * FROM gift_card WHERE "paymentTransId" = $1', [transId]
       );
       expect(rows.rows.length).toBe(0);
 
@@ -363,26 +371,23 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
 
     test('NEGATIVE: Stripe vráti payment_status=expired → 400, žiadny kód', async () => {
       if (!giftCardTableExists) return;
-      const sessionId  = `test_gc_guest_exp_${Date.now()}`;
+      const refId = `gc-guest-exp-${Date.now()}`;
+      const transId = `mock-gc-guest-exp-${Date.now()}`;
       const buyerEmail = 'test_gc_guest_exp001@example.com';
 
-      mockStripe.checkout.sessions.retrieve.mockResolvedValueOnce({
-        id: sessionId,
-        payment_status: 'expired',
-        metadata: {
-          type: 'gift_card', amount: '50',
-          buyerEmail, buyerName: '',
-          recipientName: 'Test', recipientEmail: '', message: '',
-        },
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 50, buyerEmail, buyerName: null,
+        recipientName: 'Test', recipientEmail: null, message: null,
       });
+      paymentGateway.getPaymentStatus.mockResolvedValueOnce('EXPIRED');
 
       const res = await request(app)
-        .get(`/api/gift-card-success?session_id=${sessionId}`);
+        .get(`/api/gift-card-success?refId=${refId}`);
 
       expect(res.status).toBe(400);
 
       const rows = await pool.query(
-        'SELECT * FROM gift_card WHERE "paymentTransId" = $1', [sessionId]
+        'SELECT * FROM gift_card WHERE "paymentTransId" = $1', [transId]
       );
       expect(rows.rows.length).toBe(0);
     });
@@ -390,19 +395,17 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
     test('NEGATIVE: email pri neúspešnej platbe nie je odoslaný (platba neprebehla)', async () => {
       if (!giftCardTableExists) return;
       const emailService = require('../services/emailService');
-      const sessionId  = `test_gc_guest_noemail_${Date.now()}`;
+      const refId = `gc-guest-noemail-${Date.now()}`;
+      const transId = `mock-gc-guest-noemail-${Date.now()}`;
 
-      mockStripe.checkout.sessions.retrieve.mockResolvedValueOnce({
-        id: sessionId,
-        payment_status: 'unpaid',
-        metadata: {
-          type: 'gift_card', amount: '15',
-          buyerEmail: 'test_gc_guest_noemail@example.com',
-          buyerName: '', recipientName: 'Test', recipientEmail: '', message: '',
-        },
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 15,
+        buyerEmail: 'test_gc_guest_noemail@example.com',
+        buyerName: null, recipientName: 'Test', recipientEmail: null, message: null,
       });
+      paymentGateway.getPaymentStatus.mockResolvedValueOnce('CANCELLED');
 
-      await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+      await request(app).get(`/api/gift-card-success?refId=${refId}`);
 
       // Žiadny gift card email — platba neprebehla
       expect(emailService.sendGiftCardEmail).not.toHaveBeenCalled();
@@ -1053,43 +1056,31 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
     // 6.8 ── Idempotentný success vracia buyerName z DB ──
     test('POSITIVE: idempotentné /api/gift-card-success vracia buyerName z DB', async () => {
       if (!giftCardTableExists) return;
-      const sessionId  = `test_gc_bn_idemp_${Date.now()}`;
+      const refId = `gc-guest-bn-idemp-${Date.now()}`;
+      const transId = `mock-gc-guest-bn-idemp-${Date.now()}`;
       const buyerEmail = 'test_gc_bn_idemp2@example.com';
       const buyerName  = 'Idempotent Buyer DB';
 
-      // Prvý retrieve — vytvorí záznam v DB
-      mockStripe.checkout.sessions.retrieve
-        .mockResolvedValueOnce({
-          id: sessionId,
-          payment_status: 'paid',
-          metadata: {
-            type: 'gift_card', amount: '30',
-            buyerEmail, buyerName,
-            recipientName: 'Idemp Rec', recipientEmail: '', message: '',
-          },
-        });
+      // Prvé volanie — vytvorí záznam v DB s buyerName
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 30, buyerEmail, buyerName,
+        recipientName: 'Idemp Rec', recipientEmail: null, message: null,
+      });
 
-      const res1 = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+      const res1 = await request(app).get(`/api/gift-card-success?refId=${refId}`);
       expect(res1.status).toBe(200);
       expect(res1.body.buyerName).toBe(buyerName);
 
-      // Druhý retrieve (idempotentný) — tentokrát metadata NEMAJÚ buyerName
-      // (simuluje, že Stripe metadata sa môžu líšiť, alebo už nie sú dostupné)
-      mockStripe.checkout.sessions.retrieve
-        .mockResolvedValueOnce({
-          id: sessionId,
-          payment_status: 'paid',
-          metadata: {
-            type: 'gift_card', amount: '30',
-            buyerEmail,
-            // buyerName chýba v metadata!
-            recipientName: 'Idemp Rec', recipientEmail: '', message: '',
-          },
-        });
+      // Druhé volanie (idempotentné) — re-seedovaná objednávka tentokrát NEMÁ buyerName
+      // (idempotentná vetva ale číta priamo z už vytvoreného gift_card riadku, nie z objednávky)
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 30, buyerEmail, buyerName: null,
+        recipientName: 'Idemp Rec', recipientEmail: null, message: null,
+      });
 
-      const res2 = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+      const res2 = await request(app).get(`/api/gift-card-success?refId=${refId}`);
       expect(res2.status).toBe(200);
-      // Aj keď Stripe metadata nemajú buyerName, DB ho má — musí sa vrátiť z DB
+      // Aj keď re-seedovaná objednávka nemá buyerName, DB (gift_card) ho má — musí sa vrátiť z DB
       expect(res2.body.buyerName).toBe(buyerName);
     });
 
@@ -1157,30 +1148,23 @@ describe('E2E – Guest Gift Card Purchase Flow', () => {
     test('POSITIVE: /api/create-gift-card-session posiela buyerName do Stripe metadata', async () => {
       if (!giftCardTableExists) return;
       const buyerName = 'Stripe Metadata Test';
-
-      mockStripe.checkout.sessions.create.mockResolvedValueOnce({
-        id: `test_gc_stripe_md_${Date.now()}`,
-        payment_status: 'unpaid',
-        metadata: {},
-      });
+      const buyerEmail = 'test_gc_stripe_md@example.com';
 
       await request(app)
         .post('/api/create-gift-card-session')
         .send({
           amount: 30,
-          buyerEmail: 'test_gc_stripe_md@example.com',
+          buyerEmail,
           buyerName,
           recipientName: 'Stripe Recipient',
           honeypot: '',
         });
 
-      expect(mockStripe.checkout.sessions.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            buyerName,
-          }),
-        })
+      const order = await pool.query(
+        `SELECT "buyerName" FROM pending_gift_card_orders WHERE "buyerEmail" = $1 ORDER BY id DESC LIMIT 1`,
+        [buyerEmail]
       );
+      expect(order.rows[0].buyerName).toBe(buyerName);
     });
 
     // 6.13 ── buyerName v /user/:id pre viacero poukazov ──

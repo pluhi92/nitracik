@@ -2,27 +2,9 @@ const request = require('supertest');
 const bcrypt = require('bcryptjs');
 const { cleanupTestData, pool } = require('./setup');
 
-let gcStripeCounter = 0;
+let gcPaymentCounter = 0;
 
-const mockStripe = {
-  checkout: {
-    sessions: {
-      create: jest.fn(),
-      retrieve: jest.fn(),
-    },
-  },
-  webhooks: {
-    constructEvent: jest.fn(),
-  },
-  paymentIntents: {
-    retrieve: jest.fn(),
-  },
-  refunds: {
-    create: jest.fn(),
-  },
-};
-
-jest.mock('stripe', () => jest.fn(() => mockStripe));
+jest.mock('../services/paymentGateway');
 
 jest.mock('../services/emailService', () => ({
   sendVerificationEmail: jest.fn().mockResolvedValue(true),
@@ -56,6 +38,7 @@ jest.mock('../utils/pdfGenerator', () => ({
 }));
 
 const { app, pool: serverPool } = require('../server');
+const paymentGateway = require('../services/paymentGateway');
 
 // --- Helper Functions ---
 
@@ -111,6 +94,26 @@ async function getGiftCardByCode(code) {
   return result.rows[0] || null;
 }
 
+async function createPendingGiftCardOrder({
+  refId,
+  transId,
+  amount = 30,
+  buyerEmail,
+  buyerName = null,
+  recipientName = 'Test Recipient',
+  recipientEmail = null,
+  message = null,
+}) {
+  const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  await pool.query(
+    `INSERT INTO pending_gift_card_orders
+       ("refId", "transId", amount, "buyerEmail", "buyerName", "recipientName", "recipientEmail", message, "expiresAt")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     ON CONFLICT ("refId") DO UPDATE SET "transId" = $2`,
+    [refId, transId, amount, buyerEmail, buyerName, recipientName, recipientEmail, message, expiresAt]
+  );
+}
+
 function binaryParser(res, callback) {
   res.setEncoding('binary');
   let data = '';
@@ -152,54 +155,16 @@ async function createTrainingWithPrice({ name, hoursFromNow = 24, maxParticipant
   return { type, training: trainingResult.rows[0] };
 }
 
-function resetStripeMocks() {
-  gcStripeCounter += 1;
-  const sessionId = `test_gc_session_${Date.now()}_${gcStripeCounter}`;
+function resetPaymentGatewayMocks() {
+  gcPaymentCounter += 1;
+  const transId = `mock-gc-trans-${Date.now()}-${gcPaymentCounter}`;
 
-  mockStripe.checkout.sessions.create.mockResolvedValue({
-    id: sessionId,
-    payment_status: 'paid',
-    metadata: {},
+  paymentGateway.createPayment.mockResolvedValue({
+    transId,
+    redirectUrl: 'https://payments.comgate.cz/mock',
   });
-
-  mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-    id: sessionId,
-    payment_status: 'paid',
-    metadata: {
-      type: 'gift_card',
-      amount: '30',
-      buyerEmail: 'test_gc_buyer@example.com',
-      recipientName: 'Test Recipient',
-      recipientEmail: '',
-      message: '',
-    },
-  });
-
-  mockStripe.webhooks.constructEvent.mockImplementation((payload) => {
-    const decodePayload = (value) => {
-      if (Buffer.isBuffer(value)) {
-        return decodePayload(value.toString('utf8'));
-      }
-
-      if (typeof value === 'string') {
-        return decodePayload(JSON.parse(value));
-      }
-
-      if (value && value.type === 'Buffer' && Array.isArray(value.data)) {
-        return decodePayload(Buffer.from(value.data).toString('utf8'));
-      }
-
-      return value;
-    };
-
-    return decodePayload(payload);
-  });
-
-  mockStripe.paymentIntents.retrieve.mockResolvedValue({
-    id: `test_pi_${Date.now()}`,
-    amount: 3000,
-    created: Math.floor(Date.now() / 1000),
-  });
+  paymentGateway.getPaymentStatus.mockResolvedValue('PAID');
+  paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 }
 
 describe('E2E - Gift Card Feature', () => {
@@ -225,8 +190,8 @@ describe('E2E - Gift Card Feature', () => {
   });
 
   beforeEach(() => {
-    resetStripeMocks();
     jest.clearAllMocks();
+    resetPaymentGatewayMocks();
   });
 
   const skipIfNoTable = (testFn) => {
@@ -269,12 +234,11 @@ describe('E2E - Gift Card Feature', () => {
         amount: 30, buyerEmail: user.email, recipientName: 'Maťko', honeypot: '',
       });
       expect(res.status).toBe(200);
-      expect(res.body.sessionId).toBeDefined();
-      expect(mockStripe.checkout.sessions.create).toHaveBeenCalledTimes(1);
-      const callArgs = mockStripe.checkout.sessions.create.mock.calls[0][0];
-      expect(callArgs.metadata.type).toBe('gift_card');
-      expect(callArgs.metadata.amount).toBe('30');
-      expect(Number(callArgs.line_items[0].price_data.unit_amount)).toBe(3000);
+      expect(res.body.transId).toBeDefined();
+      expect(paymentGateway.createPayment).toHaveBeenCalledTimes(1);
+      const callArgs = paymentGateway.createPayment.mock.calls[0][0];
+      expect(callArgs.refId).toMatch(/^gc-/);
+      expect(callArgs.priceEur).toBe(30);
     });
 
     test('POSITIVE: guest (unauthenticated) user can also create a session', async () => {
@@ -283,7 +247,7 @@ describe('E2E - Gift Card Feature', () => {
         amount: 15, buyerEmail: 'test_gc_guest@example.com', recipientName: 'Zuzka', honeypot: '',
       });
       expect(res.status).toBe(200);
-      expect(res.body.sessionId).toBeDefined();
+      expect(res.body.transId).toBeDefined();
     });
 
     test('POSITIVE: all valid amounts [15, 30, 50, 100] are accepted', async () => {
@@ -303,9 +267,12 @@ describe('E2E - Gift Card Feature', () => {
         recipientEmail: 'jana@example.com', message: 'Všetko najlepšie!', honeypot: '',
       });
       expect(res.status).toBe(200);
-      const call = mockStripe.checkout.sessions.create.mock.calls[0][0];
-      expect(call.metadata.recipientEmail).toBe('jana@example.com');
-      expect(call.metadata.message).toBe('Všetko najlepšie!');
+      const order = await pool.query(
+        `SELECT * FROM pending_gift_card_orders WHERE "buyerEmail" = $1`,
+        ['test_gc_opt@example.com']
+      );
+      expect(order.rows[0].recipientEmail).toBe('jana@example.com');
+      expect(order.rows[0].message).toBe('Všetko najlepšie!');
     });
 
     test('NEGATIVE: honeypot filled → 400, no Stripe call', async () => {
@@ -314,7 +281,7 @@ describe('E2E - Gift Card Feature', () => {
         amount: 30, buyerEmail: 'test_gc_bot@example.com', recipientName: 'Bot', honeypot: 'i-am-a-bot',
       });
       expect(res.status).toBe(400);
-      expect(mockStripe.checkout.sessions.create).not.toHaveBeenCalled();
+      expect(paymentGateway.createPayment).not.toHaveBeenCalled();
     });
 
     test('NEGATIVE: invalid amount (20) → 400', async () => {
@@ -374,17 +341,14 @@ describe('E2E - Gift Card Feature', () => {
 
     test('POSITIVE: successful payment creates gift_card row in DB and sends email to buyer', async () => {
       if (!giftCardTableExists) return;
-      const sessionId = `test_gc_session_succ_${Date.now()}`;
-      mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-        id: sessionId,
-        payment_status: 'paid',
-        metadata: {
-          type: 'gift_card', amount: '30', buyerEmail: 'test_gc_002@example.com',
-          recipientName: 'Maťko', recipientEmail: '', message: '',
-        },
+      const refId = `gc-refid-succ-${Date.now()}`;
+      const transId = `mock-gc-trans-succ-${Date.now()}`;
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 30, buyerEmail: 'test_gc_002@example.com',
+        recipientName: 'Maťko', recipientEmail: null, message: null,
       });
 
-      const res = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+      const res = await request(app).get(`/api/gift-card-success?refId=${refId}`);
       expect(res.status).toBe(200);
       expect(res.body.code).toBeDefined();
       expect(res.body.code).toHaveLength(12);
@@ -396,7 +360,7 @@ describe('E2E - Gift Card Feature', () => {
       expect(dbRow).not.toBeNull();
       expect(dbRow.status).toBe('active');
       expect(parseFloat(dbRow.balance)).toBe(30);
-      expect(dbRow.paymentTransId).toBe(sessionId);
+      expect(dbRow.paymentTransId).toBe(transId);
 
       // Email sent to buyer
       const emailService = require('../services/emailService');
@@ -408,20 +372,17 @@ describe('E2E - Gift Card Feature', () => {
 
     test('POSITIVE: if recipientEmail differs from buyerEmail, TWO emails are sent', async () => {
       if (!giftCardTableExists) return;
-      const sessionId = `test_gc_session_dual_${Date.now()}`;
-      mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-        id: sessionId,
-        payment_status: 'paid',
-        metadata: {
-          type: 'gift_card', amount: '15',
-          buyerEmail: 'test_gc_buyer_dual@example.com',
-          recipientName: 'Zuzka',
-          recipientEmail: 'test_gc_recipient_dual@example.com',
-          message: 'Všetko najlepšie!',
-        },
+      const refId = `gc-refid-dual-${Date.now()}`;
+      const transId = `mock-gc-trans-dual-${Date.now()}`;
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 15,
+        buyerEmail: 'test_gc_buyer_dual@example.com',
+        recipientName: 'Zuzka',
+        recipientEmail: 'test_gc_recipient_dual@example.com',
+        message: 'Všetko najlepšie!',
       });
 
-      const res = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+      const res = await request(app).get(`/api/gift-card-success?refId=${refId}`);
       expect(res.status).toBe(200);
 
       const emailService = require('../services/emailService');
@@ -438,18 +399,15 @@ describe('E2E - Gift Card Feature', () => {
 
     test('POSITIVE: if recipientEmail equals buyerEmail, only ONE email is sent', async () => {
       if (!giftCardTableExists) return;
-      const sessionId = `test_gc_session_same_${Date.now()}`;
-      mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-        id: sessionId,
-        payment_status: 'paid',
-        metadata: {
-          type: 'gift_card', amount: '50',
-          buyerEmail: 'test_gc_same@example.com',
-          recipientName: 'Self', recipientEmail: 'test_gc_same@example.com', message: '',
-        },
+      const refId = `gc-refid-same-${Date.now()}`;
+      const transId = `mock-gc-trans-same-${Date.now()}`;
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 50,
+        buyerEmail: 'test_gc_same@example.com',
+        recipientName: 'Self', recipientEmail: 'test_gc_same@example.com', message: null,
       });
 
-      const res = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+      const res = await request(app).get(`/api/gift-card-success?refId=${refId}`);
       expect(res.status).toBe(200);
 
       const emailService = require('../services/emailService');
@@ -458,33 +416,29 @@ describe('E2E - Gift Card Feature', () => {
 
     test('POSITIVE: idempotency — calling the same session_id twice returns the same code', async () => {
       if (!giftCardTableExists) return;
-      const sessionId = `test_gc_session_idem_${Date.now()}`;
-      mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-        id: sessionId, payment_status: 'paid',
-        metadata: {
-          type: 'gift_card', amount: '30',
-          buyerEmail: 'test_gc_idem@example.com',
-          recipientName: 'Idem Test', recipientEmail: '', message: '',
-        },
+      const refId = `gc-refid-idem-${Date.now()}`;
+      const transId = `mock-gc-trans-idem-${Date.now()}`;
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 30,
+        buyerEmail: 'test_gc_idem@example.com',
+        recipientName: 'Idem Test', recipientEmail: null, message: null,
       });
 
-      const res1 = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+      const res1 = await request(app).get(`/api/gift-card-success?refId=${refId}`);
       expect(res1.status).toBe(200);
       const code1 = res1.body.code;
 
-      // Reset email mock to count second call separately
+      // Reset email mock to count second call separately; re-seed the pending order
+      // (it was deleted by the first call) so the idempotency guard on paymentTransId is exercised
       jest.clearAllMocks();
-      resetStripeMocks();
-      mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-        id: sessionId, payment_status: 'paid',
-        metadata: {
-          type: 'gift_card', amount: '30',
-          buyerEmail: 'test_gc_idem@example.com',
-          recipientName: 'Idem Test', recipientEmail: '', message: '',
-        },
+      resetPaymentGatewayMocks();
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 30,
+        buyerEmail: 'test_gc_idem@example.com',
+        recipientName: 'Idem Test', recipientEmail: null, message: null,
       });
 
-      const res2 = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+      const res2 = await request(app).get(`/api/gift-card-success?refId=${refId}`);
       expect(res2.status).toBe(200);
       expect(res2.body.code).toBe(code1);  // same code returned
 
@@ -495,35 +449,31 @@ describe('E2E - Gift Card Feature', () => {
 
     test('POSITIVE: generated code is exactly 12 chars, uppercase alphanumeric, no ambiguous chars', async () => {
       if (!giftCardTableExists) return;
-      const sessionId = `test_gc_session_code_${Date.now()}`;
-      mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-        id: sessionId, payment_status: 'paid',
-        metadata: {
-          type: 'gift_card', amount: '100',
-          buyerEmail: 'test_gc_code@example.com',
-          recipientName: 'Code Test', recipientEmail: '', message: '',
-        },
+      const refId = `gc-refid-code-${Date.now()}`;
+      const transId = `mock-gc-trans-code-${Date.now()}`;
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 100,
+        buyerEmail: 'test_gc_code@example.com',
+        recipientName: 'Code Test', recipientEmail: null, message: null,
       });
 
-      const res = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+      const res = await request(app).get(`/api/gift-card-success?refId=${refId}`);
       expect(res.status).toBe(200);
       expect(res.body.code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{12}$/);
     });
 
     test('POSITIVE: expiresAt is set to ~12 months from now', async () => {
       if (!giftCardTableExists) return;
-      const sessionId = `test_gc_session_exp_${Date.now()}`;
-      mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-        id: sessionId, payment_status: 'paid',
-        metadata: {
-          type: 'gift_card', amount: '15',
-          buyerEmail: 'test_gc_exp@example.com',
-          recipientName: 'Expiry Test', recipientEmail: '', message: '',
-        },
+      const refId = `gc-refid-exp-${Date.now()}`;
+      const transId = `mock-gc-trans-exp-${Date.now()}`;
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 15,
+        buyerEmail: 'test_gc_exp@example.com',
+        recipientName: 'Expiry Test', recipientEmail: null, message: null,
       });
 
       const before = new Date();
-      const res = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+      const res = await request(app).get(`/api/gift-card-success?refId=${refId}`);
       const after = new Date();
 
       expect(res.status).toBe(200);
@@ -542,22 +492,34 @@ describe('E2E - Gift Card Feature', () => {
 
     test('NEGATIVE: Stripe session payment_status is not paid → 400, no DB row created', async () => {
       if (!giftCardTableExists) return;
-      const sessionId = `test_gc_session_unpaid_${Date.now()}`;
-      mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-        id: sessionId, payment_status: 'unpaid', metadata: {},
+      const refId = `gc-refid-unpaid-${Date.now()}`;
+      const transId = `mock-gc-trans-unpaid-${Date.now()}`;
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 30,
+        buyerEmail: 'test_gc_unpaid@example.com',
+        recipientName: 'Unpaid Test', recipientEmail: null, message: null,
       });
+      paymentGateway.getPaymentStatus.mockResolvedValueOnce('CANCELLED');
 
-      const res = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+      const res = await request(app).get(`/api/gift-card-success?refId=${refId}`);
       expect(res.status).toBe(400);
 
-      const dbCheck = await pool.query('SELECT * FROM gift_card WHERE "paymentTransId" = $1', [sessionId]);
+      const dbCheck = await pool.query('SELECT * FROM gift_card WHERE "paymentTransId" = $1', [transId]);
       expect(dbCheck.rows.length).toBe(0);
     });
 
     test('NEGATIVE: Stripe retrieve throws error → 500', async () => {
       if (!giftCardTableExists) return;
-      mockStripe.checkout.sessions.retrieve.mockRejectedValue(new Error('Stripe network error'));
-      const res = await request(app).get(`/api/gift-card-success?session_id=test_gc_err_stripe`);
+      const refId = `gc-refid-err-${Date.now()}`;
+      const transId = `mock-gc-trans-err-${Date.now()}`;
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 30,
+        buyerEmail: 'test_gc_errstripe@example.com',
+        recipientName: 'Err Test', recipientEmail: null, message: null,
+      });
+      paymentGateway.getPaymentStatus.mockRejectedValueOnce(new Error('Comgate network error'));
+
+      const res = await request(app).get(`/api/gift-card-success?refId=${refId}`);
       expect(res.status).toBe(500);
     });
   });
@@ -873,12 +835,6 @@ describe('E2E - Gift Card Feature', () => {
       const gcCode = testGcCode('BK001');
       await createGiftCardInDb({ code: gcCode, amount: 15, balance: 15, buyerEmail: user.email });
 
-      mockStripe.checkout.sessions.create.mockResolvedValue({
-        id: `test_gc_session_bk001_${Date.now()}`,
-        payment_status: 'unpaid',
-        metadata: {},
-      });
-
       const res = await agent.post('/api/create-payment-session').send({
         userId: user.id, trainingId: training.id, trainingType: type.name,
         selectedDate: '2025-01-01', selectedTime: '10:00', childrenCount: 1,
@@ -888,9 +844,10 @@ describe('E2E - Gift Card Feature', () => {
       });
 
       expect(res.status).toBe(200);
-      const stripeCall = mockStripe.checkout.sessions.create.mock.calls[0][0];
-      expect(stripeCall.line_items[0].price_data.unit_amount).toBe(1500);
-      expect(stripeCall.metadata.giftCardCode).toBe(gcCode);
+      const pgCall = paymentGateway.createPayment.mock.calls[0][0];
+      expect(pgCall.priceEur).toBe(15);
+      const updatedBooking = await pool.query('SELECT gift_card_code FROM bookings WHERE id = $1', [res.body.bookingId]);
+      expect(updatedBooking.rows[0].gift_card_code).toBe(gcCode);
     });
 
     test('POSITIVE: gift card covers full price → free booking response, no Stripe redirect', async () => {
@@ -904,8 +861,8 @@ describe('E2E - Gift Card Feature', () => {
       const gcCode = testGcCode('BK002');
       await createGiftCardInDb({ code: gcCode, amount: 30, balance: 30, buyerEmail: user.email });
 
-      // Reset stripe mock to ensure create is not called
-      mockStripe.checkout.sessions.create.mockClear();
+      // Reset payment gateway mock to ensure createPayment is not called
+      paymentGateway.createPayment.mockClear();
 
       const res = await agent.post('/api/create-payment-session').send({
         userId: user.id, trainingId: training.id, trainingType: type.name,
@@ -918,8 +875,8 @@ describe('E2E - Gift Card Feature', () => {
       expect(res.status).toBe(200);
       expect(res.body.free).toBe(true);
 
-      // No Stripe session created (full gift card)
-      expect(mockStripe.checkout.sessions.create).not.toHaveBeenCalled();
+      // No Comgate payment created (full gift card)
+      expect(paymentGateway.createPayment).not.toHaveBeenCalled();
 
       // Booking created in DB with active = true
       const bookings = await pool.query(
@@ -946,11 +903,6 @@ describe('E2E - Gift Card Feature', () => {
       const gcCode = testGcCode('BK003');
       await createGiftCardInDb({ code: gcCode, amount: 15, balance: 15, buyerEmail: user.email });
 
-      mockStripe.checkout.sessions.create.mockResolvedValue({
-        id: `test_gc_session_bk003_${Date.now()}`,
-        payment_status: 'unpaid', metadata: {},
-      });
-
       const res = await agent.post('/api/create-payment-session').send({
         userId: user.id, trainingId: training.id, trainingType: type.name,
         selectedDate: '2025-01-01', selectedTime: '10:00', childrenCount: 1,
@@ -960,10 +912,10 @@ describe('E2E - Gift Card Feature', () => {
       });
 
       expect(res.status).toBe(200);
-      expect(res.body.sessionId).toBeDefined();
+      expect(res.body.transId).toBeDefined();
 
-      const stripeCall = mockStripe.checkout.sessions.create.mock.calls[0][0];
-      expect(stripeCall.line_items[0].price_data.unit_amount).toBe(1500);
+      const pgCall = paymentGateway.createPayment.mock.calls[0][0];
+      expect(pgCall.priceEur).toBe(15);
     });
 
     test('POSITIVE: no gift card provided → full price charged via Stripe', async () => {
@@ -972,11 +924,6 @@ describe('E2E - Gift Card Feature', () => {
       const agent = await loginAs(user.email);
       const { type, training } = await createTrainingWithPrice({
         name: 'TEST_GC_BOOKING_004', price: 15,
-      });
-
-      mockStripe.checkout.sessions.create.mockResolvedValue({
-        id: `test_gc_session_bk004_${Date.now()}`,
-        payment_status: 'unpaid', metadata: {},
       });
 
       const res = await agent.post('/api/create-payment-session').send({
@@ -988,8 +935,8 @@ describe('E2E - Gift Card Feature', () => {
       });
 
       expect(res.status).toBe(200);
-      const stripeCall = mockStripe.checkout.sessions.create.mock.calls[0][0];
-      expect(stripeCall.line_items[0].price_data.unit_amount).toBe(1500);
+      const pgCall = paymentGateway.createPayment.mock.calls[0][0];
+      expect(pgCall.priceEur).toBe(15);
     });
 
     test('NEGATIVE: invalid gift card code provided at checkout → discount ignored, full price charged', async () => {
@@ -998,11 +945,6 @@ describe('E2E - Gift Card Feature', () => {
       const agent = await loginAs(user.email);
       const { type, training } = await createTrainingWithPrice({
         name: 'TEST_GC_BOOKING_005', price: 15,
-      });
-
-      mockStripe.checkout.sessions.create.mockResolvedValue({
-        id: `test_gc_session_bk005_${Date.now()}`,
-        payment_status: 'unpaid', metadata: {},
       });
 
       const res = await agent.post('/api/create-payment-session').send({
@@ -1015,73 +957,35 @@ describe('E2E - Gift Card Feature', () => {
 
       // Should still succeed but charge full price (invalid code ignored server-side)
       expect(res.status).toBe(200);
-      const stripeCall = mockStripe.checkout.sessions.create.mock.calls[0][0];
-      expect(stripeCall.line_items[0].price_data.unit_amount).toBe(1500);
+      const pgCall = paymentGateway.createPayment.mock.calls[0][0];
+      expect(pgCall.priceEur).toBe(15);
     });
   });
 
-  describe('Stripe webhook — gift card redemption after paid booking', () => {
+  describe('Comgate payment confirmation — gift card redemption after paid booking', () => {
     beforeAll(() => {
       if (!giftCardTableExists) return;
     });
 
-    test('POSITIVE: webhook with giftCardCode in metadata decrements gift card balance', async () => {
+    test('POSITIVE: booking-success with giftCardCode on the booking decrements gift card balance', async () => {
       if (!giftCardTableExists) return;
       const gcCode = testGcCode('WH001');
       await createGiftCardInDb({ code: gcCode, amount: 30, balance: 30, buyerEmail: 'test_gc_wh_001@example.com' });
 
       const user = await createVerifiedUser('test_gc_wh_user_001@example.com');
+      const agent = await loginAs(user.email);
       const { type, training } = await createTrainingWithPrice({ name: 'TEST_GC_WH_001', price: 15 });
 
-      // Create a pending booking that the webhook will activate
-      const sessionId = `test_gc_wh_session_001_${Date.now()}`;
-      const bookingResult = await pool.query(
-        `INSERT INTO bookings (user_id, training_id, number_of_children, amount_paid, booked_at, active, booking_type, session_id)
-         VALUES ($1, $2, 1, NULL, NOW(), false, 'paid', $3) RETURNING *`,
-        [user.id, training.id, sessionId]
-      );
-      const booking = bookingResult.rows[0];
-
-      const webhookPayload = {
-        type: 'checkout.session.completed',
-        data: {
-          object: {
-            id: sessionId,
-            payment_status: 'paid',
-            payment_intent: `test_gc_wh_pi_001_${Date.now()}`,
-            created: Math.floor(Date.now() / 1000),
-            metadata: {
-              type: 'training_session',
-              userId: String(user.id),
-              trainingId: String(training.id),
-              trainingType: type.name,
-              selectedDate: '2025-01-01',
-              selectedTime: '10:00',
-              childrenCount: '1',
-              childrenAge: '5',
-              totalPrice: '15',
-              photoConsent: 'null',
-              mobile: '',
-              note: '',
-              accompanyingPerson: 'false',
-              giftCardCode: gcCode,
-              giftCardDiscount: '15',
-            },
-          },
-        },
-      };
-
-      const res = await request(app)
-        .post('/stripe-webhook')
-        .set('Content-Type', 'application/json')
-        .set('stripe-signature', 'test_sig')
-        .send(Buffer.from(JSON.stringify(webhookPayload)));
-
+      // Gift card balance fully covers the price -> redemption happens inline (no separate payment confirmation step)
+      const res = await agent.post('/api/create-payment-session').send({
+        userId: user.id, trainingId: training.id, trainingType: type.name,
+        selectedDate: '2025-01-01', selectedTime: '10:00', childrenCount: 1,
+        childrenAge: '5', totalPrice: 15, photoConsent: null, mobile: '',
+        note: '', accompanyingPerson: false, allowDuplicate: false,
+        giftCardCode: gcCode, giftCardDiscount: 15,
+      });
       expect(res.status).toBe(200);
-      expect(res.body.received).toBe(true);
-
-      // Allow async processing
-      await new Promise(r => setTimeout(r, 500));
+      expect(res.body.free).toBe(true);
 
       // Gift card balance must be decremented
       const gc = await getGiftCardByCode(gcCode);
@@ -1090,47 +994,24 @@ describe('E2E - Gift Card Feature', () => {
       expect(gc.redeemedAt).toBeNull(); // partial — not fully used
     });
 
-    test('POSITIVE: webhook fully uses card → status becomes used and redeemedAt is set', async () => {
+    test('POSITIVE: booking-success fully uses card → status becomes used and redeemedAt is set', async () => {
       if (!giftCardTableExists) return;
       const gcCode = testGcCode('WH002');
       await createGiftCardInDb({ code: gcCode, amount: 15, balance: 15, buyerEmail: 'test_gc_wh_002@example.com' });
 
       const user = await createVerifiedUser('test_gc_wh_user_002@example.com');
+      const agent = await loginAs(user.email);
       const { type, training } = await createTrainingWithPrice({ name: 'TEST_GC_WH_002', price: 15 });
 
-      const sessionId = `test_gc_wh_session_002_${Date.now()}`;
-      await pool.query(
-        `INSERT INTO bookings (user_id, training_id, number_of_children, booked_at, active, booking_type, session_id)
-         VALUES ($1, $2, 1, NOW(), false, 'paid', $3)`,
-        [user.id, training.id, sessionId]
-      );
-
-      const webhookPayload = {
-        type: 'checkout.session.completed',
-        data: {
-          object: {
-            id: sessionId, payment_status: 'paid',
-            payment_intent: `test_gc_wh_pi_002_${Date.now()}`,
-            created: Math.floor(Date.now() / 1000),
-            metadata: {
-              type: 'training_session', userId: String(user.id),
-              trainingId: String(training.id), trainingType: type.name,
-              selectedDate: '2025-01-01', selectedTime: '10:00',
-              childrenCount: '1', childrenAge: '5', totalPrice: '15',
-              photoConsent: 'null', mobile: '', note: '',
-              accompanyingPerson: 'false', giftCardCode: gcCode, giftCardDiscount: '15',
-            },
-          },
-        },
-      };
-
-      await request(app)
-        .post('/stripe-webhook')
-        .set('Content-Type', 'application/json')
-        .set('stripe-signature', 'test_sig')
-        .send(Buffer.from(JSON.stringify(webhookPayload)));
-
-      await new Promise(r => setTimeout(r, 500));
+      const res = await agent.post('/api/create-payment-session').send({
+        userId: user.id, trainingId: training.id, trainingType: type.name,
+        selectedDate: '2025-01-01', selectedTime: '10:00', childrenCount: 1,
+        childrenAge: '5', totalPrice: 15, photoConsent: null, mobile: '',
+        note: '', accompanyingPerson: false, allowDuplicate: false,
+        giftCardCode: gcCode, giftCardDiscount: 15,
+      });
+      expect(res.status).toBe(200);
+      expect(res.body.free).toBe(true);
 
       const gc = await getGiftCardByCode(gcCode);
       expect(parseFloat(gc.balance)).toBe(0);
@@ -1138,76 +1019,42 @@ describe('E2E - Gift Card Feature', () => {
       expect(gc.redeemedAt).not.toBeNull();
     });
 
-    test('POSITIVE: webhook without giftCardCode in metadata → gift card untouched', async () => {
+    test('POSITIVE: booking-success without a gift card on the booking → gift card untouched', async () => {
       if (!giftCardTableExists) return;
       const gcCode = testGcCode('WH003');
       await createGiftCardInDb({ code: gcCode, amount: 30, balance: 30, buyerEmail: 'test_gc_wh_003@example.com' });
 
       const user = await createVerifiedUser('test_gc_wh_user_003@example.com');
-      const { type, training } = await createTrainingWithPrice({ name: 'TEST_GC_WH_003', price: 15 });
-      const sessionId = `test_gc_wh_session_003_${Date.now()}`;
-      await pool.query(
-        `INSERT INTO bookings (user_id, training_id, number_of_children, booked_at, active, booking_type, session_id)
-         VALUES ($1, $2, 1, NOW(), false, 'paid', $3)`,
-        [user.id, training.id, sessionId]
-      );
+      const agent = await loginAs(user.email);
+      const { training } = await createTrainingWithPrice({ name: 'TEST_GC_WH_003', price: 15 });
 
-      const webhookPayload = {
-        type: 'checkout.session.completed',
-        data: {
-          object: {
-            id: sessionId, payment_status: 'paid',
-            payment_intent: `test_gc_wh_pi_003_${Date.now()}`,
-            created: Math.floor(Date.now() / 1000),
-            metadata: {
-              type: 'training_session', userId: String(user.id),
-              trainingId: String(training.id), trainingType: type.name,
-              selectedDate: '2025-01-01', selectedTime: '10:00',
-              childrenCount: '1', childrenAge: '5', totalPrice: '15',
-              photoConsent: 'null', mobile: '', note: '',
-              accompanyingPerson: 'false',
-              // NO giftCardCode here
-            },
-          },
-        },
-      };
+      const createRes = await agent.post('/api/create-payment-session').send({
+        userId: user.id, trainingId: training.id, trainingType: 'TEST_GC_WH_003',
+        selectedDate: '2025-01-01', selectedTime: '10:00', childrenCount: 1,
+        childrenAge: '5', totalPrice: 15, photoConsent: null, mobile: '',
+        note: '', accompanyingPerson: false, allowDuplicate: false,
+        giftCardCode: null, giftCardDiscount: 0,
+      });
+      expect(createRes.status).toBe(200);
+      const bookingId = createRes.body.bookingId;
 
-      await request(app)
-        .post('/stripe-webhook')
-        .set('Content-Type', 'application/json')
-        .set('stripe-signature', 'test_sig')
-        .send(Buffer.from(JSON.stringify(webhookPayload)));
-
-      await new Promise(r => setTimeout(r, 500));
+      paymentGateway.getPaymentStatus.mockResolvedValue('PAID');
+      const res = await agent.get(`/api/booking-success?booking_id=${bookingId}`);
+      expect(res.status).toBe(302);
 
       const gc = await getGiftCardByCode(gcCode);
       expect(parseFloat(gc.balance)).toBe(30); // unchanged
       expect(gc.status).toBe('active');
     });
 
-    test('POSITIVE: gift_card type webhook is handled gracefully and does not error', async () => {
+    test('POSITIVE: gift-card-success for an already-processed refId is handled gracefully and does not duplicate', async () => {
       if (!giftCardTableExists) return;
-      const sessionId = `test_gc_wh_type_${Date.now()}`;
-      const webhookPayload = {
-        type: 'checkout.session.completed',
-        data: {
-          object: {
-            id: sessionId, payment_status: 'paid',
-            metadata: { type: 'gift_card', amount: '30', buyerEmail: 'test_gc_wh_type@example.com' },
-          },
-        },
-      };
-
-      const res = await request(app)
-        .post('/stripe-webhook')
-        .set('Content-Type', 'application/json')
-        .set('stripe-signature', 'test_sig')
-        .send(Buffer.from(JSON.stringify(webhookPayload)));
-
-      expect(res.status).toBe(200);
-      expect(res.body.received).toBe(true);
-      // No DB row should be created (handled by polling endpoint, not webhook)
-      const dbCheck = await pool.query('SELECT * FROM gift_card WHERE "paymentTransId" = $1', [sessionId]);
+      const refId = `gc-refid-type-${Date.now()}`;
+      // Not seeded in pending_gift_card_orders (already consumed/expired) — must 404, not crash
+      const res = await request(app).get(`/api/gift-card-success?refId=${refId}`);
+      expect(res.status).toBe(404);
+      // No DB row should be created
+      const dbCheck = await pool.query('SELECT * FROM gift_card WHERE code = $1', ['NEVERCREATED']);
       expect(dbCheck.rows.length).toBe(0);
     });
   });
@@ -1225,27 +1072,21 @@ describe('E2E - Gift Card Feature', () => {
         name: 'TEST_GC_E2E_001', price: 15,
       });
 
-      // 2. Create Stripe session for gift card purchase
+      // 2. Create Comgate payment for gift card purchase
       const buyerAgent = await loginAs(buyer.email);
-      const sessionId = `test_gc_e2e_session_001_${Date.now()}`;
-      mockStripe.checkout.sessions.create.mockResolvedValue({ id: sessionId, payment_status: 'paid', metadata: {} });
-
       const createRes = await buyerAgent.post('/api/create-gift-card-session').send({
-        amount: 30, buyerEmail: buyer.email, recipientName: 'Maťko', honeypot: '',
+        amount: 30, buyerEmail: buyer.email, recipientName: 'Maťko', message: 'Pre teba!', honeypot: '',
       });
       expect(createRes.status).toBe(200);
 
-      // 3. Simulate successful payment — call gift-card-success
-      mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-        id: sessionId, payment_status: 'paid',
-        metadata: {
-          type: 'gift_card', amount: '30',
-          buyerEmail: buyer.email, recipientName: 'Maťko',
-          recipientEmail: '', message: 'Pre teba!',
-        },
-      });
+      // 3. Simulate successful payment — call gift-card-success with the stored refId
+      const orderRow = await pool.query(
+        `SELECT "refId" FROM pending_gift_card_orders WHERE "buyerEmail" = $1 ORDER BY id DESC LIMIT 1`,
+        [buyer.email]
+      );
+      const refId = orderRow.rows[0].refId;
 
-      const successRes = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+      const successRes = await request(app).get(`/api/gift-card-success?refId=${refId}`);
       expect(successRes.status).toBe(200);
       const { code } = successRes.body;
       expect(code).toHaveLength(12);
@@ -1258,9 +1099,6 @@ describe('E2E - Gift Card Feature', () => {
 
       // 5. Use it at booking checkout (partial — 15€ of 30€)
       const bookingAgent = await loginAs(buyer.email);
-      mockStripe.checkout.sessions.create.mockResolvedValue({
-        id: `test_gc_e2e_booking_session_${Date.now()}`, payment_status: 'unpaid', metadata: {},
-      });
 
       const bookingRes = await bookingAgent.post('/api/create-payment-session').send({
         userId: buyer.id, trainingId: training.id, trainingType: type.name,
@@ -1440,10 +1278,6 @@ describe('E2E - Gift Card Feature', () => {
         expiresAt: new Date(Date.now() - 1000), // expired
       });
 
-      mockStripe.checkout.sessions.create.mockResolvedValue({
-        id: `test_gc_session_expbk_${Date.now()}`, payment_status: 'unpaid', metadata: {},
-      });
-
       const res = await agent.post('/api/create-payment-session').send({
         userId: user.id, trainingId: training.id, trainingType: type.name,
         selectedDate: '2025-01-01', selectedTime: '10:00', childrenCount: 1,
@@ -1454,8 +1288,8 @@ describe('E2E - Gift Card Feature', () => {
 
       // Must succeed but at FULL price — expired card discount ignored
       expect(res.status).toBe(200);
-      const stripeCall = mockStripe.checkout.sessions.create.mock.calls[0][0];
-      expect(stripeCall.line_items[0].price_data.unit_amount).toBe(1500); // full 15€
+      const pgCall = paymentGateway.createPayment.mock.calls[0][0];
+      expect(pgCall.priceEur).toBe(15); // full 15€
     });
   });
 
@@ -1507,18 +1341,15 @@ describe('E2E - Gift Card Feature', () => {
     test('POSITIVE: gift-card-success sends email to buyer with isBuyer=true', async () => {
       if (!giftCardTableExists) return;
       const emailService = require('../services/emailService');
-      const sessionId = `test_gc_email_session_002_${Date.now()}`;
-
-      mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-        id: sessionId, payment_status: 'paid',
-        metadata: {
-          type: 'gift_card', amount: '50',
-          buyerEmail: 'test_gc_email_002@example.com',
-          recipientName: 'Jana', recipientEmail: '', message: '',
-        },
+      const refId = `gc-refid-email-002-${Date.now()}`;
+      const transId = `mock-gc-trans-email-002-${Date.now()}`;
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 50,
+        buyerEmail: 'test_gc_email_002@example.com',
+        recipientName: 'Jana', recipientEmail: null, message: null,
       });
 
-      const res = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+      const res = await request(app).get(`/api/gift-card-success?refId=${refId}`);
       expect(res.status).toBe(200);
 
       expect(emailService.sendGiftCardEmail).toHaveBeenCalledWith(
@@ -1537,17 +1368,15 @@ describe('E2E - Gift Card Feature', () => {
       const emailService = require('../services/emailService');
       emailService.sendGiftCardEmail.mockRejectedValueOnce(new Error('SMTP timeout'));
 
-      const sessionId = `test_gc_email_fail_${Date.now()}`;
-      mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-        id: sessionId, payment_status: 'paid',
-        metadata: {
-          type: 'gift_card', amount: '30',
-          buyerEmail: 'test_gc_emailfail_001@example.com',
-          recipientName: 'Test', recipientEmail: '', message: '',
-        },
+      const refId = `gc-refid-email-fail-${Date.now()}`;
+      const transId = `mock-gc-trans-email-fail-${Date.now()}`;
+      await createPendingGiftCardOrder({
+        refId, transId, amount: 30,
+        buyerEmail: 'test_gc_emailfail_001@example.com',
+        recipientName: 'Test', recipientEmail: null, message: null,
       });
 
-      const res = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+      const res = await request(app).get(`/api/gift-card-success?refId=${refId}`);
       // Must still return 200 with code even if email fails
       expect(res.status).toBe(200);
       expect(res.body.code).toBeDefined();

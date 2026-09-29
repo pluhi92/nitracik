@@ -24,42 +24,7 @@ const {
 // ─────────────────────────────────────────────
 // STRIPE MOCK
 // ─────────────────────────────────────────────
-let sessionCounter = 0;
-let lastStripeSession = null;
-
-const buildMockStripeSession = (payload = {}) => {
-  sessionCounter += 1;
-  const sessionId = `test_session_${Date.now()}_${sessionCounter}`;
-  const paymentIntentId = `test_pi_${Date.now()}_${sessionCounter}`;
-  return {
-    id: sessionId,
-    payment_status: 'paid',
-    payment_intent: paymentIntentId,
-    created: Math.floor(Date.now() / 1000),
-    customer_details: { email: 'test@example.com' },
-    metadata: payload.metadata || {},
-  };
-};
-
-const mockStripe = {
-  checkout: {
-    sessions: {
-      create: jest.fn(),
-      retrieve: jest.fn(),
-    },
-  },
-  paymentIntents: {
-    retrieve: jest.fn(),
-  },
-  refunds: {
-    create: jest.fn(),
-  },
-  webhooks: {
-    constructEvent: jest.fn(),
-  },
-};
-
-jest.mock('stripe', () => jest.fn(() => mockStripe));
+jest.mock('../services/paymentGateway');
 
 // ─────────────────────────────────────────────
 // EMAIL SERVICE MOCK
@@ -81,27 +46,19 @@ jest.mock('../services/emailService', () => ({
 
 // Import reálnej app AŽ po mockoch
 const { app, pool: serverPool } = require('../server');
+const paymentGateway = require('../services/paymentGateway');
 
 // ─────────────────────────────────────────────
 // HELPER FUNKCIE
 // ─────────────────────────────────────────────
 
-function resetStripeMocks() {
-  mockStripe.checkout.sessions.create.mockImplementation(async (payload) => {
-    lastStripeSession = buildMockStripeSession(payload);
-    return lastStripeSession;
-  });
-  mockStripe.refunds.create.mockImplementation(() =>
-    Promise.resolve({
-      id: `test_refund_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-      status: 'succeeded',
-    })
-  );
-  mockStripe.webhooks.constructEvent.mockImplementation((payload) => {
-    if (Buffer.isBuffer(payload)) return JSON.parse(payload.toString('utf8'));
-    if (typeof payload === 'string') return JSON.parse(payload);
-    return payload;
-  });
+function resetPaymentGatewayMocks() {
+  paymentGateway.createPayment.mockImplementation(async () => ({
+    transId: `mock-trans-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    redirectUrl: 'https://payments.comgate.cz/mock',
+  }));
+  paymentGateway.getPaymentStatus.mockResolvedValue('PAID');
+  paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 }
 
 async function createVerifiedUser(email, role = 'user') {
@@ -158,24 +115,21 @@ async function createTrainingWithPrice({
   return { trainingType, training };
 }
 
-async function triggerStripeWebhook(sessionId, metadata, paymentIntentId) {
-  return request(app)
-    .post('/stripe-webhook')
-    .set('Content-Type', 'application/json')
-    .set('stripe-signature', 'test_sig')
-    .send({
-      type: 'checkout.session.completed',
-      data: {
-        object: {
-          id: sessionId,
-          payment_status: 'paid',
-          payment_intent: paymentIntentId || `test_pi_wh_${Date.now()}`,
-          created: Math.floor(Date.now() / 1000),
-          metadata,
-          customer_details: { email: 'test@example.com' },
-        },
-      },
-    });
+async function completeBookingSuccess({ agent, bookingId, status = 'PAID' }) {
+  paymentGateway.getPaymentStatus.mockResolvedValueOnce(status);
+  const response = await agent.get(`/api/booking-success?booking_id=${bookingId}`);
+  return response;
+}
+
+async function completeSeasonTicketSuccess({ agent, userId, status = 'PAID' }) {
+  const order = await pool.query(
+    `SELECT "refId" FROM pending_season_ticket_orders WHERE "userId" = $1 ORDER BY id DESC LIMIT 1`,
+    [userId]
+  );
+  const refId = order.rows[0].refId;
+  paymentGateway.getPaymentStatus.mockResolvedValueOnce(status);
+  const response = await agent.get(`/api/season-ticket-success?refId=${refId}`);
+  return response;
 }
 
 async function createActiveChildBooking(userId, trainingId) {
@@ -262,7 +216,7 @@ describe('E2E – Kompletný booking systém', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    resetStripeMocks();
+    resetPaymentGatewayMocks();
   });
 
   afterEach(async () => {
@@ -304,13 +258,13 @@ describe('E2E – Kompletný booking systém', () => {
       });
 
       expect(res.status).toBe(200);
-      expect(res.body.sessionId).toBeDefined();
+      expect(res.body.transId).toBeDefined();
       expect(res.body.bookingId).toBeDefined();
 
       const booking = await pool.query('SELECT * FROM bookings WHERE id = $1', [res.body.bookingId]);
       expect(booking.rows[0].active).toBe(false);
       expect(booking.rows[0].amount_paid).toBeNull();
-      expect(booking.rows[0].session_id).toBe(res.body.sessionId);
+      expect(booking.rows[0].session_id).toBe(res.body.transId);
     });
 
     test('1.2 Webhook aktivuje detskú rezerváciu', async () => {
@@ -337,11 +291,10 @@ describe('E2E – Kompletný booking systém', () => {
       });
       expect(createRes.status).toBe(200);
 
-      const { sessionId, bookingId } = createRes.body;
-      const stripeMetadata = mockStripe.checkout.sessions.create.mock.calls[0][0].metadata;
+      const { bookingId } = createRes.body;
 
-      const wh = await triggerStripeWebhook(sessionId, stripeMetadata, lastStripeSession.payment_intent);
-      expect(wh.status).toBe(200);
+      const wh = await completeBookingSuccess({ agent, bookingId });
+      expect(wh.status).toBe(302);
 
       const booking = await pool.query('SELECT * FROM bookings WHERE id = $1', [bookingId]);
       expect(booking.rows[0].active).toBe(true);
@@ -404,7 +357,7 @@ describe('E2E – Kompletný booking systém', () => {
       });
 
       expect(res.status).toBe(200);
-      expect(res.body.sessionId).toBeDefined();
+      expect(res.body.transId).toBeDefined();
       expect(res.body.bookingId).toBeDefined();
 
       const booking = await pool.query('SELECT * FROM bookings WHERE id = $1', [res.body.bookingId]);
@@ -435,11 +388,10 @@ describe('E2E – Kompletný booking systém', () => {
       });
       expect(createRes.status).toBe(200);
 
-      const { sessionId, bookingId } = createRes.body;
-      const stripeMetadata = mockStripe.checkout.sessions.create.mock.calls[0][0].metadata;
+      const { bookingId } = createRes.body;
 
-      const wh = await triggerStripeWebhook(sessionId, stripeMetadata, lastStripeSession.payment_intent);
-      expect(wh.status).toBe(200);
+      const wh = await completeBookingSuccess({ agent, bookingId });
+      expect(wh.status).toBe(302);
 
       const booking = await pool.query('SELECT * FROM bookings WHERE id = $1', [bookingId]);
       expect(booking.rows[0].active).toBe(true);
@@ -599,7 +551,7 @@ describe('E2E – Kompletný booking systém', () => {
       });
 
       expect(res.status).toBe(200);
-      expect(res.body.sessionId).toBeDefined();
+      expect(res.body.transId).toBeDefined();
     });
 
     test('4.2 Webhook aktivuje permanentku', async () => {
@@ -619,11 +571,8 @@ describe('E2E – Kompletný booking systém', () => {
       });
       expect(createRes.status).toBe(200);
 
-      const { sessionId } = createRes.body;
-      const stripeMetadata = mockStripe.checkout.sessions.create.mock.calls[0][0].metadata;
-
-      const wh = await triggerStripeWebhook(sessionId, stripeMetadata, lastStripeSession.payment_intent);
-      expect(wh.status).toBe(200);
+      const wh = await completeSeasonTicketSuccess({ agent, userId: user.id });
+      expect(wh.status).toBe(302);
 
       const tickets = await pool.query('SELECT * FROM season_tickets WHERE user_id = $1', [user.id]);
       expect(tickets.rows.length).toBe(1);
@@ -873,7 +822,7 @@ describe('E2E – Kompletný booking systém', () => {
       const res = await agent.delete(`/api/bookings/${booking.id}`).send({ requestCredit: false });
 
       expect(res.status).toBe(200);
-      expect(mockStripe.refunds.create).toHaveBeenCalled();
+      expect(paymentGateway.refundPayment).toHaveBeenCalled();
 
       const cancelled = await pool.query('SELECT active FROM bookings WHERE id = $1', [booking.id]);
       expect(cancelled.rows.length).toBe(1);
@@ -893,7 +842,7 @@ describe('E2E – Kompletný booking systém', () => {
       const res = await agent.delete(`/api/bookings/${booking.id}`).send({ requestCredit: true });
 
       expect(res.status).toBe(200);
-      expect(mockStripe.refunds.create).not.toHaveBeenCalled();
+      expect(paymentGateway.refundPayment).not.toHaveBeenCalled();
 
       const cancelled = await pool.query('SELECT active FROM bookings WHERE id = $1', [booking.id]);
       expect(cancelled.rows.length).toBe(1);

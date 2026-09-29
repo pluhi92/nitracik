@@ -14,15 +14,9 @@ const bcrypt  = require('bcryptjs');
 const { cleanupTestData, pool } = require('./setup');
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STRIPE MOCK
+// PAYMENT GATEWAY MOCK
 // ─────────────────────────────────────────────────────────────────────────────
-const mockStripe = {
-  checkout: { sessions: { create: jest.fn(), retrieve: jest.fn() } },
-  webhooks: { constructEvent: jest.fn() },
-  paymentIntents: { retrieve: jest.fn() },
-  refunds: { create: jest.fn() },
-};
-jest.mock('stripe', () => jest.fn(() => mockStripe));
+jest.mock('../services/paymentGateway');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EMAIL SERVICE MOCK
@@ -53,6 +47,16 @@ jest.mock('../services/emailService', () => ({
 }));
 
 const { app } = require('../server');
+const paymentGateway = require('../services/paymentGateway');
+
+beforeEach(() => {
+  paymentGateway.createPayment.mockResolvedValue({
+    transId: `mock-trans-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    redirectUrl: 'https://payments.comgate.cz/mock',
+  });
+  paymentGateway.getPaymentStatus.mockResolvedValue('PAID');
+  paymentGateway.refundPayment.mockResolvedValue({ ok: true });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -172,57 +176,6 @@ async function getCreditForBooking(bookingId) {
   return r.rows[0] || null;
 }
 
-/**
- * Simuluje Stripe webhook checkout.session.completed.
- * Booking musí existovať v DB so session_id = sessionId a active=false.
- */
-async function fireCheckoutWebhook(app, {
-  sessionId, paymentIntentId, userId, trainingId, trainingType,
-  totalPrice, gcCode, gcDiscount, childrenCount = 3,
-}) {
-  // amount_total = čo Stripe skutočne účtoval (totalPrice - gcDiscount)
-  const stripeChargedCents = Math.round((totalPrice - gcDiscount) * 100);
-
-  const eventPayload = {
-    type: 'checkout.session.completed',
-    data: {
-      object: {
-        id: sessionId,
-        payment_status: 'paid',
-        payment_intent: paymentIntentId,
-        amount_total: stripeChargedCents,
-        created: Math.floor(Date.now() / 1000),
-        metadata: {
-          type: 'training_session',
-          userId: String(userId),
-          trainingId: String(trainingId),
-          trainingType,
-          selectedDate: '2026-08-15',
-          selectedTime: '14:00',
-          childrenCount: String(childrenCount),
-          childrenAge: '5,5,7',
-          totalPrice: String(totalPrice),
-          photoConsent: 'null',
-          mobile: '',
-          note: 'Webhook e2e test',
-          accompanyingPerson: 'false',
-          giftCardCode: gcCode,
-          giftCardDiscount: String(gcDiscount),
-        },
-      },
-    },
-  };
-
-  // Mock: constructEvent vráti parsed event priamo
-  mockStripe.webhooks.constructEvent.mockReturnValue(eventPayload);
-
-  return request(app)
-    .post('/stripe-webhook')
-    .set('Content-Type', 'application/json')
-    .set('stripe-signature', 'test_sig_webhook')
-    .send(Buffer.from(JSON.stringify(eventPayload)));
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // CLEANUP
 // ─────────────────────────────────────────────────────────────────────────────
@@ -255,12 +208,12 @@ describe('FLOW A — Mixed booking: User zruší → Refund (Exact Reversal)', (
   beforeEach(() => jest.clearAllMocks());
 
   /**
-   * A1: Webhook fix overenie.
-   * Webhook musí uložiť amount_paid = session.amount_total/100 (nie totalPrice z metadata)
+   * A1: Comgate payment-confirmation fix overenie.
+   * booking-success musí uložiť amount_paid = server-vypočítanú sumu po zľave (nie plnú cenu)
    * a vyplniť gift_card_code + gift_card_amount.
    *
-   * Booking vytvoríme ako pending (active=false, session_id nastavený).
-   * Webhook ho aktivuje so správnymi hodnotami.
+   * Booking vytvoríme cez create-payment-session (pending, session_id=transId),
+   * potom potvrdíme cez GET /api/booking-success (Comgate return URL).
    */
   test('A1: Webhook uloží amount_paid = Stripe suma (12€, nie 42€) + gift_card_* stĺpce', async () => {
     const user = await createVerifiedUser('a1_gccancel@test.sk');
@@ -268,36 +221,20 @@ describe('FLOW A — Mixed booking: User zruší → Refund (Exact Reversal)', (
     const gcCode = 'GCCANCEL_A1GC';
     await createGiftCard({ code: gcCode, amount: 50, balance: 30, buyerEmail: user.email });
 
-    const sessionId      = `test_sess_a1_${Date.now()}`;
-    const paymentIntentId = `test_pi_a1_${Date.now()}`;
-
-    // Pending booking — stav pred platbou (active=false, session_id nastavený)
-    const ins = await pool.query(
-      `INSERT INTO bookings
-         (user_id, training_id, number_of_children, booked_at, active,
-          booking_type, session_id, children_ages)
-       VALUES ($1,$2,3,NOW(),false,'paid',$3,'5,5,7') RETURNING id`,
-      [user.id, training.id, sessionId]
-    );
-    const bookingId = ins.rows[0].id;
-
-    // Simuluj Stripe gift card redemption mock (webhook to volá externe)
-    // Mock aby webhook nepadol na gift card lookup
-    const gcBefore = await getGiftCard(gcCode);
-
-    const webhookRes = await fireCheckoutWebhook(app, {
-      sessionId, paymentIntentId,
-      userId: user.id, trainingId: training.id,
-      trainingType: type.name,
-      totalPrice: 42,    // celková cena v metadata
-      gcCode,
-      gcDiscount: 30,    // DP discount → Stripe účtoval 12€ (amount_total = 1200)
-      childrenCount: 3,
+    const agent = await loginAs(user.email);
+    const createRes = await agent.post('/api/create-payment-session').send({
+      userId: user.id, trainingId: training.id, trainingType: type.name,
+      selectedDate: '2026-08-15', selectedTime: '14:00', childrenCount: 3,
+      childrenAge: '5,5,7', totalPrice: 42, photoConsent: null, mobile: '',
+      note: 'Webhook e2e test', accompanyingPerson: false, allowDuplicate: false,
+      giftCardCode: gcCode, giftCardDiscount: 30,
     });
+    expect(createRes.status).toBe(200);
+    const bookingId = createRes.body.bookingId;
 
-    expect(webhookRes.status).toBe(200);
-    // Dáme webhookovému handleru čas dokončiť asynchrónne operácie
-    await new Promise(r => setTimeout(r, 500));
+    paymentGateway.getPaymentStatus.mockResolvedValue('PAID');
+    const confirmRes = await agent.get(`/api/booking-success?booking_id=${bookingId}`);
+    expect(confirmRes.status).toBe(302);
 
     const booking = await getBooking(bookingId);
     expect(booking).not.toBeNull();
@@ -306,7 +243,7 @@ describe('FLOW A — Mixed booking: User zruší → Refund (Exact Reversal)', (
     expect(parseFloat(booking.amount_paid)).toBe(12);
     expect(booking.gift_card_code).toBe(gcCode.toUpperCase());
     expect(parseFloat(booking.gift_card_amount)).toBe(30);
-    expect(booking.payment_intent_id).toBe(paymentIntentId);
+    expect(booking.payment_intent_id).toBeTruthy();
     expect(booking.session_id).toBeNull();
   });
 
@@ -323,7 +260,7 @@ describe('FLOW A — Mixed booking: User zruší → Refund (Exact Reversal)', (
     });
 
     const refundId = `test_refund_a2_${Date.now()}`;
-    mockStripe.refunds.create.mockResolvedValue({ id: refundId, status: 'succeeded', amount: 1200 });
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 
     const agent = await loginAs(user.email);
     const res = await agent.delete(`/api/bookings/${booking.id}`);
@@ -332,11 +269,10 @@ describe('FLOW A — Mixed booking: User zruší → Refund (Exact Reversal)', (
     expect(res.body.success).toBe(true);
 
     // Stripe volaný s presne 1200 centov (12€) — nie 4200 (42€)
-    expect(mockStripe.refunds.create).toHaveBeenCalledTimes(1);
-    const stripeCall = mockStripe.refunds.create.mock.calls[0][0];
-    expect(stripeCall.amount).toBe(1200);
-    expect(stripeCall.payment_intent).toBe(paymentIntentId);
-    expect(stripeCall.reason).toBe('requested_by_customer');
+    expect(paymentGateway.refundPayment).toHaveBeenCalledTimes(1);
+    const [calledTransId, calledAmount] = paymentGateway.refundPayment.mock.calls[0];
+    expect(calledAmount).toBe(12);
+    expect(calledTransId).toBe(paymentIntentId);
 
     // Booking soft-deleted
     const b = await getBooking(booking.id);
@@ -362,7 +298,7 @@ describe('FLOW A — Mixed booking: User zruší → Refund (Exact Reversal)', (
     });
 
     const refundId = `test_refund_a3_${Date.now()}`;
-    mockStripe.refunds.create.mockResolvedValue({ id: refundId, status: 'succeeded', amount: 1200 });
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 
     const agent = await loginAs(user.email);
     await agent.delete(`/api/bookings/${booking.id}`);
@@ -374,7 +310,7 @@ describe('FLOW A — Mixed booking: User zruší → Refund (Exact Reversal)', (
     expect(bookingArg.gift_card_code).toBe(gcCode.toUpperCase());
     expect(parseFloat(bookingArg.gift_card_amount)).toBe(30);
     expect(parseFloat(bookingArg.amount_paid)).toBe(12);
-    expect(refundDataArg.id).toBe(refundId);
+    expect(refundDataArg.id).toMatch(/^cancel-/);
   });
 
   test('A4: Refund záznam v DB má sumu 12€ a reason obsahuje "mixed"', async () => {
@@ -390,7 +326,7 @@ describe('FLOW A — Mixed booking: User zruší → Refund (Exact Reversal)', (
     });
 
     const refundId = `test_refund_a4_${Date.now()}`;
-    mockStripe.refunds.create.mockResolvedValue({ id: refundId, status: 'succeeded', amount: 1200 });
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 
     const agent = await loginAs(user.email);
     await agent.delete(`/api/bookings/${booking.id}`);
@@ -398,7 +334,7 @@ describe('FLOW A — Mixed booking: User zruší → Refund (Exact Reversal)', (
     const refundRecord = await getRefundRecord(booking.id);
     expect(refundRecord).not.toBeNull();
     expect(parseFloat(refundRecord.amount)).toBe(12);
-    expect(refundRecord.refund_id).toBe(refundId);
+    expect(refundRecord.refund_id).toMatch(/^cancel-/);
     expect(refundRecord.status).toBe('succeeded');
     expect(refundRecord.reason.toLowerCase()).toMatch(/mixed/);
   });
@@ -423,9 +359,7 @@ describe('FLOW A — Mixed booking: User zruší → Refund (Exact Reversal)', (
       gcCode, amountPaid: 12, giftCardAmount: 30, paymentIntentId,
     });
 
-    mockStripe.refunds.create.mockResolvedValue({
-      id: `test_refund_a5_${Date.now()}`, status: 'succeeded', amount: 1200,
-    });
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 
     const agent = await loginAs(user.email);
 
@@ -472,7 +406,7 @@ describe('FLOW B — Mixed booking: User zruší → Kredit', () => {
     expect(res.body.creditIssued).toBe(true);
 
     // Stripe sa nevolal
-    expect(mockStripe.refunds.create).not.toHaveBeenCalled();
+    expect(paymentGateway.refundPayment).not.toHaveBeenCalled();
 
     // DP balance ostáva 0 — kredit pokrýva celú hodnotu, DP sa nereštauruje
     const gc = await getGiftCard(gcCode);
@@ -566,7 +500,7 @@ describe('FLOW B — Mixed booking: User zruší → Kredit', () => {
       userId: userR.id, trainingId: trR.id,
       gcCode: gcCodeR, amountPaid: 12, giftCardAmount: 30, paymentIntentId: piR,
     });
-    mockStripe.refunds.create.mockResolvedValue({ id: `ref_b5r_${Date.now()}`, status: 'succeeded', amount: 1200 });
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
     const agentR = await loginAs(userR.email);
     await agentR.delete(`/api/bookings/${bookingR.id}`);
     const gcAfterRefund = await getGiftCard(gcCodeR);
@@ -612,7 +546,7 @@ describe('FLOW C — Náhradný termín (TODO: endpoint nie je implementovaný)'
     });
 
     const refundId = `test_refund_c1_${Date.now()}`;
-    mockStripe.refunds.create.mockResolvedValue({ id: refundId, status: 'succeeded', amount: 1200 });
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 
     const agent = await loginAs(user.email);
     // replacementTrainingId sa ignoruje → štandardný refund flow
@@ -620,13 +554,14 @@ describe('FLOW C — Náhradný termín (TODO: endpoint nie je implementovaný)'
 
     expect(res.status).toBe(200);
     // Aktuálne správanie: refund prebehol (nie replacement)
-    expect(mockStripe.refunds.create).toHaveBeenCalledWith(
-      expect.objectContaining({ amount: 1200 }),
-      expect.anything()
+    expect(paymentGateway.refundPayment).toHaveBeenCalledWith(
+      paymentIntentId,
+      12,
+      expect.any(String)
     );
 
     // TODO: Po implementácii replacement endpointu zmeniť na:
-    // expect(mockStripe.refunds.create).not.toHaveBeenCalled();
+    // expect(paymentGateway.refundPayment).not.toHaveBeenCalled();
     // expect(res.body.replacementBookingId).toBeDefined();
   });
 
@@ -671,7 +606,7 @@ describe('NEGATÍVNE — Mixed booking cancellation edge cases', () => {
     const b = await getBooking(booking.id);
     expect(b.active).toBe(true);
 
-    expect(mockStripe.refunds.create).not.toHaveBeenCalled();
+    expect(paymentGateway.refundPayment).not.toHaveBeenCalled();
 
     const gc = await getGiftCard(gcCode);
     expect(parseFloat(gc.balance)).toBe(0);
@@ -698,7 +633,7 @@ describe('NEGATÍVNE — Mixed booking cancellation edge cases', () => {
     const b = await getBooking(booking.id);
     expect(b.active).toBe(true);
 
-    expect(mockStripe.refunds.create).not.toHaveBeenCalled();
+    expect(paymentGateway.refundPayment).not.toHaveBeenCalled();
 
     const gc = await getGiftCard(gcCode);
     expect(parseFloat(gc.balance)).toBe(0);
@@ -716,9 +651,7 @@ describe('NEGATÍVNE — Mixed booking cancellation edge cases', () => {
       gcCode, amountPaid: 12, giftCardAmount: 30, paymentIntentId,
     });
 
-    mockStripe.refunds.create.mockResolvedValue({
-      id: `test_refund_n3_${Date.now()}`, status: 'succeeded', amount: 1200,
-    });
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 
     const agent = await loginAs(user.email);
 
@@ -758,9 +691,9 @@ describe('NEGATÍVNE — Mixed booking cancellation edge cases', () => {
       gcCode, amountPaid: 12, giftCardAmount: 30, paymentIntentId,
     });
 
-    mockStripe.refunds.create.mockRejectedValue(
-      Object.assign(new Error('Your card has insufficient funds.'), { code: 'card_declined' })
-    );
+    paymentGateway.refundPayment.mockResolvedValue({
+      ok: false, message: 'Your card has insufficient funds.',
+    });
 
     const agent = await loginAs(user.email);
     const res = await agent.delete(`/api/bookings/${booking.id}`);
@@ -823,25 +756,24 @@ describe('NEGATÍVNE — Mixed booking cancellation edge cases', () => {
       gcCode, amountPaid: 42, giftCardAmount: 30, paymentIntentId,
     });
 
-    // Stripe odmietne — 4200 centov > skutočný charge 1200 centov
-    mockStripe.refunds.create.mockRejectedValue(
-      Object.assign(
-        new Error('Refund amount (€42.00) is greater than charge amount (€12.00)'),
-        { code: 'invalid_request_error' }
-      )
-    );
+    // Comgate odmietne — 42€ > skutočný charge 12€
+    paymentGateway.refundPayment.mockResolvedValue({
+      ok: false,
+      message: 'Refund amount (€42.00) is greater than charge amount (€12.00)',
+    });
 
     const agent = await loginAs(user.email);
     const res = await agent.delete(`/api/bookings/${booking.id}`);
 
-    // Aktuálne správanie: 200 (server prehltne Stripe error)
+    // Aktuálne správanie: 200 (server prehltne Comgate error)
     expect(res.status).toBe(200);
     expect(res.body.refundProcessed).toBe(false);
 
-    // Stripe bol volaný s 4200 — to je bug ktorý webhook fix opravil
-    expect(mockStripe.refunds.create).toHaveBeenCalledWith(
-      expect.objectContaining({ amount: 4200 }), // starý bug: 42 * 100
-      expect.anything()
+    // Comgate bol volaný s 42 (eur) — to je bug ktorý webhook fix opravil
+    expect(paymentGateway.refundPayment).toHaveBeenCalledWith(
+      paymentIntentId,
+      42, // starý bug: celá cena namiesto skutočne zaplatenej sumy
+      expect.any(String)
     );
 
     // Booking deaktivovaný (napriek Stripe erroru)

@@ -22,14 +22,6 @@ const { cleanupTestData, pool } = require('./setup');
 // MOCKS
 // ─────────────────────────────────────────────────────────────────────────────
 
-const mockStripe = {
-  checkout: { sessions: { create: jest.fn(), retrieve: jest.fn() } },
-  webhooks: { constructEvent: jest.fn() },
-  paymentIntents: { retrieve: jest.fn() },
-  refunds: { create: jest.fn() },
-};
-jest.mock('stripe', () => jest.fn(() => mockStripe));
-
 jest.mock('../services/emailService', () => ({
   sendVerificationEmail:                 jest.fn().mockResolvedValue(true),
   sendUserBookingEmail:                  jest.fn().mockResolvedValue(true),
@@ -354,23 +346,6 @@ describe('E2E – Nové Gift Card endpointy (lookup + PDF download)', () => {
   // ───────────────────────────────────────────────────────────────────────────
 
   describe('GET /api/gift-cards/:code/pdf', () => {
-
-    beforeEach(() => {
-      // Reset Stripe mock pred každým testom
-      mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-        id: `test_pdf_session_${Date.now()}`,
-        payment_status: 'paid',
-        metadata: {
-          type: 'gift_card',
-          amount: '30',
-          buyerName: 'Ján Kupujúci',
-          buyerEmail: 'test_gc_pdfbuyer@example.com',
-          recipientName: 'Test Recipient',
-          recipientEmail: '',
-          message: '',
-        },
-      });
-    });
 
     describe('Pozitívne scenáre', () => {
 

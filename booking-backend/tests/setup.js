@@ -58,7 +58,10 @@ async function cleanupTestData() {
     // Odstránenie testovacích dát v správnom poradí (podľa cudzích kľúčov)
     // 1. Najprv zmazať závislé tabuľky
     await client.query(`DELETE FROM season_ticket_usage WHERE season_ticket_id IN (
-      SELECT id FROM season_tickets WHERE stripe_payment_id LIKE 'test_%'
+      SELECT st.id
+      FROM season_tickets st
+      LEFT JOIN season_ticket_products stp ON stp.id = st.season_ticket_product_id
+      WHERE st.stripe_payment_id LIKE 'test_%' OR stp.code LIKE 'test_%'
     )`);
     
     // 2. Zmazať bookings (závisia na training_availability a users)
@@ -75,7 +78,9 @@ async function cleanupTestData() {
     )`);
     
     // 3. Zmazať season_tickets
-    await client.query(`DELETE FROM season_tickets WHERE stripe_payment_id LIKE 'test_%'`);
+    await client.query(`DELETE FROM season_tickets WHERE stripe_payment_id LIKE 'test_%' OR season_ticket_product_id IN (
+      SELECT id FROM season_ticket_products WHERE code LIKE 'test_%'
+    )`);
     
     // 4. Zmazať season_ticket_products
     await client.query(`DELETE FROM season_ticket_products WHERE code LIKE 'test_%'`);

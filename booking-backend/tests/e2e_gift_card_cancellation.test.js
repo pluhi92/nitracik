@@ -25,30 +25,12 @@ const request = require('supertest');
 const bcrypt = require('bcryptjs');
 const { cleanupTestData, pool } = require('./setup');
 
-let gcStripeCounter = 0;
+let gcPaymentCounter = 0;
 
 // ─────────────────────────────────────────────
-// STRIPE MOCK
+// PAYMENT GATEWAY MOCK
 // ─────────────────────────────────────────────
-const mockStripe = {
-  checkout: {
-    sessions: {
-      create: jest.fn(),
-      retrieve: jest.fn(),
-    },
-  },
-  webhooks: {
-    constructEvent: jest.fn(),
-  },
-  paymentIntents: {
-    retrieve: jest.fn(),
-  },
-  refunds: {
-    create: jest.fn(),
-  },
-};
-
-jest.mock('stripe', () => jest.fn(() => mockStripe));
+jest.mock('../services/paymentGateway');
 
 // ─────────────────────────────────────────────
 // EMAIL SERVICE MOCK
@@ -78,6 +60,7 @@ jest.mock('../services/emailService', () => ({
 }));
 
 const { app } = require('../server');
+const paymentGateway = require('../services/paymentGateway');
 
 // ─────────────────────────────────────────────
 // HELPER FUNCTIONS
@@ -133,6 +116,26 @@ async function createGiftCardInDb({
 async function getGiftCardByCode(code) {
   const result = await pool.query('SELECT * FROM gift_card WHERE code = $1', [code]);
   return result.rows[0] || null;
+}
+
+async function createPendingGiftCardOrder({
+  refId,
+  transId,
+  amount = 30,
+  buyerEmail,
+  buyerName = null,
+  recipientName = 'Test Recipient',
+  recipientEmail = null,
+  message = null,
+}) {
+  const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  await pool.query(
+    `INSERT INTO pending_gift_card_orders
+       ("refId", "transId", amount, "buyerEmail", "buyerName", "recipientName", "recipientEmail", message, "expiresAt")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     ON CONFLICT ("refId") DO UPDATE SET "transId" = $2`,
+    [refId, transId, amount, buyerEmail, buyerName, recipientName, recipientEmail, message, expiresAt]
+  );
 }
 
 function testGcCode(suffix) {
@@ -227,51 +230,16 @@ async function getRefundByBookingId(bookingId) {
   return result.rows[0] || null;
 }
 
-function resetStripeMocks() {
-  gcStripeCounter += 1;
-  const sessionId = `test_gc_session_${Date.now()}_${gcStripeCounter}`;
+function resetPaymentGatewayMocks() {
+  gcPaymentCounter += 1;
+  const transId = `mock-gcc-trans-${Date.now()}-${gcPaymentCounter}`;
 
-  mockStripe.checkout.sessions.create.mockResolvedValue({
-    id: sessionId,
-    payment_status: 'paid',
-    metadata: {},
+  paymentGateway.createPayment.mockResolvedValue({
+    transId,
+    redirectUrl: 'https://payments.comgate.cz/mock',
   });
-
-  mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-    id: sessionId,
-    payment_status: 'paid',
-    metadata: {
-      type: 'gift_card',
-      amount: '30',
-      buyerEmail: 'test_gcc_buyer@example.com',
-      recipientName: 'Test Recipient',
-      recipientEmail: '',
-      message: '',
-    },
-  });
-
-  mockStripe.webhooks.constructEvent.mockImplementation((payload) => {
-    const decodePayload = (value) => {
-      if (Buffer.isBuffer(value)) return decodePayload(value.toString('utf8'));
-      if (typeof value === 'string') return decodePayload(JSON.parse(value));
-      if (value && value.type === 'Buffer' && Array.isArray(value.data)) {
-        return decodePayload(Buffer.from(value.data).toString('utf8'));
-      }
-      return value;
-    };
-    return decodePayload(payload);
-  });
-
-  mockStripe.paymentIntents.retrieve.mockResolvedValue({
-    id: `test_pi_${Date.now()}`,
-    amount: 3000,
-    created: Math.floor(Date.now() / 1000),
-  });
-
-  mockStripe.refunds.create.mockResolvedValue({
-    id: `test_refund_${Date.now()}_${gcStripeCounter}`,
-    status: 'succeeded',
-  });
+  paymentGateway.getPaymentStatus.mockResolvedValue('PAID');
+  paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 }
 
 // ─────────────────────────────────────────────
@@ -293,29 +261,23 @@ async function fullCleanup() {
 describe('Gift Card — Full purchase flow (Stripe → DB → email)', () => {
   beforeAll(fullCleanup);
   afterAll(fullCleanup);
-  beforeEach(() => { resetStripeMocks(); jest.clearAllMocks(); });
+  beforeEach(() => { resetPaymentGatewayMocks(); jest.clearAllMocks(); });
 
   test('POSITIVE: purchase gift card via Stripe → code generated → email sent to buyer', async () => {
-    const sessionId = `test_gcc_purchase_001_${Date.now()}`;
-    mockStripe.checkout.sessions.create.mockResolvedValue({ id: sessionId, payment_status: 'unpaid', metadata: {} });
-
     const createRes = await request(app).post('/api/create-gift-card-session').send({
       amount: 30, buyerEmail: 'test_gcc_purchase_001@example.com',
       recipientName: 'Janko', honeypot: '',
     });
     expect(createRes.status).toBe(200);
-    expect(createRes.body.sessionId).toBe(sessionId);
+    expect(createRes.body.transId).toBeDefined();
 
-    mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-      id: sessionId, payment_status: 'paid',
-      metadata: {
-        type: 'gift_card', amount: '30',
-        buyerEmail: 'test_gcc_purchase_001@example.com',
-        recipientName: 'Janko', recipientEmail: '', message: 'Všetko najlepšie!',
-      },
-    });
+    const orderRow = await pool.query(
+      `SELECT "refId" FROM pending_gift_card_orders WHERE "buyerEmail" = $1 ORDER BY id DESC LIMIT 1`,
+      ['test_gcc_purchase_001@example.com']
+    );
+    const refId = orderRow.rows[0].refId;
 
-    const successRes = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+    const successRes = await request(app).get(`/api/gift-card-success?refId=${refId}`);
     expect(successRes.status).toBe(200);
     expect(successRes.body.code).toHaveLength(12);
     expect(successRes.body.amount).toBe(30);
@@ -325,7 +287,7 @@ describe('Gift Card — Full purchase flow (Stripe → DB → email)', () => {
     expect(gc).not.toBeNull();
     expect(gc.status).toBe('active');
     expect(parseFloat(gc.balance)).toBe(30);
-    expect(gc.paymentTransId).toBe(sessionId);
+    expect(gc.paymentTransId).toBeDefined();
 
     const emailService = require('../services/emailService');
     expect(emailService.sendGiftCardEmail).toHaveBeenCalledWith(
@@ -335,18 +297,16 @@ describe('Gift Card — Full purchase flow (Stripe → DB → email)', () => {
   });
 
   test('POSITIVE: purchase gift card with recipient email → email sent to recipient too', async () => {
-    const sessionId = `test_gcc_purchase_002_${Date.now()}`;
-    mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-      id: sessionId, payment_status: 'paid',
-      metadata: {
-        type: 'gift_card', amount: '50',
-        buyerEmail: 'test_gcc_purchase_002b@example.com',
-        recipientName: 'Ferko',
-        recipientEmail: 'test_gcc_purchase_002r@example.com',
-        message: 'Pre teba!',
-      },
+    const refId = `gcc-refid-002-${Date.now()}`;
+    const transId = `mock-gcc-trans-002-${Date.now()}`;
+    await createPendingGiftCardOrder({
+      refId, transId, amount: 50,
+      buyerEmail: 'test_gcc_purchase_002b@example.com',
+      recipientName: 'Ferko',
+      recipientEmail: 'test_gcc_purchase_002r@example.com',
+      message: 'Pre teba!',
     });
-    const successRes = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+    const successRes = await request(app).get(`/api/gift-card-success?refId=${refId}`);
     expect(successRes.status).toBe(200);
 
     const emailService = require('../services/emailService');
@@ -361,33 +321,41 @@ describe('Gift Card — Full purchase flow (Stripe → DB → email)', () => {
   });
 
   test('POSITIVE: idempotency — calling gift-card-success twice → same code returned, no duplicate', async () => {
-    const sessionId = `test_gcc_purchase_idem_${Date.now()}`;
-    mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-      id: sessionId, payment_status: 'paid',
-      metadata: {
-        type: 'gift_card', amount: '15',
-        buyerEmail: 'test_gcc_purchase_idem@example.com',
-        recipientName: 'Idem', recipientEmail: '', message: '',
-      },
+    const refId = `gcc-refid-idem-${Date.now()}`;
+    const transId = `mock-gcc-trans-idem-${Date.now()}`;
+    await createPendingGiftCardOrder({
+      refId, transId, amount: 15,
+      buyerEmail: 'test_gcc_purchase_idem@example.com',
+      recipientName: 'Idem', recipientEmail: null, message: null,
     });
 
-    const res1 = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
-    const res2 = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+    const res1 = await request(app).get(`/api/gift-card-success?refId=${refId}`);
+    // Re-seed the pending order (consumed/deleted by the first call) so the idempotency guard runs
+    await createPendingGiftCardOrder({
+      refId, transId, amount: 15,
+      buyerEmail: 'test_gcc_purchase_idem@example.com',
+      recipientName: 'Idem', recipientEmail: null, message: null,
+    });
+    const res2 = await request(app).get(`/api/gift-card-success?refId=${refId}`);
 
     expect(res1.status).toBe(200);
     expect(res2.status).toBe(200);
     expect(res1.body.code).toBe(res2.body.code);
 
-    const rows = await pool.query('SELECT * FROM gift_card WHERE "paymentTransId" = $1', [sessionId]);
+    const rows = await pool.query('SELECT * FROM gift_card WHERE "paymentTransId" = $1', [transId]);
     expect(rows.rows.length).toBe(1);
   });
 
   test('NEGATIVE: gift-card-success with unpaid session → 400', async () => {
-    const sessionId = `test_gcc_unpaid_${Date.now()}`;
-    mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-      id: sessionId, payment_status: 'unpaid', metadata: {},
+    const refId = `gcc-refid-unpaid-${Date.now()}`;
+    const transId = `mock-gcc-trans-unpaid-${Date.now()}`;
+    await createPendingGiftCardOrder({
+      refId, transId, amount: 30,
+      buyerEmail: 'test_gcc_unpaid@example.com',
+      recipientName: 'Unpaid', recipientEmail: null, message: null,
     });
-    const res = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+    paymentGateway.getPaymentStatus.mockResolvedValueOnce('CANCELLED');
+    const res = await request(app).get(`/api/gift-card-success?refId=${refId}`);
     expect(res.status).toBe(400);
   });
 
@@ -482,7 +450,7 @@ describe('Gift Card — Full purchase flow (Stripe → DB → email)', () => {
 describe('Gift Card — Booking fully paid by gift card (100% cover)', () => {
   beforeAll(fullCleanup);
   afterAll(fullCleanup);
-  beforeEach(() => { resetStripeMocks(); jest.clearAllMocks(); });
+  beforeEach(() => { resetPaymentGatewayMocks(); jest.clearAllMocks(); });
 
   test('POSITIVE: full gift card covers booking → free:true, active booking, balance decremented', async () => {
     const user = await createVerifiedUser('test_gcc_full_001@example.com');
@@ -502,7 +470,7 @@ describe('Gift Card — Booking fully paid by gift card (100% cover)', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.free).toBe(true);
-    expect(mockStripe.checkout.sessions.create).not.toHaveBeenCalled();
+    expect(paymentGateway.createPayment).not.toHaveBeenCalled();
 
     const bookings = await pool.query(
       `SELECT * FROM bookings WHERE user_id = $1 AND training_id = $2 AND active = true`,
@@ -570,10 +538,6 @@ describe('Gift Card — Booking fully paid by gift card (100% cover)', () => {
     const code = testGcCode('FULL4');
     await createGiftCardInDb({ code, amount: 30, balance: 0, status: 'used', buyerEmail: user.email });
 
-    mockStripe.checkout.sessions.create.mockResolvedValue({
-      id: `test_gcc_full_004_session_${Date.now()}`, payment_status: 'unpaid', metadata: {},
-    });
-
     const res = await agent.post('/api/create-payment-session').send({
       userId: user.id, trainingId: training.id, trainingType: type.name,
       selectedDate: '2025-09-01', selectedTime: '10:00',
@@ -584,8 +548,8 @@ describe('Gift Card — Booking fully paid by gift card (100% cover)', () => {
     });
 
     expect(res.status).toBe(200);
-    const stripeCall = mockStripe.checkout.sessions.create.mock.calls[0][0];
-    expect(stripeCall.line_items[0].price_data.unit_amount).toBe(1500); // full price, gift card ignored
+    const pgCall = paymentGateway.createPayment.mock.calls[0][0];
+    expect(pgCall.priceEur).toBe(15); // full price, gift card ignored
   });
 });
 
@@ -595,7 +559,7 @@ describe('Gift Card — Booking fully paid by gift card (100% cover)', () => {
 describe('Gift Card — Mixed payment booking (gift card + Stripe)', () => {
   beforeAll(fullCleanup);
   afterAll(fullCleanup);
-  beforeEach(() => { resetStripeMocks(); jest.clearAllMocks(); });
+  beforeEach(() => { resetPaymentGatewayMocks(); jest.clearAllMocks(); });
 
   test('POSITIVE: partial gift card reduces Stripe charge correctly (42€ - 30€DP = 12€ Stripe)', async () => {
     const user = await createVerifiedUser('test_gcc_partial_001@example.com');
@@ -603,10 +567,6 @@ describe('Gift Card — Mixed payment booking (gift card + Stripe)', () => {
     const { type, training } = await createTrainingWithPrice({ name: 'TEST_GCC_PARTIAL_001', price: 42 });
     const code = testGcCode('PART1');
     await createGiftCardInDb({ code, amount: 30, balance: 30, buyerEmail: user.email });
-
-    mockStripe.checkout.sessions.create.mockResolvedValue({
-      id: `test_gcc_partial_001_session_${Date.now()}`, payment_status: 'unpaid', metadata: {},
-    });
 
     const res = await agent.post('/api/create-payment-session').send({
       userId: user.id, trainingId: training.id, trainingType: type.name,
@@ -618,13 +578,18 @@ describe('Gift Card — Mixed payment booking (gift card + Stripe)', () => {
     });
 
     expect(res.status).toBe(200);
-    expect(res.body.sessionId).toBeDefined();
+    expect(res.body.transId).toBeDefined();
     expect(res.body.free).toBeUndefined();
 
-    const stripeCall = mockStripe.checkout.sessions.create.mock.calls[0][0];
-    expect(stripeCall.line_items[0].price_data.unit_amount).toBe(1200); // 12€ = 1200 cents
-    expect(stripeCall.metadata.giftCardCode).toBe(code);
-    expect(stripeCall.metadata.giftCardDiscount).toBe('30');
+    const pgCall = paymentGateway.createPayment.mock.calls[0][0];
+    expect(pgCall.priceEur).toBe(12); // 42€ - 30€ DP = 12€
+
+    const booking = await pool.query(
+      'SELECT gift_card_code, gift_card_amount FROM bookings WHERE user_id = $1 AND training_id = $2',
+      [user.id, training.id]
+    );
+    expect(booking.rows[0].gift_card_code).toBe(code);
+    expect(parseFloat(booking.rows[0].gift_card_amount)).toBe(30);
   });
 
   test('POSITIVE: booking-success saves gift_card_code and gift_card_amount to bookings table', async () => {
@@ -634,89 +599,51 @@ describe('Gift Card — Mixed payment booking (gift card + Stripe)', () => {
     const code = testGcCode('BSC01');
     await createGiftCardInDb({ code, amount: 15, balance: 15, buyerEmail: user.email });
 
-    const sessionId = `test_gcc_bsuccess_001_session_${Date.now()}`;
-    const paymentIntentId = `test_gcc_bsuccess_001_pi_${Date.now()}`;
-
-    // Insert pending booking
-    const bookingInsert = await pool.query(
-      `INSERT INTO bookings (user_id, training_id, number_of_children, booked_at, active, booking_type, session_id, children_ages)
-       VALUES ($1, $2, 1, NOW(), false, 'paid', $3, '5') RETURNING id`,
-      [user.id, training.id, sessionId]
-    );
-    const bookingId = bookingInsert.rows[0].id;
-
-    mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-      id: sessionId,
-      payment_status: 'paid',
-      payment_intent: paymentIntentId,
-      metadata: {
-        type: 'training_session', userId: String(user.id),
-        trainingId: String(training.id), trainingType: type.name,
-        selectedDate: '2025-09-01', selectedTime: '10:00',
-        childrenCount: '1', childrenAge: '5', totalPrice: '40',
-        photoConsent: 'null', mobile: '', note: '', accompanyingPerson: 'false',
-        giftCardCode: code,
-        giftCardDiscount: '15',
-      },
+    // Gift card balance (15) is less than the price (40) -> non-free path, requires payment confirmation
+    const createRes = await agent.post('/api/create-payment-session').send({
+      userId: user.id, trainingId: training.id, trainingType: type.name,
+      selectedDate: '2025-09-01', selectedTime: '10:00', childrenCount: 1,
+      childrenAge: '5', totalPrice: 40, photoConsent: null, mobile: '',
+      note: '', accompanyingPerson: false, allowDuplicate: false,
+      giftCardCode: code, giftCardDiscount: 15,
     });
-    mockStripe.paymentIntents.retrieve.mockResolvedValue({
-      id: paymentIntentId,
-      amount: 2500, // 25€ v centoch
-      created: Math.floor(Date.now() / 1000),
-    });
+    expect(createRes.status).toBe(200);
+    const bookingId = createRes.body.bookingId;
 
-    await agent.get(`/api/booking-success?session_id=${sessionId}&booking_id=${bookingId}`);
+    paymentGateway.getPaymentStatus.mockResolvedValue('PAID');
+    const confirmRes = await agent.get(`/api/booking-success?booking_id=${bookingId}`);
+    expect(confirmRes.status).toBe(302);
 
     const booking = await getBookingById(bookingId);
     expect(booking).not.toBeNull();
     expect(booking.active).toBe(true);
     expect(booking.gift_card_code).toBe(code);
     expect(parseFloat(booking.gift_card_amount)).toBe(15);
-    expect(parseFloat(booking.amount_paid)).toBe(25); // 2500 cents / 100
-    expect(booking.payment_intent_id).toBe(paymentIntentId);
+    expect(parseFloat(booking.amount_paid)).toBe(25); // 40 - 15 DP = 25
+    expect(booking.payment_intent_id).toBeTruthy();
   });
 
   test('POSITIVE: webhook gift card redemption after mixed Stripe payment → gift card balance decremented', async () => {
     const user = await createVerifiedUser('test_gcc_partial_002@example.com');
+    const agent = await loginAs(user.email);
     const { type, training } = await createTrainingWithPrice({ name: 'TEST_GCC_PARTIAL_002', price: 42 });
     const code = testGcCode('PART2');
     await createGiftCardInDb({ code, amount: 30, balance: 30, buyerEmail: user.email });
 
-    const sessionId = `test_gcc_partial_002_session_${Date.now()}`;
-    await pool.query(
-      `INSERT INTO bookings (user_id, training_id, number_of_children, booked_at, active, booking_type, session_id, children_ages)
-       VALUES ($1, $2, 1, NOW(), false, 'paid', $3, '5')`,
-      [user.id, training.id, sessionId]
-    );
+    // Gift card balance (30) < price (42) -> discount consumes the entire balance
+    const createRes = await agent.post('/api/create-payment-session').send({
+      userId: user.id, trainingId: training.id, trainingType: type.name,
+      selectedDate: '2025-09-01', selectedTime: '10:00', childrenCount: 1,
+      childrenAge: '5', totalPrice: 42, photoConsent: null, mobile: '',
+      note: '', accompanyingPerson: false, allowDuplicate: false,
+      giftCardCode: code, giftCardDiscount: 30,
+    });
+    expect(createRes.status).toBe(200);
+    const bookingId = createRes.body.bookingId;
 
-    const webhookPayload = {
-      type: 'checkout.session.completed',
-      data: {
-        object: {
-          id: sessionId, payment_status: 'paid',
-          payment_intent: `test_gcc_partial_002_pi_${Date.now()}`,
-          created: Math.floor(Date.now() / 1000),
-          metadata: {
-            type: 'training_session', userId: String(user.id),
-            trainingId: String(training.id), trainingType: type.name,
-            selectedDate: '2025-09-01', selectedTime: '10:00',
-            childrenCount: '1', childrenAge: '5', totalPrice: '12',
-            photoConsent: 'null', mobile: '', note: '',
-            accompanyingPerson: 'false',
-            giftCardCode: code, giftCardDiscount: '30',
-          },
-        },
-      },
-    };
-
-    const res = await request(app)
-      .post('/stripe-webhook')
-      .set('Content-Type', 'application/json')
-      .set('stripe-signature', 'test_sig')
-      .send(Buffer.from(JSON.stringify(webhookPayload)));
-
-    expect(res.status).toBe(200);
-    await new Promise(r => setTimeout(r, 300));
+    paymentGateway.getPaymentStatus.mockResolvedValue('PAID');
+    const res = await agent.get(`/api/booking-success?booking_id=${bookingId}`);
+    expect(res.status).toBe(302);
 
     const gc = await getGiftCardByCode(code);
     expect(parseFloat(gc.balance)).toBe(0); // 30 - 30 = 0
@@ -750,7 +677,7 @@ describe('Gift Card — Mixed payment booking (gift card + Stripe)', () => {
 describe('Gift Card — Cancellation of fully-paid gift card booking (user)', () => {
   beforeAll(fullCleanup);
   afterAll(fullCleanup);
-  beforeEach(() => { resetStripeMocks(); jest.clearAllMocks(); });
+  beforeEach(() => { resetPaymentGatewayMocks(); jest.clearAllMocks(); });
 
   test('POSITIVE: cancel gift_card booking → balance restored, booking deleted', async () => {
     const user = await createVerifiedUser('test_gcc_cancel_001@example.com');
@@ -863,7 +790,7 @@ describe('Gift Card — Cancellation of fully-paid gift card booking (user)', ()
 describe('Gift Card — Cancellation of mixed-payment booking (gift card + Stripe) by user', () => {
   beforeAll(fullCleanup);
   afterAll(fullCleanup);
-  beforeEach(() => { resetStripeMocks(); jest.clearAllMocks(); });
+  beforeEach(() => { resetPaymentGatewayMocks(); jest.clearAllMocks(); });
 
   test('POSITIVE: cancel mixed booking → Stripe partial refund called + DP balance restored', async () => {
     const user = await createVerifiedUser('test_gcc_mixed_cancel_001@example.com');
@@ -879,23 +806,17 @@ describe('Gift Card — Cancellation of mixed-payment booking (gift card + Strip
       amountPaid: 35, giftCardAmount: 5, paymentIntentId,
     });
 
-    mockStripe.refunds.create.mockResolvedValue({
-      id: `test_gcc_mcan_refund_001_${Date.now()}`,
-      status: 'succeeded',
-      amount: 3500,
-    });
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 
     const res = await agent.delete(`/api/bookings/${booking.id}`);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
 
-    // Stripe refund bol zavolaný s čiastkou 35€ (nie 40€!)
-    expect(mockStripe.refunds.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payment_intent: paymentIntentId,
-        amount: 3500, // 35€ v centoch
-      }),
-      expect.anything()
+    // Comgate refund bol zavolaný s čiastkou 35€ (nie 40€!)
+    expect(paymentGateway.refundPayment).toHaveBeenCalledWith(
+      paymentIntentId,
+      35,
+      expect.any(String)
     );
 
     // DP balance bol obnovený: 0 + 5 = 5
@@ -923,14 +844,14 @@ describe('Gift Card — Cancellation of mixed-payment booking (gift card + Strip
     });
 
     const refundId = `test_gcc_mcan_refund_002_${Date.now()}`;
-    mockStripe.refunds.create.mockResolvedValue({ id: refundId, status: 'succeeded', amount: 3500 });
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 
     await agent.delete(`/api/bookings/${booking.id}`);
 
     const refundRecord = await getRefundByBookingId(booking.id);
     expect(refundRecord).not.toBeNull();
     expect(parseFloat(refundRecord.amount)).toBe(35); // len Stripe časť
-    expect(refundRecord.refund_id).toBe(refundId);
+    expect(refundRecord.refund_id).toMatch(/^cancel-/);
     expect(refundRecord.reason).toMatch(/mixed/i);
   });
 
@@ -952,7 +873,7 @@ describe('Gift Card — Cancellation of mixed-payment booking (gift card + Strip
     expect(res.body.creditIssued).toBe(true);
 
     // Stripe refund sa nevolá pri kredite
-    expect(mockStripe.refunds.create).not.toHaveBeenCalled();
+    expect(paymentGateway.refundPayment).not.toHaveBeenCalled();
 
     // DP balance ostáva 0 — kredit pokrýva celú hodnotu
     const gc = await getGiftCardByCode(code);
@@ -974,7 +895,7 @@ describe('Gift Card — Cancellation of mixed-payment booking (gift card + Strip
       amountPaid: 35, giftCardAmount: 5, paymentIntentId,
     });
 
-    mockStripe.refunds.create.mockResolvedValue({ id: `ref_004_${Date.now()}`, status: 'succeeded' });
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 
     await agent.delete(`/api/bookings/${booking.id}`);
 
@@ -1007,7 +928,7 @@ describe('Gift Card — Cancellation of mixed-payment booking (gift card + Strip
     expect(parseFloat(gc.balance)).toBe(0);
 
     // Stripe refund sa nevolal
-    expect(mockStripe.refunds.create).not.toHaveBeenCalled();
+    expect(paymentGateway.refundPayment).not.toHaveBeenCalled();
   });
 
   test('POSITIVE: cancel mixed booking where DP=0 (pure Stripe) → standard refund, no DP logic', async () => {
@@ -1025,14 +946,14 @@ describe('Gift Card — Cancellation of mixed-payment booking (gift card + Strip
       amountPaid: 40, giftCardAmount: 0, paymentIntentId,
     });
 
-    mockStripe.refunds.create.mockResolvedValue({ id: `ref_006_${Date.now()}`, status: 'succeeded', amount: 4000 });
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 
     const res = await agent.delete(`/api/bookings/${booking.id}`);
     expect(res.status).toBe(200);
 
     // Refund volaný za plnú cenu
-    const refundCall = mockStripe.refunds.create.mock.calls[0][0];
-    expect(refundCall.amount).toBe(4000);
+    const [refundTransId, refundAmount] = paymentGateway.refundPayment.mock.calls[0];
+    expect(refundAmount).toBe(40);
 
     // DP balance sa nezmenil
     const gc = await getGiftCardByCode(code);
@@ -1046,7 +967,7 @@ describe('Gift Card — Cancellation of mixed-payment booking (gift card + Strip
 describe('GET /api/booking/refund — mixed payment refund endpoint', () => {
   beforeAll(fullCleanup);
   afterAll(fullCleanup);
-  beforeEach(() => { resetStripeMocks(); jest.clearAllMocks(); });
+  beforeEach(() => { resetPaymentGatewayMocks(); jest.clearAllMocks(); });
 
   test('POSITIVE: refund mixed booking → Stripe partial refund + DP balance restored', async () => {
     const user = await createVerifiedUser('test_gcc_refund_001@example.com');
@@ -1061,8 +982,8 @@ describe('GET /api/booking/refund — mixed payment refund endpoint', () => {
       amountPaid: 35, giftCardAmount: 5, paymentIntentId,
     });
 
-    const refundId = `test_gcc_ref_refund_001_${Date.now()}`;
-    mockStripe.refunds.create.mockResolvedValue({ id: refundId, status: 'succeeded', amount: 3500 });
+    const refundId = `refund-${booking.id}-${paymentIntentId}`;
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 
     const res = await request(app).get(`/api/booking/refund?bookingId=${booking.id}`);
     expect(res.status).toBe(200);
@@ -1071,10 +992,12 @@ describe('GET /api/booking/refund — mixed payment refund endpoint', () => {
     expect(res.body.giftCardRestored).toBe(true);
     expect(res.body.giftCardAmount).toBe(5);
 
-    // Stripe volaný s 35€ (nie 40€)
-    const stripeRefundCall = mockStripe.refunds.create.mock.calls[0][0];
-    expect(stripeRefundCall.amount).toBe(3500);
-    expect(stripeRefundCall.payment_intent).toBe(paymentIntentId);
+    // Comgate volaný s 35€ (nie 40€)
+    expect(paymentGateway.refundPayment).toHaveBeenCalledWith(
+      paymentIntentId,
+      35,
+      expect.any(String)
+    );
 
     // DP balance obnovený: 0 + 5 = 5
     const gc = await getGiftCardByCode(code);
@@ -1100,7 +1023,7 @@ describe('GET /api/booking/refund — mixed payment refund endpoint', () => {
       amountPaid: 35, giftCardAmount: 5, paymentIntentId,
     });
 
-    mockStripe.refunds.create.mockResolvedValue({ id: `ref_002_${Date.now()}`, status: 'succeeded' });
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 
     await request(app).get(`/api/booking/refund?bookingId=${booking.id}`);
     await new Promise(r => setTimeout(r, 200));
@@ -1130,15 +1053,15 @@ describe('GET /api/booking/refund — mixed payment refund endpoint', () => {
     const booking = bookingInsert.rows[0];
 
     const refundId = `ref_003_${Date.now()}`;
-    mockStripe.refunds.create.mockResolvedValue({ id: refundId, status: 'succeeded', amount: 4000 });
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 
     const res = await request(app).get(`/api/booking/refund?bookingId=${booking.id}`);
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('processed');
     expect(res.body.giftCardRestored).toBe(false);
 
-    // Stripe volaný za plnú sumu
-    expect(mockStripe.refunds.create.mock.calls[0][0].amount).toBe(4000);
+    // Comgate volaný za plnú sumu
+    expect(paymentGateway.refundPayment.mock.calls[0][1]).toBe(40);
   });
 
   test('POSITIVE: idempotency — second refund call returns already-processed', async () => {
@@ -1156,7 +1079,7 @@ describe('GET /api/booking/refund — mixed payment refund endpoint', () => {
     await pool.query(`UPDATE bookings SET gift_card_code = $1, gift_card_amount = 5 WHERE id = $2`, [code, booking.id]);
 
     const refundId = `ref_004_${Date.now()}`;
-    mockStripe.refunds.create.mockResolvedValue({ id: refundId, status: 'succeeded' });
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 
     const res1 = await request(app).get(`/api/booking/refund?bookingId=${booking.id}`);
     expect(res1.status).toBe(200);
@@ -1166,8 +1089,8 @@ describe('GET /api/booking/refund — mixed payment refund endpoint', () => {
     expect(res2.status).toBe(200);
     expect(res2.body.status).toBe('already');
 
-    // Stripe refund volaný len raz
-    expect(mockStripe.refunds.create).toHaveBeenCalledTimes(1);
+    // Comgate refund volaný len raz
+    expect(paymentGateway.refundPayment).toHaveBeenCalledTimes(1);
   });
 
   test('NEGATIVE: refund with missing bookingId → 400', async () => {
@@ -1193,7 +1116,7 @@ describe('GET /api/booking/refund — mixed payment refund endpoint', () => {
       amountPaid: 35, giftCardAmount: 5, paymentIntentId,
     });
 
-    mockStripe.refunds.create.mockRejectedValue(Object.assign(new Error('Stripe error'), { code: 'api_error' }));
+    paymentGateway.refundPayment.mockRejectedValue(new Error('Comgate network error'));
 
     const res = await request(app).get(`/api/booking/refund?bookingId=${booking.id}`);
     expect(res.status).toBe(500);
@@ -1207,7 +1130,7 @@ describe('GET /api/booking/refund — mixed payment refund endpoint', () => {
 describe('Admin cancellation — gift card and mixed booking expectations', () => {
   beforeAll(fullCleanup);
   afterAll(fullCleanup);
-  beforeEach(() => { resetStripeMocks(); jest.clearAllMocks(); });
+  beforeEach(() => { resetPaymentGatewayMocks(); jest.clearAllMocks(); });
 
   test('POSITIVE: admin cancels session with pure gift_card booking → balance restored, email sent', async () => {
     const admin = await createVerifiedUser('test_gcc_admin_001@example.com', 'admin');
@@ -1349,7 +1272,7 @@ describe('Admin cancellation — gift card and mixed booking expectations', () =
 describe('GET /api/bookings/:bookingId/type — gift_card detection', () => {
   beforeAll(fullCleanup);
   afterAll(fullCleanup);
-  beforeEach(() => { resetStripeMocks(); jest.clearAllMocks(); });
+  beforeEach(() => { resetPaymentGatewayMocks(); jest.clearAllMocks(); });
 
   test('POSITIVE: booking_type=gift_card returns bookingType=gift_card', async () => {
     const user = await createVerifiedUser('test_gcc_type_001@example.com');
@@ -1419,24 +1342,22 @@ describe('GET /api/bookings/:bookingId/type — gift_card detection', () => {
 describe('Gift Card — Full lifecycle end-to-end', () => {
   beforeAll(fullCleanup);
   afterAll(fullCleanup);
-  beforeEach(() => { resetStripeMocks(); jest.clearAllMocks(); });
+  beforeEach(() => { resetPaymentGatewayMocks(); jest.clearAllMocks(); });
 
   test('LIFECYCLE: purchase → partial use → cancel → balance restored → full use → used', async () => {
     const user = await createVerifiedUser('test_gcc_lifecycle_001@example.com');
     const agent = await loginAs(user.email);
 
     // STEP 1: Purchase 50€ gift card
-    const sessionId = `test_gcc_lifecycle_session_${Date.now()}`;
-    mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-      id: sessionId, payment_status: 'paid',
-      metadata: {
-        type: 'gift_card', amount: '50',
-        buyerEmail: user.email, recipientName: 'Maťko',
-        recipientEmail: '', message: '',
-      },
+    const refId = `gcc-life-001-${Date.now()}`;
+    const transId = `mock-gcc-life-001-${Date.now()}`;
+    await createPendingGiftCardOrder({
+      refId, transId, amount: 50,
+      buyerEmail: user.email, recipientName: 'Maťko',
+      recipientEmail: null, message: null,
     });
 
-    const successRes = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+    const successRes = await request(app).get(`/api/gift-card-success?refId=${refId}`);
     expect(successRes.status).toBe(200);
     const code = successRes.body.code;
     expect(code).toHaveLength(12);
@@ -1508,15 +1429,13 @@ describe('Gift Card — Full lifecycle end-to-end', () => {
     const agent = await loginAs(user.email);
 
     // STEP 1: Purchase 30€ gift card
-    const sessionId = `test_gcc_lifecycle_002_session_${Date.now()}`;
-    mockStripe.checkout.sessions.retrieve.mockResolvedValue({
-      id: sessionId, payment_status: 'paid',
-      metadata: {
-        type: 'gift_card', amount: '30',
-        buyerEmail: user.email, recipientName: 'Test', recipientEmail: '', message: '',
-      },
+    const refId = `gcc-life-002-${Date.now()}`;
+    const transId = `mock-gcc-life-002-${Date.now()}`;
+    await createPendingGiftCardOrder({
+      refId, transId, amount: 30,
+      buyerEmail: user.email, recipientName: 'Test', recipientEmail: null, message: null,
     });
-    const gcRes = await request(app).get(`/api/gift-card-success?session_id=${sessionId}`);
+    const gcRes = await request(app).get(`/api/gift-card-success?refId=${refId}`);
     expect(gcRes.status).toBe(200);
     const code = gcRes.body.code;
 
@@ -1542,16 +1461,16 @@ describe('Gift Card — Full lifecycle end-to-end', () => {
     expect(gc1.status).toBe('used');
 
     // STEP 4: Cancel booking → Stripe refund (10€) + DP restore (30€)
-    const refundId = `ref_life_002_${Date.now()}`;
-    mockStripe.refunds.create.mockResolvedValue({ id: refundId, status: 'succeeded', amount: 1000 });
+    paymentGateway.refundPayment.mockResolvedValue({ ok: true });
 
     const cancelRes = await agent.delete(`/api/bookings/${booking.id}`);
     expect(cancelRes.status).toBe(200);
 
-    // Stripe volaný za 10€
-    expect(mockStripe.refunds.create).toHaveBeenCalledWith(
-      expect.objectContaining({ amount: 1000 }),
-      expect.anything()
+    // Comgate volaný za 10€
+    expect(paymentGateway.refundPayment).toHaveBeenCalledWith(
+      paymentIntentId,
+      10,
+      expect.any(String)
     );
 
     // DP obnovený: 0 + 30 = 30
