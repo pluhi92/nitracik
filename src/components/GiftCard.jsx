@@ -315,7 +315,7 @@ const GiftCard = () => {
               justify-center mx-auto mb-4">
               <CheckCircle2 className="w-7 h-7" />
             </div>
-            <h2 className="text-2xl font-black text-foreground mb-1">Poukaz bol vytvorený! 🎉</h2>
+            <h2 className="text-2xl font-black text-foreground mb-1">Nákup darčekového poukazu úspešný! 🎉</h2>
             <p className="text-neutral-500 text-sm mb-6">
               Potvrdenie sme odoslali na váš email spolu s PDF prílohou.
             </p>

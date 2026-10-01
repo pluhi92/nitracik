@@ -552,6 +552,9 @@ describe('E2E – Kompletný booking systém', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.transId).toBeDefined();
+      const createPaymentCall = paymentGateway.createPayment.mock.calls.at(-1)[0];
+      expect(new URL(createPaymentCall.returnUrl).pathname).toBe('/api/season-ticket-success');
+      expect(new URL(createPaymentCall.returnUrl).searchParams.get('refId')).toMatch(/^st-/);
     });
 
     test('4.2 Webhook aktivuje permanentku', async () => {

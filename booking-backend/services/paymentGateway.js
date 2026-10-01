@@ -45,6 +45,7 @@ async function createPayment({ priceEur, refId, label, returnUrl, email }) {
     email: email || '',
     prepareOnly: true,
     returnUrl,
+    returnurl: returnUrl,
   });
 
   if (data.code !== '0') {

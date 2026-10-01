@@ -1231,6 +1231,37 @@ describe('Admin cancellation — gift card and mixed booking expectations', () =
     expect(b.active).toBe(true);
   });
 
+  test('POSITIVE: repeated admin cancel request sends only one cancellation email', async () => {
+    const admin = await createVerifiedUser('test_gcc_admin_008@example.com', 'admin');
+    const user = await createVerifiedUser('test_gcc_admin_user_008@example.com');
+    const adminAgent = await loginAs(admin.email);
+    const emailService = require('../services/emailService');
+
+    const { training } = await createTrainingWithPrice({ name: 'TEST_GCC_ADMIN_008', price: 40, hoursFromNow: 48 });
+    const code = testGcCode('ADM08');
+    await createGiftCardInDb({ code, amount: 30, balance: 0, status: 'used', buyerEmail: user.email });
+    await createMixedPaymentBooking({
+      userId: user.id,
+      trainingId: training.id,
+      gcCode: code,
+      amountPaid: 35,
+      giftCardAmount: 5,
+      paymentIntentId: `test_gcc_admin_008_pi_${Date.now()}`,
+    });
+
+    const firstResponse = await adminAgent.post('/api/admin/cancel-session').send({
+      trainingId: training.id, reason: 'Test duplicate prevention', forceCancel: false,
+    });
+    const secondResponse = await adminAgent.post('/api/admin/cancel-session').send({
+      trainingId: training.id, reason: 'Test duplicate prevention', forceCancel: false,
+    });
+
+    expect(firstResponse.status).toBe(200);
+    expect(secondResponse.status).toBe(200);
+    expect(secondResponse.body.alreadyCancelled).toBe(true);
+    expect(emailService.sendMassCancellationEmail).toHaveBeenCalledTimes(1);
+  });
+
   test('NEGATIVE: admin cancel session within 10 hours without forceCancel → 400', async () => {
     const admin = await createVerifiedUser('test_gcc_admin_005@example.com', 'admin');
     const adminAgent = await loginAs(admin.email);

@@ -58,6 +58,7 @@ describe('paymentGateway Comgate integration', () => {
         email: 'user@example.com',
         prepareOnly: 'true',
         returnUrl: 'https://example.test/success',
+        returnurl: 'https://example.test/success',
       });
       expect(params.label).toBe('Detske plavanie');
     });

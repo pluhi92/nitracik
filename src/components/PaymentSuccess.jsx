@@ -21,6 +21,9 @@ const PaymentSuccess = () => {
 
   const searchParams = new URLSearchParams(location.search);
   const isGiftCard = searchParams.get('gift_card') === 'true';
+  const [paymentType, setPaymentType] = React.useState(
+    searchParams.get('booking_id') || isGiftCard ? 'booking' : null
+  );
 
   useEffect(() => {
     let timer;
@@ -35,9 +38,24 @@ const PaymentSuccess = () => {
       const transId = urlParams.get('transId');
       
       if (bookingId || transId) {
-        api.get('/api/booking-success', {
-          params: bookingId ? { booking_id: bookingId } : { transId },
-        }).then(() => {
+        const identifyPayment = bookingId
+          ? Promise.resolve({ data: { type: 'booking' } })
+          : api.get('/api/payment-type', { params: { transId } });
+
+        identifyPayment.then(({ data }) => {
+          setPaymentType(data.type);
+          if (data.type === 'gift_card') {
+            if (data.refId) {
+              navigate(`/gift-card/success?refId=${encodeURIComponent(data.refId)}`);
+            }
+            return null;
+          }
+
+          return api.get('/api/booking-success', {
+            params: bookingId ? { booking_id: bookingId } : { transId },
+          });
+        }).then((response) => {
+          if (!response) return;
           timer = setTimeout(() => navigate('/profile'), 5000);
         }).catch((error) => {
           console.error('Error confirming payment:', error);
@@ -60,7 +78,34 @@ const PaymentSuccess = () => {
           <FlakCream className="absolute pointer-events-none" style={{ width: 185, top: 10, right: -20, opacity: 0.32, zIndex: -1, transform: 'rotate(25deg)' }} />
           <FlakPink className="absolute pointer-events-none" style={{ width: 170, bottom: 10, left: -15, opacity: 0.30, zIndex: -1, transform: 'rotate(-15deg)' }} />
         
-        {isGiftCard ? (
+        {paymentType === 'season_ticket' ? (
+          <>
+            <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="w-8 h-8 text-amber-500" />
+            </div>
+            <h2 className="text-2xl font-black text-foreground mb-2">
+              Nákup permanentky úspešný!
+            </h2>
+            <p className="text-neutral-600 mb-2">
+              Vaša permanentka bola úspešne zakúpená.
+            </p>
+            <p className="text-sm text-neutral-500">
+              Budete presmerovaný na váš profil o <strong>5 sekúnd</strong>...
+            </p>
+          </>
+        ) : paymentType === 'gift_card' ? (
+          <>
+            <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+              <Gift className="w-8 h-8 text-amber-500" />
+            </div>
+            <h2 className="text-2xl font-black text-foreground mb-2">
+              Nákup darčekového poukazu úspešný!
+            </h2>
+            <p className="text-neutral-600 mb-2">
+              Váš darčekový poukaz bol úspešne zakúpený.
+            </p>
+          </>
+        ) : isGiftCard ? (
           <>
             <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
               <Gift className="w-8 h-8 text-amber-500" />

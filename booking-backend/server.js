@@ -1431,7 +1431,8 @@ app.post('/api/create-season-ticket-payment', isAuthenticated, async (req, res) 
     );
     const userEmail = userEmailResult.rows[0]?.email || '';
 
-    const returnUrl = `${process.env.FRONTEND_URL}/season-ticket/success?refId=${encodeURIComponent(refId)}`;
+    const backendBaseUrl = process.env.BACKEND_URL || `${req.protocol}://${req.get('host')}`;
+    const returnUrl = `${backendBaseUrl}/api/season-ticket-success?refId=${encodeURIComponent(refId)}`;
 
     const comgatePayment = await paymentGateway.createPayment({
       priceEur: dbPrice,
@@ -1951,9 +1952,53 @@ app.post('/api/create-payment-session', isAuthenticated, async (req, res) => {
   }
 });
 
+// Identifies the payment type when Comgate returns to the fixed frontend URL.
+app.get('/api/payment-type', async (req, res) => {
+  const { transId } = req.query;
+  if (!transId) return res.status(400).json({ error: 'Missing transaction ID' });
+
+  try {
+    const seasonTicketResult = await pool.query(
+      `SELECT 1 FROM pending_season_ticket_orders WHERE "transId" = $1
+       UNION ALL
+       SELECT 1 FROM season_tickets WHERE stripe_payment_id = $1
+       LIMIT 1`,
+      [transId]
+    );
+    if (seasonTicketResult.rows.length > 0) {
+      return res.json({ type: 'season_ticket' });
+    }
+
+    const giftCardResult = await pool.query(
+      `SELECT "refId" FROM pending_gift_card_orders WHERE "transId" = $1
+       UNION ALL
+       SELECT NULL AS "refId" FROM gift_card WHERE "paymentTransId" = $1
+       LIMIT 1`,
+      [transId]
+    );
+    if (giftCardResult.rows.length > 0) {
+      return res.json({ type: 'gift_card', refId: giftCardResult.rows[0].refId || null });
+    }
+
+    return res.json({ type: 'booking' });
+  } catch (error) {
+    console.error('[PaymentType] Lookup failed:', error.message);
+    return res.status(500).json({ error: 'Failed to identify payment type' });
+  }
+});
+
 // Updated endpoint to handle payment success redirect
 app.get('/api/booking-success', isAuthenticated, async (req, res) => {
   const { booking_id, transId: requestedTransId } = req.query;
+  const isJsonRequest = req.xhr || (req.get('Accept') || '').includes('application/json');
+  const respond = (payload, statusCode = 200, redirectBookingId = booking_id) => {
+    if (isJsonRequest) {
+      return res.status(statusCode).json(payload);
+    }
+
+    const query = redirectBookingId ? `?booking_id=${encodeURIComponent(redirectBookingId)}` : '';
+    return res.redirect(`${process.env.FRONTEND_URL}/payment-success${query}`);
+  };
   const client = await pool.connect();
 
   try {
@@ -1972,7 +2017,30 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
 
     if (bookingResult.rows.length === 0) {
       await client.query('ROLLBACK');
-      return res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=booking_not_found`);
+
+      // Comgate sometimes returns here instead of /api/season-ticket-success (e.g. stale/default
+      // merchant return URL). Fall back to finalizing a matching season ticket order so a
+      // completed payment isn't silently lost.
+      if (requestedTransId) {
+        const orderLookup = await client.query(
+          `SELECT "refId" FROM pending_season_ticket_orders WHERE "transId" = $1 AND "userId" = $2`,
+          [requestedTransId, req.session.userId]
+        );
+        if (orderLookup.rows.length > 0) {
+          try {
+            const result = await finalizeSeasonTicketOrder(orderLookup.rows[0].refId);
+            if (result.ok) {
+              return respond({ success: true, type: 'season_ticket' });
+            }
+            return respond({ error: 'Payment not completed', reason: result.reason }, 400);
+          } catch (error) {
+            console.error('[BookingSuccess] Season ticket fallback error:', error.message);
+              return respond({ error: 'Failed to confirm payment' }, 500);
+          }
+        }
+      }
+
+      return respond({ error: 'Booking not found', reason: 'booking_not_found' }, 404);
     }
 
     const booking = bookingResult.rows[0];
@@ -1981,13 +2049,13 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
 
     if (!transId) {
       await client.query('ROLLBACK');
-      return res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=no_transaction`);
+      return respond({ error: 'No transaction associated with booking', reason: 'no_transaction' }, 400, bookingId);
     }
 
     // Idempotency — already confirmed
     if (booking.amount_paid !== null) {
       await client.query('ROLLBACK');
-      return res.json({ success: true, alreadyConfirmed: true });
+      return respond({ success: true, alreadyConfirmed: true }, 200, bookingId);
     }
 
     // Verify payment status with Comgate
@@ -2106,7 +2174,7 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
         }
       }
 
-      res.json({ success: true, bookingId });
+      respond({ success: true, bookingId }, 200, bookingId);
 
     } else {
       // Payment failed, cancelled or expired
@@ -2117,46 +2185,45 @@ app.get('/api/booking-success', isAuthenticated, async (req, res) => {
         [bookingId]
       );
       await client.query('COMMIT');
-      res.status(400).json({ error: 'Payment not completed', reason: 'payment_failed' });
+      respond({ error: 'Payment not completed', reason: 'payment_failed' }, 400, bookingId);
     }
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error confirming payment:', error);
-    res.status(500).json({ error: 'Failed to confirm payment' });
+    respond({ error: 'Failed to confirm payment' }, 500, booking_id);
   } finally {
     client.release();
   }
 });
 
-// Comgate return URL handler for season ticket purchases
-app.get('/api/season-ticket-success', async (req, res) => {
-  const { refId } = req.query;
-  if (!refId) return res.status(400).json({ error: 'Chýba refId' });
-
+// Finalizes a pending season ticket order once Comgate confirms payment.
+// Shared by the /api/season-ticket-success redirect handler, the /api/booking-success
+// fallback (used when Comgate's return redirect lands on the generic booking endpoint),
+// and the background reconciliation job that catches orders whose redirect never arrives.
+async function finalizeSeasonTicketOrder(refId) {
   const client = await pool.connect();
   try {
-    // Look up pending order
     const orderResult = await client.query(
       `SELECT * FROM pending_season_ticket_orders WHERE "refId" = $1`,
       [refId]
     );
 
     if (orderResult.rows.length === 0) {
-      return res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=order_not_found`);
+      return { ok: false, reason: 'order_not_found' };
     }
 
     const order = orderResult.rows[0];
     const transId = order.transId;
 
     if (!transId) {
-      return res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=no_transaction`);
+      return { ok: false, reason: 'no_transaction' };
     }
 
     // Verify payment status with Comgate
     const status = await paymentGateway.getPaymentStatus(transId);
 
     if (status !== 'PAID') {
-      return res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=payment_failed`);
+      return { ok: false, reason: 'payment_failed' };
     }
 
     await client.query('BEGIN');
@@ -2168,7 +2235,8 @@ app.get('/api/season-ticket-success', async (req, res) => {
     );
     if (existing.rows.length > 0) {
       await client.query('ROLLBACK');
-      return res.redirect('/user-profile');
+      await client.query(`DELETE FROM pending_season_ticket_orders WHERE "refId" = $1`, [refId]);
+      return { ok: true, alreadyProcessed: true };
     }
 
     // Re-validate price from DB
@@ -2263,14 +2331,29 @@ app.get('/api/season-ticket-success', async (req, res) => {
       console.error('[SeasonTicket] Email failed (ticket already saved):', emailError.message);
     }
 
-    res.redirect('/user-profile');
-
+    return { ok: true, seasonTicketId, userId: order.userId };
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('[SeasonTicket] season-ticket-success error:', error.message);
-    res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=server_error`);
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
   } finally {
     client.release();
+  }
+}
+
+// Comgate return URL handler for season ticket purchases
+app.get('/api/season-ticket-success', async (req, res) => {
+  const { refId } = req.query;
+  if (!refId) return res.status(400).json({ error: 'Chýba refId' });
+
+  try {
+    const result = await finalizeSeasonTicketOrder(refId);
+    if (!result.ok) {
+      return res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=${result.reason}`);
+    }
+    return res.redirect(`${process.env.FRONTEND_URL}/profile`);
+  } catch (error) {
+    console.error('[SeasonTicket] season-ticket-success error:', error.message);
+    return res.redirect(`${process.env.FRONTEND_URL}/payment-cancelled?reason=server_error`);
   }
 });
 
@@ -3516,7 +3599,7 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
 
     // 1. Získanie info o tréningu
     const trainingRes = await client.query(
-      'SELECT training_date, training_type FROM training_availability WHERE id = $1',
+      'SELECT training_date, training_type, cancelled FROM training_availability WHERE id = $1',
       [trainingId]
     );
 
@@ -3526,6 +3609,17 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
     }
 
     const trainingInfo = trainingRes.rows[0];
+
+    if (trainingInfo.cancelled) {
+      await client.query('ROLLBACK');
+      return res.json({
+        success: true,
+        alreadyCancelled: true,
+        message: 'Session was already cancelled.',
+        canceledBookings: 0
+      });
+    }
+
     const trainingDateObj = new Date(trainingInfo.training_date);
     const trainingTypeStr = trainingInfo.training_type;
 
@@ -3540,19 +3634,24 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
 
     // 2. Označenie session ako ZRUŠENÁ
     const updateResult = await client.query(
-      'UPDATE training_availability SET cancelled = TRUE WHERE id = $1',
+      'UPDATE training_availability SET cancelled = TRUE WHERE id = $1 AND cancelled IS NOT TRUE',
       [trainingId]
     );
 
     if (updateResult.rowCount === 0) {
       await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Failed to cancel training session' });
+      return res.json({
+        success: true,
+        alreadyCancelled: true,
+        message: 'Session was already cancelled.',
+        canceledBookings: 0
+      });
     }
 
     // 3. Získanie všetkých bookingov
     // Ťaháme aj training_type a date, aby sme ich mali pre emaily
     const bookingsRes = await client.query(`
-      SELECT 
+      SELECT DISTINCT ON (b.id)
         b.id AS booking_id, 
         b.user_id, 
         b.session_id,
@@ -3574,6 +3673,8 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
       JOIN training_availability ta ON b.training_id = ta.id
       LEFT JOIN season_ticket_usage stu ON b.id = stu.booking_id
       WHERE b.training_id = $1
+        AND b.active IS TRUE
+      ORDER BY b.id, stu.id DESC
     `, [trainingId]);
 
     const bookings = bookingsRes.rows;
@@ -3667,6 +3768,7 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
           // queue email similar to card cancellation
           emailQueue.push({
             type: 'card',
+            userId: booking.user_id,
             email: booking.email,
             booking: booking,
             reason: reason,
@@ -3680,6 +3782,7 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
           // Títo ostávajú, kým si nevyberú možnosť
           emailQueue.push({
             type: 'card',
+            userId: booking.user_id,
             email: booking.email,
             booking: booking,
             reason: reason,
@@ -3697,7 +3800,18 @@ app.post('/api/admin/cancel-session', isAdmin, async (req, res) => {
     console.log('[DEBUG] DB Transaction Committed. Sending emails now...');
 
     // 6. ODOSLANIE EMAILOV (Až teraz, keď je DB v poriadku)
-    const emailPromises = emailQueue.map(task => {
+    const sentCardCancellationUsers = new Set();
+    const emailPromises = emailQueue
+      .filter(task => {
+        if (task.type !== 'card') return true;
+
+        const userKey = task.userId || task.email;
+        if (sentCardCancellationUsers.has(userKey)) return false;
+
+        sentCardCancellationUsers.add(userKey);
+        return true;
+      })
+      .map(task => {
       // Používame try-catch vnútri mapy, aby jeden zlyhaný email nezhodil ostatné
       // (alebo Promise.allSettled nižšie to rieši tiež)
       if (task.type === 'season') {
@@ -5219,6 +5333,30 @@ setInterval(async () => {
     console.error('[CLEANUP] Error removing old pending bookings:', err.message);
   }
 }, 6 * 60 * 60 * 1000); // Run every 6 hours
+
+// === SEASON TICKET PAYMENT RECONCILIATION ===
+// Comgate's return redirect can land on the wrong page (e.g. a stale/default merchant
+// return URL), leaving a pending order stuck even though Comgate already marked the
+// payment as PAID. Periodically re-check and finalize any such orders before they expire.
+setInterval(async () => {
+  try {
+    const pendingResult = await pool.query(
+      `SELECT "refId" FROM pending_season_ticket_orders WHERE "transId" IS NOT NULL`
+    );
+    for (const row of pendingResult.rows) {
+      try {
+        const result = await finalizeSeasonTicketOrder(row.refId);
+        if (result.ok && !result.alreadyProcessed) {
+          console.log(`[SeasonTicket Reconciliation] Finalized stuck order ${row.refId}`);
+        }
+      } catch (err) {
+        console.error(`[SeasonTicket Reconciliation] Failed to finalize ${row.refId}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[SeasonTicket Reconciliation] Error:', err.message);
+  }
+}, 5 * 60 * 1000); // Run every 5 minutes
 
 // === REVIEW EMAIL SCHEDULER ===
 // Runs every 15 minutes. Sends a review request email 1 hour after a training session ends.
