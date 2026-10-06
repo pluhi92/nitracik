@@ -1417,13 +1417,14 @@ app.post('/api/create-season-ticket-payment', isAuthenticated, async (req, res) 
     }
 
     const refId = `st-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-    const orderExpiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours
 
+    // Expiry is computed by the DB (same clock/timezone as createdAt) so the 2h grace
+    // period is not skewed by the Node process timezone when writing a JS Date.
     await pool.query(
       `INSERT INTO pending_season_ticket_orders
          ("refId", "userId", "productId", "offerId", entries, amount, "expiresAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [refId, userId, productIdInt, offerResult.rows[0].offer_id, entriesInt, dbPrice, orderExpiresAt]
+       VALUES ($1, $2, $3, $4, $5, $6, NOW() + INTERVAL '2 hours')`,
+      [refId, userId, productIdInt, offerResult.rows[0].offer_id, entriesInt, dbPrice]
     );
 
     const userEmailResult = await pool.query(
@@ -5428,6 +5429,35 @@ setInterval(async () => {
   }
 }, 5 * 60 * 1000); // Run every 5 minutes
 
+// === GIFT CARD PAYMENT RECONCILIATION ===
+// Mirrors the season ticket reconciliation: Comgate can capture the payment even when the
+// browser never returns to /gift-card/success (e.g. the customer closed the window), which
+// would otherwise leave a paid order without a gift card. Periodically re-check and finalize
+// any such orders before the pending order expires.
+async function reconcilePendingGiftCardOrders() {
+  const pendingResult = await pool.query(
+    `SELECT "refId" FROM pending_gift_card_orders WHERE "transId" IS NOT NULL`
+  );
+  for (const row of pendingResult.rows) {
+    try {
+      const result = await finalizeGiftCardOrder(row.refId);
+      if (result.ok && !result.alreadyProcessed) {
+        console.log(`[GiftCard Reconciliation] Finalized stuck order ${row.refId}`);
+      }
+    } catch (err) {
+      console.error(`[GiftCard Reconciliation] Failed to finalize ${row.refId}:`, err.message);
+    }
+  }
+}
+
+setInterval(async () => {
+  try {
+    await reconcilePendingGiftCardOrders();
+  } catch (err) {
+    console.error('[GiftCard Reconciliation] Error:', err.message);
+  }
+}, 5 * 60 * 1000); // Run every 5 minutes
+
 // === REVIEW EMAIL SCHEDULER ===
 // Runs every 15 minutes. Sends a review request email 1 hour after a training session ends.
 // duration_minutes comes from training_types (joined via training_type_id).
@@ -5863,12 +5893,13 @@ app.post('/api/create-gift-card-session', async (req, res) => {
 
     // Save pending order to DB before redirecting to Comgate
     const refId = `gc-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-    const orderExpiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours
 
+    // Expiry is computed by the DB (same clock/timezone as createdAt) so the 2h grace
+    // period is not skewed by the Node process timezone when writing a JS Date.
     await pool.query(
       `INSERT INTO pending_gift_card_orders
          ("refId", amount, "buyerEmail", "buyerName", "recipientName", "recipientEmail", message, "expiresAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW() + INTERVAL '2 hours')`,
       [
         refId,
         parsedAmount,
@@ -5877,7 +5908,6 @@ app.post('/api/create-gift-card-session', async (req, res) => {
         recipientName,
         recipientEmail || null,
         message || null,
-        orderExpiresAt,
       ]
     );
 
@@ -5904,36 +5934,43 @@ app.post('/api/create-gift-card-session', async (req, res) => {
   }
 });
 
-// ENDPOINT 2: Confirm gift card after successful Comgate payment
-app.get('/api/gift-card-success', async (req, res) => {
-  const { refId } = req.query;
-  if (!refId) return res.status(400).json({ error: 'Chýba refId' });
-
+// Finalizes a pending gift card order once Comgate confirms payment. Shared by the
+// /api/gift-card-success redirect handler and the background reconciliation job that
+// recovers orders whose browser redirect never arrives (e.g. the customer closed the window).
+async function finalizeGiftCardOrder(refId) {
   const client = await pool.connect();
   try {
-    // Look up pending order
     const orderResult = await client.query(
       `SELECT * FROM pending_gift_card_orders WHERE "refId" = $1`,
       [refId]
     );
 
     if (orderResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Objednávka nenájdená alebo vypršala' });
+      return { ok: false, reason: 'order_not_found' };
     }
 
     const order = orderResult.rows[0];
     const transId = order.transId;
 
     if (!transId) {
-      return res.status(400).json({ error: 'Platba nebola iniciovaná' });
+      return { ok: false, reason: 'no_transaction' };
     }
 
     // Verify payment status with Comgate
     const status = await paymentGateway.getPaymentStatus(transId);
 
     if (status !== 'PAID') {
-      return res.status(400).json({ error: 'Platba nebola úspešná', status });
+      return { ok: false, reason: 'payment_not_completed', status };
     }
+
+    await client.query('BEGIN');
+
+    // Serialize concurrent finalizers (redirect handler vs. reconciliation job) so a
+    // single transaction can never produce two gift cards.
+    await client.query(
+      `SELECT id FROM pending_gift_card_orders WHERE "refId" = $1 FOR UPDATE`,
+      [refId]
+    );
 
     // Idempotency check — return existing gift card if already created
     const existing = await client.query(
@@ -5941,18 +5978,9 @@ app.get('/api/gift-card-success', async (req, res) => {
       [transId]
     );
     if (existing.rows.length > 0) {
-      const gc = existing.rows[0];
-      return res.json({
-        code: gc.code,
-        amount: gc.amount,
-        balance: gc.balance,
-        buyerEmail: gc.buyerEmail,
-        buyerName: gc.buyerName || '',
-        recipientName: gc.recipientName,
-        message: gc.message || '',
-        expiresAt: gc.expiresAt,
-        hasPdf: false,
-      });
+      await client.query(`DELETE FROM pending_gift_card_orders WHERE "refId" = $1`, [refId]);
+      await client.query('COMMIT');
+      return { ok: true, alreadyProcessed: true, giftCard: existing.rows[0], hasPdf: false };
     }
 
     // Extract order data
@@ -5992,6 +6020,8 @@ app.get('/api/gift-card-success', async (req, res) => {
 
     // Clean up pending order
     await client.query(`DELETE FROM pending_gift_card_orders WHERE "refId" = $1`, [refId]);
+
+    await client.query('COMMIT');
 
     // Generate PDF
     let pdfBuffer = null;
@@ -6037,18 +6067,45 @@ app.get('/api/gift-card-success', async (req, res) => {
       console.error('[GiftCard] Admin notification failed:', adminEmailError.message);
     }
 
-    res.json({
+    return { ok: true, giftCard: gc, hasPdf: pdfBuffer !== null };
+
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+// ENDPOINT 2: Confirm gift card after successful Comgate payment
+app.get('/api/gift-card-success', async (req, res) => {
+  const { refId } = req.query;
+  if (!refId) return res.status(400).json({ error: 'Chýba refId' });
+
+  try {
+    const result = await finalizeGiftCardOrder(refId);
+
+    if (!result.ok) {
+      if (result.reason === 'order_not_found') {
+        return res.status(404).json({ error: 'Objednávka nenájdená alebo vypršala' });
+      }
+      if (result.reason === 'no_transaction') {
+        return res.status(400).json({ error: 'Platba nebola iniciovaná' });
+      }
+      // payment_not_completed
+      return res.status(400).json({ error: 'Platba nebola úspešná', status: result.status });
+    }
+
+    const gc = result.giftCard;
+    return res.json({
       code: gc.code, amount: gc.amount, balance: gc.balance,
       buyerEmail: gc.buyerEmail, buyerName: gc.buyerName || '',
       recipientName: gc.recipientName, message: gc.message || '',
-      expiresAt: gc.expiresAt, hasPdf: pdfBuffer !== null,
+      expiresAt: gc.expiresAt, hasPdf: result.hasPdf,
     });
-
   } catch (error) {
     console.error('[GiftCard] gift-card-success error:', error.message);
-    res.status(500).json({ error: error.message });
-  } finally {
-    client.release();
+    return res.status(500).json({ error: error.message });
   }
 });
 
@@ -6396,4 +6453,4 @@ if (require.main === module) {
 }
 
 // Export pre testy
-module.exports = { app, pool };
+module.exports = { app, pool, reconcilePendingGiftCardOrders };

@@ -64,6 +64,7 @@ const GiftCard = () => {
   const [successData, setSuccessData] = useState(null);
   const [successLoading, setSuccessLoading] = useState(true);
   const [successError, setSuccessError] = useState('');
+  const [successNotCompleted, setSuccessNotCompleted] = useState(null);
   const [copied, setCopied] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -100,6 +101,7 @@ const GiftCard = () => {
     const fetchSuccessData = async () => {
       setSuccessLoading(true);
       setSuccessError('');
+      setSuccessNotCompleted(null);
       try {
         const refId = searchParams.get('refId');
         if (!refId) {
@@ -110,7 +112,13 @@ const GiftCard = () => {
         const response = await api.get(`/api/gift-card-success?refId=${refId}`);
         setSuccessData(response.data);
       } catch (err) {
-        setSuccessError(err.response?.data?.error || 'Nepodarilo sa načítať údaje o poukaze.');
+        const data = err.response?.data;
+        if (data?.status) {
+          // Payment exists but is not (yet) completed — e.g. cancelled at the gateway.
+          setSuccessNotCompleted(data.status);
+        } else {
+          setSuccessError(data?.error || 'Nepodarilo sa načítať údaje o poukaze.');
+        }
       } finally {
         setSuccessLoading(false);
       }
@@ -205,6 +213,7 @@ const GiftCard = () => {
   // ── Retry success fetch ──
   const handleRetry = () => {
     setSuccessError('');
+    setSuccessNotCompleted(null);
     setSuccessLoading(true);
     const refId = searchParams.get('refId');
     if (!refId) {
@@ -285,6 +294,36 @@ const GiftCard = () => {
               Ostaňte na stránke, chvíľku trpezlivosti…
             </p>
             <Spinner animation="border" variant="warning" />
+          </div>
+        )}
+
+        {!successLoading && successNotCompleted && (
+          <div
+            className="bg-white rounded-[2rem] border-2 border-neutral-300 shadow-md p-8 sm:p-12 text-center"
+          >
+            <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-2xl font-black text-foreground mb-4">Platba nebola dokončená</h2>
+            <p className="text-neutral-600 mb-6">
+              Platba za darčekový poukaz nebola dokončená, poukaz zatiaľ nebol vytvorený.
+              Ak si platbu práve dokončil, skús to o chvíľu znova. Ak peniaze odišli a poukaz
+              nedostaneš, kontaktuj nás prosím na info@nitracik.sk.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={handleRetry}
+                className="bg-amber-400 hover:bg-amber-500 text-white font-bold rounded-2xl px-8 py-3 transition-colors"
+              >
+                Skúsiť znova
+              </button>
+              <Link
+                to="/gift-card"
+                className="border-2 border-neutral-200 text-neutral-700 font-bold rounded-2xl px-8 py-3 hover:bg-neutral-50 transition-colors"
+              >
+                Späť na darčekové poukazy
+              </Link>
+            </div>
           </div>
         )}
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle2, XCircle, Loader2, AlertTriangle } from 'lucide-react';
 import api from '../api/api';
 
@@ -17,6 +17,7 @@ const FlakCream = ({ className, style }) => (
 
 const PaymentCancelled = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [message, setMessage] = useState('Processing your payment information...');
 
   useEffect(() => {
@@ -24,8 +25,13 @@ const PaymentCancelled = () => {
     
     const handlePaymentFailed = async () => {
       try {
-        // Try to get booking ID from localStorage
-        const pendingBookingId = localStorage.getItem('pendingBookingId');
+        // Only the booking flow stores `pendingBookingId`; other payment types
+        // (season tickets, gift cards) must not act on a leftover booking id.
+        const isBookingFailure =
+          new URLSearchParams(location.search).get('reason') === 'payment_confirmation_failed';
+        const pendingBookingId = isBookingFailure
+          ? localStorage.getItem('pendingBookingId')
+          : null;
 
         // Call backend to mark booking as inactive and send email
         if (pendingBookingId) {
@@ -55,7 +61,7 @@ const PaymentCancelled = () => {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [navigate]);
+  }, [navigate, location.search]);
 
   const isSuccess = message.includes('✅');
   const isError = message.includes('❌');
