@@ -33,7 +33,7 @@ const SpinnerIcon = ({ className }) => (
 );
 
 const UserProfile = () => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const location = useLocation();
 
   useEffect(() => {
@@ -61,6 +61,8 @@ const UserProfile = () => {
   const [replacementSessions, setReplacementSessions] = useState([]);
   const [selectedReplacement, setSelectedReplacement] = useState('');
   const [bookingType, setBookingType] = useState('');
+  const [cancelResult, setCancelResult] = useState(null);
+  const cancelResultTimer = useRef(null);
   const [alertMessage, setAlertMessage] = useState('');
   const [alertVariant, setAlertVariant] = useState('success');
   const navigate = useNavigate();
@@ -121,6 +123,24 @@ const UserProfile = () => {
     setAlertVariant(variant);
     setTimeout(() => setAlertMessage(''), 5000);
   };
+
+  // Výsledok zrušenia rezervácie zobrazíme v modáli, aby ho používateľ videl bez scrollovania nahor.
+  const showCancelResult = (message, variant = 'success') => {
+    if (cancelResultTimer.current) clearTimeout(cancelResultTimer.current);
+    setCancelResult({ message, variant });
+    if (variant === 'success') {
+      cancelResultTimer.current = setTimeout(() => setCancelResult(null), 4000);
+    }
+  };
+
+  const closeCancelResult = () => {
+    if (cancelResultTimer.current) clearTimeout(cancelResultTimer.current);
+    setCancelResult(null);
+  };
+
+  useEffect(() => () => {
+    if (cancelResultTimer.current) clearTimeout(cancelResultTimer.current);
+  }, []);
 
   const handleGiftCardLookup = async () => {
     if (!gcInputCode.trim()) return;
@@ -832,7 +852,7 @@ const UserProfile = () => {
 
   const handleCancelSession = async (bookingId, trainingDate) => {
     if (!canCancelSession(trainingDate)) {
-      showAlert(t?.profile?.cancel?.alert || 'Cancellation is not allowed within 10 hours of the session.', 'danger');
+      showCancelResult(t?.profile?.cancel?.alert || 'Cancellation is not allowed within 10 hours of the session.', 'danger');
       return;
     }
 
@@ -849,7 +869,7 @@ const UserProfile = () => {
       setBookingType(response.data.bookingType);
     } catch (error) {
       console.error('Error fetching booking type:', error);
-      showAlert(
+      showCancelResult(
         error.message || t?.profile?.cancel?.error?.generic || 'Failed to fetch booking details.',
         'danger'
       );
@@ -878,14 +898,16 @@ const UserProfile = () => {
         );
 
         if (response.data.error) {
-          showAlert(
+          showCancelResult(
             response.data.error || t?.profile?.cancel?.error?.generic || 'Failed to cancel booking.',
             'danger'
           );
         } else {
           let message = t?.profile?.cancel?.success || 'Session canceled successfully.';
-          if (response.data.refundProcessed) {
-            message += ` ${t?.profile?.cancel?.refundSuccess || 'Refund has been processed.'} Refund ID: ${response.data.refundId}.`;
+          if (response.data.refundId) {
+            message += ` ${t?.profile?.cancel?.refundSuccess || 'Refund has been processed.'} ${t?.profile?.cancel?.refundIdLabel || 'ID transakcie'}: ${response.data.refundId}.`;
+          } else if (response.data.refundProcessed) {
+            message += ` ${t?.profile?.cancel?.refundSuccess || 'Refund has been processed.'}`;
           } else if (response.data.seasonTicketEntriesReturned > 0) {
             message += ` ${t?.profile?.cancel?.seasonTicketSuccess?.replace('{count}', response.data.seasonTicketEntriesReturned) || `${response.data.seasonTicketEntriesReturned} entries returned to your season ticket.`}`;
           } else if (response.data.creditReturned) {
@@ -895,7 +917,7 @@ const UserProfile = () => {
           } else if (response.data.refundError) {
             message += ` ${t?.profile?.cancel?.refundFailed || 'Refund processing failed.'} ${response.data.refundError}`;
           }
-          showAlert(message, response.data.refundError ? 'danger' : 'success');
+          showCancelResult(message, response.data.refundError ? 'danger' : 'success');
         }
 
       } else if (cancellationType === 'credit') {
@@ -907,15 +929,15 @@ const UserProfile = () => {
         );
 
         if (response.data.error) {
-          showAlert(
-            response.data.error || 'Failed to issue credit.',
+          showCancelResult(
+            response.data.error || t?.profile?.cancel?.error?.generic || 'Failed to issue credit.',
             'danger'
           );
         } else {
           const message = response.data.creditIssued
             ? (t?.profile?.cancel?.creditIssued || 'Credit has been added to your account and is ready to use!')
             : (t?.profile?.cancel?.creditReturned || 'Your credit has been returned to your account.');
-          showAlert(message, 'success');
+          showCancelResult(message, 'success');
         }
 
       } else if (cancellationType === 'return') {
@@ -924,12 +946,12 @@ const UserProfile = () => {
         );
 
         if (response.data.error) {
-          showAlert(response.data.error, 'danger');
+          showCancelResult(response.data.error, 'danger');
         } else {
           const message = bookingType === 'season_ticket'
             ? (t?.profile?.cancel?.entryReturned || 'Entry has been returned to your season ticket.')
             : (t?.profile?.cancel?.creditReturned || 'Your credit has been returned to your account.');
-          showAlert(message, 'success');
+          showCancelResult(message, 'success');
         }
 
       } else if (cancellationType === 'replacement' && selectedReplacement) {
@@ -937,7 +959,7 @@ const UserProfile = () => {
           `/api/replace-booking/${selectedBooking.bookingId}`,
           { newTrainingId: selectedReplacement }
         );
-        showAlert(t?.profile?.cancel?.replacementSuccess || 'Session successfully replaced.', 'success');
+        showCancelResult(t?.profile?.cancel?.replacementSuccess || 'Session successfully replaced.', 'success');
       }
 
       const bookingsResponse = await api.get(`/api/bookings/user/${userId}`);
@@ -946,9 +968,9 @@ const UserProfile = () => {
     } catch (error) {
       console.error('Error processing cancellation:', error);
       if (error.response?.data?.error?.includes('10 hours')) {
-        showAlert('Cancellation is not allowed within 10 hours of the session.', 'danger');
+        showCancelResult(t?.profile?.cancel?.alert || 'Cancellation is not allowed within 10 hours of the session.', 'danger');
       } else {
-        showAlert(
+        showCancelResult(
           error.response?.data?.error || t?.profile?.cancel?.error?.generic || 'Failed to process cancellation.',
           'danger'
         );
@@ -2368,7 +2390,16 @@ const UserProfile = () => {
                     <strong className="text-blue-900 block mb-1 text-sm">{t?.profile?.cancelModal?.refundInfo || 'Informácie o vrátení peňazí:'}</strong>
                     <p className="text-blue-700 text-sm font-medium">
                       {t?.profile?.cancelModal?.refundDetails || 'Peniaze budú automaticky vrátené na váš bankový účet. Proces môže trvať 5-10 pracovných dní.'}
-                      <a href="https://www.comgate.cz/cz/platebni-brana" target="_blank" rel="noopener noreferrer" className="ml-1 font-bold underline hover:text-blue-800">Comgate</a>
+                      <a
+                        href={language === 'en'
+                          ? 'https://help.comgate.eu/docs/en/refund-payment-gateway#frequently-asked-questions'
+                          : 'https://help.comgate.eu/docs/sk/refundacia#%C4%8Dast%C3%A9-ot%C3%A1zky'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-1 font-bold underline hover:text-blue-800"
+                      >
+                        {t?.profile?.cancelModal?.refundLink || 'Podmienky vrátenia peňazí (Comgate)'}
+                      </a>
                     </p>
                   </div>
                 </div>
@@ -2436,6 +2467,36 @@ const UserProfile = () => {
               }
             </button>
           </Modal.Footer>
+        </div>
+      </Modal>
+
+      {/* Výsledok zrušenia rezervácie (auto-close pri úspechu) */}
+      <Modal
+        show={!!cancelResult}
+        onHide={closeCancelResult}
+        centered
+        className="d-flex align-items-center justify-content-center"
+        dialogClassName="mx-4 w-full max-w-md"
+        contentClassName="rounded-[2rem] shadow-2xl border-0 overflow-hidden"
+      >
+        <div className="bg-white rounded-[2rem] shadow-2xl border-0 overflow-hidden px-6 sm:px-8 py-8 text-center">
+          <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${cancelResult?.variant === 'danger' ? 'bg-red-100' : 'bg-emerald-100'}`}>
+            {cancelResult?.variant === 'danger'
+              ? <AlertTriangle className="w-8 h-8 text-red-600" />
+              : <CheckCircle className="w-8 h-8 text-emerald-600" />}
+          </div>
+          <h5 className="text-xl font-black text-foreground mb-2">
+            {cancelResult?.variant === 'danger'
+              ? (t?.profile?.cancel?.errorTitle || 'Nepodarilo sa')
+              : (t?.profile?.cancel?.successTitle || 'Hotovo!')}
+          </h5>
+          <p className="text-neutral-600 font-medium mb-6">{cancelResult?.message}</p>
+          <button
+            onClick={closeCancelResult}
+            className={`w-full px-6 py-3 rounded-xl font-bold text-white transition-all hover:shadow-md ${cancelResult?.variant === 'danger' ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+          >
+            {t?.profile?.cancel?.close || 'Zavrieť'}
+          </button>
         </div>
       </Modal>
 

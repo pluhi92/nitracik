@@ -3537,6 +3537,7 @@ app.delete('/api/bookings/:bookingId', isAuthenticated, async (req, res) => {
       success: true,
       message: 'Booking canceled successfully',
       refundProcessed: !!refundData?.id || ['credit_returned', 'season_ticket_returned', 'credit_issued'].includes(refundData?.type),
+      refundId: refundData?.id || null,
       creditIssued: refundData?.type === 'credit_issued'
       ,
       giftCardBalanceRestored: giftCardBalanceRestored

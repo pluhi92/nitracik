@@ -368,6 +368,9 @@
       "alert": "Zrušenie je povolené iba do 10 hodín pred hodinou.",
       "confirm": "Naozaj chcete zrušiť túto hodinu?",
       "success": "Hodina bola úspešne zrušená. E-maily boli odoslané vám a administrátorovi.",
+      "successTitle": "Hotovo!",
+      "errorTitle": "Nepodarilo sa",
+      "close": "Zavrieť",
       "error": {
         "notFound": "Rezerváciu nebolo možné nájsť. Možno bola už vymazaná alebo neexistuje.",
         "unauthorized": "Nemáte oprávnenie na zrušenie tejto rezervácie.",
@@ -398,13 +401,17 @@
         "noReplacements": "Nenašli sa žiadne dostupné náhradné hodiny.",
         "refundInfo": "Informácie o refundácii:",
         "refundDetails": "Vaša refundácia bude spracovaná automaticky a môže trvať 5-10 pracovných dní, kým sa objaví na vašom účte.",
+        "refundLink": "Podmienky vrátenia peňazí (Comgate)",
         "seasonTicketInfo": "Táto rezervácia bola vytvorená pomocou permanentky. Refundácia nie je možná; vstupy budú vrátené na vašu permanentku.",
         "creditInfo": "Táto rezervácia bola vytvorená pomocou kreditu. Váš kredit bude vrátený na váš účet pre budúce použitie.",
         "confirm": "Potvrdiť zrušenie"
       },
       "refundSuccess": "Refundácia bola spracovaná.",
+      "refundIdLabel": "ID transakcie",
       "seasonTicketSuccess": "{count} vstupov bolo vrátených na vašu permanentku.",
       "creditReturned": "Váš kredit bol vrátený na váš účet.",
+      "creditIssued": "Kredit bol pripísaný na váš účet a je pripravený na použitie!",
+      "entryReturned": "Vstup bol vrátený na vašu permanentku.",
       "refundFailed": "Spracovanie refundácie zlyhalo.",
       "replacementSuccess": "Hodina bola úspešne nahradená."
     },

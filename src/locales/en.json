@@ -370,6 +370,9 @@
       "alert": "Cancellation is allowed only within 10 hours before the session.",
       "confirm": "Are you sure you want to cancel this session?",
       "success": "Session was successfully canceled. Emails have been sent to you and the administrator.",
+      "successTitle": "Done!",
+      "errorTitle": "Something went wrong",
+      "close": "Close",
       "error": {
         "notFound": "Booking could not be found. It may have been already deleted or does not exist.",
         "unauthorized": "You are not authorized to cancel this booking.",
@@ -400,13 +403,17 @@
         "noReplacements": "No available replacement sessions found.",
         "refundInfo": "Refund Information:",
         "refundDetails": "Your refund will be processed automatically and may take 5-10 business days to appear in your account.",
+        "refundLink": "Refund conditions (Comgate)",
         "seasonTicketInfo": "This booking was made with a season ticket. No refund is applicable; entries will be returned to your season ticket.",
         "creditInfo": "This booking was made with a credit. Your credit will be returned to your account for future use.",
         "confirm": "Confirm Cancellation"
       },
       "refundSuccess": "Refund has been processed.",
+      "refundIdLabel": "Transaction ID",
       "seasonTicketSuccess": "{count} entries returned to your season ticket.",
       "creditReturned": "Your credit has been returned to your account.",
+      "creditIssued": "Credit has been added to your account and is ready to use!",
+      "entryReturned": "Entry has been returned to your season ticket.",
       "refundFailed": "Refund processing failed.",
       "replacementSuccess": "Session successfully replaced."
     },
