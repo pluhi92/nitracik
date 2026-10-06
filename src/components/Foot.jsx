@@ -10,6 +10,7 @@ import visaLogo from "../assets/visa.png";
 import mastercardLogo from "../assets/mastercard.png";
 import applepayLogo from "../assets/applePay.png";
 import googlepayLogo from "../assets/googlePay.png";
+import comgateLogo from "../assets/comgate-logo.png";
 
 const FlakPink = ({ className, style }) => (
   <svg viewBox="0 0 170.079 170.658" xmlns="http://www.w3.org/2000/svg" className={className} style={style} aria-hidden="true">
@@ -109,6 +110,10 @@ const Foot = () => {
         >
           <FaInstagram className="w-4 h-4" />
         </a>
+      </div>
+
+      <div className="flex justify-center items-center mb-3">
+        <img src={comgateLogo} alt="Comgate" className="h-6 object-contain" title="Comgate" />
       </div>
 
       <div className="flex gap-2.5 flex-wrap justify-center items-center">

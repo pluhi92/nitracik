@@ -2970,6 +2970,76 @@ app.post('/api/bookings/cancel-pending', isAuthenticated, async (req, res) => {
   }
 });
 
+// Resumes payment for an existing (unpaid) booking. The original Comgate redirect URL
+// is returned only once at creation, so we create a fresh transaction for the same
+// booking, store its transId and return the new gateway redirect URL to the client.
+app.post('/api/bookings/resume-payment', isAuthenticated, async (req, res) => {
+  const userId = req.session.userId;
+  const bookingId = req.body?.bookingId;
+
+  if (!bookingId) {
+    return res.status(400).json({ error: 'Chýba bookingId.' });
+  }
+
+  try {
+    const bookingResult = await pool.query(
+      `SELECT b.*, u.email
+       FROM bookings b
+       JOIN users u ON b.user_id = u.id
+       WHERE b.id = $1 AND b.user_id = $2
+       LIMIT 1`,
+      [bookingId, userId]
+    );
+
+    if (bookingResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Rezervácia nenájdená.' });
+    }
+
+    const booking = bookingResult.rows[0];
+
+    if (booking.amount_paid !== null || booking.active === true) {
+      return res.status(409).json({
+        error: 'Rezervácia je už uhradená.',
+        code: 'ALREADY_PAID',
+      });
+    }
+
+    const priceEur = booking.amount_expected !== null && booking.amount_expected !== undefined
+      ? parseFloat(booking.amount_expected)
+      : NaN;
+
+    if (!(priceEur > 0)) {
+      return res.status(400).json({ error: 'Chýbajúca suma na úhradu.' });
+    }
+
+    const isAdult = booking.age_group === 'adult' || (booking.number_of_adults || 0) > 0;
+    const prefix = isAdult ? 'adult' : 'child';
+    const returnUrl = `${process.env.FRONTEND_URL}/payment-success?booking_id=${booking.id}`;
+
+    const comgatePayment = await paymentGateway.createPayment({
+      priceEur,
+      refId: `${prefix}-${booking.id}-${Date.now()}`,
+      label: `Trening${booking.training_id}`,
+      returnUrl,
+      email: booking.email,
+    });
+
+    await pool.query(
+      'UPDATE bookings SET session_id = $1 WHERE id = $2 AND amount_paid IS NULL',
+      [comgatePayment.transId, booking.id]
+    );
+
+    res.json({
+      redirectUrl: comgatePayment.redirectUrl,
+      transId: comgatePayment.transId,
+      bookingId: booking.id,
+    });
+  } catch (err) {
+    console.error('[RESUME PAYMENT] Error:', err.message);
+    res.status(500).json({ error: `Chyba pri obnovení platby: ${err.message}` });
+  }
+});
+
 app.get('/api/bookings/:bookingId/type', isAuthenticated, async (req, res) => {
   try {
     const bookingId = req.params.bookingId;

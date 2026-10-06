@@ -210,7 +210,6 @@ const Booking = () => {
   const [showDuplicateBookingModal, setShowDuplicateBookingModal] = useState(false);
   const [duplicateBookingModalContext, setDuplicateBookingModalContext] = useState(null);
   const [duplicateBookingConfirmedKey, setDuplicateBookingConfirmedKey] = useState('');
-  const [pendingExistingSessionId, setPendingExistingSessionId] = useState('');
   const [pendingExistingBookingId, setPendingExistingBookingId] = useState(null);
   const [fillFormPreference, setFillFormPreference] = useState({});
   const [userBookings, setUserBookings] = useState([]);
@@ -315,7 +314,6 @@ const Booking = () => {
   const closeDuplicateBookingModal = () => {
     setShowDuplicateBookingModal(false);
     setDuplicateBookingModalContext(null);
-    setPendingExistingSessionId('');
     setPendingExistingBookingId(null);
   };
 
@@ -929,7 +927,6 @@ const Booking = () => {
       origin = null,
     } = context;
 
-    setPendingExistingSessionId(existingSessionId || '');
     setPendingExistingBookingId(existingBookingId || null);
     setDuplicateBookingModalContext({
       source: 'pending',
@@ -1396,19 +1393,15 @@ const Booking = () => {
       setWarningMessage('');
 
       try {
-        if (pendingExistingSessionId) {
-          window.location.href = `${import.meta.env.VITE_API_URL || ''}/payment-success?booking_id=${pendingExistingBookingId}`;
-          return;
-        }
-
+        // Resume the existing unpaid booking: the original Comgate redirect URL is
+        // single-use and no longer available, so create a fresh transaction first.
         if (pendingExistingBookingId) {
-          try {
-            await api.post('/api/bookings/cancel-pending', {
-              bookingId: pendingExistingBookingId,
-            });
-          } catch (cancelErr) {
-            console.warn('[PENDING] Could not cancel old pending booking:', cancelErr.message);
-          }
+          const resume = await api.post('/api/bookings/resume-payment', {
+            bookingId: pendingExistingBookingId,
+          });
+          localStorage.setItem('pendingBookingId', pendingExistingBookingId);
+          window.location.href = resume.data.redirectUrl;
+          return;
         }
 
         await startPaidBookingCheckout({ forceAllowDuplicate: true });
@@ -1427,6 +1420,8 @@ const Booking = () => {
               error.response?.data?.existingBookingId
             );
             setWarningMessage('');
+          } else if (code === 'ALREADY_PAID' && pendingExistingBookingId) {
+            navigate(`/payment-success?booking_id=${pendingExistingBookingId}`);
           }
         } else if (error.response?.data?.error) {
           setWarningMessage(error.response.data.error);

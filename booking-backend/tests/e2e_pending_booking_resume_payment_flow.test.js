@@ -225,6 +225,104 @@ describe('E2E - pending booking resume payment flow', () => {
     );
   });
 
+  test('resume-payment returns a fresh Comgate redirect for an existing pending booking', async () => {
+    const user = await createVerifiedUser('test_pending_resume_endpoint@example.com');
+    const agent = await loginAsUser(user.email);
+
+    const { trainingType, training } = await createTrainingWithPrice({
+      trainingTypeName: 'TEST_PENDING_RESUME_ENDPOINT',
+      audienceType: 'children',
+      price: 21,
+    });
+
+    const payload = childPayload({
+      userId: user.id,
+      trainingId: training.id,
+      trainingType: trainingType.name,
+      note: 'resume-endpoint',
+    });
+
+    const firstCreate = await agent.post('/api/create-payment-session').send(payload);
+    expect(firstCreate.status).toBe(200);
+
+    const originalBooking = await getBookingById(firstCreate.body.bookingId);
+    expect(originalBooking.session_id).toBe(firstCreate.body.transId);
+
+    // Resuming must create a new transaction (original redirect URL is not stored).
+    const resume = await agent
+      .post('/api/bookings/resume-payment')
+      .send({ bookingId: firstCreate.body.bookingId });
+
+    expect(resume.status).toBe(200);
+    expect(resume.body.redirectUrl).toBe('https://payments.comgate.cz/mock');
+    expect(resume.body.bookingId).toBe(firstCreate.body.bookingId);
+    expect(resume.body.transId).toBeDefined();
+    expect(resume.body.transId).not.toBe(firstCreate.body.transId);
+
+    const resumedBooking = await getBookingById(firstCreate.body.bookingId);
+    expect(resumedBooking.session_id).toBe(resume.body.transId);
+    expect(resumedBooking.active).toBe(false);
+    expect(resumedBooking.amount_paid).toBeNull();
+
+    // Paying the new transaction confirms the same booking without creating a duplicate.
+    paymentGateway.getPaymentStatus.mockResolvedValueOnce('PAID');
+    const confirm = await agent.get(`/api/booking-success?booking_id=${firstCreate.body.bookingId}`);
+    expect(confirm.status).toBe(302);
+
+    await flushAsyncSideEffects();
+
+    const paidBooking = await getBookingById(firstCreate.body.bookingId);
+    expect(paidBooking.active).toBe(true);
+    expect(parseFloat(paidBooking.amount_paid)).toBe(21);
+
+    const bookingCount = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM bookings WHERE user_id = $1 AND training_id = $2`,
+      [user.id, training.id]
+    );
+    expect(bookingCount.rows[0].count).toBe(1);
+
+    expect(emailService.sendUserBookingEmail).toHaveBeenCalledTimes(1);
+    expect(emailService.sendAdminNewBookingNotification).toHaveBeenCalledTimes(1);
+  });
+
+  test('negative: resume-payment rejects an already paid booking', async () => {
+    const user = await createVerifiedUser('test_pending_resume_already_paid@example.com');
+    const agent = await loginAsUser(user.email);
+
+    const { trainingType, training } = await createTrainingWithPrice({
+      trainingTypeName: 'TEST_PENDING_RESUME_ALREADY_PAID',
+      audienceType: 'children',
+      price: 14,
+    });
+
+    const payload = childPayload({
+      userId: user.id,
+      trainingId: training.id,
+      trainingType: trainingType.name,
+      note: 'resume-already-paid',
+    });
+
+    const firstCreate = await agent.post('/api/create-payment-session').send(payload);
+    expect(firstCreate.status).toBe(200);
+
+    await completeBookingSuccess({ agent, bookingId: firstCreate.body.bookingId });
+
+    const resume = await agent
+      .post('/api/bookings/resume-payment')
+      .send({ bookingId: firstCreate.body.bookingId });
+
+    expect(resume.status).toBe(409);
+    expect(resume.body.code).toBe('ALREADY_PAID');
+  });
+
+  test('negative: resume-payment is not available to unauthenticated users', async () => {
+    const response = await request(app)
+      .post('/api/bookings/resume-payment')
+      .send({ bookingId: 1 });
+
+    expect(response.status).toBe(401);
+  });
+
   test('cancel-pending removes an existing pending booking so the user can start over', async () => {
     const user = await createVerifiedUser('test_pending_cancel_pending@example.com');
     const agent = await loginAsUser(user.email);
