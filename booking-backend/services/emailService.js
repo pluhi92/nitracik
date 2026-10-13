@@ -129,12 +129,14 @@ const getAttendeesList = async (trainingId) => {
     const maxParticipants = firstRow.max_participants;
     const totalBooked = parseInt(firstRow.total_children) || 0;
 
+    // Počet detí sa ráta len pri detských tréningoch.
+    // Pri dospeláckych a "Oboje" tréningoch sa ráta počet prihlásení (nie deti ani dospelí).
+    const isChildrenSession = firstRow.audience_type === 'children';
+
     // Filtrovanie riadkov kde existuje booking
     const attendees = result.rows.filter(row => row.first_name);
-    const isAdultSession = firstRow.audience_type === 'adult';
-    const availableSpots = isAdultSession
-      ? maxParticipants - attendees.length
-      : maxParticipants - totalBooked;
+    const bookedParticipants = isChildrenSession ? totalBooked : attendees.length;
+    const availableSpots = maxParticipants - bookedParticipants;
 
     let tableRows = '';
     attendees.forEach((row, index) => {
@@ -148,7 +150,7 @@ const getAttendeesList = async (trainingId) => {
         <tr style="border-bottom: 1px solid #e5e7eb;">
           <td style="padding: 10px; font-size: 14px;">${index + 1}.</td>
           <td style="padding: 10px; font-size: 14px;">${row.first_name} ${row.last_name}</td>
-          ${!isAdultSession ? `<td style="padding: 10px; text-align: center; font-size: 14px;">${row.number_of_children}</td>` : ''}
+          ${isChildrenSession ? `<td style="padding: 10px; text-align: center; font-size: 14px;">${row.number_of_children}</td>` : ''}
           <td style="padding: 10px; font-size: 14px;">${bookingTypeText}</td>
           <td style="padding: 10px; font-size: 14px;"><a href="mailto:${row.email}" style="color: #2563eb; text-decoration: none;">${row.email}</a></td>
         </tr>
@@ -166,13 +168,13 @@ const getAttendeesList = async (trainingId) => {
             <tr style="background-color: #eab308;">
               <th style="padding: 12px; text-align: left; font-size: 14px; color: white;">#</th>
               <th style="padding: 12px; text-align: left; font-size: 14px; color: white;">Meno</th>
-              ${!isAdultSession ? `<th style="padding: 12px; text-align: center; font-size: 14px; color: white;">Počet detí</th>` : ''}
+              ${isChildrenSession ? `<th style="padding: 12px; text-align: center; font-size: 14px; color: white;">Počet detí</th>` : ''}
               <th style="padding: 12px; text-align: left; font-size: 14px; color: white;">Typ rezervácie</th>
               <th style="padding: 12px; text-align: left; font-size: 14px; color: white;">Email</th>
             </tr>
           </thead>
           <tbody>
-            ${tableRows || `<tr><td colspan="${isAdultSession ? 4 : 5}" style="padding: 20px; text-align: center; color: #6b7280;">Zatiaľ žiadne prihlásenia</td></tr>`}
+            ${tableRows || `<tr><td colspan="${isChildrenSession ? 5 : 4}" style="padding: 20px; text-align: center; color: #6b7280;">Zatiaľ žiadne prihlásenia</td></tr>`}
           </tbody>
         </table>
         
@@ -191,9 +193,10 @@ const getAttendeesList = async (trainingId) => {
         date: formattedDate,
         day: dayName,
         time: time,
-        totalBooked,
+        totalBooked: bookedParticipants,
         availableSpots,
-        maxParticipants
+        maxParticipants,
+        audienceType: firstRow.audience_type
       }
     };
 
@@ -702,7 +705,10 @@ module.exports = {
       const bookingsList = activeBookings.map(booking => {
         const bookingDate = new Date(booking.training_date).toLocaleDateString('sk-SK', { day: 'numeric', month: 'long', year: 'numeric' });
         const accompanyingText = booking.accompanying_person ? ' (+1 dospelý)' : '';
-        return `<li><strong>${booking.training_type}</strong> - ${bookingDate} (${booking.number_of_children} ${booking.number_of_children === 1 ? 'dieťa' : 'detí'}${accompanyingText})</li>`;
+        const childrenText = Number(booking.number_of_children) > 0
+          ? ` (${booking.number_of_children} ${booking.number_of_children === 1 ? 'dieťa' : 'detí'}${accompanyingText})`
+          : '';
+        return `<li><strong>${booking.training_type}</strong> - ${bookingDate}${childrenText}</li>`;
       }).join('');
       
       bookingsHTML = `
@@ -739,7 +745,10 @@ module.exports = {
       const creditsList = unusedCredits.map(credit => {
         const creditDate = new Date(credit.created_at).toLocaleDateString('sk-SK', { day: 'numeric', month: 'long', year: 'numeric' });
         const accompanyingText = credit.accompanying_person ? ' (+1 dospelý)' : '';
-        return `<li><strong>${credit.training_type}</strong> - ${credit.child_count} ${credit.child_count === 1 ? 'dieťa' : 'detí'}${accompanyingText} (vytvorené: ${creditDate})</li>`;
+        const childrenText = Number(credit.child_count) > 0
+          ? ` - ${credit.child_count} ${credit.child_count === 1 ? 'dieťa' : 'detí'}${accompanyingText}`
+          : '';
+        return `<li><strong>${credit.training_type}</strong>${childrenText} (vytvorené: ${creditDate})</li>`;
       }).join('');
       
       creditsHTML = `
@@ -1022,6 +1031,9 @@ module.exports = {
     // Získame tabuľku (trainingId musíš poslať z controllera)
     const attendeesData = await getAttendeesList(data.trainingId);
 
+    // Počet/vek detí sa zobrazuje len pri detských tréningoch (nie pri dospeláckych ani "Oboje")
+    const isChildrenTraining = attendeesData.trainingInfo?.audienceType === 'children';
+
     const mailOptions = {
       from: SENDER,
       to: adminEmail,
@@ -1063,8 +1075,9 @@ module.exports = {
                   <hr class="divider">
                   
                   <p style="font-size: 16px; font-weight: bold; margin-bottom: 15px; margin-top: 20px; color: #2563eb;">Detaily rezervácie</p>
+                  ${isChildrenTraining ? `
                   <div class="info-row"><span class="info-label">👶 Počet detí:</span> ${data.childrenCount}</div>
-                  <div class="info-row"><span class="info-label">🎂 Vek detí:</span> ${data.childrenAge}</div>
+                  <div class="info-row"><span class="info-label">🎂 Vek detí:</span> ${data.childrenAge}</div>` : ''}
                   <div class="info-row"><span class="info-label">🎨 Typ tréningu:</span> ${data.trainingType}</div>
                   <div class="info-row"><span class="info-label">📅 Dátum:</span> ${data.selectedDate}</div>
                   <div class="info-row"><span class="info-label">⏰ Čas:</span> ${data.selectedTime}</div>
@@ -1121,6 +1134,9 @@ module.exports = {
     // 1. Získame tabuľku účastníkov
     const attendeesData = await getAttendeesList(data.trainingId);
 
+    // Počet/vek detí sa zobrazuje len pri detských tréningoch (nie pri dospeláckych ani "Oboje")
+    const isChildrenTraining = attendeesData.trainingInfo?.audienceType === 'children';
+
     // === TÉMA ===
     let themeRow = '';
     if (data.theme) {
@@ -1169,8 +1185,9 @@ module.exports = {
                   <hr class="divider">
                   
                   <p style="font-size: 16px; font-weight: bold; margin-bottom: 15px; margin-top: 20px; color: #2563eb;">Detaily rezervácie</p>
+                  ${isChildrenTraining ? `
                   <div class="info-row"><span class="info-label">👶 Počet detí:</span> ${data.childrenCount}</div>
-                  <div class="info-row"><span class="info-label">🎂 Vek detí:</span> ${data.childrenAge}</div>
+                  <div class="info-row"><span class="info-label">🎂 Vek detí:</span> ${data.childrenAge}</div>` : ''}
                   <div class="info-row"><span class="info-label">🎨 Typ tréningu:</span> ${data.trainingType}</div>
                   ${themeRow}
                   <div class="info-row"><span class="info-label">📅 Dátum:</span> ${data.selectedDate}</div>
@@ -1210,6 +1227,9 @@ module.exports = {
     // DÔLEŽITÉ: Uisti sa, že posielaš trainingId (niekde v objekte 'data')
     const trainingId = data.trainingId || (data.training && data.training.id);
     const attendeesData = await getAttendeesList(trainingId);
+
+    // Počet/vek detí sa zobrazuje len pri detských tréningoch (nie pri dospeláckych ani "Oboje")
+    const isChildrenTraining = attendeesData.trainingInfo?.audienceType === 'children';
 
     // Formátovanie dátumu (lokalny cas)
     const dateStr = dayjs(data.training.training_date).tz('Europe/Bratislava').format('D. M. YYYY HH:mm');
@@ -1263,8 +1283,9 @@ module.exports = {
                   <div class="info-row"><span class="info-label">🎨 Typ tréningu:</span> ${data.training.training_type}</div>
                   ${themeRow}
                   <div class="info-row"><span class="info-label">📅 Dátum a čas:</span> ${dateStr}</div>
+                  ${isChildrenTraining ? `
                   <div class="info-row"><span class="info-label">👶 Počet detí:</span> ${data.credit.child_count}</div>
-                  <div class="info-row"><span class="info-label">🎂 Vek detí:</span> ${data.finalChildrenAges}</div>
+                  <div class="info-row"><span class="info-label">🎂 Vek detí:</span> ${data.finalChildrenAges}</div>` : ''}
                   <div class="info-row"><span class="info-label">📱 Mobil:</span> ${data.finalMobile}</div>
                   
                   <hr class="divider">
@@ -1341,6 +1362,9 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
     const attendeesData = await getAttendeesList(booking.training_id);
     const dateStr = dayjs(booking.training_date).tz('Europe/Bratislava').format('D. M. YYYY HH:mm');
 
+    // Počet detí sa zobrazuje len pri detských tréningoch (nie pri dospeláckych ani "Oboje")
+    const isChildrenTraining = attendeesData.trainingInfo?.audienceType === 'children';
+
     // --- SPOLOČNÝ FOOTER HTML (Aby sme to nepísali 2x) ---
     const footerHtml = `
         <div class="footer">
@@ -1393,7 +1417,7 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
                   <p style="font-size: 16px; font-weight: bold; margin-bottom: 15px; margin-top: 20px; color: #1f2937;">Detaily zrušenej rezervácie</p>
                   <div class="info-row"><span class="info-label">🎨 Typ tréningu:</span> ${booking.training_type}</div>
                   <div class="info-row"><span class="info-label">📅 Dátum:</span> ${dateStr}</div>
-                  <div class="info-row"><span class="info-label">👶 Počet detí:</span> ${booking.number_of_children}</div>
+                  ${isChildrenTraining ? `<div class="info-row"><span class="info-label">👶 Počet detí:</span> ${booking.number_of_children}</div>` : ''}
                   
                   <hr class="divider">
 
@@ -1552,7 +1576,10 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
     const refundUrl = `${frontendUrl}/refund-option?bookingId=${booking.booking_id}&action=refund`;
     const creditUrl = `${frontendUrl}/credit-option?bookingId=${booking.booking_id}`;
 
-    const childrenCount = booking.number_of_children || 1;
+    // Počet detí sa zobrazuje len pri detských rezerváciách (dospelí a "Oboje" deti neregistrujú)
+    const childrenDetails = Number(booking.number_of_children) > 0
+      ? `, Deti: ${booking.number_of_children}`
+      : '';
     const trainingType = booking.training_type || booking.trainingType;
     const userName = booking.first_name || 'Osôbka';
 
@@ -1608,7 +1635,7 @@ sendCancellationEmails: async (adminEmail, userEmail, booking, refundData, usage
                 <div class="option-box" style="border-left: 4px solid #10b981; background-color: #ecfdf5;">
                   <span class="option-title" style="color: #059669;">🎫 Pripísanie kreditu (Odporúčané)</span>
                   <p style="font-size: 14px; margin: 0 0 10px 0;">
-                    Pohodlnejšie riešenie bez čakania. Hodnota tréningu Vám bude okamžite pripísaná ako <strong>kredit</strong> do Vášho profilu (Typ: ${trainingType}, Deti: ${childrenCount}).
+                    Pohodlnejšie riešenie bez čakania. Hodnota tréningu Vám bude okamžite pripísaná ako <strong>kredit</strong> do Vášho profilu (Typ: ${trainingType}${childrenDetails}).
                     ${isMiniMidiMaxiType(trainingType)
                       ? 'Tento kredit môžete využiť na hodiny MINI, MIDI alebo MAXI.'
                       : 'Kredit následne použijete na ďalší termín rovnakého typu tréningu.'}
@@ -2121,7 +2148,7 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
               ${activeBookings.map(booking => `
                 <li>
                   ${booking.training_type} - ${new Date(booking.training_date).toLocaleDateString('sk-SK', { day: 'numeric', month: 'long', year: 'numeric' })}
-                  (${booking.number_of_children} ${booking.number_of_children === 1 ? 'dieťa' : 'detí'}) - 
+                  ${Number(booking.number_of_children) > 0 ? `(${booking.number_of_children} ${booking.number_of_children === 1 ? 'dieťa' : 'detí'}) - ` : ''}
                   Zaplatená čiastka: €${parseFloat(booking.amount_paid || 0).toFixed(2)}
                 </li>
               `).join('')}
@@ -2146,7 +2173,7 @@ sendMassCancellationCredit: async (userEmail, firstName, trainingType, dateObj, 
             <ul style="margin: 0; padding: 0 0 0 20px; font-size: 13px;">
               ${unusedCredits.map(credit => `
                 <li>
-                  ${credit.training_type} - ${credit.child_count} ${credit.child_count === 1 ? 'dieťa' : 'detí'}
+                  ${credit.training_type}${Number(credit.child_count) > 0 ? ` - ${credit.child_count} ${credit.child_count === 1 ? 'dieťa' : 'detí'}` : ''}
                   (vytvorené: ${new Date(credit.created_at).toLocaleDateString('sk-SK', { day: 'numeric', month: 'long', year: 'numeric' })})
                 </li>
               `).join('')}

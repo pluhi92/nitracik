@@ -2873,14 +2873,17 @@ const Booking = () => {
                   onChange={(e) => setNewAudienceType(e.target.value)}
                   className="m-0"
                 />
+                {/* "Oboje" - zatiaľ nepoužívané, ponechané ako placeholder (disabled) */}
                 <Form.Check
                   type="radio"
-                  label={<span className="font-bold text-sm text-foreground">Oboje</span>}
+                  label={<span className="font-bold text-sm text-neutral-400" style={{ cursor: 'not-allowed' }}>Oboje</span>}
                   name="audienceType"
                   value="both"
                   checked={newAudienceType === 'both'}
                   onChange={(e) => setNewAudienceType(e.target.value)}
-                  className="m-0"
+                  className="m-0 cursor-not-allowed"
+                  disabled
+                  style={{ cursor: 'not-allowed' }}
                 />
               </div>
             </div>
