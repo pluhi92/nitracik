@@ -194,8 +194,10 @@ function generateGiftCode() {
 }
 
 // Comgate payment notification (optional background confirmation)
-// Primary confirmation is handled by /api/booking-success and /api/season-ticket-success
-// This endpoint handles cases where the user closes the browser before being redirected
+// Primary confirmation is handled by /api/booking-success, /api/season-ticket-success and
+// /api/gift-card-success.
+// This endpoint handles cases where the user closes the browser before being redirected,
+// for bookings, season tickets and gift cards alike.
 app.post('/api/comgate-notify', express.urlencoded({ extended: false }), async (req, res) => {
   const { transId, status } = req.body;
 
@@ -210,6 +212,7 @@ app.post('/api/comgate-notify', express.urlencoded({ extended: false }), async (
 
   // Try to confirm a booking that hasn't been confirmed via redirect yet
   const client = await pool.connect();
+  let clientReleased = false;
   try {
     const bookingResult = await client.query(
       `SELECT b.*, u.email, u.first_name
@@ -233,11 +236,60 @@ app.post('/api/comgate-notify', express.urlencoded({ extended: false }), async (
       await client.query('COMMIT');
       console.log('[Comgate] Notify: confirmed booking', booking.id);
     }
+
+    if (bookingResult.rows.length === 0) {
+      // The finalize helpers below open their own connection, so free this one first —
+      // holding both at once would occupy two pool slots per notification.
+      clientReleased = true;
+      client.release();
+
+      // If no booking found, try season ticket
+      if (DEBUG_LOGS) {
+        console.log('[Comgate] Notify: no pending booking, checking season ticket order', transId);
+      }
+      const seasonOrderResult = await pool.query(
+        `SELECT "refId" FROM pending_season_ticket_orders WHERE "transId" = $1 LIMIT 1`,
+        [transId]
+      );
+
+      if (seasonOrderResult.rows.length > 0) {
+        const refId = seasonOrderResult.rows[0].refId;
+        const seasonResult = await finalizeSeasonTicketOrder(refId);
+        if (seasonResult.ok) {
+          console.log('[Comgate] Notify: confirmed season ticket order', refId);
+        } else {
+          console.error('[Comgate] Notify: season ticket order not finalized:', seasonResult.reason);
+        }
+      } else {
+        // If neither booking nor season ticket found, try gift card order
+        if (DEBUG_LOGS) {
+          console.log('[Comgate] Notify: no season ticket order, checking gift card order', transId);
+        }
+        const giftCardOrderResult = await pool.query(
+          `SELECT "refId" FROM pending_gift_card_orders WHERE "transId" = $1 LIMIT 1`,
+          [transId]
+        );
+
+        if (giftCardOrderResult.rows.length > 0) {
+          const refId = giftCardOrderResult.rows[0].refId;
+          const giftCardResult = await finalizeGiftCardOrder(refId);
+          if (giftCardResult.ok) {
+            console.log('[Comgate] Notify: confirmed gift card order', refId);
+          } else {
+            console.error('[Comgate] Notify: gift card order not finalized:', giftCardResult.reason);
+          }
+        }
+      }
+    }
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (!clientReleased) {
+      await client.query('ROLLBACK').catch(() => {});
+    }
     console.error('[Comgate] Notify error:', err.message);
   } finally {
-    client.release();
+    if (!clientReleased) {
+      client.release();
+    }
   }
 });
 
@@ -2228,6 +2280,14 @@ async function finalizeSeasonTicketOrder(refId) {
     }
 
     await client.query('BEGIN');
+
+    // Serialize concurrent finalizers (redirect handler, booking-success fallback, Comgate
+    // webhook notification and reconciliation job) so a single transaction can never
+    // produce two season tickets.
+    await client.query(
+      `SELECT id FROM pending_season_ticket_orders WHERE "refId" = $1 FOR UPDATE`,
+      [refId]
+    );
 
     // Idempotency — check if season ticket already created for this transId
     const existing = await client.query(
